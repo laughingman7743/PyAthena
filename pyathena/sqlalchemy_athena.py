@@ -80,7 +80,7 @@ class AthenaDialect(DefaultDialect):
     def create_connect_args(self, url):
         # Connection string format:
         #   awsathena+rest://
-        #   {access_key}:{secret_key}@athena.{region_name}.amazonaws.com:443/
+        #   {aws_access_key_id}:{aws_secret_access_key}@athena.{region_name}.amazonaws.com:443/
         #   {schema_name}?s3_staging_dir={s3_staging_dir}&...
         opts = {
             'aws_access_key_id': url.username,
