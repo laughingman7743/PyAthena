@@ -191,8 +191,7 @@ class Cursor(object):
             raise DatabaseError('KeyError `Rows`')
         processed_rows = []
         if len(rows) > 0:
-            offset = 1 if not self._next_token and \
-                          self._is_first_row_column_labels(rows) else 0
+            offset = 1 if not self._next_token and self._is_first_row_column_labels(rows) else 0
             processed_rows = [
                 tuple([self._converter.convert(meta.get('Type', None),
                                                row.get('VarCharValue', None))
