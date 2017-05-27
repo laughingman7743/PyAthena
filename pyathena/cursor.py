@@ -41,6 +41,11 @@ class Cursor(object):
         self._result_set = collections.deque()
         self._meta_data = None
 
+        self._completion_date_time = None
+        self._submission_date_time = None
+        self._data_scanned_in_bytes = None
+        self._execution_time_in_millis = None
+
     @property
     def connection(self):
         return self._connection
@@ -89,6 +94,22 @@ class Cursor(object):
     def query_id(self):
         return self._query_id
 
+    @property
+    def completion_date_time(self):
+        return self._completion_date_time
+
+    @property
+    def submission_date_time(self):
+        return self._submission_date_time
+
+    @property
+    def data_scanned_in_bytes(self):
+        return self._data_scanned_in_bytes
+
+    @property
+    def execution_time_in_millis(self):
+        return self._execution_time_in_millis
+
     def close(self):
         pass
 
@@ -131,6 +152,14 @@ class Cursor(object):
 
             state = status.get('State', None)
             if state == 'SUCCEEDED':
+                self._completion_date_time = status.get('CompletionDateTime', None)
+                self._submission_date_time = status.get('SubmissionDateTime', None)
+
+                statistics = query_execution.get('Statistics', {})
+                self._data_scanned_in_bytes = statistics.get(
+                    'DataScannedInBytes', None)
+                self._execution_time_in_millis = statistics.get(
+                    'EngineExecutionTimeInMillis', None)
                 break
             elif state == 'FAILED':
                 raise OperationalError(status.get('StateChangeReason', None))
@@ -139,19 +168,26 @@ class Cursor(object):
             else:
                 time.sleep(self._poll_interval)
 
-    @synchronized
-    def execute(self, operation, parameters=None):
-        query = self._formatter.format(operation, parameters)
-        _logger.debug(query)
-
+    def _reset_state(self):
         self._description = None
         self._query_id = None
         self._next_token = None
         self._result_set.clear()
         self._rownumber = 0
 
+        self._completion_date_time = None
+        self._submission_date_time = None
+        self._data_scanned_in_bytes = None
+        self._execution_time_in_millis = None
+
+    @synchronized
+    def execute(self, operation, parameters=None):
+        query = self._formatter.format(operation, parameters)
+        _logger.debug(query)
+
         request = self._build_query_execution_request(query)
         try:
+            self._reset_state()
             response = self._connection.start_query_execution(**request)
         except Exception:
             _logger.exception('Failed to execute query.')
