@@ -19,7 +19,7 @@ from pyathena.error import (DatabaseError,
                             NotSupportedError)
 
 from tests import unittest
-from tests.conftest import SCHEMA
+from tests.conftest import SCHEMA, ENV, S3_PREFIX
 from tests.util import with_cursor
 
 
@@ -265,3 +265,16 @@ class TestPyAthena(unittest.TestCase):
         self.assertRaises(NotSupportedError, lambda: conn.rollback())
         cursor.close()
         conn.close()
+
+    @with_cursor
+    def test_show_partition(self, cursor):
+        location = '{0}{1}/{2}/'.format(
+            ENV.s3_staging_dir, S3_PREFIX, 'partition_table')
+        for i in xrange(10):
+            cursor.execute("""
+                           ALTER TABLE partition_table ADD PARTITION (b=%(b)d)
+                           LOCATION %(location)s
+                           """, {'b': i, 'location': location})
+        cursor.execute('SHOW PARTITIONS partition_table')
+        self.assertEqual(sorted(cursor.fetchall()),
+                         [('b={0}'.format(i),) for i in xrange(10)])

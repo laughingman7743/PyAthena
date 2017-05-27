@@ -15,6 +15,7 @@ from tests.util import Env, read_query
 
 ENV = Env()
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
+S3_PREFIX = 'test_pyathena'
 SCHEMA = 'test_pyathena_' + ''.join([random.choice(
     string.ascii_lowercase + string.digits) for i in xrange(10)])
 
@@ -46,14 +47,17 @@ def _drop_database(cursor):
 
 def _create_table(cursor):
     location_one_row = '{0}{1}/{2}/'.format(
-        ENV.s3_staging_dir, 'test_pyathena', 'one_row')
+        ENV.s3_staging_dir, S3_PREFIX, 'one_row')
     location_many_rows = '{0}{1}/{2}/'.format(
-        ENV.s3_staging_dir, 'test_pyathena', 'many_rows')
+        ENV.s3_staging_dir, S3_PREFIX, 'many_rows')
     location_one_row_complex = '{0}{1}/{2}/'.format(
-        ENV.s3_staging_dir, 'test_pyathena', 'one_row_complex')
+        ENV.s3_staging_dir, S3_PREFIX, 'one_row_complex')
+    location_partition_table = '{0}{1}/{2}/'.format(
+        ENV.s3_staging_dir, S3_PREFIX, 'partition_table')
     for q in read_query(
             os.path.join(BASE_PATH, 'sql', 'create_table.sql')):
         cursor.execute(q.format(schema=SCHEMA,
                                 location_one_row=location_one_row,
                                 location_many_rows=location_many_rows,
-                                location_one_row_complex=location_one_row_complex))
+                                location_one_row_complex=location_one_row_complex,
+                                location_partition_table=location_partition_table))
