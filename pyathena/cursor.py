@@ -9,10 +9,8 @@ import time
 from future.utils import reraise
 from past.builtins.misc import xrange
 
-from pyathena.error import (DatabaseError,
-                            OperationalError,
-                            ProgrammingError,
-                            NotSupportedError)
+from pyathena.error import (DatabaseError, OperationalError,
+                            ProgrammingError, NotSupportedError)
 from pyathena.util import synchronized
 
 
@@ -175,6 +173,13 @@ class Cursor(object):
             QueryExecutionId=self._query_id
         )
 
+    def _is_first_row_column_labels(self, rows):
+        first_row_data = rows[0].get('Data', [])
+        for meta, data in zip(self._meta_data, first_row_data):
+            if meta.get('Name', None) != data.get('VarCharValue', None):
+                return False
+        return True
+
     def _process_result_set(self, response):
         if self._meta_data is None:
             raise ProgrammingError('ResultSetMetadata is none or empty.')
@@ -184,13 +189,16 @@ class Cursor(object):
         rows = result_set.get('Rows', None)
         if rows is None:
             raise DatabaseError('KeyError `Rows`')
-        offset = 1 if not self._next_token else 0
-        self._result_set.extend([
-            tuple([self._converter.convert(self._meta_data[j].get('Type', None),
-                                           rows[i].get('Data', [])[j].get('VarCharValue', None))
-                   for j in xrange(len(self._meta_data))])
-            for i in xrange(offset, len(rows))
-        ])
+        processed_rows = []
+        if len(rows) > 0:
+            offset = 1 if not self._next_token and self._is_first_row_column_labels(rows) else 0
+            processed_rows = [
+                tuple([self._converter.convert(meta.get('Type', None),
+                                               row.get('VarCharValue', None))
+                       for meta, row in zip(self._meta_data, rows[i].get('Data', []))])
+                for i in xrange(offset, len(rows))
+            ]
+        self._result_set.extend(processed_rows)
         self._next_token = response.get('NextToken', None)
 
     def _process_meta_data(self, response):
@@ -203,7 +211,7 @@ class Cursor(object):
         column_info = meta_data.get('ColumnInfo', None)
         if column_info is None:
             raise DatabaseError('KeyError `ColumnInfo`')
-        self._meta_data = [c for c in column_info]
+        self._meta_data = column_info
 
     def _pre_fetch(self):
         if not self._query_id:
