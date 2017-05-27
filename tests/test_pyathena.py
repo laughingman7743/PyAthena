@@ -41,6 +41,12 @@ class TestPyAthena(unittest.TestCase):
         self.assertEqual(cursor.fetchone(), (1,))
         self.assertEqual(cursor.rownumber, 1)
         self.assertEqual(cursor.fetchone(), None)
+        self.assertIsNotNone(cursor.completion_date_time)
+        self.assertIsInstance(cursor.completion_date_time, datetime)
+        self.assertIsNotNone(cursor.submission_date_time)
+        self.assertIsInstance(cursor.submission_date_time, datetime)
+        self.assertIsNotNone(cursor.data_scanned_in_bytes)
+        self.assertIsNotNone(cursor.execution_time_in_millis)
 
     @with_cursor
     def test_fetchall(self, cursor):
