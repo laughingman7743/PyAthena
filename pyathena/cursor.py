@@ -12,6 +12,7 @@ from pyathena.error import (DatabaseError, OperationalError, ProgrammingError,
                             NotSupportedError, DataError)
 from pyathena.util import synchronized, retry_api_call
 
+
 _logger = logging.getLogger(__name__)
 
 
