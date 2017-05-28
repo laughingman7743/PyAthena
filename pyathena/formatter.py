@@ -5,16 +5,13 @@ import logging
 from datetime import date, datetime
 from decimal import Decimal
 
-from future.utils import PY3, iteritems
+from future.utils import iteritems
+from past.types import unicode
 
 from pyathena.error import ProgrammingError
 
 
 _logger = logging.getLogger(__name__)
-
-
-if PY3:
-    unicode = str
 
 
 def _escape_presto(val):
