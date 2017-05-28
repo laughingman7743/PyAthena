@@ -80,10 +80,10 @@ class TestSQLAlchemyAthena(unittest.TestCase):
 
     @with_engine
     def test_unicode(self, engine, connection):
-        unicode_str = "密林"
+        unicode_str = '密林'
         one_row = Table('one_row', MetaData(bind=engine))
         returned_str = sqlalchemy.select(
-            [expression.bindparam("あまぞん", unicode_str)],
+            [expression.bindparam('あまぞん', unicode_str)],
             from_obj=one_row,
         ).scalar()
         self.assertEqual(returned_str, unicode_str)

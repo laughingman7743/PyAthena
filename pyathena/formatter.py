@@ -109,8 +109,8 @@ class ParameterFormatter(object):
                     func = self.get_formatter(v)
                     kwargs.update({k: func(self, escaper, v)})
             else:
-                raise ProgrammingError("Unsupported parameter " +
-                                       "(Support for dict only): {0}".format(parameters))
+                raise ProgrammingError('Unsupported parameter ' +
+                                       '(Support for dict only): {0}'.format(parameters))
 
         return (operation % kwargs).strip()
 
