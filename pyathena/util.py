@@ -4,6 +4,12 @@ from __future__ import unicode_literals
 import functools
 import threading
 
+import tenacity
+from tenacity.after import after_log
+from tenacity.retry import retry_if_exception
+from tenacity.stop import stop_after_attempt
+from tenacity.wait import wait_exponential
+
 
 def as_pandas(cursor):
     from pandas import DataFrame
@@ -22,3 +28,17 @@ def synchronized(wrapped):
         with _lock:
             return wrapped(*args, **kwargs)
     return _wrapper
+
+
+def retry_api_call(func, exceptions=('ThrottlingException', 'TooManyRequestsException'),
+                   attempt=5, multiplier=1, max_delay=1800, exp_base=2, logger=None,
+                   *args, **kwargs):
+    retry = tenacity.Retrying(
+        retry=retry_if_exception(
+            lambda e: e.response.get('Error', {}).get('Code', None) in exceptions),
+        stop=stop_after_attempt(attempt),
+        wait=wait_exponential(multiplier=multiplier, max=max_delay, exp_base=exp_base),
+        after=after_log(logger, logger.level) if logger else None,
+        reraise=True
+    )
+    return retry(func, *args, **kwargs)

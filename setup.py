@@ -32,6 +32,7 @@ setup(
         'future',
         'botocore>=1.5.52',
         'boto3>=1.4.4',
+        'tenacity>=4.1.0',
     ],
     extras_require={
         'Pandas': ['pandas>=0.19.0'],

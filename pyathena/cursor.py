@@ -10,8 +10,7 @@ from past.builtins.misc import xrange
 
 from pyathena.error import (DatabaseError, OperationalError, ProgrammingError,
                             NotSupportedError, DataError)
-from pyathena.util import synchronized
-
+from pyathena.util import synchronized, retry_api_call
 
 _logger = logging.getLogger(__name__)
 
@@ -21,7 +20,10 @@ class Cursor(object):
     DEFAULT_FETCH_SIZE = 1000
 
     def __init__(self, client, s3_staging_dir, schema_name, poll_interval,
-                 encryption_option, kms_key, converter, formatter):
+                 encryption_option, kms_key, converter, formatter,
+                 retry_exceptions=('ThrottlingException', 'TooManyRequestsException'),
+                 retry_attempt=5, retry_multiplier=1,
+                 retry_max_delay=1800, retry_exponential_base=2):
         self._connection = client
         self._s3_staging_dir = s3_staging_dir
         self._schema_name = schema_name
@@ -30,6 +32,12 @@ class Cursor(object):
         self._kms_key = kms_key
         self._converter = converter
         self._formatter = formatter
+
+        self.retry_exceptions = retry_exceptions
+        self.retry_attempt = retry_attempt
+        self.retry_multiplier = retry_multiplier
+        self.retry_max_deply = retry_max_delay
+        self.retry_exponential_base = retry_exponential_base
 
         self._rownumber = None
         self._arraysize = self.DEFAULT_FETCH_SIZE
@@ -116,22 +124,22 @@ class Cursor(object):
         request = {
             'QueryString': query,
             'QueryExecutionContext': {
-                'Database': self._schema_name
+                'Database': self._schema_name,
             },
             'ResultConfiguration': {
                 'OutputLocation': self._s3_staging_dir,
-            }
+            },
         }
         if self._encryption_option:
             enc_conf = {
-                'EncryptionOption': self._encryption_option
+                'EncryptionOption': self._encryption_option,
             }
             if self._kms_key:
                 enc_conf.update({
                     'KmsKey': self._kms_key
                 })
             request['ResultConfiguration'].update({
-                'EncryptionConfiguration': enc_conf
+                'EncryptionConfiguration': enc_conf,
             })
         return request
 
@@ -140,9 +148,15 @@ class Cursor(object):
             raise ProgrammingError('QueryExecutionId is none or empty.')
         while True:
             try:
-                response = self._connection.get_query_execution(
-                    QueryExecutionId=self._query_id
-                )
+                request = {'QueryExecutionId': self._query_id}
+                response = retry_api_call(self._connection.get_query_execution,
+                                          exceptions=self.retry_exceptions,
+                                          attempt=self.retry_attempt,
+                                          multiplier=self.retry_multiplier,
+                                          max_delay=self.retry_max_deply,
+                                          exp_base=self.retry_exponential_base,
+                                          logger=_logger,
+                                          **request)
             except Exception as e:
                 _logger.exception('Failed to poll query result.')
                 raise_from(OperationalError(*e.args), e)
@@ -192,7 +206,14 @@ class Cursor(object):
         request = self._build_query_execution_request(query)
         try:
             self._reset_state()
-            response = self._connection.start_query_execution(**request)
+            response = retry_api_call(self._connection.start_query_execution,
+                                      exceptions=self.retry_exceptions,
+                                      attempt=self.retry_attempt,
+                                      multiplier=self.retry_multiplier,
+                                      max_delay=self.retry_max_deply,
+                                      exp_base=self.retry_exponential_base,
+                                      logger=_logger,
+                                      **request)
         except Exception as e:
             _logger.exception('Failed to execute query.')
             raise_from(DatabaseError(*e.args), e)
@@ -209,9 +230,15 @@ class Cursor(object):
         if not self._query_id:
             raise ProgrammingError('QueryExecutionId is none or empty.')
         try:
-            self._connection.stop_query_execution(
-                QueryExecutionId=self._query_id
-            )
+            request = {'QueryExecutionId': self._query_id}
+            retry_api_call(self._connection.stop_query_execution,
+                           exceptions=self.retry_exceptions,
+                           attempt=self.retry_attempt,
+                           multiplier=self.retry_multiplier,
+                           max_delay=self.retry_max_deply,
+                           exp_base=self.retry_exponential_base,
+                           logger=_logger,
+                           **request)
         except Exception as e:
             _logger.exception('Failed to cancel query.')
             raise_from(OperationalError(*e.args), e)
@@ -260,10 +287,18 @@ class Cursor(object):
         if not self._query_id:
             raise ProgrammingError('QueryExecutionId is none or empty.')
         try:
-            response = self._connection.get_query_results(
-                QueryExecutionId=self._query_id,
-                MaxResults=self._arraysize
-            )
+            request = {
+                'QueryExecutionId': self._query_id,
+                'MaxResults': self._arraysize,
+            }
+            response = retry_api_call(self._connection.get_query_results,
+                                      exceptions=self.retry_exceptions,
+                                      attempt=self.retry_attempt,
+                                      multiplier=self.retry_multiplier,
+                                      max_delay=self.retry_max_deply,
+                                      exp_base=self.retry_exponential_base,
+                                      logger=_logger,
+                                      **request)
         except Exception as e:
             _logger.exception('Failed to fetch result set.')
             raise_from(OperationalError(*e.args), e)
@@ -275,11 +310,19 @@ class Cursor(object):
         if not self._query_id or not self._next_token:
             raise ProgrammingError('QueryExecutionId or NextToken is none or empty.')
         try:
-            response = self._connection.get_query_results(
-                QueryExecutionId=self._query_id,
-                MaxResults=self._arraysize,
-                NextToken=self._next_token
-            )
+            request = {
+                'QueryExecutionId': self._query_id,
+                'MaxResults': self._arraysize,
+                'NextToken': self._next_token,
+            }
+            response = retry_api_call(self._connection.get_query_results,
+                                      exceptions=self.retry_exceptions,
+                                      attempt=self.retry_attempt,
+                                      multiplier=self.retry_multiplier,
+                                      max_delay=self.retry_max_deply,
+                                      exp_base=self.retry_exponential_base,
+                                      logger=_logger,
+                                      **request)
         except Exception as e:
             _logger.exception('Failed to fetch result set.')
             raise_from(OperationalError(*e.args), e)
