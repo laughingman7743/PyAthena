@@ -32,6 +32,7 @@ setup(
         'future',
         'botocore>=1.5.52',
         'boto3>=1.4.4',
+        'tenacity>=4.1.0',
     ],
     extras_require={
         'Pandas': ['pandas>=0.19.0'],
@@ -58,7 +59,6 @@ setup(
         'Operating System :: OS Independent',
         'Topic :: Database :: Front-Ends',
         'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',

@@ -24,7 +24,7 @@ Requirements
 
 * Python
 
-  - CPython 2.6, 2,7, 3,4, 3.5, 3.6
+  - CPython 2,7, 3,4, 3.5, 3.6
 
 Installation
 ------------
@@ -221,6 +221,6 @@ Run test multiple Python versions
 
     $ pip install tox awscli
     $ scripts/upload_test_data.sh
-    $ pyenv local 2.6.9 2.7.13 3.4.6 3.5.3 3.6.1
+    $ pyenv local 2.7.13 3.4.6 3.5.3 3.6.1
     $ tox
     $ scripts/delete_test_data.sh

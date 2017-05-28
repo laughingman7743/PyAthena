@@ -4,7 +4,6 @@ machine:
   python:
     version: '3.6.1'
   environment:
-    PY26: '2.6.9'
     PY27: '2.7.13'
     PY34: '3.4.6'
     PY35: '3.5.3'
@@ -14,12 +13,11 @@ dependencies:
   cache_directories:
     - '/opt/circleci/.pyenv'
   override:
-    - pyenv install -sk ${PY26}
     - pyenv install -sk ${PY27}
     - pyenv install -sk ${PY34}
     - pyenv install -sk ${PY35}
     - pyenv install -sk ${PY36}
-    - pyenv local ${PY27} ${PY26} ${PY34} ${PY35} ${PY36}
+    - pyenv local ${PY27} ${PY34} ${PY35} ${PY36}
     - pip install -U pip detox codecov awscli
 
 test:
