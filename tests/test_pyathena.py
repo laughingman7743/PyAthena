@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 import contextlib
 import re
 import time
+import unittest
 from datetime import datetime, date
 from decimal import Decimal
 from random import randint
@@ -18,7 +19,6 @@ from pyathena.error import (DatabaseError,
                             ProgrammingError,
                             NotSupportedError)
 
-from tests import unittest
 from tests.conftest import SCHEMA, ENV, S3_PREFIX
 from tests.util import with_cursor
 

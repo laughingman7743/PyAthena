@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import unicode_literals
+import unittest
 from datetime import datetime, date
 from decimal import Decimal
 
@@ -13,7 +14,6 @@ from sqlalchemy.sql.schema import Table, MetaData, Column
 from sqlalchemy.sql.sqltypes import (BIGINT, BINARY, BOOLEAN, DATE, DECIMAL,
                                      FLOAT, INTEGER, STRINGTYPE, TIMESTAMP)
 
-from tests import unittest
 from tests.conftest import ENV, SCHEMA
 from tests.util import with_engine
 

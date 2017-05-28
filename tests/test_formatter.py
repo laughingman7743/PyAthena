@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import unicode_literals
+import unittest
 from datetime import date, datetime
 from decimal import Decimal
 
 from pyathena.error import ProgrammingError
 from pyathena.formatter import ParameterFormatter
-
-from tests import unittest
 
 
 class TestParameterFormatter(unittest.TestCase):
