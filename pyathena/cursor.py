@@ -3,14 +3,13 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 import collections
 import logging
-import sys
 import time
 
-from future.utils import reraise
+from future.utils import raise_from
 from past.builtins.misc import xrange
 
-from pyathena.error import (DatabaseError, OperationalError,
-                            ProgrammingError, NotSupportedError)
+from pyathena.error import (DatabaseError, OperationalError, ProgrammingError,
+                            NotSupportedError, DataError)
 from pyathena.util import synchronized
 
 
@@ -140,33 +139,38 @@ class Cursor(object):
         if not self._query_id:
             raise ProgrammingError('QueryExecutionId is none or empty.')
         while True:
-            response = self._connection.get_query_execution(
-                QueryExecutionId=self._query_id
-            )
-            query_execution = response.get('QueryExecution', None)
-            if not query_execution:
-                raise DatabaseError('KeyError `QueryExecution`')
-            status = query_execution.get('Status', None)
-            if not status:
-                raise DatabaseError('KeyError `Status`')
-
-            state = status.get('State', None)
-            if state == 'SUCCEEDED':
-                self._completion_date_time = status.get('CompletionDateTime', None)
-                self._submission_date_time = status.get('SubmissionDateTime', None)
-
-                statistics = query_execution.get('Statistics', {})
-                self._data_scanned_in_bytes = statistics.get(
-                    'DataScannedInBytes', None)
-                self._execution_time_in_millis = statistics.get(
-                    'EngineExecutionTimeInMillis', None)
-                break
-            elif state == 'FAILED':
-                raise OperationalError(status.get('StateChangeReason', None))
-            elif state == 'CANCELLED':
-                raise OperationalError(status.get('StateChangeReason', None))
+            try:
+                response = self._connection.get_query_execution(
+                    QueryExecutionId=self._query_id
+                )
+            except Exception as e:
+                _logger.exception('Failed to poll query result.')
+                raise_from(OperationalError(*e.args), e)
             else:
-                time.sleep(self._poll_interval)
+                query_execution = response.get('QueryExecution', None)
+                if not query_execution:
+                    raise DataError('KeyError `QueryExecution`')
+                status = query_execution.get('Status', None)
+                if not status:
+                    raise DataError('KeyError `Status`')
+
+                state = status.get('State', None)
+                if state == 'SUCCEEDED':
+                    self._completion_date_time = status.get('CompletionDateTime', None)
+                    self._submission_date_time = status.get('SubmissionDateTime', None)
+
+                    statistics = query_execution.get('Statistics', {})
+                    self._data_scanned_in_bytes = statistics.get(
+                        'DataScannedInBytes', None)
+                    self._execution_time_in_millis = statistics.get(
+                        'EngineExecutionTimeInMillis', None)
+                    break
+                elif state == 'FAILED':
+                    raise OperationalError(status.get('StateChangeReason', None))
+                elif state == 'CANCELLED':
+                    raise OperationalError(status.get('StateChangeReason', None))
+                else:
+                    time.sleep(self._poll_interval)
 
     def _reset_state(self):
         self._description = None
@@ -189,10 +193,9 @@ class Cursor(object):
         try:
             self._reset_state()
             response = self._connection.start_query_execution(**request)
-        except Exception:
+        except Exception as e:
             _logger.exception('Failed to execute query.')
-            exc_info = sys.exc_info()
-            reraise(DatabaseError, exc_info[1], exc_info[2])
+            raise_from(DatabaseError(*e.args), e)
         else:
             self._query_id = response.get('QueryExecutionId', None)
             self._poll()
@@ -205,9 +208,13 @@ class Cursor(object):
     def cancel(self):
         if not self._query_id:
             raise ProgrammingError('QueryExecutionId is none or empty.')
-        self._connection.stop_query_execution(
-            QueryExecutionId=self._query_id
-        )
+        try:
+            self._connection.stop_query_execution(
+                QueryExecutionId=self._query_id
+            )
+        except Exception as e:
+            _logger.exception('Failed to cancel query.')
+            raise_from(OperationalError(*e.args), e)
 
     def _is_first_row_column_labels(self, rows):
         first_row_data = rows[0].get('Data', [])
@@ -218,13 +225,13 @@ class Cursor(object):
 
     def _process_result_set(self, response):
         if self._meta_data is None:
-            raise ProgrammingError('ResultSetMetadata is none or empty.')
+            raise ProgrammingError('ResultSetMetadata is none.')
         result_set = response.get('ResultSet', None)
         if not result_set:
-            raise DatabaseError('KeyError `ResultSet`')
+            raise DataError('KeyError `ResultSet`')
         rows = result_set.get('Rows', None)
         if rows is None:
-            raise DatabaseError('KeyError `Rows`')
+            raise DataError('KeyError `Rows`')
         processed_rows = []
         if len(rows) > 0:
             offset = 1 if not self._next_token and self._is_first_row_column_labels(rows) else 0
@@ -240,34 +247,44 @@ class Cursor(object):
     def _process_meta_data(self, response):
         result_set = response.get('ResultSet', None)
         if not result_set:
-            raise DatabaseError('KeyError `ResultSet`')
+            raise DataError('KeyError `ResultSet`')
         meta_data = result_set.get('ResultSetMetadata', None)
         if not meta_data:
-            raise DatabaseError('KeyError `ResultSetMetadata`')
+            raise DataError('KeyError `ResultSetMetadata`')
         column_info = meta_data.get('ColumnInfo', None)
         if column_info is None:
-            raise DatabaseError('KeyError `ColumnInfo`')
+            raise DataError('KeyError `ColumnInfo`')
         self._meta_data = column_info
 
     def _pre_fetch(self):
         if not self._query_id:
             raise ProgrammingError('QueryExecutionId is none or empty.')
-        response = self._connection.get_query_results(
-            QueryExecutionId=self._query_id,
-            MaxResults=self._arraysize
-        )
-        self._process_meta_data(response)
-        self._process_result_set(response)
+        try:
+            response = self._connection.get_query_results(
+                QueryExecutionId=self._query_id,
+                MaxResults=self._arraysize
+            )
+        except Exception as e:
+            _logger.exception('Failed to fetch result set.')
+            raise_from(OperationalError(*e.args), e)
+        else:
+            self._process_meta_data(response)
+            self._process_result_set(response)
 
     def _fetch(self):
         if not self._query_id or not self._next_token:
             raise ProgrammingError('QueryExecutionId or NextToken is none or empty.')
-        response = self._connection.get_query_results(
-            QueryExecutionId=self._query_id,
-            MaxResults=self._arraysize,
-            NextToken=self._next_token
-        )
-        self._process_result_set(response)
+        try:
+            response = self._connection.get_query_results(
+                QueryExecutionId=self._query_id,
+                MaxResults=self._arraysize,
+                NextToken=self._next_token
+            )
+        except Exception as e:
+            _logger.exception('Failed to fetch result set.')
+            raise_from(OperationalError(*e.args), e)
+        else:
+            self._process_result_set(response)
 
     @synchronized
     def fetchone(self):
