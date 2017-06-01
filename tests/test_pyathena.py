@@ -41,6 +41,8 @@ class TestPyAthena(unittest.TestCase):
         self.assertEqual(cursor.fetchone(), (1,))
         self.assertEqual(cursor.rownumber, 1)
         self.assertEqual(cursor.fetchone(), None)
+        self.assertIsNotNone(cursor.query_id)
+        self.assertIsNotNone(cursor.output_location)
         self.assertIsNotNone(cursor.completion_date_time)
         self.assertIsInstance(cursor.completion_date_time, datetime)
         self.assertIsNotNone(cursor.submission_date_time)
@@ -166,11 +168,19 @@ class TestPyAthena(unittest.TestCase):
 
     @with_cursor
     def test_query_id(self, cursor):
+        self.assertIsNone(cursor.query_id)
         cursor.execute('SELECT * from one_row')
         # query_id is UUID v4
         expected_pattern = \
             r'^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         self.assertTrue(re.match(expected_pattern, cursor.query_id))
+
+    @with_cursor
+    def test_output_location(self, cursor):
+        self.assertIsNone(cursor.output_location)
+        cursor.execute('SELECT * from one_row')
+        self.assertEqual(cursor.output_location,
+                         '{0}{1}.csv'.format(ENV.s3_staging_dir, cursor.query_id))
 
     @with_cursor
     def test_complex(self, cursor):
