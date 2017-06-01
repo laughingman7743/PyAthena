@@ -45,6 +45,7 @@ class Cursor(object):
 
         self._description = None
         self._query_id = None
+        self._output_location = None
         self._next_token = None
         self._result_set = collections.deque()
         self._meta_data = None
@@ -101,6 +102,10 @@ class Cursor(object):
     @property
     def query_id(self):
         return self._query_id
+
+    @property
+    def output_location(self):
+        return self._output_location
 
     @property
     def completion_date_time(self):
@@ -179,6 +184,9 @@ class Cursor(object):
                         'DataScannedInBytes', None)
                     self._execution_time_in_millis = statistics.get(
                         'EngineExecutionTimeInMillis', None)
+
+                    result_conf = query_execution.get('ResultConfiguration', {})
+                    self._output_location = result_conf.get('OutputLocation', None)
                     break
                 elif state == 'FAILED':
                     raise OperationalError(status.get('StateChangeReason', None))
@@ -190,6 +198,7 @@ class Cursor(object):
     def _reset_state(self):
         self._description = None
         self._query_id = None
+        self._output_location = None
         self._next_token = None
         self._result_set.clear()
         self._rownumber = 0
