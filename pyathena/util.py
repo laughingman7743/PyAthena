@@ -35,7 +35,8 @@ def retry_api_call(func, exceptions=('ThrottlingException', 'TooManyRequestsExce
                    *args, **kwargs):
     retry = tenacity.Retrying(
         retry=retry_if_exception(
-            lambda e: e.response.get('Error', {}).get('Code', None) in exceptions),
+            lambda e: getattr(e, 'response', {}).get('Error', {}).get('Code', None) in exceptions
+            if e else False),
         stop=stop_after_attempt(attempt),
         wait=wait_exponential(multiplier=multiplier, max=max_delay, exp_base=exp_base),
         after=after_log(logger, logger.level) if logger else None,
