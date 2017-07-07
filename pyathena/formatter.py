@@ -6,7 +6,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from future.utils import iteritems
-from past.types import unicode
+from past.types import long, unicode
 
 from pyathena.error import ProgrammingError
 
@@ -121,6 +121,7 @@ _DEFAULT_FORMATTERS = {
     datetime: _format_datetime,
     int: _format_default,
     float: _format_default,
+    long: _format_default,
     Decimal: _format_default,
     bool: _format_bool,
     str: _format_str,
