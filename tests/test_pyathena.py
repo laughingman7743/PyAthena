@@ -124,12 +124,12 @@ class TestPyAthena(unittest.TestCase):
     @with_cursor
     def test_contain_special_character_query(self, cursor):
         cursor.execute("""
-                       SELECT col_string FROM one_row_complex 
+                       SELECT col_string FROM one_row_complex
                        WHERE col_string LIKE '%str%'
                        """)
         self.assertEqual(cursor.fetchall(), [('a string', )])
         cursor.execute("""
-                       SELECT col_string FROM one_row_complex 
+                       SELECT col_string FROM one_row_complex
                        WHERE col_string LIKE '%%str%%'
                        """)
         self.assertEqual(cursor.fetchall(), [('a string', )])
@@ -138,12 +138,12 @@ class TestPyAthena(unittest.TestCase):
     def test_contain_special_character_query_with_parameter(self, cursor):
         self.assertRaises(TypeError, lambda: cursor.execute(
             """
-            SELECT col_string, %(param)s FROM one_row_complex 
+            SELECT col_string, %(param)s FROM one_row_complex
             WHERE col_string LIKE '%str%'
             """, {'param': 'a string'}))
         cursor.execute(
             """
-            SELECT col_string, %(param)s FROM one_row_complex 
+            SELECT col_string, %(param)s FROM one_row_complex
             WHERE col_string LIKE '%%str%%'
             """, {'param': 'a string'})
         self.assertEqual(cursor.fetchall(), [('a string', 'a string')])
