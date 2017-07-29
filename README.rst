@@ -1,8 +1,8 @@
 .. image:: https://img.shields.io/pypi/pyversions/PyAthena.svg
     :target: https://pypi.python.org/pypi/PyAthena/
 
-.. image:: https://circleci.com/gh/laughingman7743/PyAthena.svg?style=shield
-    :target: https://circleci.com/gh/laughingman7743/PyAthena
+.. image:: https://travis-ci.org/laughingman7743/PyAthena.svg?branch=master
+    :target: https://travis-ci.org/laughingman7743/PyAthena
 
 .. image:: https://codecov.io/gh/laughingman7743/PyAthena/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/laughingman7743/PyAthena
@@ -187,20 +187,12 @@ Additional environment variable:
 Testing
 -------
 
-Depends on the AWS CLI credentials and the following environment variables:
-
-~/.aws/credentials
-
-.. code:: cfg
-
-    [default]
-    aws_access_key_id=YOUR_ACCESS_KEY_ID
-    aws_secret_access_key=YOUR_SECRET_ACCESS_KEY
-
-Environment variables
+Depends on the following environment variables:
 
 .. code:: bash
 
+    $ export AWS_ACCESS_KEY_ID=YOUR_ACCESS_KEY_ID
+    $ export AWS_SECRET_ACCESS_KEY=YOUR_SECRET_ACCESS_KEY
     $ export AWS_DEFAULT_REGION=us-west-2
     $ export AWS_ATHENA_S3_STAGING_DIR=s3://YOUR_S3_BUCKET/path/to/
 
@@ -210,7 +202,7 @@ Run test
 .. code:: bash
 
     $ pip install pytest awscli
-    $ scripts/upload_test_data.sh
+    $ scripts/test_data/upload_test_data.sh
     $ py.test
     $ scripts/delete_test_data.sh
 
@@ -220,7 +212,7 @@ Run test multiple Python versions
 .. code:: bash
 
     $ pip install tox awscli
-    $ scripts/upload_test_data.sh
+    $ scripts/test_data/upload_test_data.sh
     $ pyenv local 2.7.13 3.4.6 3.5.3 3.6.1
     $ tox
     $ scripts/delete_test_data.sh
