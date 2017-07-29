@@ -201,6 +201,7 @@ class Cursor(object):
         self._output_location = None
         self._next_token = None
         self._result_set.clear()
+        self._meta_data = None
         self._rownumber = 0
 
         self._completion_date_time = None
