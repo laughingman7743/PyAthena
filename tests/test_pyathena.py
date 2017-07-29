@@ -133,6 +133,16 @@ class TestPyAthena(unittest.TestCase):
                        WHERE col_string LIKE '%%str%%'
                        """)
         self.assertEqual(cursor.fetchall(), [('a string', )])
+        cursor.execute("""
+                       SELECT col_string, '%' FROM one_row_complex
+                       WHERE col_string LIKE '%str%'
+                       """)
+        self.assertEqual(cursor.fetchall(), [('a string', '%')])
+        cursor.execute("""
+                       SELECT col_string, '%%' FROM one_row_complex
+                       WHERE col_string LIKE '%%str%%'
+                       """)
+        self.assertEqual(cursor.fetchall(), [('a string', '%%')])
 
     @with_cursor
     def test_contain_special_character_query_with_parameter(self, cursor):
@@ -147,6 +157,17 @@ class TestPyAthena(unittest.TestCase):
             WHERE col_string LIKE '%%str%%'
             """, {'param': 'a string'})
         self.assertEqual(cursor.fetchall(), [('a string', 'a string')])
+        self.assertRaises(ValueError, lambda: cursor.execute(
+            """
+            SELECT col_string, '%' FROM one_row_complex
+            WHERE col_string LIKE %(param)s
+            """, {'param': '%str%'}))
+        cursor.execute(
+            """
+            SELECT col_string, '%%' FROM one_row_complex
+            WHERE col_string LIKE %(param)s
+            """, {'param': '%str%'})
+        self.assertEqual(cursor.fetchall(), [('a string', '%')])
 
     def test_escape(self):
         bad_str = """`~!@#$%^&*()_+-={}[]|\\;:'",./<>?\n\r\t """
