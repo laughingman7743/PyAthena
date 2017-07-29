@@ -204,7 +204,7 @@ Run test
     $ pip install pytest awscli
     $ scripts/test_data/upload_test_data.sh
     $ py.test
-    $ scripts/delete_test_data.sh
+    $ scripts/test_data/delete_test_data.sh
 
 Run test multiple Python versions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -215,4 +215,4 @@ Run test multiple Python versions
     $ scripts/test_data/upload_test_data.sh
     $ pyenv local 2.7.13 3.4.6 3.5.3 3.6.1
     $ tox
-    $ scripts/delete_test_data.sh
+    $ scripts/test_data/delete_test_data.sh
