@@ -10,12 +10,6 @@ import os
 class Env(object):
 
     def __init__(self):
-        # self.user = os.getenv('AWS_ACCESS_KEY_ID', None)
-        # assert self.user, \
-        #     'Required environment variable `AWS_ACCESS_KEY_ID` not found.'
-        # self.password = os.getenv('AWS_SECRET_ACCESS_KEY', None)
-        # assert self.password, \
-        #     'Required environment variable `AWS_SECRET_ACCESS_KEY` not found.'
         self.region_name = os.getenv('AWS_DEFAULT_REGION', None)
         assert self.region_name, \
             'Required environment variable `AWS_DEFAULT_REGION` not found.'
