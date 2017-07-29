@@ -116,7 +116,58 @@ class TestPyAthena(unittest.TestCase):
 
     @with_cursor
     def test_no_params(self, cursor):
-        self.assertRaises(KeyError, lambda: cursor.execute('SELECT %(param)s FROM one_row'))
+        self.assertRaises(DatabaseError, lambda: cursor.execute(
+            'SELECT %(param)s FROM one_row'))
+        self.assertRaises(KeyError, lambda: cursor.execute(
+            'SELECT %(param)s FROM one_row', {'a': 1}))
+
+    @with_cursor
+    def test_contain_special_character_query(self, cursor):
+        cursor.execute("""
+                       SELECT col_string FROM one_row_complex
+                       WHERE col_string LIKE '%str%'
+                       """)
+        self.assertEqual(cursor.fetchall(), [('a string', )])
+        cursor.execute("""
+                       SELECT col_string FROM one_row_complex
+                       WHERE col_string LIKE '%%str%%'
+                       """)
+        self.assertEqual(cursor.fetchall(), [('a string', )])
+        cursor.execute("""
+                       SELECT col_string, '%' FROM one_row_complex
+                       WHERE col_string LIKE '%str%'
+                       """)
+        self.assertEqual(cursor.fetchall(), [('a string', '%')])
+        cursor.execute("""
+                       SELECT col_string, '%%' FROM one_row_complex
+                       WHERE col_string LIKE '%%str%%'
+                       """)
+        self.assertEqual(cursor.fetchall(), [('a string', '%%')])
+
+    @with_cursor
+    def test_contain_special_character_query_with_parameter(self, cursor):
+        self.assertRaises(TypeError, lambda: cursor.execute(
+            """
+            SELECT col_string, %(param)s FROM one_row_complex
+            WHERE col_string LIKE '%str%'
+            """, {'param': 'a string'}))
+        cursor.execute(
+            """
+            SELECT col_string, %(param)s FROM one_row_complex
+            WHERE col_string LIKE '%%str%%'
+            """, {'param': 'a string'})
+        self.assertEqual(cursor.fetchall(), [('a string', 'a string')])
+        self.assertRaises(ValueError, lambda: cursor.execute(
+            """
+            SELECT col_string, '%' FROM one_row_complex
+            WHERE col_string LIKE %(param)s
+            """, {'param': '%str%'}))
+        cursor.execute(
+            """
+            SELECT col_string, '%%' FROM one_row_complex
+            WHERE col_string LIKE %(param)s
+            """, {'param': '%str%'})
+        self.assertEqual(cursor.fetchall(), [('a string', '%')])
 
     def test_escape(self):
         bad_str = """`~!@#$%^&*()_+-={}[]|\\;:'",./<>?\n\r\t """
@@ -154,7 +205,7 @@ class TestPyAthena(unittest.TestCase):
     def test_null(self, cursor):
         cursor.execute('SELECT null FROM many_rows')
         self.assertEqual(cursor.fetchall(), [(None,)] * 10000)
-        cursor.execute('SELECT IF(a %% 11 = 0, null, a) FROM many_rows')
+        cursor.execute('SELECT IF(a % 11 = 0, null, a) FROM many_rows')
         self.assertEqual(cursor.fetchall(),
                          [(None if a % 11 == 0 else a,) for a in xrange(10000)])
 

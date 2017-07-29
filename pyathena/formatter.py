@@ -109,7 +109,7 @@ class ParameterFormatter(object):
                 raise ProgrammingError('Unsupported parameter ' +
                                        '(Support for dict only): {0}'.format(parameters))
 
-        return (operation % kwargs).strip()
+        return (operation % kwargs).strip() if kwargs else operation.strip()
 
     def register_formatter(self, type_, formatter):
         self.mappings[type_] = formatter
