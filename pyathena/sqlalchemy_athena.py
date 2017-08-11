@@ -3,11 +3,17 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 import re
 
+import tenacity
+from future.utils import raise_from
 from sqlalchemy.engine import reflection
 from sqlalchemy.engine.default import DefaultDialect
+from sqlalchemy.exc import NoSuchTableError, OperationalError
 from sqlalchemy.sql.compiler import IdentifierPreparer, SQLCompiler
 from sqlalchemy.sql.sqltypes import (BIGINT, BINARY, BOOLEAN, DATE, DECIMAL, FLOAT,
                                      INTEGER, NULLTYPE, STRINGTYPE, TIMESTAMP)
+from tenacity.retry import retry_if_exception
+from tenacity.stop import stop_after_attempt
+from tenacity.wait import wait_exponential
 
 import pyathena
 
@@ -106,20 +112,19 @@ class AthenaDialect(DefaultDialect):
         query = """
                 SELECT table_name
                 FROM information_schema.tables
-                WHERE table_schema = '{0}'
-                """.format(schema)
+                WHERE table_schema = '{schema}'
+                """.format(schema=schema)
         return [row.table_name for row in connection.execute(query).fetchall()]
 
     def has_table(self, connection, table_name, schema=None):
-        table_names = self.get_table_names(connection, schema)
-        if table_name in table_names:
+        try:
+            self.get_columns(connection, table_name, schema)
             return True
-        return False
+        except NoSuchTableError:
+            return False
 
     @reflection.cache
     def get_columns(self, connection, table_name, schema=None, **kw):
-        # information_schema.columns fails when filtering with table_schema or table_name,
-        # if specifying a name that does not exist in table_schema or table_name.
         schema = schema if schema else connection.connection.schema_name
         query = """
                 SELECT
@@ -132,19 +137,39 @@ class AthenaDialect(DefaultDialect):
                   ordinal_position,
                   comment
                 FROM information_schema.columns
-                """
-        return [
-            {
-                'name': row.column_name,
-                'type': _TYPE_MAPPINGS.get(re.sub(r'^([A-Z]+)($|\(.+\)$)', r'\1',
-                                                  row.data_type.upper()), NULLTYPE),
-                'nullable': True if row.is_nullable == 'YES' else False,
-                'default': row.column_default,
-                'ordinal_position': row.ordinal_position,
-                'comment': row.comment,
-            } for row in connection.execute(query).fetchall()
-            if row.table_schema == schema and row.table_name == table_name
-        ]
+                WHERE table_schema = '{schema}'
+                AND table_name = '{table}'
+                """.format(schema=schema, table=table_name)
+        regexp = re.compile(
+            r'DataCatalogException:\ (Namespace|Table)\ (?P<name>.+)\ not\ found')
+        retry = tenacity.Retrying(
+            retry=retry_if_exception(
+                lambda e: False if getattr(regexp.search(str(e)), 'group', None)('name') in [
+                    schema, table_name] else True
+                if isinstance(e, OperationalError) else False),
+            stop=stop_after_attempt(connection.connection.retry_attempt),
+            wait=wait_exponential(multiplier=connection.connection.retry_multiplier,
+                                  max=connection.connection.retry_max_delay,
+                                  exp_base=connection.connection.retry_exponential_base),
+            reraise=True)
+        try:
+            return [
+                {
+                    'name': row.column_name,
+                    'type': _TYPE_MAPPINGS.get(re.sub(r'^([A-Z]+)($|\(.+\)$)', r'\1',
+                                                      row.data_type.upper()), NULLTYPE),
+                    'nullable': True if row.is_nullable == 'YES' else False,
+                    'default': row.column_default,
+                    'ordinal_position': row.ordinal_position,
+                    'comment': row.comment,
+                } for row in retry(connection.execute(query).fetchall)
+            ]
+        except OperationalError as e:
+            match = regexp.search(str(e))
+            if match and match.group('name') in [schema, table_name]:
+                raise_from(NoSuchTableError(table_name), e)
+            else:
+                raise e
 
     def get_foreign_keys(self, connection, table_name, schema=None, **kw):
         # Athena has no support for foreign keys.
