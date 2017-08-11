@@ -51,7 +51,7 @@ class Connection(object):
         self.retry_exceptions = retry_exceptions
         self.retry_attempt = retry_attempt
         self.retry_multiplier = retry_multiplier
-        self.retry_max_deply = retry_max_delay
+        self.retry_max_delay = retry_max_delay
         self.retry_exponential_base = retry_exponential_base
 
     def __enter__(self):
@@ -64,7 +64,7 @@ class Connection(object):
         return Cursor(self._client, self.s3_staging_dir, self.schema_name, self.poll_interval,
                       self.encryption_option, self.kms_key, self._converter, self._formatter,
                       self.retry_exceptions, self.retry_attempt, self.retry_multiplier,
-                      self.retry_max_deply, self.retry_exponential_base)
+                      self.retry_max_delay, self.retry_exponential_base)
 
     def close(self):
         pass

@@ -37,7 +37,7 @@ class Cursor(object):
         self.retry_exceptions = retry_exceptions
         self.retry_attempt = retry_attempt
         self.retry_multiplier = retry_multiplier
-        self.retry_max_deply = retry_max_delay
+        self.retry_max_delay = retry_max_delay
         self.retry_exponential_base = retry_exponential_base
 
         self._rownumber = None
@@ -159,7 +159,7 @@ class Cursor(object):
                                           exceptions=self.retry_exceptions,
                                           attempt=self.retry_attempt,
                                           multiplier=self.retry_multiplier,
-                                          max_delay=self.retry_max_deply,
+                                          max_delay=self.retry_max_delay,
                                           exp_base=self.retry_exponential_base,
                                           logger=_logger,
                                           **request)
@@ -221,7 +221,7 @@ class Cursor(object):
                                       exceptions=self.retry_exceptions,
                                       attempt=self.retry_attempt,
                                       multiplier=self.retry_multiplier,
-                                      max_delay=self.retry_max_deply,
+                                      max_delay=self.retry_max_delay,
                                       exp_base=self.retry_exponential_base,
                                       logger=_logger,
                                       **request)
@@ -246,7 +246,7 @@ class Cursor(object):
                            exceptions=self.retry_exceptions,
                            attempt=self.retry_attempt,
                            multiplier=self.retry_multiplier,
-                           max_delay=self.retry_max_deply,
+                           max_delay=self.retry_max_delay,
                            exp_base=self.retry_exponential_base,
                            logger=_logger,
                            **request)
@@ -306,7 +306,7 @@ class Cursor(object):
                                       exceptions=self.retry_exceptions,
                                       attempt=self.retry_attempt,
                                       multiplier=self.retry_multiplier,
-                                      max_delay=self.retry_max_deply,
+                                      max_delay=self.retry_max_delay,
                                       exp_base=self.retry_exponential_base,
                                       logger=_logger,
                                       **request)
@@ -330,7 +330,7 @@ class Cursor(object):
                                       exceptions=self.retry_exceptions,
                                       attempt=self.retry_attempt,
                                       multiplier=self.retry_multiplier,
-                                      max_delay=self.retry_max_deply,
+                                      max_delay=self.retry_max_delay,
                                       exp_base=self.retry_exponential_base,
                                       logger=_logger,
                                       **request)
