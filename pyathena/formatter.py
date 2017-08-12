@@ -86,7 +86,7 @@ class ParameterFormatter(object):
     def get_formatter(self, val):
         func = self.mappings.get(type(val), None)
         if not func:
-            raise TypeError('{0} is not defined formatter.'.format(val))
+            raise TypeError('{0} is not defined formatter.'.format(type(val)))
         return func
 
     def format(self, operation, parameters=None):
