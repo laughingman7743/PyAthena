@@ -144,8 +144,8 @@ class AthenaDialect(DefaultDialect):
             r'DataCatalogException:\ (Namespace|Table)\ (?P<name>.+)\ not\ found')
         retry = tenacity.Retrying(
             retry=retry_if_exception(
-                lambda e: False if getattr(regexp.search(str(e)), 'group', None)('name') in [
-                    schema, table_name] else True
+                lambda e: False if getattr(regexp.search(str(e)), 'group', lambda x: None)('name')
+                                   in [schema, table_name] else True
                 if isinstance(e, OperationalError) else False),
             stop=stop_after_attempt(connection.connection.retry_attempt),
             wait=wait_exponential(multiplier=connection.connection.retry_multiplier,
