@@ -30,6 +30,7 @@ setup(
     },
     install_requires=[
         'future',
+        'futures',
         'botocore>=1.5.52',
         'boto3>=1.4.4',
         'tenacity>=4.1.0',
@@ -39,7 +40,6 @@ setup(
         'SQLAlchemy': ['SQLAlchemy>=1.0.0'],
     },
     tests_require=[
-        'futures',
         'SQLAlchemy>=1.0.0',
         'pytest',
         'pytest-cov',
