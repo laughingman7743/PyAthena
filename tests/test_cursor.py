@@ -23,7 +23,7 @@ from tests.conftest import SCHEMA, ENV, S3_PREFIX
 from tests.util import with_cursor
 
 
-class TestPyAthena(unittest.TestCase):
+class TestCursor(unittest.TestCase):
     """Reference test case is following:
 
     https://github.com/dropbox/PyHive/blob/master/pyhive/tests/dbapi_test_case.py
