@@ -93,11 +93,14 @@ class Cursor(BaseCursor, CursorIterator):
         return self._result_set.output_location
 
     def close(self):
-        pass
+        if self._result_set and not self._result_set.is_closed:
+            self._result_set.close()
 
     def _reset_state(self):
         self._description = None
         self._query_id = None
+        if self._result_set and not self._result_set.is_closed:
+            self._result_set.close()
         self._result_set = None
 
     @synchronized
