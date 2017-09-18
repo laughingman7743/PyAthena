@@ -114,8 +114,10 @@ class TestCursor(unittest.TestCase):
         self.assertRaises(DatabaseError, run)
 
     @with_cursor
-    def test_fetchone_no_data(self, cursor):
+    def test_fetch_no_data(self, cursor):
         self.assertRaises(ProgrammingError, cursor.fetchone)
+        self.assertRaises(ProgrammingError, cursor.fetchmany)
+        self.assertRaises(ProgrammingError, cursor.fetchall)
 
     @with_cursor
     def test_null_param(self, cursor):
@@ -234,6 +236,20 @@ class TestCursor(unittest.TestCase):
                          '{0}{1}.csv'.format(ENV.s3_staging_dir, cursor.query_id))
 
     @with_cursor
+    def test_query_execution_initial(self, cursor):
+        self.assertFalse(cursor.has_result_set)
+        self.assertIsNone(cursor.rownumber)
+        self.assertIsNone(cursor.query_id)
+        self.assertIsNone(cursor.query)
+        self.assertIsNone(cursor.state)
+        self.assertIsNone(cursor.state_change_reason)
+        self.assertIsNone(cursor.completion_date_time)
+        self.assertIsNone(cursor.submission_date_time)
+        self.assertIsNone(cursor.data_scanned_in_bytes)
+        self.assertIsNone(cursor.execution_time_in_millis)
+        self.assertIsNone(cursor.output_location)
+
+    @with_cursor
     def test_complex(self, cursor):
         cursor.execute("""
         SELECT
@@ -307,6 +323,10 @@ class TestCursor(unittest.TestCase):
             FROM many_rows a
             CROSS JOIN many_rows b
             """))
+
+    @with_cursor
+    def test_cancel_initial(self, cursor):
+        self.assertRaises(ProgrammingError, cursor.cancel)
 
     def test_multiple_connection(self):
         def execute_other_thread():
