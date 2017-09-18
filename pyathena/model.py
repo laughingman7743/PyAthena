@@ -11,6 +11,8 @@ _logger = logging.getLogger(__name__)
 
 class AthenaQueryExecution(object):
 
+    STATE_QUEUED = 'QUEUED'
+    STATE_RUNNING = 'RUNNING'
     STATE_SUCCEEDED = 'SUCCEEDED'
     STATE_FAILED = 'FAILED'
     STATE_CANCELLED = 'CANCELLED'
