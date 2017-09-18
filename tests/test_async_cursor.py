@@ -10,6 +10,7 @@ from random import randint
 from past.builtins.misc import xrange
 
 from pyathena import connect
+from pyathena.async_cursor import AsyncCursor
 from pyathena.error import ProgrammingError, NotSupportedError
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
@@ -169,7 +170,7 @@ class TestAsyncCursor(unittest.TestCase):
 
     def test_no_ops(self):
         conn = self.connect()
-        cursor = conn.cursor()
+        cursor = conn.cursor(AsyncCursor)
         self.assertRaises(NotSupportedError, lambda: cursor.executemany(
             'SELECT * FROM one_row', []))
         cursor.close()
