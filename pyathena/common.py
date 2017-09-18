@@ -45,15 +45,15 @@ class CursorIterator(with_metaclass(ABCMeta, object)):
 
     @abstractmethod
     def fetchone(self):
-        pass
+        raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
     def fetchmany(self):
-        pass
+        raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
     def fetchall(self):
-        pass
+        raise NotImplementedError  # pragma: no cover
 
     def __next__(self):
         row = self.fetchone()
@@ -171,15 +171,15 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
 
     @abstractmethod
     def execute(self, operation, parameters=None):
-        pass
+        raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
     def executemany(self, operation, seq_of_parameters):
-        pass
+        raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
     def close(self):
-        pass
+        raise NotImplementedError  # pragma: no cover
 
     def _cancel(self, query_id):
         request = {'QueryExecutionId': query_id}
