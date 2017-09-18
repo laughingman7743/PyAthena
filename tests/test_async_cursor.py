@@ -128,6 +128,24 @@ class TestAsyncCursor(unittest.TestCase):
         self.assertEqual(result_set.output_location, query_execution.output_location)
 
     @with_async_cursor
+    def test_poll(self, cursor):
+        query_id, _ = cursor.execute("SELECT * FROM one_row")
+        future = cursor.poll(query_id)
+        query_execution = future.result()
+        self.assertIn(query_execution.state, [AthenaQueryExecution.STATE_QUEUED,
+                                              AthenaQueryExecution.STATE_RUNNING,
+                                              AthenaQueryExecution.STATE_SUCCEEDED,
+                                              AthenaQueryExecution.STATE_FAILED,
+                                              AthenaQueryExecution.STATE_CANCELLED])
+
+    @with_async_cursor
+    def test_bad_query(self, cursor):
+        query_id, future = cursor.execute('SELECT does_not_exist FROM this_really_does_not_exist')
+        result_set = future.result()
+        self.assertEqual(result_set.state, AthenaQueryExecution.STATE_FAILED)
+        self.assertIsNotNone(result_set.state_change_reason)
+
+    @with_async_cursor
     def test_cancel(self, cursor):
         query_id, future = cursor.execute("""
                            SELECT a.a * rand(), b.a * rand()
