@@ -3,12 +3,11 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 import logging
 import time
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 
 from future.utils import raise_from, with_metaclass
 
-from pyathena.error import (DatabaseError, OperationalError,
-                            ProgrammingError, NotSupportedError)
+from pyathena.error import DatabaseError, OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.util import retry_api_call
 
@@ -16,14 +15,66 @@ from pyathena.util import retry_api_call
 _logger = logging.getLogger(__name__)
 
 
-class BaseCursor(with_metaclass(ABCMeta, object)):
+class CursorIterator(with_metaclass(ABCMeta, object)):
 
     DEFAULT_FETCH_SIZE = 1000
+
+    def __init__(self, arraysize=None):
+        self.arraysize = arraysize if arraysize else self.DEFAULT_FETCH_SIZE
+        self._rownumber = None
+
+    @property
+    def arraysize(self):
+        return self._arraysize
+
+    @arraysize.setter
+    def arraysize(self, value):
+        if value <= 0 or value > self.DEFAULT_FETCH_SIZE:
+            raise ProgrammingError('MaxResults is more than maximum allowed length {0}.'.format(
+                self.DEFAULT_FETCH_SIZE))
+        self._arraysize = value
+
+    @property
+    def rownumber(self):
+        return self._rownumber
+
+    @property
+    def rowcount(self):
+        """By default, return -1 to indicate that this is not supported."""
+        return -1
+
+    @abstractmethod
+    def fetchone(self):
+        pass
+
+    @abstractmethod
+    def fetchmany(self):
+        pass
+
+    @abstractmethod
+    def fetchall(self):
+        pass
+
+    def __next__(self):
+        row = self.fetchone()
+        if row is None:
+            raise StopIteration
+        else:
+            return row
+
+    next = __next__
+
+    def __iter__(self):
+        return self
+
+
+class BaseCursor(with_metaclass(ABCMeta, object)):
 
     def __init__(self, client, s3_staging_dir, schema_name, poll_interval,
                  encryption_option, kms_key, converter, formatter,
                  retry_exceptions, retry_attempt, retry_multiplier,
                  retry_max_delay, retry_exponential_base):
+        super(BaseCursor, self).__init__()
         self._connection = client
         self._s3_staging_dir = s3_staging_dir
         self._schema_name = schema_name
@@ -44,22 +95,9 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
         self.retry_max_delay = retry_max_delay
         self.retry_exponential_base = retry_exponential_base
 
-        self._arraysize = self.DEFAULT_FETCH_SIZE
-
     @property
     def connection(self):
         return self._connection
-
-    @property
-    def arraysize(self):
-        return self._arraysize
-
-    @arraysize.setter
-    def arraysize(self, value):
-        if value <= 0 or value > self.DEFAULT_FETCH_SIZE:
-            raise ProgrammingError('MaxResults is more than maximum allowed length {0}.'.format(
-                self.DEFAULT_FETCH_SIZE))
-        self._arraysize = value
 
     def _query_execution(self, query_id):
         request = {'QueryExecutionId': query_id}
@@ -81,7 +119,9 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
     def _poll(self, query_id):
         while True:
             query_execution = self._query_execution(query_id)
-            if query_execution.state in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
+            if query_execution.state in [AthenaQueryExecution.STATE_SUCCEEDED,
+                                         AthenaQueryExecution.STATE_FAILED,
+                                         AthenaQueryExecution.STATE_CANCELLED]:
                 return query_execution
             else:
                 time.sleep(self._poll_interval)
@@ -129,8 +169,17 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
         else:
             return response.get('QueryExecutionId', None)
 
+    @abstractmethod
+    def execute(self, operation, parameters=None):
+        pass
+
+    @abstractmethod
     def executemany(self, operation, seq_of_parameters):
-        raise NotSupportedError
+        pass
+
+    @abstractmethod
+    def close(self):
+        pass
 
     def _cancel(self, query_id):
         request = {'QueryExecutionId': query_id}
@@ -154,3 +203,9 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
     def setoutputsize(self, size, column=None):
         """Does nothing by default"""
         pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()

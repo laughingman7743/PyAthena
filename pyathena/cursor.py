@@ -3,16 +3,17 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 import logging
 
-from pyathena.common import BaseCursor
-from pyathena.error import OperationalError, ProgrammingError
-from pyathena.model import AthenaResultSet
+from pyathena.common import BaseCursor, CursorIterator
+from pyathena.error import OperationalError, ProgrammingError, NotSupportedError
+from pyathena.model import AthenaQueryExecution
+from pyathena.result_set import AthenaResultSet
 from pyathena.util import synchronized
 
 
 _logger = logging.getLogger(__name__)
 
 
-class Cursor(BaseCursor):
+class Cursor(BaseCursor, CursorIterator):
 
     def __init__(self, client, s3_staging_dir, schema_name, poll_interval,
                  encryption_option, kms_key, converter, formatter,
@@ -22,9 +23,7 @@ class Cursor(BaseCursor):
                                      encryption_option, kms_key, converter, formatter,
                                      retry_exceptions, retry_attempt, retry_multiplier,
                                      retry_max_delay, retry_exponential_base)
-        self._description = None
         self._query_id = None
-        self._meta_data = None
         self._result_set = None
 
     @property
@@ -32,67 +31,66 @@ class Cursor(BaseCursor):
         return self._result_set.rownumber if self._result_set else None
 
     @property
-    def rowcount(self):
-        """By default, return -1 to indicate that this is not supported."""
-        return -1
-
-    @property
     def has_result_set(self):
-        return self._result_set and self._meta_data is not None
+        return self._result_set is not None
 
     @property
     def description(self):
-        if self._description or self._description == []:
-            return self._description
         if not self.has_result_set:
             return None
-        self._description = [
-            (
-                m.get('Name', None),
-                m.get('Type', None),
-                None,
-                None,
-                m.get('Precision', None),
-                m.get('Scale', None),
-                m.get('Nullable', None)
-            )
-            for m in self._meta_data
-        ]
-        return self._description
+        return self._result_set.description
 
     @property
     def query_id(self):
         return self._query_id
 
     @property
-    def output_location(self):
+    def query(self):
         if not self.has_result_set:
             return None
-        return self._result_set.query_execution.output_location
+        return self._result_set.query
+
+    @property
+    def state(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.state
+
+    @property
+    def state_change_reason(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.state_change_reason
 
     @property
     def completion_date_time(self):
         if not self.has_result_set:
             return None
-        return self._result_set.query_execution.completion_date_time
+        return self._result_set.completion_date_time
 
     @property
     def submission_date_time(self):
         if not self.has_result_set:
             return None
-        return self._result_set.query_execution.submission_date_time
+        return self._result_set.submission_date_time
 
     @property
     def data_scanned_in_bytes(self):
         if not self.has_result_set:
             return None
-        return self._result_set.query_execution.data_scanned_in_bytes
+        return self._result_set.data_scanned_in_bytes
 
     @property
     def execution_time_in_millis(self):
         if not self.has_result_set:
             return None
-        return self._result_set.query_execution.execution_time_in_millis
+        return self._result_set.execution_time_in_millis
+
+    @property
+    def output_location(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.output_location
 
     def close(self):
         pass
@@ -101,21 +99,22 @@ class Cursor(BaseCursor):
         self._description = None
         self._query_id = None
         self._result_set = None
-        self._meta_data = None
 
     @synchronized
     def execute(self, operation, parameters=None):
         self._reset_state()
         self._query_id = self._execute(operation, parameters)
         query_execution = self._poll(self._query_id)
-        if query_execution.state == 'SUCCEEDED':
+        if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
             self._result_set = AthenaResultSet(
                 self._connection, self._converter, query_execution, self.arraysize,
                 self.retry_exceptions, self.retry_attempt, self.retry_multiplier,
                 self.retry_max_delay, self.retry_exponential_base)
-            self._meta_data = self._result_set.meta_data
         else:
             raise OperationalError(query_execution.state_change_reason)
+
+    def executemany(self, operation, seq_of_parameters):
+        raise NotSupportedError
 
     @synchronized
     def cancel(self):
@@ -140,21 +139,3 @@ class Cursor(BaseCursor):
         if not self.has_result_set:
             raise ProgrammingError('No result set.')
         return self._result_set.fetchall()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-
-    def __next__(self):
-        row = self.fetchone()
-        if row is None:
-            raise StopIteration
-        else:
-            return row
-
-    next = __next__
-
-    def __iter__(self):
-        return self
