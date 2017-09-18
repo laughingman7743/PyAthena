@@ -42,10 +42,6 @@ class AthenaResultSet(CursorIterator):
             self._pre_fetch()
 
     @property
-    def meta_data(self):
-        return self._meta_data
-
-    @property
     def query_id(self):
         return self._query_execution.query_id
 
