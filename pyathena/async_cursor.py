@@ -2,7 +2,6 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 import logging
-import os
 
 from concurrent.futures.thread import ThreadPoolExecutor
 
@@ -10,6 +9,12 @@ from pyathena.common import CursorIterator
 from pyathena.cursor import BaseCursor
 from pyathena.error import ProgrammingError, NotSupportedError
 from pyathena.result_set import AthenaResultSet
+
+try:
+    from multiprocessing import cpu_count
+except ImportError:
+    def cpu_count():
+        return None
 
 
 _logger = logging.getLogger(__name__)
@@ -21,7 +26,7 @@ class AsyncCursor(BaseCursor):
                  encryption_option, kms_key, converter, formatter,
                  retry_exceptions, retry_attempt, retry_multiplier,
                  retry_max_delay, retry_exponential_base,
-                 max_workers=(os.cpu_count() or 1) * 5,
+                 max_workers=(cpu_count() or 1) * 5,
                  arraysize=CursorIterator.DEFAULT_FETCH_SIZE):
         super(AsyncCursor, self).__init__(client, s3_staging_dir, schema_name, poll_interval,
                                           encryption_option, kms_key, converter, formatter,
