@@ -47,16 +47,6 @@ Time = datetime.time
 Timestamp = datetime.datetime
 
 
-def connect(s3_staging_dir=None, region_name=None, schema_name='default',
-            poll_interval=1, encryption_option=None, kms_key=None, profile_name=None,
-            converter=None, formatter=None,
-            retry_exceptions=('ThrottlingException', 'TooManyRequestsException'),
-            retry_attempt=5, retry_multiplier=1,
-            retry_max_delay=1800, retry_exponential_base=2,
-            **kwargs):
+def connect(*args, **kwargs):
     from pyathena.connection import Connection
-    return Connection(s3_staging_dir, region_name, schema_name,
-                      poll_interval, encryption_option, kms_key, profile_name,
-                      converter, formatter, retry_exceptions, retry_attempt,
-                      retry_multiplier, retry_max_delay, retry_exponential_base,
-                      **kwargs)
+    return Connection(*args, **kwargs)

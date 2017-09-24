@@ -26,7 +26,7 @@ class Connection(object):
                  retry_exceptions=('ThrottlingException', 'TooManyRequestsException'),
                  retry_attempt=5, retry_multiplier=1,
                  retry_max_delay=1800, retry_exponential_base=2,
-                 **kwargs):
+                 cursor_class=Cursor, **kwargs):
         if s3_staging_dir:
             self.s3_staging_dir = s3_staging_dir
         else:
@@ -54,17 +54,21 @@ class Connection(object):
         self.retry_max_delay = retry_max_delay
         self.retry_exponential_base = retry_exponential_base
 
+        self.cursor_class = cursor_class
+
     def __enter__(self):
         return self.cursor()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-    def cursor(self):
-        return Cursor(self._client, self.s3_staging_dir, self.schema_name, self.poll_interval,
+    def cursor(self, cursor=None, **kwargs):
+        if not cursor:
+            cursor = self.cursor_class
+        return cursor(self._client, self.s3_staging_dir, self.schema_name, self.poll_interval,
                       self.encryption_option, self.kms_key, self._converter, self._formatter,
                       self.retry_exceptions, self.retry_attempt, self.retry_multiplier,
-                      self.retry_max_delay, self.retry_exponential_base)
+                      self.retry_max_delay, self.retry_exponential_base, **kwargs)
 
     def close(self):
         pass

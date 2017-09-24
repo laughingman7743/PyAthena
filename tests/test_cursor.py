@@ -15,15 +15,14 @@ from past.builtins.misc import xrange
 
 from pyathena import connect
 from pyathena.cursor import Cursor
-from pyathena.error import (DatabaseError,
-                            ProgrammingError,
-                            NotSupportedError)
+from pyathena.error import DatabaseError, ProgrammingError, NotSupportedError
+from pyathena.model import AthenaQueryExecution
 
 from tests.conftest import SCHEMA, ENV, S3_PREFIX
 from tests.util import with_cursor
 
 
-class TestPyAthena(unittest.TestCase):
+class TestCursor(unittest.TestCase):
     """Reference test case is following:
 
     https://github.com/dropbox/PyHive/blob/master/pyhive/tests/dbapi_test_case.py
@@ -40,15 +39,24 @@ class TestPyAthena(unittest.TestCase):
         self.assertEqual(cursor.rownumber, 0)
         self.assertEqual(cursor.fetchone(), (1,))
         self.assertEqual(cursor.rownumber, 1)
-        self.assertEqual(cursor.fetchone(), None)
+        self.assertIsNone(cursor.fetchone())
         self.assertIsNotNone(cursor.query_id)
-        self.assertIsNotNone(cursor.output_location)
+        self.assertIsNotNone(cursor.query)
+        self.assertEqual(cursor.state, AthenaQueryExecution.STATE_SUCCEEDED)
+        self.assertIsNone(cursor.state_change_reason)
         self.assertIsNotNone(cursor.completion_date_time)
         self.assertIsInstance(cursor.completion_date_time, datetime)
         self.assertIsNotNone(cursor.submission_date_time)
         self.assertIsInstance(cursor.submission_date_time, datetime)
         self.assertIsNotNone(cursor.data_scanned_in_bytes)
         self.assertIsNotNone(cursor.execution_time_in_millis)
+        self.assertIsNotNone(cursor.output_location)
+
+    @with_cursor
+    def test_fetchmany(self, cursor):
+        cursor.execute('SELECT * FROM many_rows LIMIT 15')
+        self.assertEqual(len(cursor.fetchmany(10)), 10)
+        self.assertEqual(len(cursor.fetchmany(10)), 5)
 
     @with_cursor
     def test_fetchall(self, cursor):
@@ -58,44 +66,10 @@ class TestPyAthena(unittest.TestCase):
         self.assertEqual(cursor.fetchall(), [(i,) for i in xrange(10000)])
 
     @with_cursor
-    def test_null_param(self, cursor):
-        cursor.execute('SELECT %(param)s FROM one_row', {'param': None})
-        self.assertEqual(cursor.fetchall(), [(None,)])
-
-    @with_cursor
     def test_iterator(self, cursor):
         cursor.execute('SELECT * FROM one_row')
         self.assertEqual(list(cursor), [(1,)])
         self.assertRaises(StopIteration, cursor.__next__)
-
-    @with_cursor
-    def test_description_initial(self, cursor):
-        self.assertEqual(cursor.description, None)
-
-    @with_cursor
-    def test_description_failed(self, cursor):
-        try:
-            cursor.execute('blah_blah')
-        except DatabaseError:
-            pass
-        self.assertEqual(cursor.description, None)
-
-    @with_cursor
-    def test_bad_query(self, cursor):
-        def run():
-            cursor.execute('SELECT does_not_exist FROM this_really_does_not_exist')
-            cursor.fetchone()
-        self.assertRaises(DatabaseError, run)
-
-    @with_cursor
-    def test_fetchone_no_data(self, cursor):
-        self.assertRaises(ProgrammingError, cursor.fetchone)
-
-    @with_cursor
-    def test_fetchmany(self, cursor):
-        cursor.execute('SELECT * FROM many_rows LIMIT 15')
-        self.assertEqual(len(cursor.fetchmany(10)), 10)
-        self.assertEqual(len(cursor.fetchmany(10)), 5)
 
     @with_cursor
     def test_arraysize(self, cursor):
@@ -113,6 +87,42 @@ class TestPyAthena(unittest.TestCase):
             cursor.arraysize = 10000
         with self.assertRaises(ProgrammingError):
             cursor.arraysize = -1
+
+    @with_cursor
+    def test_description(self, cursor):
+        cursor.execute('SELECT 1 AS foobar FROM one_row')
+        self.assertEqual(cursor.description,
+                         [('foobar', 'integer', None, None, 10, 0, 'UNKNOWN')])
+
+    @with_cursor
+    def test_description_initial(self, cursor):
+        self.assertIsNone(cursor.description)
+
+    @with_cursor
+    def test_description_failed(self, cursor):
+        try:
+            cursor.execute('blah_blah')
+        except DatabaseError:
+            pass
+        self.assertIsNone(cursor.description)
+
+    @with_cursor
+    def test_bad_query(self, cursor):
+        def run():
+            cursor.execute('SELECT does_not_exist FROM this_really_does_not_exist')
+            cursor.fetchone()
+        self.assertRaises(DatabaseError, run)
+
+    @with_cursor
+    def test_fetch_no_data(self, cursor):
+        self.assertRaises(ProgrammingError, cursor.fetchone)
+        self.assertRaises(ProgrammingError, cursor.fetchmany)
+        self.assertRaises(ProgrammingError, cursor.fetchall)
+
+    @with_cursor
+    def test_null_param(self, cursor):
+        cursor.execute('SELECT %(param)s FROM one_row', {'param': None})
+        self.assertEqual(cursor.fetchall(), [(None,)])
 
     @with_cursor
     def test_no_params(self, cursor):
@@ -210,14 +220,6 @@ class TestPyAthena(unittest.TestCase):
                          [(None if a % 11 == 0 else a,) for a in xrange(10000)])
 
     @with_cursor
-    def test_description(self, cursor):
-        cursor.execute('SELECT 1 AS foobar FROM one_row')
-        expected = [('foobar', 'integer', None, None, 10, 0, 'UNKNOWN')]
-        self.assertEqual(cursor.description, expected)
-        # description cache
-        self.assertEqual(cursor.description, expected)
-
-    @with_cursor
     def test_query_id(self, cursor):
         self.assertIsNone(cursor.query_id)
         cursor.execute('SELECT * from one_row')
@@ -232,6 +234,20 @@ class TestPyAthena(unittest.TestCase):
         cursor.execute('SELECT * from one_row')
         self.assertEqual(cursor.output_location,
                          '{0}{1}.csv'.format(ENV.s3_staging_dir, cursor.query_id))
+
+    @with_cursor
+    def test_query_execution_initial(self, cursor):
+        self.assertFalse(cursor.has_result_set)
+        self.assertIsNone(cursor.rownumber)
+        self.assertIsNone(cursor.query_id)
+        self.assertIsNone(cursor.query)
+        self.assertIsNone(cursor.state)
+        self.assertIsNone(cursor.state_change_reason)
+        self.assertIsNone(cursor.completion_date_time)
+        self.assertIsNone(cursor.submission_date_time)
+        self.assertIsNone(cursor.data_scanned_in_bytes)
+        self.assertIsNone(cursor.execution_time_in_millis)
+        self.assertIsNone(cursor.output_location)
 
     @with_cursor
     def test_complex(self, cursor):
@@ -307,6 +323,10 @@ class TestPyAthena(unittest.TestCase):
             FROM many_rows a
             CROSS JOIN many_rows b
             """))
+
+    @with_cursor
+    def test_cancel_initial(self, cursor):
+        self.assertRaises(ProgrammingError, cursor.cancel)
 
     def test_multiple_connection(self):
         def execute_other_thread():
