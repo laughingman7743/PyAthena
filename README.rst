@@ -171,6 +171,135 @@ As Pandas DataFrame:
     df = as_pandas(cursor)
     print(df.describe())
 
+Asynchronous Cursor
+~~~~~~~~~~~~~~~~~~~
+
+Asynchronous cursor is a simple implementation using the concurrent.futures package.
+Python 2.7 uses `backport of the concurrent.futures`_ package.
+This cursor is not `DB API 2.0 (PEP 249)`_ compliant.
+
+You can use the asynchronous cursor by specifying the ``cursor_class``
+with the connect method or connection object.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_cursor import AsyncCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=AsyncCursor).cursor()
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_cursor import AsyncCursor
+
+    cursor = Connection(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                        region_name='us-west-2',
+                        cursor_class=AsyncCursor).cursor()
+
+It can also be used by specifying the cursor class when calling the connection object's cursor method.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_cursor import AsyncCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2').cursor(AsyncCursor)
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_cursor import AsyncCursor
+
+    cursor = Connection(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                        region_name='us-west-2').cursor(AsyncCursor)
+
+The default number of workers is 5 or cpu number * 5.
+If you want to change the number of workers you can specify like the following.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_cursor import AsyncCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=AsyncCursor).cursor(max_workers=10)
+
+The execute method of the asynchronous cursor returns the tuple of the query ID and the `future object`_.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_cursor import AsyncCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=AsyncCursor).cursor()
+
+    query_id, future = cursor.execute("SELECT * FROM many_rows")
+
+The return value of the `future object`_ is an ``AthenaResultSet`` object.
+This object has an interface that can fetch and iterate query results similar to synchronous cursors.
+It also has information on the result of query execution.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_cursor import AsyncCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=AsyncCursor).cursor()
+
+    query_id, future = cursor.execute("SELECT * FROM many_rows")
+    result_set = future.result()
+    print(result_set.state)
+    print(result_set.state_change_reason)
+    print(result_set.completion_date_time)
+    print(result_set.submission_date_time)
+    print(result_set.data_scanned_in_bytes)
+    print(result_set.execution_time_in_millis)
+    print(result_set.output_location)
+    print(result_set.description)
+    for row in result_set:
+        print(row)
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_cursor import AsyncCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=AsyncCursor).cursor()
+
+    query_id, future = cursor.execute("SELECT * FROM many_rows")
+    result_set = future.result()
+    print(result_set.fetchall())
+
+A query ID is required to cancel a query with the asynchronous cursor.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_cursor import AsyncCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=AsyncCursor).cursor()
+
+    query_id, future = cursor.execute("SELECT * FROM many_rows")
+    cursor.cancel(query_id)
+
+NOTE: The cancel method of the `future object`_ does not cancel the query.
+
+.. _`backport of the concurrent.futures`: https://pypi.python.org/pypi/futures
+.. _`future object`: https://docs.python.org/3/library/concurrent.futures.html#future-objects
+
 Credentials
 -----------
 
