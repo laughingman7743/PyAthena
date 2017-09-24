@@ -192,7 +192,7 @@ with the connect method or connection object.
 
 .. code:: python
 
-    from pyathena import connect
+    from pyathena.connection import Connection
     from pyathena.async_cursor import AsyncCursor
 
     cursor = Connection(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
@@ -211,7 +211,7 @@ It can also be used by specifying the cursor class when calling the connection o
 
 .. code:: python
 
-    from pyathena import connect
+    from pyathena.connection import Connection
     from pyathena.async_cursor import AsyncCursor
 
     cursor = Connection(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
