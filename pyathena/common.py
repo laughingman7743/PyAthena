@@ -111,7 +111,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
                                       logger=_logger,
                                       **request)
         except Exception as e:
-            _logger.exception('Failed to poll query result.')
+            _logger.exception('Failed to get query execution.')
             raise_from(OperationalError(*e.args), e)
         else:
             return AthenaQueryExecution(response)
