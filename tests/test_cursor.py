@@ -278,7 +278,7 @@ class TestCursor(unittest.TestCase):
             ('col_bigint', 'bigint', None, None, 19, 0, 'UNKNOWN'),
             ('col_float', 'double', None, None, 17, 0, 'UNKNOWN'),
             ('col_double', 'double', None, None, 17, 0, 'UNKNOWN'),
-            ('col_string', 'varchar', None, None, 1073741824, 0, 'UNKNOWN'),
+            ('col_string', 'varchar', None, None, 2147483647, 0, 'UNKNOWN'),
             ('col_timestamp', 'timestamp', None, None, 3, 0, 'UNKNOWN'),
             ('col_date', 'date', None, None, 0, 0, 'UNKNOWN'),
             ('col_binary', 'varbinary', None, None, 1073741824, 0, 'UNKNOWN'),
