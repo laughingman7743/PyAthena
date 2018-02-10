@@ -144,7 +144,7 @@ class AthenaDialect(DefaultDialect):
                 AND table_name = '{table}'
                 """.format(schema=schema, table=table_name)
         regexp = re.compile(
-            r'DataCatalogException:\ (Namespace|Table)\ (?P<name>.+)\ not\ found')
+            r'DataCatalogException:\ (Database|Namespace|Table)\ (?P<name>.+)\ not\ found')
         retry = tenacity.Retrying(
             retry=retry_if_exception(
                 lambda e: False if getattr(regexp.search(
