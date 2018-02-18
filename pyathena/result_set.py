@@ -95,10 +95,10 @@ class AthenaResultSet(CursorIterator):
         ]
 
     def __fetch(self, next_token=None):
-        if self._query_execution.state != 'SUCCEEDED':
-            raise ProgrammingError('QueryExecutionState is not SUCCEEDED.')
         if not self._query_execution.query_id:
             raise ProgrammingError('QueryExecutionId is none or empty.')
+        if self._query_execution.state != 'SUCCEEDED':
+            raise ProgrammingError('QueryExecutionState is not SUCCEEDED.')
         request = {
             'QueryExecutionId': self._query_execution.query_id,
             'MaxResults': self._arraysize,
@@ -132,8 +132,6 @@ class AthenaResultSet(CursorIterator):
         self._process_rows(response)
 
     def fetchone(self):
-        if not self._query_execution.query_id:
-            raise ProgrammingError('QueryExecutionId is none or empty.')
         if not self._rows and self._next_token:
             self._fetch()
         if not self._rows:
@@ -143,8 +141,6 @@ class AthenaResultSet(CursorIterator):
             return self._rows.popleft()
 
     def fetchmany(self, size=None):
-        if not self._query_execution.query_id:
-            raise ProgrammingError('QueryExecutionId is none or empty.')
         if not size or size <= 0:
             size = self._arraysize
         rows = []
@@ -157,8 +153,6 @@ class AthenaResultSet(CursorIterator):
         return rows
 
     def fetchall(self):
-        if not self._query_execution.query_id:
-            raise ProgrammingError('QueryExecutionId is none or empty.')
         rows = []
         while True:
             row = self.fetchone()
