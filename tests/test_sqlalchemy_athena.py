@@ -8,7 +8,7 @@ from decimal import Decimal
 import sqlalchemy
 from future.utils import PY2
 from sqlalchemy.engine import create_engine
-from sqlalchemy.exc import NoSuchTableError
+from sqlalchemy.exc import NoSuchTableError, OperationalError, ProgrammingError
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.schema import Table, MetaData, Column
 from sqlalchemy.sql.sqltypes import (BIGINT, BINARY, BOOLEAN, DATE, DECIMAL,
@@ -171,3 +171,61 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertIn('"current_timestamp"', query)
         self.assertNotIn('`select`', query)
         self.assertNotIn('`current_timestamp`', query)
+
+    @with_engine
+    def test_retry_if_data_catalog_exception(self, engine, connection):
+        dialect = engine.dialect
+        exc = OperationalError('', None, 'com.facebook.presto.hive.DataCatalogException: ' +
+                               'Database also_does_not_exist not found. Please check your query.')
+        self.assertTrue(dialect._retry_if_data_catalog_exception(
+            exc, 'does_not_exist', 'this_does_not_exist'))
+        self.assertFalse(dialect._retry_if_data_catalog_exception(
+            exc, 'also_does_not_exist', 'this_does_not_exist'))
+
+        exc = OperationalError('', None, 'com.facebook.presto.hive.DataCatalogException: ' +
+                               'Namespace also_does_not_exist not found. Please check your query.')
+        self.assertTrue(dialect._retry_if_data_catalog_exception(
+            exc, 'does_not_exist', 'this_does_not_exist'))
+        self.assertFalse(dialect._retry_if_data_catalog_exception(
+            exc, 'also_does_not_exist', 'this_does_not_exist'))
+
+        exc = OperationalError('', None, 'com.facebook.presto.hive.DataCatalogException: ' +
+                               'Table this_does_not_exist not found. Please check your query.')
+        self.assertTrue(dialect._retry_if_data_catalog_exception(
+            exc, 'does_not_exist', 'does_not_exist'))
+        self.assertFalse(dialect._retry_if_data_catalog_exception(
+            exc, 'also_does_not_exist', 'this_does_not_exist'))
+
+        exc = OperationalError('', None, 'com.facebook.presto.hive.FooBarException: ' +
+                               'Table this_does_not_exist not found. Please check your query.')
+        self.assertTrue(dialect._retry_if_data_catalog_exception(
+            exc, 'also_does_not_exist', 'this_does_not_exist'))
+
+        exc = OperationalError('', None, 'com.facebook.presto.hive.DataCatalogException: ' +
+                               'foobar.')
+        self.assertTrue(dialect._retry_if_data_catalog_exception(
+            exc, 'also_does_not_exist', 'this_does_not_exist'))
+
+        exc = ProgrammingError('', None, 'com.facebook.presto.hive.DataCatalogException: ' +
+                               'Database also_does_not_exist not found. Please check your query.')
+        self.assertFalse(dialect._retry_if_data_catalog_exception(
+            exc, 'does_not_exist', 'this_does_not_exist'))
+
+    @with_engine
+    def test_get_column_type(self, engine, connection):
+        dialect = engine.dialect
+        self.assertEqual(dialect._get_column_type('boolean'), 'BOOLEAN')
+        self.assertEqual(dialect._get_column_type('tinyint'), 'TINYINT')
+        self.assertEqual(dialect._get_column_type('smallint'), 'SMALLINT')
+        self.assertEqual(dialect._get_column_type('integer'), 'INTEGER')
+        self.assertEqual(dialect._get_column_type('bigint'), 'BIGINT')
+        self.assertEqual(dialect._get_column_type('real'), 'REAL')
+        self.assertEqual(dialect._get_column_type('double'), 'DOUBLE')
+        self.assertEqual(dialect._get_column_type('varchar'), 'VARCHAR')
+        self.assertEqual(dialect._get_column_type('timestamp'), 'TIMESTAMP')
+        self.assertEqual(dialect._get_column_type('date'), 'DATE')
+        self.assertEqual(dialect._get_column_type('varbinary'), 'VARBINARY')
+        self.assertEqual(dialect._get_column_type('array(integer)'), 'ARRAY')
+        self.assertEqual(dialect._get_column_type('map(integer, integer)'), 'MAP')
+        self.assertEqual(dialect._get_column_type('row(a integer, b integer)'), 'ROW')
+        self.assertEqual(dialect._get_column_type('decimal(10,1)'), 'DECIMAL')

@@ -79,6 +79,10 @@ class AthenaDialect(DefaultDialect):
     description_encoding = None
     supports_native_boolean = True
 
+    _pattern_data_catlog_exception = re.compile(
+        r'DataCatalogException:\ (Database|Namespace|Table)\ (?P<name>.+)\ not\ found')
+    _pattern_column_type = re.compile(r'^([A-Z]+)($|\(.+\)$)')
+
     @classmethod
     def dbapi(cls):
         return pyathena
@@ -143,13 +147,9 @@ class AthenaDialect(DefaultDialect):
                 WHERE table_schema = '{schema}'
                 AND table_name = '{table}'
                 """.format(schema=schema, table=table_name)
-        regexp = re.compile(
-            r'DataCatalogException:\ (Database|Namespace|Table)\ (?P<name>.+)\ not\ found')
         retry = tenacity.Retrying(
             retry=retry_if_exception(
-                lambda e: False if getattr(regexp.search(
-                    str(e)), 'group', lambda x: None)('name') in [schema, table_name] else True
-                if isinstance(e, OperationalError) else False),
+                lambda exc: self._retry_if_data_catalog_exception(exc, schema, table_name)),
             stop=stop_after_attempt(connection.connection.retry_attempt),
             wait=wait_exponential(multiplier=connection.connection.retry_multiplier,
                                   max=connection.connection.retry_max_delay,
@@ -159,8 +159,7 @@ class AthenaDialect(DefaultDialect):
             return [
                 {
                     'name': row.column_name,
-                    'type': _TYPE_MAPPINGS.get(re.sub(r'^([A-Z]+)($|\(.+\)$)', r'\1',
-                                                      row.data_type.upper()), NULLTYPE),
+                    'type': _TYPE_MAPPINGS.get(self._get_column_type(row.data_type), NULLTYPE),
                     'nullable': True if row.is_nullable == 'YES' else False,
                     'default': row.column_default,
                     'ordinal_position': row.ordinal_position,
@@ -168,32 +167,43 @@ class AthenaDialect(DefaultDialect):
                 } for row in retry(connection.execute(query).fetchall)
             ]
         except OperationalError as e:
-            match = regexp.search(str(e))
-            if match and match.group('name') in [schema, table_name]:
+            if not self._retry_if_data_catalog_exception(e, schema, table_name):
                 raise_from(NoSuchTableError(table_name), e)
             else:
                 raise e
 
+    def _retry_if_data_catalog_exception(self, exc, schema, table_name):
+        if not isinstance(exc, OperationalError):
+            return False
+
+        match = self._pattern_data_catlog_exception.search(str(exc))
+        if match and match.group('name') in [schema, table_name]:
+            return False
+        return True
+
+    def _get_column_type(self, type_):
+        return self._pattern_column_type.sub(r'\1', type_.upper())
+
     def get_foreign_keys(self, connection, table_name, schema=None, **kw):
         # Athena has no support for foreign keys.
-        return []
+        return []  # pragma: no cover
 
     def get_pk_constraint(self, connection, table_name, schema=None, **kw):
         # Athena has no support for primary keys.
-        return []
+        return []  # pragma: no cover
 
     def get_indexes(self, connection, table_name, schema=None, **kw):
         # Athena has no support for indexes.
-        return []
+        return []  # pragma: no cover
 
     def do_rollback(self, dbapi_connection):
         # No transactions for Athena
-        pass
+        pass  # pragma: no cover
 
     def _check_unicode_returns(self, connection, additional_tests=None):
         # Requests gives back Unicode strings
-        return True
+        return True  # pragma: no cover
 
     def _check_unicode_description(self, connection):
         # Requests gives back Unicode strings
-        return True
+        return True  # pragma: no cover
