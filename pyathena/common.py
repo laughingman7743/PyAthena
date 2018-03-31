@@ -118,13 +118,18 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
 
     def _poll(self, query_id):
         while True:
-            query_execution = self._query_execution(query_id)
-            if query_execution.state in [AthenaQueryExecution.STATE_SUCCEEDED,
-                                         AthenaQueryExecution.STATE_FAILED,
-                                         AthenaQueryExecution.STATE_CANCELLED]:
-                return query_execution
-            else:
-                time.sleep(self._poll_interval)
+            try:
+                query_execution = self._query_execution(query_id)
+                if query_execution.state in [AthenaQueryExecution.STATE_SUCCEEDED,
+                                             AthenaQueryExecution.STATE_FAILED,
+                                             AthenaQueryExecution.STATE_CANCELLED]:
+                    return query_execution
+                else:
+                    time.sleep(self._poll_interval)
+            except KeyboardInterrupt as e:
+                _logger.exception('Query canceled by user.')
+                self._cancel(query_id)
+                raise_from(OperationalError(*e.args), e)
 
     def _build_start_query_execution_request(self, query):
         request = {
