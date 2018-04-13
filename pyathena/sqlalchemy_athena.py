@@ -42,23 +42,23 @@ class AthenaCompiler(SQLCompiler):
 
 
 _TYPE_MAPPINGS = {
-    'BOOLEAN': BOOLEAN,
-    'REAL': FLOAT,
-    'FLOAT': FLOAT,
-    'DOUBLE': FLOAT,
-    'TINYINT': INTEGER,
-    'SMALLINT': INTEGER,
-    'INTEGER': INTEGER,
-    'BIGINT': BIGINT,
-    'DECIMAL': DECIMAL,
-    'CHAR': STRINGTYPE,
-    'VARCHAR': STRINGTYPE,
-    'ARRAY': STRINGTYPE,
-    'ROW': STRINGTYPE,  # StructType
-    'VARBINARY': BINARY,
-    'MAP': STRINGTYPE,
-    'DATE': DATE,
-    'TIMESTAMP': TIMESTAMP,
+    'boolean': BOOLEAN,
+    'real': FLOAT,
+    'float': FLOAT,
+    'double': FLOAT,
+    'tinyint': INTEGER,
+    'smallint': INTEGER,
+    'integer': INTEGER,
+    'bigint': BIGINT,
+    'decimal': DECIMAL,
+    'char': STRINGTYPE,
+    'varchar': STRINGTYPE,
+    'array': STRINGTYPE,
+    'row': STRINGTYPE,  # StructType
+    'varbinary': BINARY,
+    'map': STRINGTYPE,
+    'date': DATE,
+    'timestamp': TIMESTAMP,
 }
 
 
@@ -81,7 +81,7 @@ class AthenaDialect(DefaultDialect):
 
     _pattern_data_catlog_exception = re.compile(
         r'DataCatalogException:\ (Database|Namespace|Table)\ (?P<name>.+)\ not\ found')
-    _pattern_column_type = re.compile(r'^([A-Z]+)($|\(.+\)$)')
+    _pattern_column_type = re.compile(r'^([a-zA-Z]+)($|\(.+\)$)')
 
     @classmethod
     def dbapi(cls):
@@ -182,7 +182,7 @@ class AthenaDialect(DefaultDialect):
         return True
 
     def _get_column_type(self, type_):
-        return self._pattern_column_type.sub(r'\1', type_.upper())
+        return self._pattern_column_type.sub(r'\1', type_)
 
     def get_foreign_keys(self, connection, table_name, schema=None, **kw):
         # Athena has no support for foreign keys.

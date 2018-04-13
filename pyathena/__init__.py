@@ -31,15 +31,18 @@ class DBAPITypeObject:
         else:
             return -1
 
+    def __eq__(self, other):
+        return other in self.values
 
-STRING = DBAPITypeObject('CHAR', 'NCHAR',
-                         'VARCHAR', 'NVARCHAR',
-                         'LONGVARCHAR', 'LONGNVARCHAR')
-BINARY = DBAPITypeObject('BINARY', 'VARBINARY', 'LONGVARBINARY')
-NUMBER = DBAPITypeObject('BOOLEAN', 'TINYINT', 'SMALLINT', 'BIGINT', 'INTEGER',
-                         'REAL', 'DOUBLE', 'FLOAT', 'DECIMAL', 'NUMERIC')
-DATETIME = DBAPITypeObject('TIMESTAMP')
-ROWID = DBAPITypeObject('')
+
+# https://docs.aws.amazon.com/athena/latest/ug/data-types.html
+STRING = DBAPITypeObject('char', 'varchar', 'map', 'array', 'row')
+BINARY = DBAPITypeObject('varbinary')
+BOOLEAN = DBAPITypeObject('boolean')
+NUMBER = DBAPITypeObject('tinyint', 'smallint', 'bigint', 'integer',
+                         'real', 'double', 'float', 'decimal')
+DATE = DBAPITypeObject('date')
+DATETIME = DBAPITypeObject('timestamp')
 
 
 Date = datetime.date

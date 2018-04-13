@@ -13,7 +13,7 @@ from concurrent import futures
 from concurrent.futures.thread import ThreadPoolExecutor
 from past.builtins.misc import xrange
 
-from pyathena import connect
+from pyathena import connect, BOOLEAN, NUMBER, STRING, DATETIME, BINARY, DATE
 from pyathena.cursor import Cursor
 from pyathena.error import DatabaseError, ProgrammingError, NotSupportedError
 from pyathena.model import AthenaQueryExecution
@@ -308,6 +308,24 @@ class TestCursor(unittest.TestCase):
         self.assertEqual(rows, expected)
         # catch unicode/str
         self.assertEqual(list(map(type, rows[0])), list(map(type, expected[0])))
+        # compare dbapi type object
+        self.assertEqual([d[1] for d in cursor.description], [
+            BOOLEAN,
+            NUMBER,
+            NUMBER,
+            NUMBER,
+            NUMBER,
+            NUMBER,
+            NUMBER,
+            STRING,
+            DATETIME,
+            DATE,
+            BINARY,
+            STRING,
+            STRING,
+            STRING,
+            NUMBER,
+        ])
 
     @with_cursor
     def test_cancel(self, cursor):
