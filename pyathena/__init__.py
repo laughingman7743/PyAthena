@@ -6,7 +6,7 @@ import datetime
 from pyathena.error import *  # noqa
 
 
-__version__ = '1.2.2'
+__version__ = '1.2.3'
 
 
 # Globals https://www.python.org/dev/peps/pep-0249/#globals
