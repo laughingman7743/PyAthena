@@ -67,14 +67,14 @@ def _to_default(varchar_value):
 class TypeConverter(object):
 
     def __init__(self):
-        self.mappings = _DEFAULT_CONVERTERS
+        self._mappings = _DEFAULT_CONVERTERS
 
     def convert(self, type_, varchar_value):
-        converter = self.mappings.get(type_, _to_default)
+        converter = self._mappings.get(type_, _to_default)
         return converter(varchar_value)
 
     def register_converter(self, type_, converter):
-        self.mappings[type_] = converter
+        self._mappings[type_] = converter
 
 
 _DEFAULT_CONVERTERS = {
