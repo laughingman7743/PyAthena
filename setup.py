@@ -41,10 +41,9 @@ setup(
     },
     tests_require=[
         'SQLAlchemy>=1.0.0',
-        'pytest',
+        'pytest>=3.4',
         'pytest-cov',
         'pytest-flake8',
-        'pytest-catchlog',
     ],
     entry_points={
         'sqlalchemy.dialects': [

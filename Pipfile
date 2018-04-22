@@ -1,0 +1,22 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+
+[packages]
+"e1839a8" = {path = ".", extras = ["sqlalchemy"], editable = true}
+
+
+[dev-packages]
+awscli = "*"
+tox = "*"
+twine = "*"
+
+pytest = ">=3.4"
+pytest-cov = "*"
+pytest-flake8 = "*"
+
+futures = {version = "*", markers="python_version <= '2.7'"}
+funcsigs = {version = "*", markers="python_version < '3.3'"}
+monotonic = {version = ">=0.6", markers="python_version == '2.7'"}
