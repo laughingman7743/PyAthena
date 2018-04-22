@@ -330,18 +330,20 @@ Run test
 
 .. code:: bash
 
-    $ pip install pytest awscli
-    $ scripts/test_data/upload_test_data.sh
-    $ py.test
-    $ scripts/test_data/delete_test_data.sh
+    $ pip install pipenv
+    $ pipenv install --dev
+    $ pipenv run scripts/test_data/upload_test_data.sh
+    $ pipenv run pytest
+    $ pipenv run scripts/test_data/delete_test_data.sh
 
 Run test multiple Python versions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
-    $ pip install tox awscli
-    $ scripts/test_data/upload_test_data.sh
-    $ pyenv local 2.7.13 3.4.6 3.5.3 3.6.1
-    $ tox
-    $ scripts/test_data/delete_test_data.sh
+    $ pip install pipenv
+    $ pipenv install --dev
+    $ pipenv run scripts/test_data/upload_test_data.sh
+    $ pyenv local 3.6.5 3.5.5 3.4.8 2.7.14
+    $ pipenv run tox
+    $ pipenv run scripts/test_data/delete_test_data.sh
