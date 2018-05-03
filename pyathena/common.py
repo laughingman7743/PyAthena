@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import unicode_literals
+
 import logging
 import time
 from abc import ABCMeta, abstractmethod
@@ -10,7 +11,6 @@ from future.utils import raise_from, with_metaclass
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.util import retry_api_call
-
 
 _logger = logging.getLogger(__name__)
 

@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import unicode_literals
+
 import logging
 
 from pyathena.common import BaseCursor, CursorIterator
-from pyathena.error import OperationalError, ProgrammingError, NotSupportedError
+from pyathena.error import NotSupportedError, OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
 from pyathena.util import synchronized
-
 
 _logger = logging.getLogger(__name__)
 

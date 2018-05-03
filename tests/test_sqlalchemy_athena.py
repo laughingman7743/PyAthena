@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import unicode_literals
+
 import unittest
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
 
 import sqlalchemy
@@ -10,13 +11,12 @@ from future.utils import PY2
 from sqlalchemy.engine import create_engine
 from sqlalchemy.exc import NoSuchTableError, OperationalError, ProgrammingError
 from sqlalchemy.sql import expression
-from sqlalchemy.sql.schema import Table, MetaData, Column
+from sqlalchemy.sql.schema import Column, MetaData, Table
 from sqlalchemy.sql.sqltypes import (BIGINT, BINARY, BOOLEAN, DATE, DECIMAL,
                                      FLOAT, INTEGER, STRINGTYPE, TIMESTAMP)
 
 from tests.conftest import ENV, SCHEMA
 from tests.util import with_engine
-
 
 if PY2:
     from urllib import quote_plus

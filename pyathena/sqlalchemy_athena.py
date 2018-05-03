@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import unicode_literals
+
 import re
 
 import tenacity
@@ -11,9 +12,7 @@ from sqlalchemy.exc import NoSuchTableError, OperationalError
 from sqlalchemy.sql.compiler import IdentifierPreparer, SQLCompiler
 from sqlalchemy.sql.sqltypes import (BIGINT, BINARY, BOOLEAN, DATE, DECIMAL, FLOAT,
                                      INTEGER, NULLTYPE, STRINGTYPE, TIMESTAMP)
-from tenacity.retry import retry_if_exception
-from tenacity.stop import stop_after_attempt
-from tenacity.wait import wait_exponential
+from tenacity import retry_if_exception, stop_after_attempt, wait_exponential
 
 import pyathena
 

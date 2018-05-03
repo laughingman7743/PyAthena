@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import unicode_literals
+
 import contextlib
-import unittest
 import time
+import unittest
 from datetime import datetime
 from random import randint
 
@@ -11,10 +12,9 @@ from past.builtins.misc import xrange
 
 from pyathena import connect
 from pyathena.async_cursor import AsyncCursor
-from pyathena.error import ProgrammingError, NotSupportedError
+from pyathena.error import NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
-
 from tests.conftest import SCHEMA
 from tests.util import with_async_cursor
 

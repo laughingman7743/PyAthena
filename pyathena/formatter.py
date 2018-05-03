@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import unicode_literals
+
 import logging
 from datetime import date, datetime
 from decimal import Decimal
@@ -9,7 +10,6 @@ from future.utils import iteritems
 from past.types import long, unicode
 
 from pyathena.error import ProgrammingError
-
 
 _logger = logging.getLogger(__name__)
 

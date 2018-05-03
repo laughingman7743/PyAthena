@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import unicode_literals
+
 import collections
 import logging
 
@@ -11,7 +12,6 @@ from pyathena.common import CursorIterator
 from pyathena.error import DataError, OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.util import retry_api_call
-
 
 _logger = logging.getLogger(__name__)
 

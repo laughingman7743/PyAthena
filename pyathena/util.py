@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import unicode_literals
+
 import functools
 import threading
 
 import tenacity
-from tenacity.after import after_log
-from tenacity.retry import retry_if_exception
-from tenacity.stop import stop_after_attempt
-from tenacity.wait import wait_exponential
+from tenacity import (after_log, retry_if_exception,
+                      stop_after_attempt, wait_exponential)
 
 
 def as_pandas(cursor):

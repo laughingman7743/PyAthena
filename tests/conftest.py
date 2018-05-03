@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import unicode_literals
+
 import contextlib
 import os
 import random
@@ -11,7 +12,6 @@ from past.builtins.misc import xrange
 
 from pyathena import connect
 from tests.util import Env, read_query
-
 
 ENV = Env()
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))

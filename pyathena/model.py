@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import unicode_literals
+
 import logging
 
 from pyathena.error import DataError
-
 
 _logger = logging.getLogger(__name__)
 
