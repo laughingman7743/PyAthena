@@ -13,7 +13,7 @@ matrix:
     - python: 3.6
       env: TOXENV=py36
 install:
-  - pip install pipenv
+  - pip install pipenv codecov
   - pipenv install --dev
 before_script:
   - pipenv run ./scripts/test_data/upload_test_data.sh
