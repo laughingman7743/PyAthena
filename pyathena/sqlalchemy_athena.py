@@ -163,7 +163,7 @@ class AthenaDialect(DefaultDialect):
                     'default': row.column_default,
                     'ordinal_position': row.ordinal_position,
                     'comment': row.comment,
-                } for row in retry(connection.execute(query).fetchall)
+                } for row in retry(connection.execute, query).fetchall()
             ]
         except OperationalError as e:
             if not self._retry_if_data_catalog_exception(e, schema, table_name):
