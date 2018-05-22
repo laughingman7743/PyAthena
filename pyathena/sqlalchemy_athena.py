@@ -79,7 +79,7 @@ class AthenaDialect(DefaultDialect):
     supports_native_boolean = True
 
     _pattern_data_catlog_exception = re.compile(
-        r'DataCatalogException:\ (Database|Namespace|Table)\ (?P<name>.+)\ not\ found')
+        r'(((Database|Namespace)\ (?P<schema>.+))|(Table\ (?P<table>.+)))\ not\ found\.')
     _pattern_column_type = re.compile(r'^([a-zA-Z]+)($|\(.+\)$)')
 
     @classmethod
@@ -176,7 +176,8 @@ class AthenaDialect(DefaultDialect):
             return False
 
         match = self._pattern_data_catlog_exception.search(str(exc))
-        if match and match.group('name') in [schema, table_name]:
+        if match and (match.group('schema') == schema or
+                      match.group('table') == table_name):
             return False
         return True
 
