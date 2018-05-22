@@ -1,22 +1,19 @@
 #!/usr/bin/env python
 #  -*- coding: utf-8 -*-
 from __future__ import print_function
+
 import codecs
 
-from setuptools import setup
+from setuptools import find_packages, setup
 
 import pyathena
-
-
-_PACKAGE_NAME = 'PyAthena'
-
 
 with codecs.open('README.rst', 'rb', 'utf-8') as readme:
     long_description = readme.read()
 
 
 setup(
-    name=_PACKAGE_NAME,
+    name='PyAthena',
     version=pyathena.__version__,
     description='Python DB API 2.0 (PEP 249) compliant client for Amazon Athena',
     long_description=long_description,
@@ -24,7 +21,7 @@ setup(
     author='laughingman7743',
     author_email='laughingman7743@gmail.com',
     license='MIT License',
-    packages=[_PACKAGE_NAME.lower()],
+    packages=find_packages(),
     package_data={
         '': ['*.rst'],
     },
