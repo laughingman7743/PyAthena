@@ -175,41 +175,54 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     @with_engine
     def test_retry_if_data_catalog_exception(self, engine, connection):
         dialect = engine.dialect
-        exc = OperationalError('', None, 'com.facebook.presto.hive.DataCatalogException: ' +
-                               'Database also_does_not_exist not found. Please check your query.')
-        self.assertTrue(dialect._retry_if_data_catalog_exception(
-            exc, 'does_not_exist', 'this_does_not_exist'))
+        exc = OperationalError('', None,
+                               'Database does_not_exist not found. Please check your query.')
         self.assertFalse(dialect._retry_if_data_catalog_exception(
-            exc, 'also_does_not_exist', 'this_does_not_exist'))
-
-        exc = OperationalError('', None, 'com.facebook.presto.hive.DataCatalogException: ' +
-                               'Namespace also_does_not_exist not found. Please check your query.')
-        self.assertTrue(dialect._retry_if_data_catalog_exception(
-            exc, 'does_not_exist', 'this_does_not_exist'))
-        self.assertFalse(dialect._retry_if_data_catalog_exception(
-            exc, 'also_does_not_exist', 'this_does_not_exist'))
-
-        exc = OperationalError('', None, 'com.facebook.presto.hive.DataCatalogException: ' +
-                               'Table this_does_not_exist not found. Please check your query.')
-        self.assertTrue(dialect._retry_if_data_catalog_exception(
             exc, 'does_not_exist', 'does_not_exist'))
         self.assertFalse(dialect._retry_if_data_catalog_exception(
-            exc, 'also_does_not_exist', 'this_does_not_exist'))
-
-        exc = OperationalError('', None, 'com.facebook.presto.hive.FooBarException: ' +
-                               'Table this_does_not_exist not found. Please check your query.')
+            exc, 'does_not_exist', 'this_does_not_exist'))
         self.assertTrue(dialect._retry_if_data_catalog_exception(
-            exc, 'also_does_not_exist', 'this_does_not_exist'))
-
-        exc = OperationalError('', None, 'com.facebook.presto.hive.DataCatalogException: ' +
-                               'foobar.')
+            exc, 'this_does_not_exist', 'does_not_exist'))
         self.assertTrue(dialect._retry_if_data_catalog_exception(
-            exc, 'also_does_not_exist', 'this_does_not_exist'))
+            exc, 'this_does_not_exist', 'this_does_not_exist'))
 
-        exc = ProgrammingError('', None, 'com.facebook.presto.hive.DataCatalogException: ' +
-                               'Database also_does_not_exist not found. Please check your query.')
+        exc = OperationalError('', None,
+                               'Namespace does_not_exist not found. Please check your query.')
+        self.assertFalse(dialect._retry_if_data_catalog_exception(
+            exc, 'does_not_exist', 'does_not_exist'))
         self.assertFalse(dialect._retry_if_data_catalog_exception(
             exc, 'does_not_exist', 'this_does_not_exist'))
+        self.assertTrue(dialect._retry_if_data_catalog_exception(
+            exc, 'this_does_not_exist', 'does_not_exist'))
+        self.assertTrue(dialect._retry_if_data_catalog_exception(
+            exc, 'this_does_not_exist', 'this_does_not_exist'))
+
+        exc = OperationalError('', None,
+                               'Table does_not_exist not found. Please check your query.')
+        self.assertFalse(dialect._retry_if_data_catalog_exception(
+            exc, 'does_not_exist', 'does_not_exist'))
+        self.assertTrue(dialect._retry_if_data_catalog_exception(
+            exc, 'does_not_exist', 'this_does_not_exist'))
+        self.assertFalse(dialect._retry_if_data_catalog_exception(
+            exc, 'this_does_not_exist', 'does_not_exist'))
+        self.assertTrue(dialect._retry_if_data_catalog_exception(
+            exc, 'this_does_not_exist', 'this_does_not_exist'))
+
+        exc = OperationalError('', None,
+                               'foobar.')
+        self.assertTrue(dialect._retry_if_data_catalog_exception(
+            exc, 'foobar', 'foobar'))
+
+        exc = ProgrammingError('', None,
+                               'Database does_not_exist not found. Please check your query.')
+        self.assertFalse(dialect._retry_if_data_catalog_exception(
+            exc, 'does_not_exist', 'does_not_exist'))
+        self.assertFalse(dialect._retry_if_data_catalog_exception(
+            exc, 'does_not_exist', 'this_does_not_exist'))
+        self.assertFalse(dialect._retry_if_data_catalog_exception(
+            exc, 'this_does_not_exist', 'does_not_exist'))
+        self.assertFalse(dialect._retry_if_data_catalog_exception(
+            exc, 'this_does_not_exist', 'this_does_not_exist'))
 
     @with_engine
     def test_get_column_type(self, engine, connection):
