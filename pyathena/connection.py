@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import unicode_literals
+
 import logging
 import os
 import time
@@ -11,7 +12,6 @@ from pyathena.converter import TypeConverter
 from pyathena.cursor import Cursor
 from pyathena.error import NotSupportedError
 from pyathena.formatter import ParameterFormatter
-
 
 _logger = logging.getLogger(__name__)
 
