@@ -13,12 +13,11 @@ matrix:
     - python: 3.6
       env: TOXENV=py36
 install:
-  - pip install pipenv codecov
-  - pipenv install --dev
+  - pip install tox codecov awscli
 before_script:
-  - pipenv run ./scripts/test_data/upload_test_data.sh
+  - ./scripts/test_data/upload_test_data.sh
 script:
-  - pipenv run tox
+  - tox
 after_success:
-  # - pipenv run ./scripts/test_data/delete_test_data.sh
+  # - ./scripts/test_data/delete_test_data.sh
   - codecov
