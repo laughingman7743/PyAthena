@@ -13,7 +13,7 @@ with codecs.open('README.rst', 'rb', 'utf-8') as readme:
 
 
 setup(
-    name='PyAthena',
+    name='lambda-pyathena',
     version=pyathena.__version__,
     description='Python DB API 2.0 (PEP 249) compliant client for Amazon Athena',
     long_description=long_description,
@@ -28,8 +28,6 @@ setup(
     install_requires=[
         'future',
         'futures;python_version=="2.7"',
-        'botocore>=1.5.52',
-        'boto3>=1.4.4',
         'tenacity>=4.1.0',
     ],
     extras_require={
