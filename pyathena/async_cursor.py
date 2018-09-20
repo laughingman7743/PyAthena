@@ -57,7 +57,7 @@ class AsyncCursor(BaseCursor):
         return self._executor.submit(self._description, query_id)
 
     def query_execution(self, query_id):
-        return self._executor.submit(self._query_execution, query_id)
+        return self._executor.submit(self._get_query_execution, query_id)
 
     def poll(self, query_id):
         return self._executor.submit(self._poll, query_id)
