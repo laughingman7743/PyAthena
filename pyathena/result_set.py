@@ -106,7 +106,7 @@ class AthenaResultSet(CursorIterator):
         if next_token:
             request.update({'NextToken': next_token})
         try:
-            response = retry_api_call(self._connection.get_query_results,
+            response = retry_api_call(self._connection.client.get_query_results,
                                       exceptions=self.retry_exceptions,
                                       attempt=self.retry_attempt,
                                       multiplier=self.retry_multiplier,

@@ -50,8 +50,8 @@ class Connection(object):
                 'aws_secret_access_key': creds['SecretAccessKey'],
                 'aws_session_token': creds['SessionToken'],
             })
-        session = Session(profile_name=profile_name, **kwargs)
-        self._client = session.client('athena', region_name=region_name, **kwargs)
+        self._session = Session(profile_name=profile_name, **kwargs)
+        self._client = self._session.client('athena', region_name=region_name, **kwargs)
 
         self._converter = converter if converter else TypeConverter()
         self._formatter = formatter if formatter else ParameterFormatter()
@@ -63,6 +63,7 @@ class Connection(object):
         self.retry_exponential_base = retry_exponential_base
 
         self.cursor_class = cursor_class
+        self._kwargs = kwargs
 
     @staticmethod
     def _assume_role(profile_name, region_name, role_arn,
@@ -78,6 +79,14 @@ class Connection(object):
         )
         return response['Credentials']
 
+    @property
+    def session(self):
+        return self._session
+
+    @property
+    def client(self):
+        return self._client
+
     def __enter__(self):
         return self
 
@@ -87,7 +96,7 @@ class Connection(object):
     def cursor(self, cursor=None, **kwargs):
         if not cursor:
             cursor = self.cursor_class
-        return cursor(self._client, self.s3_staging_dir, self.schema_name, self.poll_interval,
+        return cursor(self, self.s3_staging_dir, self.schema_name, self.poll_interval,
                       self.encryption_option, self.kms_key, self._converter, self._formatter,
                       self.retry_exceptions, self.retry_attempt, self.retry_multiplier,
                       self.retry_max_delay, self.retry_exponential_base, **kwargs)

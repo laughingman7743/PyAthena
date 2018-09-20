@@ -22,13 +22,13 @@ _logger = logging.getLogger(__name__)
 
 class AsyncCursor(BaseCursor):
 
-    def __init__(self, client, s3_staging_dir, schema_name, poll_interval,
+    def __init__(self, connection, s3_staging_dir, schema_name, poll_interval,
                  encryption_option, kms_key, converter, formatter,
                  retry_exceptions, retry_attempt, retry_multiplier,
                  retry_max_delay, retry_exponential_base,
                  max_workers=(cpu_count() or 1) * 5,
                  arraysize=CursorIterator.DEFAULT_FETCH_SIZE):
-        super(AsyncCursor, self).__init__(client, s3_staging_dir, schema_name, poll_interval,
+        super(AsyncCursor, self).__init__(connection, s3_staging_dir, schema_name, poll_interval,
                                           encryption_option, kms_key, converter, formatter,
                                           retry_exceptions, retry_attempt, retry_multiplier,
                                           retry_max_delay, retry_exponential_base)
