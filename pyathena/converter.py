@@ -5,9 +5,8 @@ from __future__ import unicode_literals
 import binascii
 import json
 import logging
+from datetime import datetime
 from decimal import Decimal
-
-from dateutil.parser import parse
 
 _logger = logging.getLogger(__name__)
 
@@ -15,13 +14,13 @@ _logger = logging.getLogger(__name__)
 def _to_date(varchar_value):
     if varchar_value is None:
         return None
-    return parse(varchar_value).date()
+    return datetime.strptime(varchar_value, '%Y-%m-%d').date()
 
 
 def _to_datetime(varchar_value):
     if varchar_value is None:
         return None
-    return parse(varchar_value)
+    return datetime.strptime(varchar_value, '%Y-%m-%d %H:%M:%S.%f')
 
 
 def _to_float(varchar_value):
@@ -124,12 +123,15 @@ PANDAS_DTYPES = {
 }
 
 PANDAS_CONVERTERS = {
-    'date': lambda d: parse(d),
-    'time': lambda t: parse(t).time(),
-    'time with time zone': lambda t: parse(t).time(),
-    'timestamp': lambda t: parse(t),
-    'timestamp with time zone': lambda t: parse(t),
     'decimal': Decimal,
     'varbinary': lambda b: binascii.a2b_hex(''.join(b.split(' '))),
     'json': json.loads,
 }
+
+PANDAS_PARSE_DATES = [
+    'date',
+    'time',
+    'time with time zone',
+    'timestamp',
+    'timestamp with time zone',
+]

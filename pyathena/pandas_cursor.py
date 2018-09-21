@@ -12,7 +12,7 @@ from future.utils import raise_from
 
 from pyathena import DataError
 from pyathena.common import WithResultSet
-from pyathena.converter import PANDAS_DTYPES, PANDAS_CONVERTERS
+from pyathena.converter import PANDAS_CONVERTERS, PANDAS_DTYPES, PANDAS_PARSE_DATES
 from pyathena.cursor import BaseCursor
 from pyathena.error import NotSupportedError, OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
@@ -81,6 +81,16 @@ class PandasCursor(BaseCursor, WithResultSet):
             d[0]: PANDAS_CONVERTERS[d[1]] for d in self.description if d[1] in PANDAS_CONVERTERS
         }
 
+    def _parse_dates(self):
+        return [
+            d[0] for d in self.description if d[1] in PANDAS_PARSE_DATES
+        ]
+
+    def _truncate_date(self, df):
+        times = [d[0] for d in self.description if d[1] in ('time', 'time with time zone')]
+        df.loc[:, times] = df.loc[:, times].apply(lambda r: r.dt.time)
+        return df
+
     @synchronized
     def as_pandas(self):
         if not self.has_result_set:
@@ -94,6 +104,10 @@ class PandasCursor(BaseCursor, WithResultSet):
             _logger.exception('Failed to download csv.')
             raise_from(OperationalError(*e.args), e)
         else:
-            return pd.read_csv(io.BytesIO(response['Body'].read()),
-                               dtype=self._dtypes(),
-                               converters=self._converters())
+            df = pd.read_csv(io.BytesIO(response['Body'].read()),
+                             dtype=self._dtypes(),
+                             converters=self._converters(),
+                             parse_dates=self._parse_dates(),
+                             infer_datetime_format=True)
+            df = self._truncate_date(df)
+            return df
