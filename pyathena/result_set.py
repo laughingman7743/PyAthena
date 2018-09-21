@@ -21,7 +21,7 @@ class AthenaResultSet(CursorIterator):
     def __init__(self, connection, converter, query_execution, arraysize,
                  retry_exceptions, retry_attempt, retry_multiplier,
                  retry_max_delay, retry_exponential_base):
-        super(AthenaResultSet, self).__init__(arraysize)
+        super(AthenaResultSet, self).__init__(arraysize=arraysize)
         self._connection = connection
         self._converter = converter
         self._query_execution = query_execution

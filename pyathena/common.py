@@ -19,8 +19,9 @@ class CursorIterator(with_metaclass(ABCMeta, object)):
 
     DEFAULT_FETCH_SIZE = 1000
 
-    def __init__(self, arraysize=None):
-        self.arraysize = arraysize if arraysize else self.DEFAULT_FETCH_SIZE
+    def __init__(self, **kwargs):
+        super(CursorIterator, self).__init__()
+        self.arraysize = kwargs.get('arraysize', self.DEFAULT_FETCH_SIZE)
         self._rownumber = None
 
     @property
@@ -73,8 +74,8 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
     def __init__(self, connection, s3_staging_dir, schema_name, poll_interval,
                  encryption_option, kms_key, converter, formatter,
                  retry_exceptions, retry_attempt, retry_multiplier,
-                 retry_max_delay, retry_exponential_base):
-        super(BaseCursor, self).__init__()
+                 retry_max_delay, retry_exponential_base, **kwargs):
+        super(BaseCursor, self).__init__(**kwargs)
         self._connection = connection
         self._s3_staging_dir = s3_staging_dir
         self._schema_name = schema_name
@@ -214,6 +215,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
 class WithResultSet(object):
 
     def __init__(self):
+        super(WithResultSet, self).__init__()
         self._query_id = None
         self._result_set = None
 

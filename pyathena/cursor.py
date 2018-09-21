@@ -18,11 +18,11 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
     def __init__(self, connection, s3_staging_dir, schema_name, poll_interval,
                  encryption_option, kms_key, converter, formatter,
                  retry_exceptions, retry_attempt, retry_multiplier,
-                 retry_max_delay, retry_exponential_base):
+                 retry_max_delay, retry_exponential_base, **kwargs):
         super(Cursor, self).__init__(connection, s3_staging_dir, schema_name, poll_interval,
                                      encryption_option, kms_key, converter, formatter,
                                      retry_exceptions, retry_attempt, retry_multiplier,
-                                     retry_max_delay, retry_exponential_base)
+                                     retry_max_delay, retry_exponential_base, **kwargs)
 
     @property
     def rownumber(self):
