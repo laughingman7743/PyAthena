@@ -16,8 +16,8 @@ from pyathena.converter import PANDAS_DTYPES, PANDAS_CONVERTERS
 from pyathena.cursor import BaseCursor
 from pyathena.error import NotSupportedError, OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
-from pyathena.util import retry_api_call
 from pyathena.result_set import AthenaResultSet
+from pyathena.util import retry_api_call, synchronized
 
 _logger = logging.getLogger(__name__)
 
@@ -48,6 +48,7 @@ class PandasCursor(BaseCursor, WithResultSet):
     def close(self):
         pass
 
+    @synchronized
     def execute(self, operation, parameters=None):
         self._reset_state()
         self._query_id = self._execute(operation, parameters)
@@ -64,6 +65,7 @@ class PandasCursor(BaseCursor, WithResultSet):
     def executemany(self, operation, seq_of_parameters):
         raise NotSupportedError
 
+    @synchronized
     def cancel(self):
         if not self._query_id:
             raise ProgrammingError('QueryExecutionId is none or empty.')
@@ -79,6 +81,7 @@ class PandasCursor(BaseCursor, WithResultSet):
             d[0]: PANDAS_CONVERTERS[d[1]] for d in self.description if d[1] in PANDAS_CONVERTERS
         }
 
+    @synchronized
     def as_pandas(self):
         if not self.has_result_set:
             raise ProgrammingError('No result set.')
