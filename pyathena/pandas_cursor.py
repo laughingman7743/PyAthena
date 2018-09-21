@@ -12,7 +12,7 @@ from future.utils import raise_from
 
 from pyathena import DataError
 from pyathena.common import WithResultSet
-from pyathena.converter import PANDAS_PARSE_DATES, PANDAS_DTYPES, PANDAS_CONVERTERS
+from pyathena.converter import PANDAS_DTYPES, PANDAS_CONVERTERS
 from pyathena.cursor import BaseCursor
 from pyathena.error import NotSupportedError, OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
@@ -79,11 +79,6 @@ class PandasCursor(BaseCursor, WithResultSet):
             d[0]: PANDAS_CONVERTERS[d[1]] for d in self.description if d[1] in PANDAS_CONVERTERS
         }
 
-    def _parse_dates(self):
-        return [
-            d[0] for d in self.description if d[1] in PANDAS_PARSE_DATES
-        ]
-
     def as_pandas(self):
         if not self.has_result_set:
             raise ProgrammingError('No result set.')
@@ -98,6 +93,4 @@ class PandasCursor(BaseCursor, WithResultSet):
         else:
             return pd.read_csv(io.BytesIO(response['Body'].read()),
                                dtype=self._dtypes(),
-                               converters=self._converters(),
-                               parse_dates=self._parse_dates(),
-                               infer_datetime_format=True)
+                               converters=self._converters())

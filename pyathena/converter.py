@@ -98,6 +98,7 @@ _DEFAULT_CONVERTERS = {
     'varchar': _to_default,
     'timestamp': _to_datetime,
     'date': _to_date,
+    # TODO time
     'varbinary': _to_binary,
     'array': _to_default,
     'map': _to_default,
@@ -123,15 +124,12 @@ PANDAS_DTYPES = {
 }
 
 PANDAS_CONVERTERS = {
-    'date': lambda d: parse(d).date(),
+    'date': lambda d: parse(d),
     'time': lambda t: parse(t).time(),
     'time with time zone': lambda t: parse(t).time(),
+    'timestamp': lambda t: parse(t),
+    'timestamp with time zone': lambda t: parse(t),
     'decimal': Decimal,
     'varbinary': lambda b: binascii.a2b_hex(''.join(b.split(' '))),
     'json': json.loads,
 }
-
-PANDAS_PARSE_DATES = [
-    'timestamp',
-    'timestamp with time zone',
-]
