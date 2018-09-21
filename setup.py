@@ -27,6 +27,7 @@ setup(
     },
     install_requires=[
         'future',
+        'python-dateutil',
         'futures;python_version=="2.7"',
         'botocore>=1.5.52',
         'boto3>=1.4.4',
