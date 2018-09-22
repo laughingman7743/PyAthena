@@ -41,8 +41,9 @@ BOOLEAN = DBAPITypeObject('boolean')
 NUMBER = DBAPITypeObject('tinyint', 'smallint', 'bigint', 'integer',
                          'real', 'double', 'float', 'decimal')
 DATE = DBAPITypeObject('date')
-DATETIME = DBAPITypeObject('timestamp')
-
+TIME = DBAPITypeObject('time', 'time with time zone')
+DATETIME = DBAPITypeObject('timestamp', 'timestamp with time zone')
+JSON = DBAPITypeObject('json')
 
 Date = datetime.date
 Time = datetime.time

@@ -23,6 +23,12 @@ def _to_datetime(varchar_value):
     return datetime.strptime(varchar_value, '%Y-%m-%d %H:%M:%S.%f')
 
 
+def _to_time(varchar_value):
+    if varchar_value is None:
+        return None
+    return datetime.strptime(varchar_value, '%H:%M:%S.%f').time()
+
+
 def _to_float(varchar_value):
     if varchar_value is None:
         return None
@@ -97,7 +103,7 @@ _DEFAULT_CONVERTERS = {
     'varchar': _to_default,
     'timestamp': _to_datetime,
     'date': _to_date,
-    # TODO time
+    'time': _to_time,
     'varbinary': _to_binary,
     'array': _to_default,
     'map': _to_default,

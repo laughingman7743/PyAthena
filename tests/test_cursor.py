@@ -14,7 +14,7 @@ from random import randint
 
 from past.builtins.misc import xrange
 
-from pyathena import BINARY, BOOLEAN, DATE, DATETIME, NUMBER, STRING, connect
+from pyathena import BINARY, BOOLEAN, DATE, DATETIME, JSON, NUMBER, STRING, TIME, connect
 from pyathena.cursor import Cursor
 from pyathena.error import DatabaseError, NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
@@ -262,10 +262,13 @@ class TestCursor(unittest.TestCase):
           ,col_double
           ,col_string
           ,col_timestamp
+          ,CAST(col_timestamp AS time) AS col_time
           ,col_date
           ,col_binary
           ,col_array
+          ,CAST(col_array AS json) AS col_array_json
           ,col_map
+          ,CAST(col_map AS json) AS col_map_json
           ,col_struct
           ,col_decimal
         FROM one_row_complex
@@ -280,10 +283,13 @@ class TestCursor(unittest.TestCase):
             ('col_double', 'double', None, None, 17, 0, 'UNKNOWN'),
             ('col_string', 'varchar', None, None, 2147483647, 0, 'UNKNOWN'),
             ('col_timestamp', 'timestamp', None, None, 3, 0, 'UNKNOWN'),
+            ('col_time', 'time', None, None, 3, 0, 'UNKNOWN'),
             ('col_date', 'date', None, None, 0, 0, 'UNKNOWN'),
             ('col_binary', 'varbinary', None, None, 1073741824, 0, 'UNKNOWN'),
             ('col_array', 'array', None, None, 0, 0, 'UNKNOWN'),
+            ('col_array_json', 'json', None, None, 0, 0, 'UNKNOWN'),
             ('col_map', 'map', None, None, 0, 0, 'UNKNOWN'),
+            ('col_map_json', 'json', None, None, 0, 0, 'UNKNOWN'),
             ('col_struct', 'row', None, None, 0, 0, 'UNKNOWN'),
             ('col_decimal', 'decimal', None, None, 10, 1, 'UNKNOWN'),
         ])
@@ -298,10 +304,13 @@ class TestCursor(unittest.TestCase):
             0.25,
             'a string',
             datetime(2017, 1, 1, 0, 0, 0),
+            datetime(2017, 1, 1, 0, 0, 0).time(),
             date(2017, 1, 2),
             b'123',
             '[1, 2]',
+            [1, 2],
             '{1=2, 3=4}',
+            {'1': 2, '3': 4},
             '{a=1, b=2}',
             Decimal('0.1'),
         )]
@@ -319,10 +328,13 @@ class TestCursor(unittest.TestCase):
             NUMBER,
             STRING,
             DATETIME,
+            TIME,
             DATE,
             BINARY,
             STRING,
+            JSON,
             STRING,
+            JSON,
             STRING,
             NUMBER,
         ])

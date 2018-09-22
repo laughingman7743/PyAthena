@@ -80,16 +80,19 @@ class TestAsyncCursor(unittest.TestCase):
           ,col_double
           ,col_string
           ,col_timestamp
+          ,CAST(col_timestamp AS time) AS col_time
           ,col_date
           ,col_binary
           ,col_array
+          ,CAST(col_array AS json) AS col_array_json
           ,col_map
+          ,CAST(col_map AS json) AS col_map_json
           ,col_struct
           ,col_decimal
         FROM one_row_complex
         """).as_pandas()
         self.assertEqual(df.shape[0], 1)
-        self.assertEqual(df.shape[1], 15)
+        self.assertEqual(df.shape[1], 18)
         dtypes = tuple([
             df['col_boolean'].dtype.type,
             df['col_tinyint'].dtype.type,
@@ -100,10 +103,13 @@ class TestAsyncCursor(unittest.TestCase):
             df['col_double'].dtype.type,
             df['col_string'].dtype.type,
             df['col_timestamp'].dtype.type,
+            df['col_time'].dtype.type,
             df['col_date'].dtype.type,
             df['col_binary'].dtype.type,
             df['col_array'].dtype.type,
+            df['col_array_json'].dtype.type,
             df['col_map'].dtype.type,
+            df['col_map_json'].dtype.type,
             df['col_struct'].dtype.type,
             df['col_decimal'].dtype.type,
         ])
@@ -117,7 +123,10 @@ class TestAsyncCursor(unittest.TestCase):
             np.float64,
             np.object_,
             np.datetime64,
+            np.object_,
             np.datetime64,
+            np.object_,
+            np.object_,
             np.object_,
             np.object_,
             np.object_,
@@ -134,10 +143,13 @@ class TestAsyncCursor(unittest.TestCase):
             row['col_double'],
             row['col_string'],
             row['col_timestamp'],
+            row['col_time'],
             row['col_date'],
             row['col_binary'],
             row['col_array'],
+            row['col_array_json'],
             row['col_map'],
+            row['col_map_json'],
             row['col_struct'],
             row['col_decimal'],
         ]) for _, row in df.iterrows()]
@@ -151,10 +163,13 @@ class TestAsyncCursor(unittest.TestCase):
             0.25,
             'a string',
             pd.Timestamp(2017, 1, 1, 0, 0, 0),
+            datetime(2017, 1, 1, 0, 0, 0).time(),
             pd.Timestamp(2017, 1, 2),
             b'123',
             '[1, 2]',
+            [1, 2],
             '{1=2, 3=4}',
+            {'1': 2, '3': 4},
             '{a=1, b=2}',
             Decimal('0.1'),
         )])
