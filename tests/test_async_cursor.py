@@ -165,7 +165,7 @@ class TestAsyncCursor(unittest.TestCase):
 
     def test_open_close(self):
         with contextlib.closing(self.connect()) as conn:
-            with conn.cursor():
+            with conn.cursor(AsyncCursor):
                 pass
 
     def test_no_ops(self):
