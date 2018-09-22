@@ -86,7 +86,7 @@ class PandasCursor(BaseCursor, WithResultSet):
             d[0] for d in self.description if d[1] in PANDAS_PARSE_DATES
         ]
 
-    def _truncate_date(self, df):
+    def _trunc_date(self, df):
         times = [d[0] for d in self.description if d[1] in ('time', 'time with time zone')]
         df.loc[:, times] = df.loc[:, times].apply(lambda r: r.dt.time)
         return df
@@ -109,5 +109,5 @@ class PandasCursor(BaseCursor, WithResultSet):
                              converters=self._converters(),
                              parse_dates=self._parse_dates(),
                              infer_datetime_format=True)
-            df = self._truncate_date(df)
+            df = self._trunc_date(df)
             return df
