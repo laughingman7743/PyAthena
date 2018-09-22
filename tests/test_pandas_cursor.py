@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 from past.builtins.misc import xrange
 
-from pyathena import DataError, DatabaseError, connect
+from pyathena import DataError, DatabaseError, ProgrammingError, connect
 from pyathena.error import NotSupportedError
 from pyathena.model import AthenaQueryExecution
 from pyathena.pandas_cursor import PandasCursor
@@ -40,6 +40,10 @@ class TestAsyncCursor(unittest.TestCase):
         cursor = conn.cursor(PandasCursor)
         with self.assertRaises(DataError):
             cursor._parse_output_location('http://foobar')
+
+    @with_pandas_cursor
+    def test_fetch_no_data(self, cursor):
+        self.assertRaises(ProgrammingError, cursor.as_pandas)
 
     @with_pandas_cursor
     def test_as_pandas(self, cursor):
@@ -188,6 +192,10 @@ class TestAsyncCursor(unittest.TestCase):
             FROM many_rows a
             CROSS JOIN many_rows b
             """))
+
+    @with_pandas_cursor
+    def test_cancel_initial(self, cursor):
+        self.assertRaises(ProgrammingError, cursor.cancel)
 
     def test_open_close(self):
         with contextlib.closing(self.connect()) as conn:
