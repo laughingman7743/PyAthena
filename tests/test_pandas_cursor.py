@@ -23,7 +23,7 @@ from tests.conftest import SCHEMA
 from tests.util import with_pandas_cursor
 
 
-class TestAsyncCursor(unittest.TestCase):
+class TestPandasCursor(unittest.TestCase):
 
     def connect(self):
         return connect(schema_name=SCHEMA)
