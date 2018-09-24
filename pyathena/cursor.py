@@ -4,10 +4,10 @@ from __future__ import unicode_literals
 
 import logging
 
-from pyathena.common import BaseCursor, CursorIterator, WithResultSet
+from pyathena.common import BaseCursor, CursorIterator
 from pyathena.error import NotSupportedError, OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
-from pyathena.result_set import AthenaResultSet
+from pyathena.result_set import AthenaResultSet, WithResultSet
 from pyathena.util import synchronized
 
 _logger = logging.getLogger(__name__)

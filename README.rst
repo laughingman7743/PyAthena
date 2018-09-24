@@ -306,8 +306,8 @@ PandasCursor
 ~~~~~~~~~~~~
 
 PandasCursor directly handles the CSV file of the query execution result output to S3.
+This cursor is to download the CSV file after executing the query, and then loaded into `DataFrame object`_.
 Performance is better than fetching data with a cursor.
-This cursor is not `DB API 2.0 (PEP 249)`_ compliant.
 
 You can use the PandasCursor by specifying the ``cursor_class``
 with the connect method or connection object.
@@ -348,7 +348,7 @@ It can also be used by specifying the cursor class when calling the connection o
     cursor = Connection(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
                         region_name='us-west-2').cursor(PandasCursor)
 
-The as_pandas method downloads the CSV file from S3, loads it into DataFrame, and returns DataFrame.
+The as_pandas method returns `DataFrame object`_.
 
 .. code:: python
 
@@ -362,6 +362,49 @@ The as_pandas method downloads the CSV file from S3, loads it into DataFrame, an
     df = cursor.execute("SELECT * FROM many_rows").as_pandas()
     print(df.describe())
     print(df.head())
+
+Support fetch and iterate query results.
+
+.. code:: python
+
+    from pyathena.connection import Connection
+    from pyathena.pandas_cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=PandasCursor).cursor()
+
+    cursor.execute("SELECT * FROM many_rows")
+    print(cursor.fetchone())
+    print(cursor.fetchmany())
+    print(cursor.fetchall())
+
+.. code:: python
+
+    from pyathena.connection import Connection
+    from pyathena.pandas_cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=PandasCursor).cursor()
+
+    cursor.execute("SELECT * FROM many_rows")
+    for row in cursor:
+        print(row)
+
+The DATE and TIMESTAMP of Athena's data type are returned as `pandas.Timestamp`_ type.
+
+.. code:: python
+
+    from pyathena.connection import Connection
+    from pyathena.pandas_cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=PandasCursor).cursor()
+
+    cursor.execute("SELECT col_timestamp FROM one_row_complex")
+    print(type(cursor.fetchone()[0]))  # <class 'pandas._libs.tslibs.timestamps.Timestamp'>
 
 Execution information of the query can also be retrieved.
 
@@ -384,6 +427,9 @@ Execution information of the query can also be retrieved.
     print(cursor.output_location)
 
 NOTE: PandasCursor handles the CSV file on memory. Pay attention to the memory capacity.
+
+.. _`DataFrame object`: https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html
+.. _`pandas.Timestamp`: https://pandas.pydata.org/pandas-docs/stable/generated/pandas.Timestamp.html
 
 Credentials
 -----------
