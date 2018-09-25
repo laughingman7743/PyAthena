@@ -7,7 +7,6 @@ import io
 import logging
 import re
 
-import pandas as pd
 from future.utils import raise_from
 from past.builtins.misc import xrange
 
@@ -379,6 +378,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         return rows
 
     def _as_pandas(self):
+        import pandas as pd
         if not self.output_location:
             raise ProgrammingError('OutputLocation is none or empty.')
         bucket, key = self._parse_output_location(self.output_location)
