@@ -171,7 +171,7 @@ As Pandas DataFrame:
     df = as_pandas(cursor)
     print(df.describe())
 
-If you want to use Pandas DataFrame directly, you can use `PandasCursor`_.
+If you want to use Pandas `DataFrame object`_ directly, you can use `PandasCursor`_.
 
 AsynchronousCursor
 ~~~~~~~~~~~~~~~~~~
