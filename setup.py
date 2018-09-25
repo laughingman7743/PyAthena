@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import codecs
+from glob import glob
 
 from setuptools import find_packages, setup
 
@@ -23,8 +24,12 @@ setup(
     license='MIT License',
     packages=find_packages(),
     package_data={
-        '': ['*.rst'],
+        '': ['LICENSE', '*.rst', 'Pipfile*'],
     },
+    include_package_data=True,
+    data_files=[
+        ('', ['LICENSE'] + glob('*.rst') + glob('Pipfile*')),
+    ],
     install_requires=[
         'future',
         'futures;python_version=="2.7"',
