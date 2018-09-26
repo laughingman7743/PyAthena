@@ -1,0 +1,33 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/python:2.7
+    steps:
+      - checkout
+      - run: python setup.py sdist bdist_wheel
+      - persist_to_workspace:
+          root: dist
+          paths:
+            - lambda*
+  upload:
+    docker:
+      - image: circleci/python:2.7
+    steps:
+      - run: sudo pip install twine
+      - attach_workspace:
+          at: dist
+      - run: twine upload dist/*
+workflows:
+  version: 2
+  build-and-upload:
+    jobs:
+      - build
+      - upload:
+          context: pypi
+          filters:
+            branches:
+              only:
+                - master
+          requires:
+            - build

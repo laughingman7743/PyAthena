@@ -19,6 +19,13 @@ PyAthena is a Python `DB API 2.0 (PEP 249)`_ compliant client for `Amazon Athena
 .. _`DB API 2.0 (PEP 249)`: https://www.python.org/dev/peps/pep-0249/
 .. _`Amazon Athena`: http://docs.aws.amazon.com/athena/latest/APIReference/Welcome.html
 
+lambda-pyathena
+===============
+
+lambda-pyathena is a fork of PyAthena that simply removes boto3 and botocore from the install-requires,
+resulting in an AWS Lambda friendly package.
+
+
 Requirements
 ------------
 
@@ -31,17 +38,17 @@ Installation
 
 .. code:: bash
 
-    $ pip install PyAthena
+    $ pip install lambda-pyathena
 
 Extra packages:
 
-+---------------+--------------------------------------+----------+
-| Package       | Install command                      | Version  |
-+===============+======================================+==========+
-| Pandas        | ``pip install PyAthena[Pandas]``     | >=0.19.0 |
-+---------------+--------------------------------------+----------+
-| SQLAlchemy    | ``pip install PyAthena[SQLAlchemy]`` | >=1.0.0  |
-+---------------+--------------------------------------+----------+
++---------------+---------------------------------------------+----------+
+| Package       | Install command                             | Version  |
++===============+=============================================+==========+
+| Pandas        | ``pip install lambda-pyathena[Pandas]``     | >=0.19.0 |
++---------------+---------------------------------------------+----------+
+| SQLAlchemy    | ``pip install lambda-pyathena[SQLAlchemy]`` | >=1.0.0  |
++---------------+---------------------------------------------+----------+
 
 Usage
 -----
