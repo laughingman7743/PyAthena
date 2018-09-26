@@ -19,8 +19,9 @@ class CursorIterator(with_metaclass(ABCMeta, object)):
 
     DEFAULT_FETCH_SIZE = 1000
 
-    def __init__(self, arraysize=None):
-        self.arraysize = arraysize if arraysize else self.DEFAULT_FETCH_SIZE
+    def __init__(self, **kwargs):
+        super(CursorIterator, self).__init__()
+        self.arraysize = kwargs.get('arraysize', self.DEFAULT_FETCH_SIZE)
         self._rownumber = None
 
     @property
@@ -70,12 +71,12 @@ class CursorIterator(with_metaclass(ABCMeta, object)):
 
 class BaseCursor(with_metaclass(ABCMeta, object)):
 
-    def __init__(self, client, s3_staging_dir, schema_name, poll_interval,
+    def __init__(self, connection, s3_staging_dir, schema_name, poll_interval,
                  encryption_option, kms_key, converter, formatter,
                  retry_exceptions, retry_attempt, retry_multiplier,
-                 retry_max_delay, retry_exponential_base):
-        super(BaseCursor, self).__init__()
-        self._connection = client
+                 retry_max_delay, retry_exponential_base, **kwargs):
+        super(BaseCursor, self).__init__(**kwargs)
+        self._connection = connection
         self._s3_staging_dir = s3_staging_dir
         self._schema_name = schema_name
         self._poll_interval = poll_interval
@@ -99,10 +100,10 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
     def connection(self):
         return self._connection
 
-    def _query_execution(self, query_id):
+    def _get_query_execution(self, query_id):
         request = {'QueryExecutionId': query_id}
         try:
-            response = retry_api_call(self._connection.get_query_execution,
+            response = retry_api_call(self._connection.client.get_query_execution,
                                       exceptions=self.retry_exceptions,
                                       attempt=self.retry_attempt,
                                       multiplier=self.retry_multiplier,
@@ -118,7 +119,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
 
     def _poll(self, query_id):
         while True:
-            query_execution = self._query_execution(query_id)
+            query_execution = self._get_query_execution(query_id)
             if query_execution.state in [AthenaQueryExecution.STATE_SUCCEEDED,
                                          AthenaQueryExecution.STATE_FAILED,
                                          AthenaQueryExecution.STATE_CANCELLED]:
@@ -155,7 +156,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
 
         request = self._build_start_query_execution_request(query)
         try:
-            response = retry_api_call(self._connection.start_query_execution,
+            response = retry_api_call(self._connection.client.start_query_execution,
                                       exceptions=self.retry_exceptions,
                                       attempt=self.retry_attempt,
                                       multiplier=self.retry_multiplier,
@@ -184,7 +185,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
     def _cancel(self, query_id):
         request = {'QueryExecutionId': query_id}
         try:
-            retry_api_call(self._connection.stop_query_execution,
+            retry_api_call(self._connection.client.stop_query_execution,
                            exceptions=self.retry_exceptions,
                            attempt=self.retry_attempt,
                            multiplier=self.retry_multiplier,

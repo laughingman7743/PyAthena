@@ -1,28 +1,30 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import logging
 
-from pyathena.common import BaseCursor, CursorIterator
+from pyathena.common import CursorIterator
+from pyathena.cursor import BaseCursor
 from pyathena.error import NotSupportedError, OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
-from pyathena.result_set import AthenaResultSet, WithResultSet
+from pyathena.result_set import AthenaPandasResultSet, WithResultSet
 from pyathena.util import synchronized
 
 _logger = logging.getLogger(__name__)
 
 
-class Cursor(BaseCursor, CursorIterator, WithResultSet):
+class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
 
     def __init__(self, connection, s3_staging_dir, schema_name, poll_interval,
                  encryption_option, kms_key, converter, formatter,
                  retry_exceptions, retry_attempt, retry_multiplier,
                  retry_max_delay, retry_exponential_base, **kwargs):
-        super(Cursor, self).__init__(connection, s3_staging_dir, schema_name, poll_interval,
-                                     encryption_option, kms_key, converter, formatter,
-                                     retry_exceptions, retry_attempt, retry_multiplier,
-                                     retry_max_delay, retry_exponential_base, **kwargs)
+        super(PandasCursor, self).__init__(connection, s3_staging_dir, schema_name, poll_interval,
+                                           encryption_option, kms_key, converter, formatter,
+                                           retry_exceptions, retry_attempt, retry_multiplier,
+                                           retry_max_delay, retry_exponential_base, **kwargs)
 
     @property
     def rownumber(self):
@@ -38,7 +40,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         self._query_id = self._execute(operation, parameters)
         query_execution = self._poll(self._query_id)
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
-            self._result_set = AthenaResultSet(
+            self._result_set = AthenaPandasResultSet(
                 self._connection, self._converter, query_execution, self.arraysize,
                 self.retry_exceptions, self.retry_attempt, self.retry_multiplier,
                 self.retry_max_delay, self.retry_exponential_base)
@@ -72,3 +74,9 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         if not self.has_result_set:
             raise ProgrammingError('No result set.')
         return self._result_set.fetchall()
+
+    @synchronized
+    def as_pandas(self):
+        if not self.has_result_set:
+            raise ProgrammingError('No result set.')
+        return self._result_set.as_pandas()

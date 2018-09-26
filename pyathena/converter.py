@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import binascii
+import json
 import logging
 from datetime import datetime
 from decimal import Decimal
@@ -20,6 +21,12 @@ def _to_datetime(varchar_value):
     if varchar_value is None:
         return None
     return datetime.strptime(varchar_value, '%Y-%m-%d %H:%M:%S.%f')
+
+
+def _to_time(varchar_value):
+    if varchar_value is None:
+        return None
+    return datetime.strptime(varchar_value, '%H:%M:%S.%f').time()
 
 
 def _to_float(varchar_value):
@@ -57,6 +64,12 @@ def _to_binary(varchar_value):
     return binascii.a2b_hex(''.join(varchar_value.split(' ')))
 
 
+def _to_json(varchar_value):
+    if varchar_value is None:
+        return None
+    return json.loads(varchar_value)
+
+
 def _to_default(varchar_value):
     if varchar_value is None:
         return None
@@ -90,9 +103,41 @@ _DEFAULT_CONVERTERS = {
     'varchar': _to_default,
     'timestamp': _to_datetime,
     'date': _to_date,
+    'time': _to_time,
     'varbinary': _to_binary,
     'array': _to_default,
     'map': _to_default,
     'row': _to_default,
     'decimal': _to_decimal,
+    'json': _to_json,
 }
+
+PANDAS_DTYPES = {
+    'boolean': bool,
+    'tinyint': int,
+    'smallint': int,
+    'integer': int,
+    'bigint': int,
+    'float': float,
+    'real': float,
+    'double': float,
+    'char': str,
+    'varchar': str,
+    'array': str,
+    'map': str,
+    'row': str,
+}
+
+PANDAS_CONVERTERS = {
+    'decimal': Decimal,
+    'varbinary': lambda b: binascii.a2b_hex(''.join(b.split(' '))),
+    'json': json.loads,
+}
+
+PANDAS_PARSE_DATES = [
+    'date',
+    'time',
+    'time with time zone',
+    'timestamp',
+    'timestamp with time zone',
+]

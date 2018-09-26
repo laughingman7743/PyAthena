@@ -6,7 +6,7 @@ import datetime
 
 from pyathena.error import *  # noqa
 
-__version__ = '1.3.0'
+__version__ = '1.4.1'
 
 # Globals https://www.python.org/dev/peps/pep-0249/#globals
 apilevel = '2.0'
@@ -41,8 +41,9 @@ BOOLEAN = DBAPITypeObject('boolean')
 NUMBER = DBAPITypeObject('tinyint', 'smallint', 'bigint', 'integer',
                          'real', 'double', 'float', 'decimal')
 DATE = DBAPITypeObject('date')
-DATETIME = DBAPITypeObject('timestamp')
-
+TIME = DBAPITypeObject('time', 'time with time zone')
+DATETIME = DBAPITypeObject('timestamp', 'timestamp with time zone')
+JSON = DBAPITypeObject('json')
 
 Date = datetime.date
 Time = datetime.time
