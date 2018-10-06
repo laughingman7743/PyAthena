@@ -124,8 +124,8 @@ class AthenaDialect(DefaultDialect):
 
     def has_table(self, connection, table_name, schema=None):
         try:
-            self.get_columns(connection, table_name, schema)
-            return True
+            columns = self.get_columns(connection, table_name, schema)
+            return True if columns else False
         except NoSuchTableError:
             return False
 
