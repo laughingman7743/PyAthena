@@ -27,11 +27,13 @@ class AsyncCursor(BaseCursor):
                  retry_exceptions, retry_attempt, retry_multiplier,
                  retry_max_delay, retry_exponential_base,
                  max_workers=(cpu_count() or 1) * 5,
-                 arraysize=CursorIterator.DEFAULT_FETCH_SIZE):
+                 arraysize=CursorIterator.DEFAULT_FETCH_SIZE,
+                 output_location=None):
         super(AsyncCursor, self).__init__(connection, s3_staging_dir, schema_name, poll_interval,
                                           encryption_option, kms_key, converter, formatter,
                                           retry_exceptions, retry_attempt, retry_multiplier,
-                                          retry_max_delay, retry_exponential_base)
+                                          retry_max_delay, retry_exponential_base,
+                                          output_location=output_location)
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._arraysize = arraysize
 

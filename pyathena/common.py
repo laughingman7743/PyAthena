@@ -74,7 +74,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
     def __init__(self, connection, s3_staging_dir, schema_name, poll_interval,
                  encryption_option, kms_key, converter, formatter,
                  retry_exceptions, retry_attempt, retry_multiplier,
-                 retry_max_delay, retry_exponential_base, **kwargs):
+                 retry_max_delay, retry_exponential_base, output_location=None, **kwargs):
         super(BaseCursor, self).__init__(**kwargs)
         self._connection = connection
         self._s3_staging_dir = s3_staging_dir
@@ -95,6 +95,10 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
         self.retry_multiplier = retry_multiplier
         self.retry_max_delay = retry_max_delay
         self.retry_exponential_base = retry_exponential_base
+
+        self._output_location = output_location
+        if self._output_location is None:
+            self._output_location = self._s3_staging_dir
 
     @property
     def connection(self):
@@ -134,7 +138,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
                 'Database': self._schema_name,
             },
             'ResultConfiguration': {
-                'OutputLocation': self._s3_staging_dir,
+                'OutputLocation': self._output_location,
             },
         }
         if self._encryption_option:
