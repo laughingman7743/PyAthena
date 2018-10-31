@@ -10,6 +10,9 @@
 .. image:: https://img.shields.io/pypi/l/PyAthena.svg
     :target: https://github.com/laughingman7743/PyAthena/blob/master/LICENSE
 
+.. image:: https://img.shields.io/pypi/dm/pyathena.svg
+    :target: https://pypi.python.org/pypi/PyAthena/
+
 
 PyAthena
 ========
