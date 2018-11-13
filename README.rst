@@ -10,7 +10,7 @@
 .. image:: https://img.shields.io/pypi/l/PyAthena.svg
     :target: https://github.com/laughingman7743/PyAthena/blob/master/LICENSE
 
-.. image:: https://img.shields.io/pypi/dm/pyathena.svg
+.. image:: https://img.shields.io/pypi/dm/Pyathena.svg
     :target: https://pypi.python.org/pypi/PyAthena/
 
 
@@ -139,6 +139,12 @@ The connection string has the following format:
 .. code:: python
 
     awsathena+rest://{aws_access_key_id}:{aws_secret_access_key}@athena.{region_name}.amazonaws.com:443/{schema_name}?s3_staging_dir={s3_staging_dir}&...
+
+If you do not specify ``aws_access_key_id`` and ``aws_secret_access_key`` using instance profile or boto3 configuration file:
+
+.. code:: python
+
+    awsathena+rest://:@athena.{region_name}.amazonaws.com:443/{schema_name}?s3_staging_dir={s3_staging_dir}&...
 
 NOTE: ``s3_staging_dir`` requires quote. If ``aws_access_key_id``, ``aws_secret_access_key`` and other parameter contain special characters, quote is also required.
 
