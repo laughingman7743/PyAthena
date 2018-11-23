@@ -266,3 +266,10 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         """)
         result = engine.execute(query, word='cat')
         self.assertEqual(result.fetchall(), [(datetime(2019, 10, 30), 'cat')])
+
+        query = sqlalchemy.sql.text("""
+        SELECT col_string FROM one_row_complex
+        WHERE col_string LIKE 'a%' OR col_string LIKE :param
+        """)
+        result = engine.execute(query, param='b%')
+        self.assertEqual(result.fetchall(), [('a string', )])
