@@ -52,8 +52,10 @@ class AthenaCompiler(SQLCompiler):
             self.isplaintext = True
 
         if len(textclause._bindparams) == 0:
+            # Prevents double escaping of percent character
             return textclause.text
-        else:  # un-escape any \:params
+        else:
+            # un-escape any \:params
             return BIND_PARAMS_ESC.sub(
                 lambda m: m.group(1),
                 BIND_PARAMS.sub(
