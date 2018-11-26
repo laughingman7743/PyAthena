@@ -242,3 +242,34 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertEqual(dialect._get_column_type('map(integer, integer)'), 'map')
         self.assertEqual(dialect._get_column_type('row(a integer, b integer)'), 'row')
         self.assertEqual(dialect._get_column_type('decimal(10,1)'), 'decimal')
+
+    @with_engine
+    def test_contain_percents_character_query(self, engine, connection):
+        query = sqlalchemy.sql.text("""
+        SELECT date_parse('20191030', '%Y%m%d')
+        """)
+        result = engine.execute(query)
+        self.assertEqual(result.fetchall(), [(datetime(2019, 10, 30), )])
+
+    @with_engine
+    def test_query_with_parameter(self, engine, connection):
+        query = sqlalchemy.sql.text("""
+        SELECT :word
+        """)
+        result = engine.execute(query, word='cat')
+        self.assertEqual(result.fetchall(), [('cat', )])
+
+    @with_engine
+    def test_contain_percents_character_query_with_parameter(self, engine, connection):
+        query = sqlalchemy.sql.text("""
+        SELECT date_parse('20191030', '%Y%m%d'), :word
+        """)
+        result = engine.execute(query, word='cat')
+        self.assertEqual(result.fetchall(), [(datetime(2019, 10, 30), 'cat')])
+
+        query = sqlalchemy.sql.text("""
+        SELECT col_string FROM one_row_complex
+        WHERE col_string LIKE 'a%' OR col_string LIKE :param
+        """)
+        result = engine.execute(query, param='b%')
+        self.assertEqual(result.fetchall(), [('a string', )])
