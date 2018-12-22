@@ -4,12 +4,13 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import contextlib
+import random
+import string
 import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from decimal import Decimal
-from random import randint
 
 import numpy as np
 import pandas as pd
@@ -20,7 +21,7 @@ from pyathena.error import NotSupportedError
 from pyathena.model import AthenaQueryExecution
 from pyathena.pandas_cursor import PandasCursor
 from pyathena.result_set import AthenaPandasResultSet
-from tests.conftest import SCHEMA
+from tests.conftest import ENV, S3_PREFIX, SCHEMA
 from tests.util import with_pandas_cursor
 
 
@@ -283,7 +284,7 @@ class TestPandasCursor(unittest.TestCase):
     @with_pandas_cursor
     def test_cancel(self, cursor):
         def cancel(c):
-            time.sleep(randint(1, 5))
+            time.sleep(random.randint(1, 5))
             c.cancel()
 
         with ThreadPoolExecutor(max_workers=1) as executor:
@@ -311,3 +312,18 @@ class TestPandasCursor(unittest.TestCase):
             'SELECT * FROM one_row', []))
         cursor.close()
         conn.close()
+
+    @with_pandas_cursor
+    def test_empty_result(self, cursor):
+        table = 'test_pandas_cursor_empty_result_' + ''.join([random.choice(
+            string.ascii_lowercase + string.digits) for _ in xrange(10)])
+        location = '{0}{1}/{2}/'.format(ENV.s3_staging_dir, S3_PREFIX, table)
+        df = cursor.execute("""
+        CREATE EXTERNAL TABLE IF NOT EXISTS
+        {schema}.{table} (number_of_rows INT)
+        ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+        LINES TERMINATED BY '\n' STORED AS TEXTFILE
+        LOCATION '{location}'
+        """.format(schema=SCHEMA, table=table, location=location)).as_pandas()
+        self.assertEqual(df.shape[0], 0)
+        self.assertEqual(df.shape[1], 0)
