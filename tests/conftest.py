@@ -17,7 +17,7 @@ ENV = Env()
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 S3_PREFIX = 'test_pyathena'
 SCHEMA = 'test_pyathena_' + ''.join([random.choice(
-    string.ascii_lowercase + string.digits) for i in xrange(10)])
+    string.ascii_lowercase + string.digits) for _ in xrange(10)])
 
 
 @pytest.fixture(scope='session', autouse=True)
