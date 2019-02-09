@@ -6,7 +6,7 @@ import re
 
 import tenacity
 from future.utils import raise_from
-from sqlalchemy.engine import reflection
+from sqlalchemy.engine import reflection, Engine
 from sqlalchemy.engine.default import DefaultDialect
 from sqlalchemy.exc import NoSuchTableError, OperationalError
 from sqlalchemy.sql.compiler import (BIND_PARAMS, BIND_PARAMS_ESC,
@@ -110,8 +110,10 @@ class AthenaDialect(DefaultDialect):
     def dbapi(cls):
         return pyathena
 
-    def _get_default_schema_name(self, connection):
-        return connection.connection.schema_name
+    def _raw_connection(self, connection):
+        if isinstance(connection, Engine):
+            return connection.raw_connection()
+        return connection.connection
 
     def create_connect_args(self, url):
         # Connection string format:
@@ -138,7 +140,8 @@ class AthenaDialect(DefaultDialect):
 
     @reflection.cache
     def get_table_names(self, connection, schema=None, **kw):
-        schema = schema if schema else connection.connection.schema_name
+        raw_connection = self._raw_connection(connection)
+        schema = schema if schema else raw_connection.schema_name
         query = """
                 SELECT table_name
                 FROM information_schema.tables
@@ -155,7 +158,8 @@ class AthenaDialect(DefaultDialect):
 
     @reflection.cache
     def get_columns(self, connection, table_name, schema=None, **kw):
-        schema = schema if schema else connection.connection.schema_name
+        raw_connection = self._raw_connection(connection)
+        schema = schema if schema else raw_connection.schema_name
         query = """
                 SELECT
                   table_schema,
@@ -173,10 +177,10 @@ class AthenaDialect(DefaultDialect):
         retry = tenacity.Retrying(
             retry=retry_if_exception(
                 lambda exc: self._retry_if_data_catalog_exception(exc, schema, table_name)),
-            stop=stop_after_attempt(connection.connection.retry_attempt),
-            wait=wait_exponential(multiplier=connection.connection.retry_multiplier,
-                                  max=connection.connection.retry_max_delay,
-                                  exp_base=connection.connection.retry_exponential_base),
+            stop=stop_after_attempt(raw_connection.retry_attempt),
+            wait=wait_exponential(multiplier=raw_connection.retry_multiplier,
+                                  max=raw_connection.retry_max_delay,
+                                  exp_base=raw_connection.retry_exponential_base),
             reraise=True)
         try:
             return [
