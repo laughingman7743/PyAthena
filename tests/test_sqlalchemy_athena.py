@@ -114,6 +114,12 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertTrue(Table('one_row', MetaData(bind=engine)).exists())
         self.assertFalse(Table('this_table_does_not_exist', MetaData(bind=engine)).exists())
 
+    def test_get_columns(self, engine, connection):
+        insp = sqlalchemy.inspect(engine)
+        self.assertEqual(
+            insp.get_columns(table_name='one_row', schema=SCHEMA),
+            ['number_of_rows'])
+
     @with_engine
     def test_char_length(self, engine, connection):
         one_row_complex = Table('one_row_complex', MetaData(bind=engine), autoload=True)
