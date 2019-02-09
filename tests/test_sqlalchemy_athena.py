@@ -114,6 +114,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertTrue(Table('one_row', MetaData(bind=engine)).exists())
         self.assertFalse(Table('this_table_does_not_exist', MetaData(bind=engine)).exists())
 
+    @with_engine
     def test_get_columns(self, engine, connection):
         insp = sqlalchemy.inspect(engine)
         self.assertEqual(
