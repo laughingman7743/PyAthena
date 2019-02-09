@@ -110,9 +110,6 @@ class AthenaDialect(DefaultDialect):
     def dbapi(cls):
         return pyathena
 
-    def _get_default_schema_name(self, connection):
-        return connection.connection.schema_name
-
     def _raw_connection(self, connection):
         if isinstance(connection, Engine):
             return connection.raw_connection()
