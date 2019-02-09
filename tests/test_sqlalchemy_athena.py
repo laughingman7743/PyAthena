@@ -117,9 +117,13 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     @with_engine
     def test_get_columns(self, engine, connection):
         insp = sqlalchemy.inspect(engine)
-        self.assertEqual(
-            insp.get_columns(table_name='one_row', schema=SCHEMA),
-            ['number_of_rows'])
+        actual = insp.get_columns(table_name='one_row', schema=SCHEMA)[0]
+        self.assertEqual(actual['name'], 'number_of_rows')
+        self.assertTrue(isinstance(actual['type'], INTEGER))
+        self.assertTrue(actual['nullable'])
+        self.assertIsNone(actual['default'])
+        self.assertEqual(actual['ordinal_position'], 1)
+        self.assertIsNone(actual['comment'])
 
     @with_engine
     def test_char_length(self, engine, connection):
