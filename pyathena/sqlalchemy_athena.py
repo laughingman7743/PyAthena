@@ -6,7 +6,7 @@ import re
 
 import tenacity
 from future.utils import raise_from
-from sqlalchemy.engine import reflection
+from sqlalchemy.engine import reflection, Engine
 from sqlalchemy.engine.default import DefaultDialect
 from sqlalchemy.exc import NoSuchTableError, OperationalError
 from sqlalchemy.sql.compiler import (BIND_PARAMS, BIND_PARAMS_ESC,
@@ -113,6 +113,11 @@ class AthenaDialect(DefaultDialect):
     def _get_default_schema_name(self, connection):
         return connection.connection.schema_name
 
+    def _raw_connection(self, connection):
+        if isinstance(connection, Engine):
+            return connection.raw_connection()
+        return connection.connection
+
     def create_connect_args(self, url):
         # Connection string format:
         #   awsathena+rest://
@@ -138,7 +143,7 @@ class AthenaDialect(DefaultDialect):
 
     @reflection.cache
     def get_table_names(self, connection, schema=None, **kw):
-        raw_connection = connection.raw_connection()
+        raw_connection = self._raw_connection(connection)
         schema = schema if schema else raw_connection.schema_name
         query = """
                 SELECT table_name
@@ -156,7 +161,7 @@ class AthenaDialect(DefaultDialect):
 
     @reflection.cache
     def get_columns(self, connection, table_name, schema=None, **kw):
-        raw_connection = connection.raw_connection()
+        raw_connection = self._raw_connection(connection)
         schema = schema if schema else raw_connection.schema_name
         query = """
                 SELECT
