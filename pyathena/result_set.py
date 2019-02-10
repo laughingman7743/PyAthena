@@ -7,7 +7,7 @@ import io
 import logging
 import re
 
-from future.utils import raise_from, iteritems
+from future.utils import raise_from
 from past.builtins.misc import xrange
 
 from pyathena.common import CursorIterator
@@ -311,10 +311,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             retry_max_delay, retry_exponential_base)
         self._arraysize = arraysize
         self._client = self._connection.session.client(
-            's3', region_name=self._connection.region_name,
-            **{k: v for k, v in iteritems(self._connection._kwargs)
-               if k in self._connection._CLIENT_PASSING_ARGS}
-        )
+            's3', region_name=self._connection.region_name, **self._connection._client_kwargs)
         self._df = self._as_pandas()
         self._iterrows = self._df.iterrows()
 
