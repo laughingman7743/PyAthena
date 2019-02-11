@@ -311,7 +311,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             retry_max_delay, retry_exponential_base)
         self._arraysize = arraysize
         self._client = self._connection.session.client(
-            's3', region_name=self._connection.region_name, **self._connection._kwargs)
+            's3', region_name=self._connection.region_name, **self._connection._client_kwargs)
         self._df = self._as_pandas()
         self._iterrows = self._df.iterrows()
 
