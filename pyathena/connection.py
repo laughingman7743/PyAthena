@@ -33,8 +33,9 @@ class Connection(object):
     ]
 
     def __init__(self, s3_staging_dir=None, region_name=None, schema_name='default',
-                 poll_interval=1, encryption_option=None, kms_key=None, profile_name=None,
-                 role_arn=None, role_session_name='PyAthena-session-{0}'.format(int(time.time())),
+                 work_group=None, poll_interval=1, encryption_option=None, kms_key=None,
+                 profile_name=None, role_arn=None,
+                 role_session_name='PyAthena-session-{0}'.format(int(time.time())),
                  duration_seconds=3600, converter=None, formatter=None,
                  retry_config=None, cursor_class=Cursor, **kwargs):
         self._kwargs = kwargs
@@ -46,6 +47,7 @@ class Connection(object):
         assert schema_name, 'Required argument `schema_name` not found.'
         self.region_name = region_name
         self.schema_name = schema_name
+        self.work_group = work_group
         self.poll_interval = poll_interval
         self.encryption_option = encryption_option
         self.kms_key = kms_key
@@ -118,9 +120,17 @@ class Connection(object):
     def cursor(self, cursor=None, **kwargs):
         if not cursor:
             cursor = self.cursor_class
-        return cursor(self, self.s3_staging_dir, self.schema_name, self.poll_interval,
-                      self.encryption_option, self.kms_key, self._converter, self._formatter,
-                      self._retry_config, **kwargs)
+        return cursor(connection=self,
+                      s3_staging_dir=self.s3_staging_dir,
+                      schema_name=self.schema_name,
+                      work_group=self.work_group,
+                      poll_interval=self.poll_interval,
+                      encryption_option=self.encryption_option,
+                      kms_key=self.kms_key,
+                      converter=self._converter,
+                      formatter=self._formatter,
+                      retry_config=self._retry_config,
+                      **kwargs)
 
     def close(self):
         pass

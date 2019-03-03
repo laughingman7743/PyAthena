@@ -15,13 +15,21 @@ _logger = logging.getLogger(__name__)
 
 class Cursor(BaseCursor, CursorIterator, WithResultSet):
 
-    def __init__(self, connection, s3_staging_dir, schema_name, poll_interval,
-                 encryption_option, kms_key, converter, formatter,
+    def __init__(self, connection, s3_staging_dir, schema_name, work_group,
+                 poll_interval, encryption_option, kms_key, converter, formatter,
                  retry_config, **kwargs):
         super(Cursor, self).__init__(
-            connection, s3_staging_dir, schema_name, poll_interval,
-            encryption_option, kms_key, converter, formatter,
-            retry_config, **kwargs)
+            connection=connection,
+            s3_staging_dir=s3_staging_dir,
+            schema_name=schema_name,
+            work_group=work_group,
+            poll_interval=poll_interval,
+            encryption_option=encryption_option,
+            kms_key=kms_key,
+            converter=converter,
+            formatter=formatter,
+            retry_config=retry_config,
+            **kwargs)
 
     @property
     def rownumber(self):
@@ -32,9 +40,11 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
             self._result_set.close()
 
     @synchronized
-    def execute(self, operation, parameters=None):
+    def execute(self, operation, parameters=None, work_group=None):
         self._reset_state()
-        self._query_id = self._execute(operation, parameters)
+        self._query_id = self._execute(operation,
+                                       parameters=parameters,
+                                       work_group=work_group)
         query_execution = self._poll(self._query_id)
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
             self._result_set = AthenaResultSet(
