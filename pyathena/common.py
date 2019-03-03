@@ -71,10 +71,9 @@ class CursorIterator(with_metaclass(ABCMeta, object)):
 
 class BaseCursor(with_metaclass(ABCMeta, object)):
 
-    def __init__(self, connection, s3_staging_dir, schema_name, poll_interval,
-                 encryption_option, kms_key, converter, formatter,
-                 retry_exceptions, retry_attempt, retry_multiplier,
-                 retry_max_delay, retry_exponential_base, **kwargs):
+    def __init__(self, connection, s3_staging_dir, schema_name,
+                 poll_interval, encryption_option, kms_key, converter, formatter,
+                 retry_config, **kwargs):
         super(BaseCursor, self).__init__(**kwargs)
         self._connection = connection
         self._s3_staging_dir = s3_staging_dir
@@ -84,17 +83,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
         self._kms_key = kms_key
         self._converter = converter
         self._formatter = formatter
-
-        self.retry_exceptions = retry_exceptions
-        self.retry_attempt = retry_attempt
-        self.retry_multiplier = retry_multiplier
-        self.retry_max_delay = retry_max_delay
-        self.retry_exponential_base = retry_exponential_base
-
-        self.retry_attempt = retry_attempt
-        self.retry_multiplier = retry_multiplier
-        self.retry_max_delay = retry_max_delay
-        self.retry_exponential_base = retry_exponential_base
+        self._retry_config = retry_config
 
     @property
     def connection(self):
@@ -104,11 +93,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
         request = {'QueryExecutionId': query_id}
         try:
             response = retry_api_call(self._connection.client.get_query_execution,
-                                      exceptions=self.retry_exceptions,
-                                      attempt=self.retry_attempt,
-                                      multiplier=self.retry_multiplier,
-                                      max_delay=self.retry_max_delay,
-                                      exp_base=self.retry_exponential_base,
+                                      config=self._retry_config,
                                       logger=_logger,
                                       **request)
         except Exception as e:
@@ -157,11 +142,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
         request = self._build_start_query_execution_request(query)
         try:
             response = retry_api_call(self._connection.client.start_query_execution,
-                                      exceptions=self.retry_exceptions,
-                                      attempt=self.retry_attempt,
-                                      multiplier=self.retry_multiplier,
-                                      max_delay=self.retry_max_delay,
-                                      exp_base=self.retry_exponential_base,
+                                      config=self._retry_config,
                                       logger=_logger,
                                       **request)
         except Exception as e:
@@ -186,11 +167,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
         request = {'QueryExecutionId': query_id}
         try:
             retry_api_call(self._connection.client.stop_query_execution,
-                           exceptions=self.retry_exceptions,
-                           attempt=self.retry_attempt,
-                           multiplier=self.retry_multiplier,
-                           max_delay=self.retry_max_delay,
-                           exp_base=self.retry_exponential_base,
+                           config=self._retry_config,
                            logger=_logger,
                            **request)
         except Exception as e:

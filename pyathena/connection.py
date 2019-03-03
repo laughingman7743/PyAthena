@@ -13,6 +13,7 @@ from pyathena.converter import TypeConverter
 from pyathena.cursor import Cursor
 from pyathena.error import NotSupportedError
 from pyathena.formatter import ParameterFormatter
+from pyathena.util import RetryConfig
 
 _logger = logging.getLogger(__name__)
 
@@ -35,10 +36,7 @@ class Connection(object):
                  poll_interval=1, encryption_option=None, kms_key=None, profile_name=None,
                  role_arn=None, role_session_name='PyAthena-session-{0}'.format(int(time.time())),
                  duration_seconds=3600, converter=None, formatter=None,
-                 retry_exceptions=('ThrottlingException', 'TooManyRequestsException'),
-                 retry_attempt=5, retry_multiplier=1,
-                 retry_max_delay=1800, retry_exponential_base=2,
-                 cursor_class=Cursor, **kwargs):
+                 retry_config=None, cursor_class=Cursor, **kwargs):
         self._kwargs = kwargs
         if s3_staging_dir:
             self.s3_staging_dir = s3_staging_dir
@@ -67,13 +65,7 @@ class Connection(object):
                                             **self._client_kwargs)
         self._converter = converter if converter else TypeConverter()
         self._formatter = formatter if formatter else ParameterFormatter()
-
-        self.retry_exceptions = retry_exceptions
-        self.retry_attempt = retry_attempt
-        self.retry_multiplier = retry_multiplier
-        self.retry_max_delay = retry_max_delay
-        self.retry_exponential_base = retry_exponential_base
-
+        self._retry_config = retry_config if retry_config else RetryConfig()
         self.cursor_class = cursor_class
 
     def _assume_role(self, profile_name, region_name, role_arn,
@@ -113,6 +105,10 @@ class Connection(object):
     def client(self):
         return self._client
 
+    @property
+    def retry_config(self):
+        return self._retry_config
+
     def __enter__(self):
         return self
 
@@ -124,8 +120,7 @@ class Connection(object):
             cursor = self.cursor_class
         return cursor(self, self.s3_staging_dir, self.schema_name, self.poll_interval,
                       self.encryption_option, self.kms_key, self._converter, self._formatter,
-                      self.retry_exceptions, self.retry_attempt, self.retry_multiplier,
-                      self.retry_max_delay, self.retry_exponential_base, **kwargs)
+                      self._retry_config, **kwargs)
 
     def close(self):
         pass
