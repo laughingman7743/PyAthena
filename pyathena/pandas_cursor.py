@@ -19,12 +19,11 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
 
     def __init__(self, connection, s3_staging_dir, schema_name, poll_interval,
                  encryption_option, kms_key, converter, formatter,
-                 retry_exceptions, retry_attempt, retry_multiplier,
-                 retry_max_delay, retry_exponential_base, **kwargs):
-        super(PandasCursor, self).__init__(connection, s3_staging_dir, schema_name, poll_interval,
-                                           encryption_option, kms_key, converter, formatter,
-                                           retry_exceptions, retry_attempt, retry_multiplier,
-                                           retry_max_delay, retry_exponential_base, **kwargs)
+                 retry_config, **kwargs):
+        super(PandasCursor, self).__init__(
+            connection, s3_staging_dir, schema_name, poll_interval,
+            encryption_option, kms_key, converter, formatter,
+            retry_config, **kwargs)
 
     @property
     def rownumber(self):
@@ -42,8 +41,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
             self._result_set = AthenaPandasResultSet(
                 self._connection, self._converter, query_execution, self.arraysize,
-                self.retry_exceptions, self.retry_attempt, self.retry_multiplier,
-                self.retry_max_delay, self.retry_exponential_base)
+                self._retry_config)
         else:
             raise OperationalError(query_execution.state_change_reason)
         return self

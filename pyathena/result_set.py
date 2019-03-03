@@ -97,20 +97,13 @@ class WithResultSet(object):
 
 class AthenaResultSet(CursorIterator):
 
-    def __init__(self, connection, converter, query_execution, arraysize,
-                 retry_exceptions, retry_attempt, retry_multiplier,
-                 retry_max_delay, retry_exponential_base):
+    def __init__(self, connection, converter, query_execution, arraysize, retry_config):
         super(AthenaResultSet, self).__init__(arraysize=arraysize)
         self._connection = connection
         self._converter = converter
         self._query_execution = query_execution
         assert self._query_execution, 'Required argument `query_execution` not found.'
-
-        self.retry_exceptions = retry_exceptions
-        self.retry_attempt = retry_attempt
-        self.retry_multiplier = retry_multiplier
-        self.retry_max_delay = retry_max_delay
-        self.retry_exponential_base = retry_exponential_base
+        self._retry_config = retry_config
 
         self._meta_data = None
         self._rows = collections.deque()
@@ -186,11 +179,7 @@ class AthenaResultSet(CursorIterator):
             request.update({'NextToken': next_token})
         try:
             response = retry_api_call(self._connection.client.get_query_results,
-                                      exceptions=self.retry_exceptions,
-                                      attempt=self.retry_attempt,
-                                      multiplier=self.retry_multiplier,
-                                      max_delay=self.retry_max_delay,
-                                      exp_base=self.retry_exponential_base,
+                                      config=self._retry_config,
                                       logger=_logger,
                                       **request)
         except Exception as e:
@@ -302,13 +291,10 @@ class AthenaPandasResultSet(AthenaResultSet):
 
     _pattern_output_location = re.compile(r'^s3://(?P<bucket>[a-zA-Z0-9.\-_]+)/(?P<key>.+)$')
 
-    def __init__(self, connection, converter, query_execution, arraysize,
-                 retry_exceptions, retry_attempt, retry_multiplier,
-                 retry_max_delay, retry_exponential_base):
+    def __init__(self, connection, converter, query_execution, arraysize, retry_config):
         super(AthenaPandasResultSet, self).__init__(
             connection, converter, query_execution, 1,  # Fetch one row to retrieve metadata
-            retry_exceptions, retry_attempt, retry_multiplier,
-            retry_max_delay, retry_exponential_base)
+            retry_config)
         self._arraysize = arraysize
         self._client = self._connection.session.client(
             's3', region_name=self._connection.region_name, **self._connection._client_kwargs)
@@ -384,6 +370,8 @@ class AthenaPandasResultSet(AthenaResultSet):
         bucket, key = self._parse_output_location(self.output_location)
         try:
             response = retry_api_call(self._client.get_object,
+                                      config=self._retry_config,
+                                      logger=_logger,
                                       Bucket=bucket,
                                       Key=key)
         except Exception as e:

@@ -29,15 +29,28 @@ def synchronized(wrapped):
     return _wrapper
 
 
-def retry_api_call(func, exceptions=('ThrottlingException', 'TooManyRequestsException'),
-                   attempt=5, multiplier=1, max_delay=1800, exp_base=2, logger=None,
+class RetryConfig(object):
+
+    def __init__(self, exceptions=('ThrottlingException', 'TooManyRequestsException'),
+                 attempt=5, multiplier=1, max_delay=100, exponential_base=2):
+        self.exceptions = exceptions
+        self.attempt = attempt
+        self.multiplier = multiplier
+        self.max_delay = max_delay
+        self.exponential_base = exponential_base
+
+
+def retry_api_call(func, config, logger=None,
                    *args, **kwargs):
     retry = tenacity.Retrying(
         retry=retry_if_exception(
-            lambda e: getattr(e, 'response', {}).get('Error', {}).get('Code', None) in exceptions
+            lambda e: getattr(e, 'response', {}).get(
+                'Error', {}).get('Code', None) in config.exceptions
             if e else False),
-        stop=stop_after_attempt(attempt),
-        wait=wait_exponential(multiplier=multiplier, max=max_delay, exp_base=exp_base),
+        stop=stop_after_attempt(config.attempt),
+        wait=wait_exponential(multiplier=config.multiplier,
+                              max=config.max_delay,
+                              exp_base=config.exponential_base),
         after=after_log(logger, logger.level) if logger else None,
         reraise=True
     )

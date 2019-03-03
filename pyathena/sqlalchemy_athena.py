@@ -174,13 +174,14 @@ class AthenaDialect(DefaultDialect):
                 WHERE table_schema = '{schema}'
                 AND table_name = '{table}'
                 """.format(schema=schema, table=table_name)
+        retry_config = raw_connection.retry_config
         retry = tenacity.Retrying(
             retry=retry_if_exception(
                 lambda exc: self._retry_if_data_catalog_exception(exc, schema, table_name)),
-            stop=stop_after_attempt(raw_connection.retry_attempt),
-            wait=wait_exponential(multiplier=raw_connection.retry_multiplier,
-                                  max=raw_connection.retry_max_delay,
-                                  exp_base=raw_connection.retry_exponential_base),
+            stop=stop_after_attempt(retry_config.attempt),
+            wait=wait_exponential(multiplier=retry_config.multiplier,
+                                  max=retry_config.max_delay,
+                                  exp_base=retry_config.exponential_base),
             reraise=True)
         try:
             return [
