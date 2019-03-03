@@ -121,15 +121,15 @@ class Connection(object):
         if not cursor:
             cursor = self.cursor_class
         return cursor(connection=self,
-                      s3_staging_dir=self.s3_staging_dir,
-                      schema_name=self.schema_name,
-                      work_group=self.work_group,
-                      poll_interval=self.poll_interval,
-                      encryption_option=self.encryption_option,
-                      kms_key=self.kms_key,
-                      converter=self._converter,
-                      formatter=self._formatter,
-                      retry_config=self._retry_config,
+                      s3_staging_dir=kwargs.pop('s3_staging_dir', self.s3_staging_dir),
+                      schema_name=kwargs.pop('schema_name', self.schema_name),
+                      work_group=kwargs.pop('work_group', self.work_group),
+                      poll_interval=kwargs.pop('poll_interval', self.poll_interval),
+                      encryption_option=kwargs.pop('encryption_option', self.encryption_option),
+                      kms_key=kwargs.pop('kms_key', self.kms_key),
+                      converter=kwargs.pop('converter', self._converter),
+                      formatter=kwargs.pop('formatter', self._formatter),
+                      retry_config=kwargs.pop('retry_config', self._retry_config),
                       **kwargs)
 
     def close(self):
