@@ -42,7 +42,7 @@ setup(
         'SQLAlchemy': ['SQLAlchemy>=1.0.0, <1.3.0'],
     },
     tests_require=[
-        'SQLAlchemy>=1.0.0',
+        'SQLAlchemy>=1.0.0, <1.3.0',
         'pytest>=3.5',
         'pytest-cov',
         'pytest-flake8>=1.0.1',
