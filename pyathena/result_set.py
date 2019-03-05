@@ -293,8 +293,11 @@ class AthenaPandasResultSet(AthenaResultSet):
 
     def __init__(self, connection, converter, query_execution, arraysize, retry_config):
         super(AthenaPandasResultSet, self).__init__(
-            connection, converter, query_execution, 1,  # Fetch one row to retrieve metadata
-            retry_config)
+            connection=connection,
+            converter=converter,
+            query_execution=query_execution,
+            arraysize=1,  # Fetch one row to retrieve metadata
+            retry_config=retry_config)
         self._arraysize = arraysize
         self._client = self._connection.session.client(
             's3', region_name=self._connection.region_name, **self._connection._client_kwargs)
