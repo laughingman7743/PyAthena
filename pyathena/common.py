@@ -113,14 +113,16 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
             else:
                 time.sleep(self._poll_interval)
 
-    def _build_start_query_execution_request(self, query, work_group):
+    def _build_start_query_execution_request(self, query, work_group=None, s3_staging_dir=None):
+        if not s3_staging_dir:
+            s3_staging_dir = self._s3_staging_dir
         request = {
             'QueryString': query,
             'QueryExecutionContext': {
                 'Database': self._schema_name,
             },
             'ResultConfiguration': {
-                'OutputLocation': self._s3_staging_dir,
+                'OutputLocation': s3_staging_dir,
             },
         }
         if self._work_group or work_group:
@@ -140,11 +142,11 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
             })
         return request
 
-    def _execute(self, operation, parameters=None, work_group=None):
+    def _execute(self, operation, parameters=None, work_group=None, s3_staging_dir=None):
         query = self._formatter.format(operation, parameters)
         _logger.debug(query)
 
-        request = self._build_start_query_execution_request(query, work_group)
+        request = self._build_start_query_execution_request(query, work_group, s3_staging_dir)
         try:
             response = retry_api_call(self._connection.client.start_query_execution,
                                       config=self._retry_config,
@@ -157,7 +159,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
             return response.get('QueryExecutionId', None)
 
     @abstractmethod
-    def execute(self, operation, parameters=None, work_group=None):
+    def execute(self, operation, parameters=None, work_group=None, s3_staging_dir=None):
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
