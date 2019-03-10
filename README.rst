@@ -435,10 +435,27 @@ Execution information of the query can also be retrieved.
     print(cursor.execution_time_in_millis)
     print(cursor.output_location)
 
+If the integer column has an NA value and ValueError occurs,
+use `Conversion Function`_ to convert the INTEGER column to a DOUBLE or FLOAT column.
+
+.. code:: python
+
+    from pyathena.connection import Connection
+    from pyathena.pandas_cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=PandasCursor).cursor()
+
+    df = cursor.execute("SELECT CAST(col_int AS DOUBLE) FROM one_row_complex").as_pandas()
+    print(df.describe())
+    print(df.head())
+
 NOTE: PandasCursor handles the CSV file on memory. Pay attention to the memory capacity.
 
 .. _`DataFrame object`: https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html
 .. _`pandas.Timestamp`: https://pandas.pydata.org/pandas-docs/stable/generated/pandas.Timestamp.html
+.. _`Conversion Function`: https://docs.aws.amazon.com/athena/latest/ug/functions-operators-reference-section.html
 
 Credentials
 -----------
