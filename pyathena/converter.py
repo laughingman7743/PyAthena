@@ -77,19 +77,6 @@ def _to_default(varchar_value):
         return varchar_value
 
 
-class TypeConverter(object):
-
-    def __init__(self):
-        self._mappings = _DEFAULT_CONVERTERS
-
-    def convert(self, type_, varchar_value):
-        converter = self._mappings.get(type_, _to_default)
-        return converter(varchar_value)
-
-    def register_converter(self, type_, converter):
-        self._mappings[type_] = converter
-
-
 _DEFAULT_CONVERTERS = {
     'boolean': _to_boolean,
     'tinyint': _to_int,
@@ -112,32 +99,15 @@ _DEFAULT_CONVERTERS = {
     'json': _to_json,
 }
 
-PANDAS_DTYPES = {
-    'boolean': bool,
-    'tinyint': int,
-    'smallint': int,
-    'integer': int,
-    'bigint': int,
-    'float': float,
-    'real': float,
-    'double': float,
-    'char': str,
-    'varchar': str,
-    'array': str,
-    'map': str,
-    'row': str,
-}
 
-PANDAS_CONVERTERS = {
-    'decimal': Decimal,
-    'varbinary': lambda b: binascii.a2b_hex(''.join(b.split(' '))),
-    'json': json.loads,
-}
+class TypeConverter(object):
 
-PANDAS_PARSE_DATES = [
-    'date',
-    'time',
-    'time with time zone',
-    'timestamp',
-    'timestamp with time zone',
-]
+    def __init__(self):
+        self._mappings = _DEFAULT_CONVERTERS
+
+    def convert(self, type_, varchar_value):
+        converter = self._mappings.get(type_, _to_default)
+        return converter(varchar_value)
+
+    def register_converter(self, type_, converter):
+        self._mappings[type_] = converter

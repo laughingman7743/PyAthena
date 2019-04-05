@@ -2,16 +2,18 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
+import binascii
 import collections
 import io
+import json
 import logging
 import re
+from decimal import Decimal
 
 from future.utils import raise_from
 from past.builtins.misc import xrange
 
 from pyathena.common import CursorIterator
-from pyathena.converter import PANDAS_CONVERTERS, PANDAS_DTYPES, PANDAS_PARSE_DATES
 from pyathena.error import DataError, OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.util import retry_api_call
@@ -289,7 +291,36 @@ class AthenaResultSet(CursorIterator):
 
 class AthenaPandasResultSet(AthenaResultSet):
 
+    import pandas as pd
+
     _pattern_output_location = re.compile(r'^s3://(?P<bucket>[a-zA-Z0-9.\-_]+)/(?P<key>.+)$')
+    _dtypes = {
+        'boolean': bool,
+        'tinyint': pd.Int64Dtype(),
+        'smallint': pd.Int64Dtype(),
+        'integer': pd.Int64Dtype(),
+        'bigint': pd.Int64Dtype(),
+        'float': float,
+        'real': float,
+        'double': float,
+        'char': str,
+        'varchar': str,
+        'array': str,
+        'map': str,
+        'row': str,
+    }
+    _converters = {
+        'decimal': Decimal,
+        'varbinary': lambda b: binascii.a2b_hex(''.join(b.split(' '))),
+        'json': json.loads,
+    }
+    _parse_dates = [
+        'date',
+        'time',
+        'time with time zone',
+        'timestamp',
+        'timestamp with time zone',
+    ]
 
     def __init__(self, connection, converter, query_execution, arraysize, retry_config):
         super(AthenaPandasResultSet, self).__init__(
@@ -312,19 +343,22 @@ class AthenaPandasResultSet(AthenaResultSet):
         else:
             raise DataError('Unknown `output_location` format.')
 
-    def _dtypes(self):
+    @property
+    def dtypes(self):
         return {
-            d[0]: PANDAS_DTYPES[d[1]] for d in self.description if d[1] in PANDAS_DTYPES
+            d[0]: self._dtypes[d[1]] for d in self.description if d[1] in self._dtypes
         }
 
-    def _converters(self):
+    @property
+    def converters(self):
         return {
-            d[0]: PANDAS_CONVERTERS[d[1]] for d in self.description if d[1] in PANDAS_CONVERTERS
+            d[0]: self._converters[d[1]] for d in self.description if d[1] in self._converters
         }
 
-    def _parse_dates(self):
+    @property
+    def parse_dates(self):
         return [
-            d[0] for d in self.description if d[1] in PANDAS_PARSE_DATES
+            d[0] for d in self.description if d[1] in self._parse_dates
         ]
 
     def _trunc_date(self, df):
@@ -384,9 +418,9 @@ class AthenaPandasResultSet(AthenaResultSet):
             length = response['ContentLength']
             if length:
                 df = pd.read_csv(io.BytesIO(response['Body'].read()),
-                                 dtype=self._dtypes(),
-                                 converters=self._converters(),
-                                 parse_dates=self._parse_dates(),
+                                 dtype=self.dtypes,
+                                 converters=self.converters,
+                                 parse_dates=self.parse_dates,
                                  infer_datetime_format=True)
                 df = self._trunc_date(df)
             else:  # Allow empty response so DDL can be used
