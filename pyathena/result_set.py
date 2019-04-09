@@ -363,7 +363,8 @@ class AthenaPandasResultSet(AthenaResultSet):
 
     def _trunc_date(self, df):
         times = [d[0] for d in self.description if d[1] in ('time', 'time with time zone')]
-        df.loc[:, times] = df.loc[:, times].apply(lambda r: r.dt.time)
+        if times:
+            df.loc[:, times] = df.loc[:, times].apply(lambda r: r.dt.time)
         return df
 
     def _fetch(self):
