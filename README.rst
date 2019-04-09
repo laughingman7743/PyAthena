@@ -27,7 +27,7 @@ Requirements
 
 * Python
 
-  - CPython 2,7, 3,4, 3.5, 3.6, 3.7
+  - CPython 2,7, 3.5, 3.6, 3.7
 
 Installation
 ------------
@@ -484,6 +484,6 @@ Run test multiple Python versions
     $ pip install pipenv
     $ pipenv install --dev
     $ pipenv run scripts/test_data/upload_test_data.sh
-    $ pyenv local 3.7.2 3.6.8 3.5.7 3.4.10 2.7.16
+    $ pyenv local 3.7.2 3.6.8 3.5.7 2.7.16
     $ pipenv run tox
     $ pipenv run scripts/test_data/delete_test_data.sh
