@@ -38,7 +38,7 @@ setup(
         'tenacity>=4.1.0',
     ],
     extras_require={
-        'Pandas': ['pandas>=0.19.0'],
+        'Pandas': ['pandas>=0.24.0'],
         'SQLAlchemy': ['SQLAlchemy>=1.0.0, <1.3.0'],
     },
     tests_require=[
@@ -62,7 +62,6 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',

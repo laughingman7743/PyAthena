@@ -327,3 +327,18 @@ class TestPandasCursor(unittest.TestCase):
         """.format(schema=SCHEMA, table=table, location=location)).as_pandas()
         self.assertEqual(df.shape[0], 0)
         self.assertEqual(df.shape[1], 0)
+
+    @with_pandas_cursor
+    def test_integer_na_values(self, cursor):
+        df = cursor.execute("""
+        SELECT * FROM integer_na_values
+        """).as_pandas()
+        rows = [tuple([
+            row['a'],
+            row['b'],
+        ]) for _, row in df.iterrows()]
+        self.assertEqual(rows, [
+            (1, 2),
+            (1, np.nan),
+            (np.nan, np.nan),
+        ])
