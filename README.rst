@@ -361,7 +361,7 @@ The as_pandas method returns `DataFrame object`_.
 
 .. code:: python
 
-    from pyathena.connection import Connection
+    from pyathena import connect
     from pyathena.pandas_cursor import PandasCursor
 
     cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
@@ -376,7 +376,7 @@ Support fetch and iterate query results.
 
 .. code:: python
 
-    from pyathena.connection import Connection
+    from pyathena import connect
     from pyathena.pandas_cursor import PandasCursor
 
     cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
@@ -390,7 +390,7 @@ Support fetch and iterate query results.
 
 .. code:: python
 
-    from pyathena.connection import Connection
+    from pyathena import connect
     from pyathena.pandas_cursor import PandasCursor
 
     cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
@@ -405,7 +405,7 @@ The DATE and TIMESTAMP of Athena's data type are returned as `pandas.Timestamp`_
 
 .. code:: python
 
-    from pyathena.connection import Connection
+    from pyathena import connect
     from pyathena.pandas_cursor import PandasCursor
 
     cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
@@ -419,7 +419,7 @@ Execution information of the query can also be retrieved.
 
 .. code:: python
 
-    from pyathena.connection import Connection
+    from pyathena import connect
     from pyathena.pandas_cursor import PandasCursor
 
     cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
