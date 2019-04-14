@@ -54,10 +54,13 @@ def _create_table(cursor):
         ENV.s3_staging_dir, S3_PREFIX, 'one_row_complex')
     location_partition_table = '{0}{1}/{2}/'.format(
         ENV.s3_staging_dir, S3_PREFIX, 'partition_table')
+    location_integer_na_values = '{0}{1}/{2}/'.format(
+        ENV.s3_staging_dir, S3_PREFIX, 'integer_na_values')
     for q in read_query(
             os.path.join(BASE_PATH, 'sql', 'create_table.sql')):
         cursor.execute(q.format(schema=SCHEMA,
                                 location_one_row=location_one_row,
                                 location_many_rows=location_many_rows,
                                 location_one_row_complex=location_one_row_complex,
-                                location_partition_table=location_partition_table))
+                                location_partition_table=location_partition_table,
+                                location_integer_na_values=location_integer_na_values))
