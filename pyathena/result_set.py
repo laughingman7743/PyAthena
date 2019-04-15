@@ -291,24 +291,7 @@ class AthenaResultSet(CursorIterator):
 
 class AthenaPandasResultSet(AthenaResultSet):
 
-    import pandas as pd
-
     _pattern_output_location = re.compile(r'^s3://(?P<bucket>[a-zA-Z0-9.\-_]+)/(?P<key>.+)$')
-    _dtypes = {
-        'boolean': bool,
-        'tinyint': pd.Int64Dtype(),
-        'smallint': pd.Int64Dtype(),
-        'integer': pd.Int64Dtype(),
-        'bigint': pd.Int64Dtype(),
-        'float': float,
-        'real': float,
-        'double': float,
-        'char': str,
-        'varchar': str,
-        'array': str,
-        'map': str,
-        'row': str,
-    }
     _converters = {
         'decimal': Decimal,
         'varbinary': lambda b: binascii.a2b_hex(''.join(b.split(' '))),
@@ -342,6 +325,27 @@ class AthenaPandasResultSet(AthenaResultSet):
             return match.group('bucket'), match.group('key')
         else:
             raise DataError('Unknown `output_location` format.')
+
+    @property
+    def _dtypes(self):
+        if not hasattr(self, '__dtypes'):
+            import pandas as pd
+            self.__dtypes = {
+                'boolean': bool,
+                'tinyint': pd.Int64Dtype(),
+                'smallint': pd.Int64Dtype(),
+                'integer': pd.Int64Dtype(),
+                'bigint': pd.Int64Dtype(),
+                'float': float,
+                'real': float,
+                'double': float,
+                'char': str,
+                'varchar': str,
+                'array': str,
+                'map': str,
+                'row': str,
+            }
+        return self.__dtypes
 
     @property
     def dtypes(self):
