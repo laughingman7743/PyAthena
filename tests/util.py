@@ -50,6 +50,17 @@ def with_pandas_cursor(fn):
     return wrapped_fn
 
 
+def with_async_pandas_cursor(fn):
+    from pyathena.async_pandas_cursor import AsyncPandasCursor
+
+    @functools.wraps(fn)
+    def wrapped_fn(self, *args, **kwargs):
+        with contextlib.closing(self.connect()) as conn:
+            with conn.cursor(AsyncPandasCursor) as cursor:
+                fn(self, cursor, *args, **kwargs)
+    return wrapped_fn
+
+
 def with_engine(fn):
     @functools.wraps(fn)
     def wrapped_fn(self, *args, **kwargs):
