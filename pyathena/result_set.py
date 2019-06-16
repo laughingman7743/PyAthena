@@ -315,7 +315,11 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._arraysize = arraysize
         self._client = self._connection.session.client(
             's3', region_name=self._connection.region_name, **self._connection._client_kwargs)
-        self._df = self._as_pandas()
+        if self._query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
+            self._df = self._as_pandas()
+        else:
+            import pandas as pd
+            self._df = pd.DataFrame()
         self._iterrows = self._df.iterrows()
 
     @classmethod

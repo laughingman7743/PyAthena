@@ -292,7 +292,7 @@ It also has information on the result of query execution.
     result_set = future.result()
     print(result_set.fetchall())
 
-A query ID is required to cancel a query with the asynchronous cursor.
+A query ID is required to cancel a query with the AsynchronousCursor.
 
 .. code:: python
 
@@ -357,7 +357,7 @@ It can also be used by specifying the cursor class when calling the connection o
     cursor = Connection(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
                         region_name='us-west-2').cursor(PandasCursor)
 
-The as_pandas method returns `DataFrame object`_.
+The as_pandas method returns a `DataFrame object`_.
 
 .. code:: python
 
@@ -439,6 +439,160 @@ NOTE: PandasCursor handles the CSV file on memory. Pay attention to the memory c
 
 .. _`DataFrame object`: https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html
 .. _`pandas.Timestamp`: https://pandas.pydata.org/pandas-docs/stable/generated/pandas.Timestamp.html
+
+AsyncPandasCursor
+~~~~~~~~~~~~~~~~~
+
+AsyncPandasCursor is an AsyncCursor that can handle Pandas DataFrame.
+This cursor directly handles the CSV of query results output to S3 in the same way as PandasCursor.
+
+You can use the AsyncPandasCursor by specifying the ``cursor_class``
+with the connect method or connection object.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_pandas_cursor import AsyncPandasCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=AsyncPandasCursor).cursor()
+
+.. code:: python
+
+    from pyathena.connection import Connection
+    from pyathena.async_pandas_cursor import AsyncPandasCursor
+
+    cursor = Connection(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                        region_name='us-west-2',
+                        cursor_class=AsyncPandasCursor).cursor()
+
+It can also be used by specifying the cursor class when calling the connection object's cursor method.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_pandas_cursor import AsyncPandasCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2').cursor(AsyncPandasCursor)
+
+.. code:: python
+
+    from pyathena.connection import Connection
+    from pyathena.async_pandas_cursor import AsyncPandasCursor
+
+    cursor = Connection(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                        region_name='us-west-2').cursor(AsyncPandasCursor)
+
+The default number of workers is 5 or cpu number * 5.
+If you want to change the number of workers you can specify like the following.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_pandas_cursor import AsyncPandasCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=AsyncPandasCursor).cursor(max_workers=10)
+
+The execute method of the AsynchronousPandasCursor returns the tuple of the query ID and the `future object`_.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_pandas_cursor import AsyncPandasCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=AsyncPandasCursor).cursor()
+
+    query_id, future = cursor.execute("SELECT * FROM many_rows")
+
+The return value of the `future object`_ is an ``AthenaPandasResultSet`` object.
+This object has an interface similar to ``AthenaResultSetObject``.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_pandas_cursor import AsyncPandasCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=AsyncPandasCursor).cursor()
+
+    query_id, future = cursor.execute("SELECT * FROM many_rows")
+    result_set = future.result()
+    print(result_set.state)
+    print(result_set.state_change_reason)
+    print(result_set.completion_date_time)
+    print(result_set.submission_date_time)
+    print(result_set.data_scanned_in_bytes)
+    print(result_set.execution_time_in_millis)
+    print(result_set.output_location)
+    print(result_set.description)
+    for row in result_set:
+        print(row)
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_pandas_cursor import AsyncPandasCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=AsyncPandasCursor).cursor()
+
+    query_id, future = cursor.execute("SELECT * FROM many_rows")
+    result_set = future.result()
+    print(result_set.fetchall())
+
+This object also has an as_pandas method that returns a `DataFrame object`_ similar to the PandasCursor.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_pandas_cursor import AsyncPandasCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=AsyncPandasCursor).cursor()
+
+    query_id, future = cursor.execute("SELECT * FROM many_rows")
+    result_set = future.result()
+    df = result_set.as_pandas()
+    print(df.describe())
+    print(df.head())
+
+The DATE and TIMESTAMP of Athena's data type are returned as `pandas.Timestamp`_ type.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_pandas_cursor import AsyncPandasCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=AsyncPandasCursor).cursor()
+
+    query_id, future = cursor.execute("SELECT col_timestamp FROM one_row_complex")
+    result_set = future.result()
+    print(type(result_set.fetchone()[0]))  # <class 'pandas._libs.tslibs.timestamps.Timestamp'>
+
+As with AsynchronousCursor, you need a query ID to cancel a query.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_pandas_cursor import AsyncPandasCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     cursor_class=AsyncPandasCursor).cursor()
+
+    query_id, future = cursor.execute("SELECT * FROM many_rows")
+    cursor.cancel(query_id)
 
 Credentials
 -----------
