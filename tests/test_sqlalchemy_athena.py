@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
+import re
 import unittest
 from datetime import date, datetime
 from decimal import Decimal
@@ -72,8 +73,18 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     @with_engine
     def test_reflect_table_include_columns(self, engine, connection):
         one_row_complex = Table('one_row_complex', MetaData(bind=engine))
-        engine.dialect.reflecttable(
-            connection, one_row_complex, include_columns=['col_int'], exclude_columns=[])
+        version = float(re.search(r'^([\d]+\.[\d]+)\..+', sqlalchemy.__version__).group(1))
+        if version <= 1.2:
+            engine.dialect.reflecttable(connection, one_row_complex,
+                                        include_columns=['col_int'],
+                                        exclude_columns=[])
+        else:
+            # https://docs.sqlalchemy.org/en/13/changelog/changelog_13.html#
+            # change-64ac776996da1a5c3e3460b4c0f0b257
+            engine.dialect.reflecttable(connection, one_row_complex,
+                                        include_columns=['col_int'],
+                                        exclude_columns=[],
+                                        resolve_fks=True)
         self.assertEqual(len(one_row_complex.c), 1)
         self.assertIsNotNone(one_row_complex.c.col_int)
         self.assertRaises(AttributeError, lambda: one_row_complex.c.col_tinyint)
