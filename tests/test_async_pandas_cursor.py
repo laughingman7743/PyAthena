@@ -3,6 +3,8 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import contextlib
+import random
+import string
 import time
 import unittest
 from datetime import datetime
@@ -15,7 +17,7 @@ from pyathena.async_cursor import AsyncCursor
 from pyathena.error import NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
-from tests.conftest import SCHEMA
+from tests.conftest import ENV, S3_PREFIX, SCHEMA
 from tests.util import with_async_pandas_cursor
 
 
@@ -147,6 +149,23 @@ class TestAsyncCursor(unittest.TestCase):
         self.assertIsNotNone(result_set.state_change_reason)
 
     @with_async_pandas_cursor
+    def test_as_pandas(self, cursor):
+        query_id, future = cursor.execute('SELECT * FROM one_row')
+        df = future.result().as_pandas()
+        self.assertEqual(df.shape[0], 1)
+        self.assertEqual(df.shape[1], 1)
+        self.assertEqual([(row['number_of_rows'],) for _, row in df.iterrows()], [(1,)])
+
+    @with_async_pandas_cursor
+    def test_many_as_pandas(self, cursor):
+        query_id, future = cursor.execute('SELECT * FROM many_rows')
+        df = future.result().as_pandas()
+        self.assertEqual(df.shape[0], 10000)
+        self.assertEqual(df.shape[1], 1)
+        self.assertEqual([(row['a'],) for _, row in df.iterrows()],
+                         [(i,) for i in xrange(10000)])
+
+    @with_async_pandas_cursor
     def test_cancel(self, cursor):
         query_id, future = cursor.execute("""
                            SELECT a.a * rand(), b.a * rand()
@@ -175,3 +194,19 @@ class TestAsyncCursor(unittest.TestCase):
             'SELECT * FROM one_row', []))
         cursor.close()
         conn.close()
+
+    @with_async_pandas_cursor
+    def test_empty_result(self, cursor):
+        table = 'test_pandas_cursor_empty_result_' + ''.join([random.choice(
+            string.ascii_lowercase + string.digits) for _ in xrange(10)])
+        location = '{0}{1}/{2}/'.format(ENV.s3_staging_dir, S3_PREFIX, table)
+        query_id, future = cursor.execute("""
+        CREATE EXTERNAL TABLE IF NOT EXISTS
+        {schema}.{table} (number_of_rows INT)
+        ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+        LINES TERMINATED BY '\n' STORED AS TEXTFILE
+        LOCATION '{location}'
+        """.format(schema=SCHEMA, table=table, location=location))
+        df = future.result().as_pandas()
+        self.assertEqual(df.shape[0], 0)
+        self.assertEqual(df.shape[1], 0)
