@@ -22,7 +22,7 @@ setup(
     author='laughingman7743',
     author_email='laughingman7743@gmail.com',
     license='MIT License',
-    packages=find_packages(),
+    packages=find_packages('.', exclude=['tests']),
     package_data={
         '': ['LICENSE', '*.rst', 'Pipfile*'],
     },
