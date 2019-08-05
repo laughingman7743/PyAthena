@@ -157,7 +157,7 @@ class TestAsyncCursor(unittest.TestCase):
         cursor.cancel(query_id)
         result_set = future.result()
         self.assertEqual(result_set.state, AthenaQueryExecution.STATE_CANCELLED)
-        self.assertIsNone(result_set.state_change_reason)
+        self.assertIsNotNone(result_set.state_change_reason)
         self.assertIsNone(result_set.description)
         self.assertIsNone(result_set.fetchone())
         self.assertEqual(result_set.fetchmany(), [])
