@@ -295,3 +295,10 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         """)
         result = engine.execute(query, param='b%')
         self.assertEqual(result.fetchall(), [('a string', )])
+
+    @with_engine
+    def test_nan_checks(self, engine, connection):
+        dialect = engine.dialect
+        self.assertFalse(dialect._is_nan("string"))
+        self.assertFalse(dialect._is_nan(1))
+        self.assertTrue(dialect._is_nan(float('nan')))
