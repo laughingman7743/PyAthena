@@ -2,6 +2,8 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
+import math
+import numbers
 import re
 
 import tenacity
@@ -189,7 +191,7 @@ class AthenaDialect(DefaultDialect):
                     'name': row.column_name,
                     'type': _TYPE_MAPPINGS.get(self._get_column_type(row.data_type), NULLTYPE),
                     'nullable': True if row.is_nullable == 'YES' else False,
-                    'default': row.column_default,
+                    'default': row.column_default if not self._is_nan(row.column_default) else None,
                     'ordinal_position': row.ordinal_position,
                     'comment': row.comment,
                 } for row in retry(connection.execute, query).fetchall()
@@ -236,3 +238,6 @@ class AthenaDialect(DefaultDialect):
     def _check_unicode_description(self, connection):
         # Requests gives back Unicode strings
         return True  # pragma: no cover
+
+    def _is_nan(self, column_default):
+        return isinstance(column_default, numbers.Number) and math.isnan(column_default)
