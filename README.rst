@@ -594,6 +594,24 @@ As with AsynchronousCursor, you need a query ID to cancel a query.
     query_id, future = cursor.execute("SELECT * FROM many_rows")
     cursor.cancel(query_id)
 
+Quickly re-run queries
+~~~~~~~~~~~~~~~~~~~~~~
+
+You can attempt to re-use the results from a previously run query to help save time and money in the cases where your underlying data isn't changing.
+
+.. code:: python
+
+    from pyathena import connect
+
+    cursor = connect(aws_access_key_id='YOUR_ACCESS_KEY_ID',
+                     aws_secret_access_key='YOUR_SECRET_ACCESS_KEY',
+                     s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2').cursor()
+    cursor.execute("SELECT * FROM one_row")  # run once
+    print(cursor.fetchall())
+    cursor.execute("SELECT * FROM one_row", cache_size=10)  # doesn't re-run query
+    print(cursor.fetchall())
+
 Credentials
 -----------
 
