@@ -40,12 +40,14 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
             self._result_set.close()
 
     @synchronized
-    def execute(self, operation, parameters=None, work_group=None, s3_staging_dir=None):
+    def execute(self, operation, parameters=None, work_group=None, s3_staging_dir=None,
+                cache_size=0):
         self._reset_state()
         self._query_id = self._execute(operation,
                                        parameters=parameters,
                                        work_group=work_group,
-                                       s3_staging_dir=s3_staging_dir)
+                                       s3_staging_dir=s3_staging_dir,
+                                       cache_size=cache_size)
         query_execution = self._poll(self._query_id)
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
             self._result_set = AthenaResultSet(

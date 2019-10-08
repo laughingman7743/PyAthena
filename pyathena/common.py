@@ -142,24 +142,53 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
             })
         return request
 
-    def _execute(self, operation, parameters=None, work_group=None, s3_staging_dir=None):
+    def _find_previous_query_id(self, request, work_group, cache_size):
+        next_token = None
+        while cache_size > 0:
+            n = min(cache_size, 50)  # 50 is max allowed by AWS API
+            request_params = {'MaxResults': n}
+            if work_group is not None:
+                request_params['WorkGroup'] = work_group
+            if next_token is not None:
+                request_params['NextToken'] = next_token
+            response = self.connection._client.list_query_executions(**request_params)
+            cache_size -= n
+            query_ids = response['QueryExecutionIds']
+            next_token = response['NextToken']
+            query_executions = self.connection._client.batch_get_query_execution(
+                QueryExecutionIds=query_ids
+            )['QueryExecutions']
+            requested_location = request['ResultConfiguration']['OutputLocation']
+            for execution in query_executions:
+                queries_match = execution['Query'] == request['QueryString']
+                succeeded = execution['Status']['State'] == 'SUCCEEDED'
+                executed_location = execution['ResultConfiguration']['OutputLocation']
+                locations_match = executed_location == requested_location
+                is_dml = execution['StatementType'] == 'DML'
+                if queries_match and succeeded and locations_match and is_dml:
+                    return execution['QueryExecutionId']
+
+    def _execute(self, operation, parameters=None, work_group=None, s3_staging_dir=None,
+                 cache_size=0):
         query = self._formatter.format(operation, parameters)
         _logger.debug(query)
 
         request = self._build_start_query_execution_request(query, work_group, s3_staging_dir)
-        try:
-            response = retry_api_call(self._connection.client.start_query_execution,
-                                      config=self._retry_config,
-                                      logger=_logger,
-                                      **request)
-        except Exception as e:
-            _logger.exception('Failed to execute query.')
-            raise_from(DatabaseError(*e.args), e)
-        else:
-            return response.get('QueryExecutionId', None)
+        query_id = self._find_previous_query_id(request, work_group, cache_size)
+        if query_id is None:
+            try:
+                query_id = retry_api_call(self._connection.client.start_query_execution,
+                                          config=self._retry_config,
+                                          logger=_logger,
+                                          **request).get('QueryExecutionId', None)
+            except Exception as e:
+                _logger.exception('Failed to execute query.')
+                raise_from(DatabaseError(*e.args), e)
+        return query_id
 
     @abstractmethod
-    def execute(self, operation, parameters=None, work_group=None, s3_staging_dir=None):
+    def execute(self, operation, parameters=None, work_group=None, s3_staging_dir=None,
+                cache_size=0):
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
