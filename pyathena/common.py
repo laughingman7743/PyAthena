@@ -144,27 +144,28 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
 
     def _find_previous_query_id(self, request, work_group, cache_size):
         next_token = None
+        requested_location = request['ResultConfiguration']['OutputLocation']
         while cache_size > 0:
             n = min(cache_size, 50)  # 50 is max allowed by AWS API
+            cache_size -= n
             request_params = {'MaxResults': n}
             if work_group is not None:
                 request_params['WorkGroup'] = work_group
             if next_token is not None:
                 request_params['NextToken'] = next_token
             response = self.connection._client.list_query_executions(**request_params)
-            cache_size -= n
             query_ids = response['QueryExecutionIds']
             next_token = response['NextToken']
             query_executions = self.connection._client.batch_get_query_execution(
                 QueryExecutionIds=query_ids
             )['QueryExecutions']
-            requested_location = request['ResultConfiguration']['OutputLocation']
             for execution in query_executions:
                 queries_match = execution['Query'] == request['QueryString']
                 succeeded = execution['Status']['State'] == 'SUCCEEDED'
                 executed_location = execution['ResultConfiguration']['OutputLocation']
                 locations_match = executed_location == requested_location
                 is_dml = execution['StatementType'] == 'DML'
+                print(queries_match, succeeded, locations_match, is_dml)
                 if queries_match and succeeded and locations_match and is_dml:
                     return execution['QueryExecutionId']
 
