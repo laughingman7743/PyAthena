@@ -72,6 +72,25 @@ class TestCursor(unittest.TestCase):
         self.assertRaises(StopIteration, cursor.__next__)
 
     @with_cursor
+    def test_cache_size(self, cursor):
+        cursor.execute('SELECT * FROM one_row')
+        cursor.fetchall()
+        first_query_id = cursor.query_id
+
+        cursor.execute('SELECT * FROM one_row')
+        cursor.fetchall()
+        second_query_id = cursor.query_id
+        # Make sure default behavior is no cacheing, i.e. same query has
+        # run twice results in different query IDs
+        self.assertNotEqual(first_query_id, second_query_id)
+
+        cursor.execute('SELECT * FROM one_row', cache_size=100)
+        cursor.fetchall()
+        third_query_id = cursor.query_id
+        # When using cacheing, the same query ID should be returned.
+        self.assertEqual(third_query_id, second_query_id)
+
+    @with_cursor
     def test_arraysize(self, cursor):
         cursor.arraysize = 5
         cursor.execute('SELECT * FROM many_rows LIMIT 20')
