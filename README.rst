@@ -597,7 +597,7 @@ As with AsynchronousCursor, you need a query ID to cancel a query.
 Quickly re-run queries
 ~~~~~~~~~~~~~~~~~~~~~~
 
-You can attempt to re-use the results from a previously run query to help save time and money in the cases where your underlying data isn't changing.
+You can attempt to re-use the results from a previously run query to help save time and money in the cases where your underlying data isn't changing. Set the ``cache_size`` parameter of ``cursor.execute()`` to a number larger than 0 to enable cacheing.
 
 .. code:: python
 
@@ -608,9 +608,13 @@ You can attempt to re-use the results from a previously run query to help save t
                      s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
                      region_name='us-west-2').cursor()
     cursor.execute("SELECT * FROM one_row")  # run once
-    print(cursor.fetchall())
-    cursor.execute("SELECT * FROM one_row", cache_size=10)  # doesn't re-run query
-    print(cursor.fetchall())
+    print(cursor.query_id)
+    cursor.execute("SELECT * FROM one_row", cache_size=10)  # re-use earlier results
+    print(cursor.query_id)  # You should expect to see the same Query ID
+
+Results will only be re-used if the query strings match *exactly*, and the query was a DML statement (the assumption being that you always want to re-run queries like ``CREATE TABLE`` and ``DROP TABLE``).
+
+The S3 staging directory is not checked, so it's possible that the location of the results is not in your provided ``s3_staging_dir``.
 
 Credentials
 -----------

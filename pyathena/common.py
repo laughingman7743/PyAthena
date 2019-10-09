@@ -142,28 +142,45 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
             })
         return request
 
-    def _find_previous_query_id(self, request, work_group, cache_size):
-        next_token = None
-        while cache_size > 0:
-            n = min(cache_size, 50)  # 50 is max allowed by AWS API
-            cache_size -= n
-            request_params = {'MaxResults': n}
-            if work_group is not None:
-                request_params['WorkGroup'] = work_group
-            if next_token is not None:
-                request_params['NextToken'] = next_token
-            response = self.connection._client.list_query_executions(**request_params)
-            query_ids = response['QueryExecutionIds']
-            next_token = response['NextToken']
-            query_executions = self.connection._client.batch_get_query_execution(
-                QueryExecutionIds=query_ids
-            )['QueryExecutions']
-            for execution in query_executions:
-                queries_match = execution['Query'] == request['QueryString']
-                succeeded = execution['Status']['State'] == 'SUCCEEDED'
-                is_dml = execution['StatementType'] == 'DML'
-                if queries_match and succeeded and is_dml:
-                    return execution['QueryExecutionId']
+    def _find_previous_query_id(self, query, work_group, cache_size):
+        query_id = None
+        try:
+            next_token = None
+            while cache_size > 0:
+                n = min(cache_size, 50)  # 50 is max allowed by AWS API
+                cache_size -= n
+                request = {'MaxResults': n}
+                if work_group is not None:
+                    request['WorkGroup'] = work_group
+                if next_token is not None:
+                    request['NextToken'] = next_token
+                response = retry_api_call(self.connection._client.list_query_executions,
+                                          config=self._retry_config,
+                                          logger=_logger,
+                                          **request)
+                query_ids = response.get('QueryExecutionIds', None)
+                if not query_ids:
+                    break  # no queries left to check
+                next_token = response.get('NextToken', None)
+                query_executions = retry_api_call(
+                    self.connection._client.batch_get_query_execution,
+                    config=self._retry_config,
+                    logger=_logger,
+                    QueryExecutionIds=query_ids
+                ).get('QueryExecutions', [])
+                for execution in query_executions:
+                    if (
+                        execution['Query'] == query and
+                        execution['Status']['State'] == AthenaQueryExecution.STATE_SUCCEEDED and
+                        execution['StatementType'] == 'DML'
+                    ):
+                        query_id = execution['QueryExecutionId']
+                        break
+                if query_id or next_token is None:
+                    break
+        except Exception:
+            _logger.warning('Failed to check the cache. Moving on without cache.')
+        return query_id
 
     def _execute(self, operation, parameters=None, work_group=None, s3_staging_dir=None,
                  cache_size=0):
@@ -171,7 +188,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
         _logger.debug(query)
 
         request = self._build_start_query_execution_request(query, work_group, s3_staging_dir)
-        query_id = self._find_previous_query_id(request, work_group, cache_size)
+        query_id = self._find_previous_query_id(request['QueryString'], work_group, cache_size)
         if query_id is None:
             try:
                 query_id = retry_api_call(self._connection.client.start_query_execution,
