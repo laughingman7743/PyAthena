@@ -72,6 +72,29 @@ class TestCursor(unittest.TestCase):
         self.assertRaises(StopIteration, cursor.__next__)
 
     @with_cursor
+    def test_cache_size(self, cursor):
+        # To test cacheing, we need to make sure the query is unique, otherwise
+        # we might accidentally pick up the cache results from another CI run.
+        query = 'SELECT * FROM one_row -- {0}'.format(str(datetime.utcnow()))
+
+        cursor.execute(query)
+        cursor.fetchall()
+        first_query_id = cursor.query_id
+
+        cursor.execute(query)
+        cursor.fetchall()
+        second_query_id = cursor.query_id
+        # Make sure default behavior is no cacheing, i.e. same query has
+        # run twice results in different query IDs
+        self.assertNotEqual(first_query_id, second_query_id)
+
+        cursor.execute(query, cache_size=100)
+        cursor.fetchall()
+        third_query_id = cursor.query_id
+        # When using cacheing, the same query ID should be returned.
+        assert third_query_id in [first_query_id, second_query_id]
+
+    @with_cursor
     def test_arraysize(self, cursor):
         cursor.arraysize = 5
         cursor.execute('SELECT * FROM many_rows LIMIT 20')
