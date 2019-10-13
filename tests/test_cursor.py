@@ -92,7 +92,7 @@ class TestCursor(unittest.TestCase):
         cursor.fetchall()
         third_query_id = cursor.query_id
         # When using cacheing, the same query ID should be returned.
-        assert third_query_id in [first_query_id, second_query_id]
+        self.assertIn(third_query_id, [first_query_id, second_query_id])
 
     @with_cursor
     def test_arraysize(self, cursor):
