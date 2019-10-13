@@ -193,7 +193,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
         _logger.debug(query)
 
         request = self._build_start_query_execution_request(query, work_group, s3_staging_dir)
-        query_id = self._find_previous_query_id(request['QueryString'], work_group, cache_size)
+        query_id = self._find_previous_query_id(query, work_group, cache_size)
         if query_id is None:
             try:
                 query_id = retry_api_call(self._connection.client.start_query_execution,
