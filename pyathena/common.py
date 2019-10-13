@@ -142,6 +142,15 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
             })
         return request
 
+    def _build_list_query_executions_request(self, max_results, work_group,
+                                             next_token=None):
+        request = {'MaxResults': max_results}
+        if self._work_group or work_group:
+            request['WorkGroup'] = work_group
+        if next_token:
+            request['NextToken'] = next_token
+        return request
+
     def _find_previous_query_id(self, query, work_group, cache_size):
         query_id = None
         try:
@@ -149,11 +158,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
             while cache_size > 0:
                 n = min(cache_size, 50)  # 50 is max allowed by AWS API
                 cache_size -= n
-                request = {'MaxResults': n}
-                if work_group is not None:
-                    request['WorkGroup'] = work_group
-                if next_token is not None:
-                    request['NextToken'] = next_token
+                request = self._build_list_query_executions_request(n, work_group, next_token)
                 response = retry_api_call(self.connection._client.list_query_executions,
                                           config=self._retry_config,
                                           logger=_logger,
