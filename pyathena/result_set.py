@@ -171,7 +171,7 @@ class AthenaResultSet(CursorIterator):
     def __fetch(self, next_token=None):
         if not self._query_execution.query_id:
             raise ProgrammingError('QueryExecutionId is none or empty.')
-        if self._query_execution.state != 'SUCCEEDED':
+        if self._query_execution.state != AthenaQueryExecution.STATE_SUCCEEDED:
             raise ProgrammingError('QueryExecutionState is not SUCCEEDED.')
         request = {
             'QueryExecutionId': self._query_execution.query_id,
