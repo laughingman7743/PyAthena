@@ -8,6 +8,7 @@ import io
 import json
 import logging
 import re
+from copy import deepcopy
 from decimal import Decimal
 
 from future.utils import raise_from
@@ -426,15 +427,34 @@ class AthenaPandasResultSet(AthenaResultSet):
         else:
             length = response['ContentLength']
             if length:
-                df = pd.read_csv(io.BytesIO(response['Body'].read()),
-                                 dtype=self.dtypes,
-                                 converters=self.converters,
-                                 parse_dates=self.parse_dates,
-                                 infer_datetime_format=True)
+                df = self._safe_read_dataframe_from_file_buffer(io.BytesIO(response['Body'].read()),
+                                                                self.dtypes,
+                                                                self.converters,
+                                                                self.parse_dates)
                 df = self._trunc_date(df)
             else:  # Allow empty response so DDL can be used
                 df = pd.DataFrame()
             return df
+
+    @staticmethod
+    def _safe_read_dataframe_from_file_buffer(file_buffer, dtypes, converters, parse_dates):
+        import pandas as pd
+        try:
+            df = pd.read_csv(file_buffer,
+                             dtype=dtypes,
+                             converters=converters,
+                             parse_dates=parse_dates,
+                             infer_datetime_format=True)
+        except ValueError:
+            # relax conditions on all dtypes that dont support nas in Pandas:
+            dtypes = deepcopy(dtypes)
+            dtypes_relaxed = {name: safe_cast_pandas_dtype(dtype) for name, dtype in dtypes.items()}
+            df = pd.read_csv(file_buffer,
+                             dtype=dtypes_relaxed,
+                             converters=converters,
+                             parse_dates=parse_dates,
+                             infer_datetime_format=True)
+        return df
 
     def as_pandas(self):
         return self._df
@@ -443,3 +463,17 @@ class AthenaPandasResultSet(AthenaResultSet):
         super(AthenaPandasResultSet, self).close()
         self._df = None
         self._iterrows = None
+
+
+def safe_cast_pandas_dtype(dtype):
+    """
+    Returns a safe dtype that can hold Nas
+    https://pandas.pydata.org/pandas-docs/stable/user_guide/gotchas.html#na-type-promotions
+    risk of overflow for integers above 2**53
+
+    :param dtype: dtype name or type (such as the one defined in AthenaPandasResultSet._dtypes)
+    :return: dtype converted to have na support
+    """
+    conversion = {bool: object,
+                  int: float}
+    return conversion.get(dtype, dtype)
