@@ -8,6 +8,7 @@ from tempfile import NamedTemporaryFile
 
 import pandas as pd
 import numpy as np
+from mock import patch
 
 from pyathena import DataError
 from pyathena.result_set import AthenaPandasResultSet
@@ -34,3 +35,14 @@ class TestAthenaPandasResultSet(unittest.TestCase):
                                                                                    parse_dates=False)
             self.assertEqual(list(clean_df.columns), ['bool_col_with_na'])
             self.assertEqual(clean_df.dtypes.tolist(), [object])
+
+    @patch('pyathena.result_set.NanTypePromotion', {})
+    def test_without_type_promotion_nas(self):
+        with NamedTemporaryFile() as temp_file:
+            df = pd.DataFrame({'bool_col_with_na': [True, False, np.nan]})
+            df.to_csv(temp_file.name, index=False)
+            with self.assertRaises(ValueError):
+                _ = AthenaPandasResultSet._safe_read_dataframe_from_file_buffer(temp_file.name,
+                                                                                {'bool_col_with_na': bool},
+                                                                                converters={},
+                                                                                parse_dates=False)

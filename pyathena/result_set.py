@@ -21,6 +21,9 @@ from pyathena.util import retry_api_call
 
 _logger = logging.getLogger(__name__)
 
+NanTypePromotion = {bool: object,
+                    int: float}
+
 
 class WithResultSet(object):
 
@@ -474,6 +477,4 @@ def safe_cast_pandas_dtype(dtype):
     :param dtype: dtype name or type (such as the one defined in AthenaPandasResultSet._dtypes)
     :return: dtype converted to have na support
     """
-    conversion = {bool: object,
-                  int: float}
-    return conversion.get(dtype, dtype)
+    return NanTypePromotion.get(dtype, dtype)
