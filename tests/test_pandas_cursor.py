@@ -342,3 +342,18 @@ class TestPandasCursor(unittest.TestCase):
             (1, np.nan),
             (np.nan, np.nan),
         ])
+
+    @with_pandas_cursor
+    def test_boolean_na_values(self, cursor):
+        df = cursor.execute("""
+        SELECT * FROM boolean_na_values
+        """).as_pandas()
+        rows = [tuple([
+            row['a'],
+            row['b'],
+        ]) for _, row in df.iterrows()]
+        self.assertEqual(rows, [
+            (True, False),
+            (False, None),
+            (None, None),
+        ])

@@ -45,4 +45,12 @@ CREATE EXTERNAL TABLE IF NOT EXISTS {schema}.integer_na_values (
     b INT
 )
 ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
-LOCATION '{location_integer_na_values}'
+LOCATION '{location_integer_na_values}';
+
+DROP TABLE IF EXISTS {schema}.boolean_na_values;
+CREATE EXTERNAL TABLE IF NOT EXISTS {schema}.boolean_na_values (
+    a BOOLEAN,
+    b BOOLEAN
+)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
+LOCATION '{location_boolean_na_values}';

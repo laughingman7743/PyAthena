@@ -9,10 +9,12 @@ import time
 from boto3.session import Session
 from future.utils import iteritems
 
-from pyathena.converter import TypeConverter
+from pyathena.async_pandas_cursor import AsyncPandasCursor
+from pyathena.converter import DefaultTypeConverter, DefaultPandasTypeConverter
 from pyathena.cursor import Cursor
 from pyathena.error import NotSupportedError
-from pyathena.formatter import ParameterFormatter
+from pyathena.formatter import DefaultParameterFormatter
+from pyathena.pandas_cursor import PandasCursor
 from pyathena.util import RetryConfig
 
 _logger = logging.getLogger(__name__)
@@ -65,8 +67,8 @@ class Connection(object):
                                 **self._session_kwargs)
         self._client = self._session.client('athena', region_name=region_name,
                                             **self._client_kwargs)
-        self._converter = converter if converter else TypeConverter()
-        self._formatter = formatter if formatter else ParameterFormatter()
+        self._converter = converter
+        self._formatter = formatter if formatter else DefaultParameterFormatter()
         self._retry_config = retry_config if retry_config else RetryConfig()
         self.cursor_class = cursor_class
 
@@ -120,6 +122,12 @@ class Connection(object):
     def cursor(self, cursor=None, **kwargs):
         if not cursor:
             cursor = self.cursor_class
+        converter = kwargs.pop('converter', self._converter)
+        if not converter:
+            if cursor is PandasCursor or cursor is AsyncPandasCursor:
+                converter = DefaultPandasTypeConverter()
+            else:
+                converter = DefaultTypeConverter()
         return cursor(connection=self,
                       s3_staging_dir=kwargs.pop('s3_staging_dir', self.s3_staging_dir),
                       schema_name=kwargs.pop('schema_name', self.schema_name),
@@ -127,7 +135,7 @@ class Connection(object):
                       poll_interval=kwargs.pop('poll_interval', self.poll_interval),
                       encryption_option=kwargs.pop('encryption_option', self.encryption_option),
                       kms_key=kwargs.pop('kms_key', self.kms_key),
-                      converter=kwargs.pop('converter', self._converter),
+                      converter=converter,
                       formatter=kwargs.pop('formatter', self._formatter),
                       retry_config=kwargs.pop('retry_config', self._retry_config),
                       **kwargs)

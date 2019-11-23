@@ -56,6 +56,8 @@ def _create_table(cursor):
         ENV.s3_staging_dir, S3_PREFIX, 'partition_table')
     location_integer_na_values = '{0}{1}/{2}/'.format(
         ENV.s3_staging_dir, S3_PREFIX, 'integer_na_values')
+    location_boolean_na_values = '{0}{1}/{2}/'.format(
+        ENV.s3_staging_dir, S3_PREFIX, 'boolean_na_values')
     for q in read_query(
             os.path.join(BASE_PATH, 'sql', 'create_table.sql')):
         cursor.execute(q.format(schema=SCHEMA,
@@ -63,4 +65,5 @@ def _create_table(cursor):
                                 location_many_rows=location_many_rows,
                                 location_one_row_complex=location_one_row_complex,
                                 location_partition_table=location_partition_table,
-                                location_integer_na_values=location_integer_na_values))
+                                location_integer_na_values=location_integer_na_values,
+                                location_boolean_na_values=location_boolean_na_values))

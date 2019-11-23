@@ -78,7 +78,24 @@ def _format_seq(formatter, escaper, val):
     return '({0})'.format(','.join(results))
 
 
-class ParameterFormatter(object):
+_DEFAULT_FORMATTERS = {
+    type(None): _format_none,
+    date: _format_date,
+    datetime: _format_datetime,
+    int: _format_default,
+    float: _format_default,
+    long: _format_default,
+    Decimal: _format_default,
+    bool: _format_bool,
+    str: _format_str,
+    unicode: _format_str,
+    list: _format_seq,
+    set: _format_seq,
+    tuple: _format_seq,
+}
+
+
+class DefaultParameterFormatter(object):
 
     def __init__(self):
         self.mappings = _DEFAULT_FORMATTERS
@@ -113,20 +130,3 @@ class ParameterFormatter(object):
 
     def register_formatter(self, type_, formatter):
         self.mappings[type_] = formatter
-
-
-_DEFAULT_FORMATTERS = {
-    type(None): _format_none,
-    date: _format_date,
-    datetime: _format_datetime,
-    int: _format_default,
-    float: _format_default,
-    long: _format_default,
-    Decimal: _format_default,
-    bool: _format_bool,
-    str: _format_str,
-    unicode: _format_str,
-    list: _format_seq,
-    set: _format_seq,
-    tuple: _format_seq,
-}
