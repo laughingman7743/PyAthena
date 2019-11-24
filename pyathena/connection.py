@@ -21,6 +21,7 @@ _logger = logging.getLogger(__name__)
 class Connection(object):
 
     _ENV_S3_STAGING_DIR = 'AWS_ATHENA_S3_STAGING_DIR'
+    _ENV_WORK_GROUP = 'AWS_ATHENA_WORK_GROUP'
     _SESSION_PASSING_ARGS = [
         'aws_access_key_id', 'aws_secret_access_key',
         'aws_session_token', 'region_name',
@@ -43,14 +44,19 @@ class Connection(object):
             self.s3_staging_dir = s3_staging_dir
         else:
             self.s3_staging_dir = os.getenv(self._ENV_S3_STAGING_DIR, None)
-        assert self.s3_staging_dir, 'Required argument `s3_staging_dir` not found.'
-        assert schema_name, 'Required argument `schema_name` not found.'
         self.region_name = region_name
         self.schema_name = schema_name
-        self.work_group = work_group
+        if work_group:
+            self.work_group = work_group
+        else:
+            self.work_group = os.getenv(self._ENV_WORK_GROUP, None)
         self.poll_interval = poll_interval
         self.encryption_option = encryption_option
         self.kms_key = kms_key
+
+        assert self.schema_name, 'Required argument `schema_name` not found.'
+        assert self.s3_staging_dir or self.work_group,\
+            'Required argument `s3_staging_dir` or `work_group` not found.'
 
         if role_arn:
             creds = self._assume_role(profile_name, region_name, role_arn,
