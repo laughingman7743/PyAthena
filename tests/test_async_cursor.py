@@ -105,8 +105,10 @@ class TestAsyncCursor(unittest.TestCase):
         future = cursor.query_execution(query_id)
         query_execution = future.result()
 
+        self.assertEqual(query_execution.database, SCHEMA)
         self.assertIsNotNone(query_execution.query_id)
         self.assertEqual(query_execution.query, query)
+        self.assertEqual(query_execution.statement_type, AthenaQueryExecution.STATEMENT_TYPE_DML)
         self.assertEqual(query_execution.state, AthenaQueryExecution.STATE_SUCCEEDED)
         self.assertIsNone(query_execution.state_change_reason)
         self.assertIsNotNone(query_execution.completion_date_time)
@@ -116,9 +118,14 @@ class TestAsyncCursor(unittest.TestCase):
         self.assertIsNotNone(query_execution.data_scanned_in_bytes)
         self.assertIsNotNone(query_execution.execution_time_in_millis)
         self.assertIsNotNone(query_execution.output_location)
+        self.assertIsNone(query_execution.encryption_option)
+        self.assertIsNone(query_execution.kms_key)
+        self.assertEqual(query_execution.work_group, 'primary')
 
+        self.assertEqual(result_set.database, query_execution.database)
         self.assertEqual(result_set.query_id, query_execution.query_id)
         self.assertEqual(result_set.query, query_execution.query)
+        self.assertEqual(result_set.statement_type, query_execution.statement_type)
         self.assertEqual(result_set.state, query_execution.state)
         self.assertEqual(result_set.state_change_reason, query_execution.state_change_reason)
         self.assertEqual(result_set.completion_date_time, query_execution.completion_date_time)
@@ -127,6 +134,9 @@ class TestAsyncCursor(unittest.TestCase):
         self.assertEqual(result_set.execution_time_in_millis,
                          query_execution.execution_time_in_millis)
         self.assertEqual(result_set.output_location, query_execution.output_location)
+        self.assertEqual(result_set.encryption_option, query_execution.encryption_option)
+        self.assertEqual(result_set.kms_key, query_execution.kms_key)
+        self.assertEqual(result_set.work_group, query_execution.work_group)
 
     @with_async_cursor
     def test_poll(self, cursor):

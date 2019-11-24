@@ -42,6 +42,12 @@ class WithResultSet(object):
         return self._result_set.description
 
     @property
+    def database(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.database
+
+    @property
     def query_id(self):
         return self._query_id
 
@@ -50,6 +56,12 @@ class WithResultSet(object):
         if not self.has_result_set:
             return None
         return self._result_set.query
+
+    @property
+    def statement_type(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.statement_type
 
     @property
     def state(self):
@@ -93,6 +105,24 @@ class WithResultSet(object):
             return None
         return self._result_set.output_location
 
+    @property
+    def encryption_option(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.encryption_option
+
+    @property
+    def kms_key(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.kms_key
+
+    @property
+    def work_group(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.work_group
+
 
 class AthenaResultSet(CursorIterator):
 
@@ -113,12 +143,20 @@ class AthenaResultSet(CursorIterator):
             self._pre_fetch()
 
     @property
+    def database(self):
+        return self._query_execution.database
+
+    @property
     def query_id(self):
         return self._query_execution.query_id
 
     @property
     def query(self):
         return self._query_execution.query
+
+    @property
+    def statement_type(self):
+        return self._query_execution.statement_type
 
     @property
     def state(self):
@@ -147,6 +185,18 @@ class AthenaResultSet(CursorIterator):
     @property
     def output_location(self):
         return self._query_execution.output_location
+
+    @property
+    def encryption_option(self):
+        return self._query_execution.encryption_option
+
+    @property
+    def kms_key(self):
+        return self._query_execution.kms_key
+
+    @property
+    def work_group(self):
+        return self._query_execution.work_group
 
     @property
     def description(self):

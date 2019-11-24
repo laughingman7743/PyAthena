@@ -16,6 +16,7 @@ from tests.util import Env, read_query
 ENV = Env()
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 S3_PREFIX = 'test_pyathena'
+WORK_GROUP = 'test-pyathena'
 SCHEMA = 'test_pyathena_' + ''.join([random.choice(
     string.ascii_lowercase + string.digits) for _ in xrange(10)])
 

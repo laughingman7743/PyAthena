@@ -19,13 +19,15 @@ class Env(object):
             'Required environment variable `AWS_ATHENA_S3_STAGING_DIR` not found.'
 
 
-def with_cursor(fn):
-    @functools.wraps(fn)
-    def wrapped_fn(self, *args, **kwargs):
-        with contextlib.closing(self.connect()) as conn:
-            with conn.cursor() as cursor:
-                fn(self, cursor, *args, **kwargs)
-    return wrapped_fn
+def with_cursor(work_group=None):
+    def _with_cursor(fn):
+        @functools.wraps(fn)
+        def wrapped_fn(self, *args, **kwargs):
+            with contextlib.closing(self.connect(work_group=work_group)) as conn:
+                with conn.cursor() as cursor:
+                    fn(self, cursor, *args, **kwargs)
+        return wrapped_fn
+    return _with_cursor
 
 
 def with_async_cursor(fn):

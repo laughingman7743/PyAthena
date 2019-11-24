@@ -18,7 +18,7 @@ from pyathena import BINARY, BOOLEAN, DATE, DATETIME, JSON, NUMBER, STRING, TIME
 from pyathena.cursor import Cursor
 from pyathena.error import DatabaseError, NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
-from tests.conftest import ENV, S3_PREFIX, SCHEMA
+from tests.conftest import ENV, S3_PREFIX, SCHEMA, WORK_GROUP
 from tests.util import with_cursor
 
 
@@ -30,18 +30,20 @@ class TestCursor(unittest.TestCase):
     https://github.com/dropbox/PyHive/blob/master/pyhive/tests/test_presto.py
     """
 
-    def connect(self):
-        return connect(schema_name=SCHEMA)
+    def connect(self, work_group=None):
+        return connect(schema_name=SCHEMA, work_group=work_group)
 
-    @with_cursor
+    @with_cursor()
     def test_fetchone(self, cursor):
         cursor.execute('SELECT * FROM one_row')
         self.assertEqual(cursor.rownumber, 0)
         self.assertEqual(cursor.fetchone(), (1,))
         self.assertEqual(cursor.rownumber, 1)
         self.assertIsNone(cursor.fetchone())
+        self.assertEqual(cursor.database, SCHEMA)
         self.assertIsNotNone(cursor.query_id)
         self.assertIsNotNone(cursor.query)
+        self.assertEqual(cursor.statement_type, AthenaQueryExecution.STATEMENT_TYPE_DML)
         self.assertEqual(cursor.state, AthenaQueryExecution.STATE_SUCCEEDED)
         self.assertIsNone(cursor.state_change_reason)
         self.assertIsNotNone(cursor.completion_date_time)
@@ -51,29 +53,32 @@ class TestCursor(unittest.TestCase):
         self.assertIsNotNone(cursor.data_scanned_in_bytes)
         self.assertIsNotNone(cursor.execution_time_in_millis)
         self.assertIsNotNone(cursor.output_location)
+        self.assertIsNone(cursor.encryption_option)
+        self.assertIsNone(cursor.kms_key)
+        self.assertEqual(cursor.work_group, 'primary')
 
-    @with_cursor
+    @with_cursor()
     def test_fetchmany(self, cursor):
         cursor.execute('SELECT * FROM many_rows LIMIT 15')
         self.assertEqual(len(cursor.fetchmany(10)), 10)
         self.assertEqual(len(cursor.fetchmany(10)), 5)
 
-    @with_cursor
+    @with_cursor()
     def test_fetchall(self, cursor):
         cursor.execute('SELECT * FROM one_row')
         self.assertEqual(cursor.fetchall(), [(1,)])
         cursor.execute('SELECT a FROM many_rows ORDER BY a')
         self.assertEqual(cursor.fetchall(), [(i,) for i in xrange(10000)])
 
-    @with_cursor
+    @with_cursor()
     def test_iterator(self, cursor):
         cursor.execute('SELECT * FROM one_row')
         self.assertEqual(list(cursor), [(1,)])
         self.assertRaises(StopIteration, cursor.__next__)
 
-    @with_cursor
+    @with_cursor()
     def test_cache_size(self, cursor):
-        # To test cacheing, we need to make sure the query is unique, otherwise
+        # To test caching, we need to make sure the query is unique, otherwise
         # we might accidentally pick up the cache results from another CI run.
         query = 'SELECT * FROM one_row -- {0}'.format(str(datetime.utcnow()))
 
@@ -84,44 +89,44 @@ class TestCursor(unittest.TestCase):
         cursor.execute(query)
         cursor.fetchall()
         second_query_id = cursor.query_id
-        # Make sure default behavior is no cacheing, i.e. same query has
+        # Make sure default behavior is no caching, i.e. same query has
         # run twice results in different query IDs
         self.assertNotEqual(first_query_id, second_query_id)
 
         cursor.execute(query, cache_size=100)
         cursor.fetchall()
         third_query_id = cursor.query_id
-        # When using cacheing, the same query ID should be returned.
+        # When using caching, the same query ID should be returned.
         self.assertIn(third_query_id, [first_query_id, second_query_id])
 
-    @with_cursor
+    @with_cursor()
     def test_arraysize(self, cursor):
         cursor.arraysize = 5
         cursor.execute('SELECT * FROM many_rows LIMIT 20')
         self.assertEqual(len(cursor.fetchmany()), 5)
 
-    @with_cursor
+    @with_cursor()
     def test_arraysize_default(self, cursor):
         self.assertEqual(cursor.arraysize, Cursor.DEFAULT_FETCH_SIZE)
 
-    @with_cursor
+    @with_cursor()
     def test_invalid_arraysize(self, cursor):
         with self.assertRaises(ProgrammingError):
             cursor.arraysize = 10000
         with self.assertRaises(ProgrammingError):
             cursor.arraysize = -1
 
-    @with_cursor
+    @with_cursor()
     def test_description(self, cursor):
         cursor.execute('SELECT 1 AS foobar FROM one_row')
         self.assertEqual(cursor.description,
                          [('foobar', 'integer', None, None, 10, 0, 'UNKNOWN')])
 
-    @with_cursor
+    @with_cursor()
     def test_description_initial(self, cursor):
         self.assertIsNone(cursor.description)
 
-    @with_cursor
+    @with_cursor()
     def test_description_failed(self, cursor):
         try:
             cursor.execute('blah_blah')
@@ -129,32 +134,32 @@ class TestCursor(unittest.TestCase):
             pass
         self.assertIsNone(cursor.description)
 
-    @with_cursor
+    @with_cursor()
     def test_bad_query(self, cursor):
         def run():
             cursor.execute('SELECT does_not_exist FROM this_really_does_not_exist')
             cursor.fetchone()
         self.assertRaises(DatabaseError, run)
 
-    @with_cursor
+    @with_cursor()
     def test_fetch_no_data(self, cursor):
         self.assertRaises(ProgrammingError, cursor.fetchone)
         self.assertRaises(ProgrammingError, cursor.fetchmany)
         self.assertRaises(ProgrammingError, cursor.fetchall)
 
-    @with_cursor
+    @with_cursor()
     def test_null_param(self, cursor):
         cursor.execute('SELECT %(param)s FROM one_row', {'param': None})
         self.assertEqual(cursor.fetchall(), [(None,)])
 
-    @with_cursor
+    @with_cursor()
     def test_no_params(self, cursor):
         self.assertRaises(DatabaseError, lambda: cursor.execute(
             'SELECT %(param)s FROM one_row'))
         self.assertRaises(KeyError, lambda: cursor.execute(
             'SELECT %(param)s FROM one_row', {'a': 1}))
 
-    @with_cursor
+    @with_cursor()
     def test_contain_special_character_query(self, cursor):
         cursor.execute("""
                        SELECT col_string FROM one_row_complex
@@ -177,7 +182,7 @@ class TestCursor(unittest.TestCase):
                        """)
         self.assertEqual(cursor.fetchall(), [('a string', '%%')])
 
-    @with_cursor
+    @with_cursor()
     def test_contain_special_character_query_with_parameter(self, cursor):
         self.assertRaises(TypeError, lambda: cursor.execute(
             """
@@ -206,17 +211,17 @@ class TestCursor(unittest.TestCase):
         bad_str = """`~!@#$%^&*()_+-={}[]|\\;:'",./<>?\n\r\t """
         self.run_escape_case(bad_str)
 
-    @with_cursor
+    @with_cursor()
     def run_escape_case(self, cursor, bad_str):
         cursor.execute('SELECT %(a)d, %(b)s FROM one_row', {'a': 1, 'b': bad_str})
         self.assertEqual(cursor.fetchall(), [(1, bad_str,)])
 
-    @with_cursor
+    @with_cursor()
     def test_none_empty_query(self, cursor):
         self.assertRaises(ProgrammingError, lambda: cursor.execute(None))
         self.assertRaises(ProgrammingError, lambda: cursor.execute(''))
 
-    @with_cursor
+    @with_cursor()
     def test_invalid_params(self, cursor):
         self.assertRaises(TypeError, lambda: cursor.execute(
             'SELECT * FROM one_row', {'foo': {'bar': 1}}))
@@ -228,13 +233,13 @@ class TestCursor(unittest.TestCase):
             with conn.cursor():
                 pass
 
-    @with_cursor
+    @with_cursor()
     def test_unicode(self, cursor):
         unicode_str = '王兢'
         cursor.execute('SELECT %(param)s FROM one_row', {'param': unicode_str})
         self.assertEqual(cursor.fetchall(), [(unicode_str,)])
 
-    @with_cursor
+    @with_cursor()
     def test_null(self, cursor):
         cursor.execute('SELECT null FROM many_rows')
         self.assertEqual(cursor.fetchall(), [(None,)] * 10000)
@@ -242,7 +247,7 @@ class TestCursor(unittest.TestCase):
         self.assertEqual(cursor.fetchall(),
                          [(None if a % 11 == 0 else a,) for a in xrange(10000)])
 
-    @with_cursor
+    @with_cursor()
     def test_query_id(self, cursor):
         self.assertIsNone(cursor.query_id)
         cursor.execute('SELECT * from one_row')
@@ -251,14 +256,14 @@ class TestCursor(unittest.TestCase):
             r'^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         self.assertTrue(re.match(expected_pattern, cursor.query_id))
 
-    @with_cursor
+    @with_cursor()
     def test_output_location(self, cursor):
         self.assertIsNone(cursor.output_location)
         cursor.execute('SELECT * from one_row')
         self.assertEqual(cursor.output_location,
                          '{0}{1}.csv'.format(ENV.s3_staging_dir, cursor.query_id))
 
-    @with_cursor
+    @with_cursor()
     def test_query_execution_initial(self, cursor):
         self.assertFalse(cursor.has_result_set)
         self.assertIsNone(cursor.rownumber)
@@ -272,7 +277,7 @@ class TestCursor(unittest.TestCase):
         self.assertIsNone(cursor.execution_time_in_millis)
         self.assertIsNone(cursor.output_location)
 
-    @with_cursor
+    @with_cursor()
     def test_complex(self, cursor):
         cursor.execute("""
         SELECT
@@ -362,7 +367,7 @@ class TestCursor(unittest.TestCase):
             NUMBER,
         ])
 
-    @with_cursor
+    @with_cursor()
     def test_cancel(self, cursor):
         def cancel(c):
             time.sleep(randint(1, 5))
@@ -377,7 +382,7 @@ class TestCursor(unittest.TestCase):
             CROSS JOIN many_rows b
             """))
 
-    @with_cursor
+    @with_cursor()
     def test_cancel_initial(self, cursor):
         self.assertRaises(ProgrammingError, cursor.cancel)
 
@@ -406,7 +411,7 @@ class TestCursor(unittest.TestCase):
         cursor.close()
         conn.close()
 
-    @with_cursor
+    @with_cursor()
     def test_show_partition(self, cursor):
         location = '{0}{1}/{2}/'.format(
             ENV.s3_staging_dir, S3_PREFIX, 'partition_table')
@@ -418,3 +423,8 @@ class TestCursor(unittest.TestCase):
         cursor.execute('SHOW PARTITIONS partition_table')
         self.assertEqual(sorted(cursor.fetchall()),
                          [('b={0}'.format(i),) for i in xrange(10)])
+
+    @with_cursor(work_group=WORK_GROUP)
+    def test_workgroup(self, cursor):
+        cursor.execute('SELECT * FROM one_row')
+        self.assertEqual(cursor.work_group, WORK_GROUP)
