@@ -628,6 +628,7 @@ Additional environment variable:
 .. code:: bash
 
     $ export AWS_ATHENA_S3_STAGING_DIR=s3://YOUR_S3_BUCKET/path/to/
+    $ export AWS_ATHENA_WORK_GROUP=YOUR_WORK_GROUP
 
 Testing
 -------
