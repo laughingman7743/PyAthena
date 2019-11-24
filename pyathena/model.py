@@ -17,10 +17,17 @@ class AthenaQueryExecution(object):
     STATE_FAILED = 'FAILED'
     STATE_CANCELLED = 'CANCELLED'
 
+    STATEMENT_TYPE_DDL = 'DDL'
+    STATEMENT_TYPE_DML = 'DML'
+    STATEMENT_TYPE_UTILITY = 'UTILITY'
+
     def __init__(self, response):
         query_execution = response.get('QueryExecution', None)
         if not query_execution:
             raise DataError('KeyError `QueryExecution`')
+
+        query_execution_context = query_execution.get('QueryExecutionContext', {})
+        self._database = query_execution_context.get('Database', None)
 
         self._query_id = query_execution.get('QueryExecutionId', None)
         if not self._query_id:
@@ -29,6 +36,7 @@ class AthenaQueryExecution(object):
         self._query = query_execution.get('Query', None)
         if not self._query:
             raise DataError('KeyError `Query`')
+        self._statement_type = query_execution.get('StatementType', None)
 
         status = query_execution.get('Status', None)
         if not status:
@@ -45,6 +53,16 @@ class AthenaQueryExecution(object):
         result_conf = query_execution.get('ResultConfiguration', {})
         self._output_location = result_conf.get('OutputLocation', None)
 
+        encryption_conf = result_conf.get('EncryptionConfiguration', {})
+        self._encryption_option = encryption_conf.get('EncryptionOption', None)
+        self._kms_key = encryption_conf.get('KmsKey', None)
+
+        self._work_group = query_execution.get('WorkGroup', None)
+
+    @property
+    def database(self):
+        return self._database
+
     @property
     def query_id(self):
         return self._query_id
@@ -52,6 +70,10 @@ class AthenaQueryExecution(object):
     @property
     def query(self):
         return self._query
+
+    @property
+    def statement_type(self):
+        return self._statement_type
 
     @property
     def state(self):
@@ -80,3 +102,15 @@ class AthenaQueryExecution(object):
     @property
     def output_location(self):
         return self._output_location
+
+    @property
+    def encryption_option(self):
+        return self._encryption_option
+
+    @property
+    def kms_key(self):
+        return self._kms_key
+
+    @property
+    def work_group(self):
+        return self._work_group

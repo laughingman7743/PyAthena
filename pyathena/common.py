@@ -177,7 +177,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
                     if (
                         execution['Query'] == query and
                         execution['Status']['State'] == AthenaQueryExecution.STATE_SUCCEEDED and
-                        execution['StatementType'] == 'DML'
+                        execution['StatementType'] == AthenaQueryExecution.STATEMENT_TYPE_DML
                     ):
                         query_id = execution['QueryExecutionId']
                         break

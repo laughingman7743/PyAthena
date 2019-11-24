@@ -40,8 +40,10 @@ class TestCursor(unittest.TestCase):
         self.assertEqual(cursor.fetchone(), (1,))
         self.assertEqual(cursor.rownumber, 1)
         self.assertIsNone(cursor.fetchone())
+        self.assertEqual(cursor.database, SCHEMA)
         self.assertIsNotNone(cursor.query_id)
         self.assertIsNotNone(cursor.query)
+        self.assertEqual(cursor.statement_type, AthenaQueryExecution.STATEMENT_TYPE_DML)
         self.assertEqual(cursor.state, AthenaQueryExecution.STATE_SUCCEEDED)
         self.assertIsNone(cursor.state_change_reason)
         self.assertIsNotNone(cursor.completion_date_time)
@@ -51,6 +53,9 @@ class TestCursor(unittest.TestCase):
         self.assertIsNotNone(cursor.data_scanned_in_bytes)
         self.assertIsNotNone(cursor.execution_time_in_millis)
         self.assertIsNotNone(cursor.output_location)
+        self.assertIsNone(cursor.encryption_option)
+        self.assertIsNone(cursor.kms_key)
+        self.assertEqual(cursor.work_group, 'primary')
 
     @with_cursor
     def test_fetchmany(self, cursor):
