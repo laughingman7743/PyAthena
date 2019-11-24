@@ -10,21 +10,18 @@ from random import randint
 
 from past.builtins.misc import xrange
 
-from pyathena import connect
 from pyathena.async_cursor import AsyncCursor
 from pyathena.error import NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
+from tests import WithConnect
 from tests.conftest import SCHEMA
 from tests.util import with_async_cursor
 
 
-class TestAsyncCursor(unittest.TestCase):
+class TestAsyncCursor(unittest.TestCase, WithConnect):
 
-    def connect(self):
-        return connect(schema_name=SCHEMA)
-
-    @with_async_cursor
+    @with_async_cursor()
     def test_fetchone(self, cursor):
         query_id, future = cursor.execute('SELECT * FROM one_row')
         result_set = future.result()
@@ -44,14 +41,14 @@ class TestAsyncCursor(unittest.TestCase):
         self.assertIsNotNone(result_set.execution_time_in_millis)
         self.assertIsNotNone(result_set.output_location)
 
-    @with_async_cursor
+    @with_async_cursor()
     def test_fetchmany(self, cursor):
         query_id, future = cursor.execute('SELECT * FROM many_rows LIMIT 15')
         result_set = future.result()
         self.assertEqual(len(result_set.fetchmany(10)), 10)
         self.assertEqual(len(result_set.fetchmany(10)), 5)
 
-    @with_async_cursor
+    @with_async_cursor()
     def test_fetchall(self, cursor):
         query_id, future = cursor.execute('SELECT * FROM one_row')
         result_set = future.result()
@@ -60,32 +57,32 @@ class TestAsyncCursor(unittest.TestCase):
         result_set = future.result()
         self.assertEqual(result_set.fetchall(), [(i,) for i in xrange(10000)])
 
-    @with_async_cursor
+    @with_async_cursor()
     def test_iterator(self, cursor):
         query_id, future = cursor.execute('SELECT * FROM one_row')
         result_set = future.result()
         self.assertEqual(list(result_set), [(1,)])
         self.assertRaises(StopIteration, result_set.__next__)
 
-    @with_async_cursor
+    @with_async_cursor()
     def test_arraysize(self, cursor):
         cursor.arraysize = 5
         query_id, future = cursor.execute('SELECT * FROM many_rows LIMIT 20')
         result_set = future.result()
         self.assertEqual(len(result_set.fetchmany()), 5)
 
-    @with_async_cursor
+    @with_async_cursor()
     def test_arraysize_default(self, cursor):
         self.assertEqual(cursor.arraysize, AthenaResultSet.DEFAULT_FETCH_SIZE)
 
-    @with_async_cursor
+    @with_async_cursor()
     def test_invalid_arraysize(self, cursor):
         with self.assertRaises(ProgrammingError):
             cursor.arraysize = 10000
         with self.assertRaises(ProgrammingError):
             cursor.arraysize = -1
 
-    @with_async_cursor
+    @with_async_cursor()
     def test_description(self, cursor):
         query_id, future = cursor.execute('SELECT 1 AS foobar FROM one_row')
         result_set = future.result()
@@ -96,7 +93,7 @@ class TestAsyncCursor(unittest.TestCase):
         description = future.result()
         self.assertEqual(result_set.description, description)
 
-    @with_async_cursor
+    @with_async_cursor()
     def test_query_execution(self, cursor):
         query = 'SELECT * FROM one_row'
         query_id, future = cursor.execute(query)
@@ -138,7 +135,7 @@ class TestAsyncCursor(unittest.TestCase):
         self.assertEqual(result_set.kms_key, query_execution.kms_key)
         self.assertEqual(result_set.work_group, query_execution.work_group)
 
-    @with_async_cursor
+    @with_async_cursor()
     def test_poll(self, cursor):
         query_id, _ = cursor.execute("SELECT * FROM one_row")
         future = cursor.poll(query_id)
@@ -149,14 +146,14 @@ class TestAsyncCursor(unittest.TestCase):
                                               AthenaQueryExecution.STATE_FAILED,
                                               AthenaQueryExecution.STATE_CANCELLED])
 
-    @with_async_cursor
+    @with_async_cursor()
     def test_bad_query(self, cursor):
         query_id, future = cursor.execute('SELECT does_not_exist FROM this_really_does_not_exist')
         result_set = future.result()
         self.assertEqual(result_set.state, AthenaQueryExecution.STATE_FAILED)
         self.assertIsNotNone(result_set.state_change_reason)
 
-    @with_async_cursor
+    @with_async_cursor()
     def test_cancel(self, cursor):
         query_id, future = cursor.execute("""
                            SELECT a.a * rand(), b.a * rand()

@@ -4,21 +4,12 @@ from __future__ import unicode_literals
 
 import contextlib
 import os
-import random
-import string
 
 import pytest
-from past.builtins.misc import xrange
 
 from pyathena import connect
-from tests.util import Env, read_query
-
-ENV = Env()
-BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-S3_PREFIX = 'test_pyathena'
-WORK_GROUP = 'test-pyathena'
-SCHEMA = 'test_pyathena_' + ''.join([random.choice(
-    string.ascii_lowercase + string.digits) for _ in xrange(10)])
+from tests import BASE_PATH, ENV, SCHEMA, S3_PREFIX
+from tests.util import read_query
 
 
 @pytest.fixture(scope='session', autouse=True)

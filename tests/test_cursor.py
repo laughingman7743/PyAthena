@@ -18,20 +18,17 @@ from pyathena import BINARY, BOOLEAN, DATE, DATETIME, JSON, NUMBER, STRING, TIME
 from pyathena.cursor import Cursor
 from pyathena.error import DatabaseError, NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
-from tests.conftest import ENV, S3_PREFIX, SCHEMA, WORK_GROUP
+from tests import WithConnect, SCHEMA, ENV, S3_PREFIX, WORK_GROUP
 from tests.util import with_cursor
 
 
-class TestCursor(unittest.TestCase):
+class TestCursor(unittest.TestCase, WithConnect):
     """Reference test case is following:
 
     https://github.com/dropbox/PyHive/blob/master/pyhive/tests/dbapi_test_case.py
     https://github.com/dropbox/PyHive/blob/master/pyhive/tests/test_hive.py
     https://github.com/dropbox/PyHive/blob/master/pyhive/tests/test_presto.py
     """
-
-    def connect(self, work_group=None):
-        return connect(schema_name=SCHEMA, work_group=work_group)
 
     @with_cursor()
     def test_fetchone(self, cursor):
