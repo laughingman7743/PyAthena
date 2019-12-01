@@ -5,10 +5,13 @@ from __future__ import unicode_literals
 import binascii
 import json
 import logging
+from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from datetime import datetime
 from decimal import Decimal
 from distutils.util import strtobool
+
+from future.utils import with_metaclass
 
 _logger = logging.getLogger(__name__)
 
@@ -103,7 +106,7 @@ _DEFAULT_PANDAS_CONVERTERS = {
 }
 
 
-class Converter(object):
+class Converter(with_metaclass(ABCMeta, object)):
 
     def __init__(self, mappings, default=None, types=None):
         if mappings:
@@ -136,9 +139,9 @@ class Converter(object):
     def update(self, mappings):
         self.mappings.update(mappings)
 
+    @abstractmethod
     def convert(self, type_, value):
-        converter = self.get(type_)
-        return converter(value)
+        raise NotImplementedError  # pragma: no cover
 
 
 class DefaultTypeConverter(Converter):
@@ -146,6 +149,10 @@ class DefaultTypeConverter(Converter):
     def __init__(self):
         super(DefaultTypeConverter, self).__init__(
             mappings=deepcopy(_DEFAULT_CONVERTERS), default=_to_default)
+
+    def convert(self, type_, value):
+        converter = self.get(type_)
+        return converter(value)
 
 
 class DefaultPandasTypeConverter(Converter):
@@ -173,3 +180,6 @@ class DefaultPandasTypeConverter(Converter):
                 'row': str,
             }
         return self.__dtypes
+
+    def convert(self, type_, value):
+        pass

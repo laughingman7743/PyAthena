@@ -439,21 +439,13 @@ If you want to customize the Dataframe object dtypes and converters, create a co
 
 .. code:: python
 
-    import binascii
-    import json
-    from decimal import Decimal
-
     from pyathena.converter import Converter
 
     class CustomPandasTypeConverter(Converter):
 
         def __init__(self):
             super(CustomPandasTypeConverter, self).__init__(
-                mappings={
-                    'decimal': lambda a: Decimal(a) if a else None,
-                    'varbinary': lambda a: binascii.a2b_hex(''.join(a.split(' '))) if a else None,
-                    'json': lambda a: json.loads(a) if a else None,
-                },
+                mappings=None,
                 types={
                     'boolean': object,
                     'tinyint': float,
@@ -463,13 +455,20 @@ If you want to customize the Dataframe object dtypes and converters, create a co
                     'float': float,
                     'real': float,
                     'double': float,
+                    'decimal': float,
                     'char': str,
                     'varchar': str,
                     'array': str,
                     'map': str,
                     'row': str,
+                    'varbinary': str,
+                    'json': str,
                 }
             )
+
+        def convert(self, type_, value):
+            # Not used in PandasCursor.
+            pass
 
 Specify the combination of converter functions in the mappings argument and the dtypes combination in the types argument.
 
