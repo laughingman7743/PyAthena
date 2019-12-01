@@ -435,6 +435,63 @@ Execution information of the query can also be retrieved.
     print(cursor.execution_time_in_millis)
     print(cursor.output_location)
 
+If you want to customize the Dataframe object dtypes and converters, create a converter class like this:
+
+.. code:: python
+
+    import binascii
+    import json
+    from decimal import Decimal
+
+    from pyathena.converter import Converter
+
+    class CustomPandasTypeConverter(Converter):
+
+        def __init__(self):
+            super(CustomPandasTypeConverter, self).__init__(
+                mappings={
+                    'decimal': lambda a: Decimal(a) if a else None,
+                    'varbinary': lambda a: binascii.a2b_hex(''.join(a.split(' '))) if a else None,
+                    'json': lambda a: json.loads(a) if a else None,
+                },
+                types={
+                    'boolean': object,
+                    'tinyint': float,
+                    'smallint': float,
+                    'integer': float,
+                    'bigint': float,
+                    'float': float,
+                    'real': float,
+                    'double': float,
+                    'char': str,
+                    'varchar': str,
+                    'array': str,
+                    'map': str,
+                    'row': str,
+                }
+            )
+
+Specify the combination of converter functions in the mappings argument and the dtypes combination in the types argument.
+
+Then you simply specify an instance of this class in the convertes argument when creating a connection or cursor.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.pandas_cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2').cursor(PandasCursor, converter=CustomPandasTypeConverter())
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.pandas_cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                     region_name='us-west-2',
+                     converter=CustomPandasTypeConverter()).cursor(PandasCursor)
+
 NOTE: PandasCursor handles the CSV file on memory. Pay attention to the memory capacity.
 
 .. _`DataFrame object`: https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html
