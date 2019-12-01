@@ -106,9 +106,15 @@ _DEFAULT_PANDAS_CONVERTERS = {
 class Converter(object):
 
     def __init__(self, mappings, default=None, types=None):
-        self._mappings = mappings
+        if mappings:
+            self._mappings = mappings
+        else:
+            self._mappings = dict()
         self._default = default
-        self._types = types
+        if types:
+            self._types = types
+        else:
+            self._types = dict()
 
     @property
     def mappings(self):
