@@ -5,8 +5,13 @@ from __future__ import unicode_literals
 import binascii
 import json
 import logging
+from abc import ABCMeta, abstractmethod
+from copy import deepcopy
 from datetime import datetime
 from decimal import Decimal
+from distutils.util import strtobool
+
+from future.utils import with_metaclass
 
 _logger = logging.getLogger(__name__)
 
@@ -48,14 +53,9 @@ def _to_decimal(varchar_value):
 
 
 def _to_boolean(varchar_value):
-    if varchar_value is None:
+    if varchar_value is None or varchar_value == '':
         return None
-    elif varchar_value.lower() == 'true':
-        return True
-    elif varchar_value.lower() == 'false':
-        return False
-    else:
-        return None
+    return bool(strtobool(varchar_value))
 
 
 def _to_binary(varchar_value):
@@ -98,16 +98,88 @@ _DEFAULT_CONVERTERS = {
     'decimal': _to_decimal,
     'json': _to_json,
 }
+_DEFAULT_PANDAS_CONVERTERS = {
+    'boolean': _to_boolean,
+    'decimal': _to_decimal,
+    'varbinary': _to_binary,
+    'json': _to_json,
+}
 
 
-class TypeConverter(object):
+class Converter(with_metaclass(ABCMeta, object)):
+
+    def __init__(self, mappings, default=None, types=None):
+        if mappings:
+            self._mappings = mappings
+        else:
+            self._mappings = dict()
+        self._default = default
+        if types:
+            self._types = types
+        else:
+            self._types = dict()
+
+    @property
+    def mappings(self):
+        return self._mappings
+
+    @property
+    def types(self):
+        return self._types
+
+    def get(self, type_):
+        return self.mappings.get(type_, self._default)
+
+    def set(self, type_, converter):
+        self.mappings[type_] = converter
+
+    def remove(self, type_):
+        self.mappings.pop(type_, None)
+
+    def update(self, mappings):
+        self.mappings.update(mappings)
+
+    @abstractmethod
+    def convert(self, type_, value):
+        raise NotImplementedError  # pragma: no cover
+
+
+class DefaultTypeConverter(Converter):
 
     def __init__(self):
-        self._mappings = _DEFAULT_CONVERTERS
+        super(DefaultTypeConverter, self).__init__(
+            mappings=deepcopy(_DEFAULT_CONVERTERS), default=_to_default)
 
-    def convert(self, type_, varchar_value):
-        converter = self._mappings.get(type_, _to_default)
-        return converter(varchar_value)
+    def convert(self, type_, value):
+        converter = self.get(type_)
+        return converter(value)
 
-    def register_converter(self, type_, converter):
-        self._mappings[type_] = converter
+
+class DefaultPandasTypeConverter(Converter):
+
+    def __init__(self):
+        super(DefaultPandasTypeConverter, self).__init__(
+            mappings=deepcopy(_DEFAULT_PANDAS_CONVERTERS), default=_to_default, types=self._dtypes)
+
+    @property
+    def _dtypes(self):
+        if not hasattr(self, '__dtypes'):
+            import pandas as pd
+            self.__dtypes = {
+                'tinyint': pd.Int64Dtype(),
+                'smallint': pd.Int64Dtype(),
+                'integer': pd.Int64Dtype(),
+                'bigint': pd.Int64Dtype(),
+                'float': float,
+                'real': float,
+                'double': float,
+                'char': str,
+                'varchar': str,
+                'array': str,
+                'map': str,
+                'row': str,
+            }
+        return self.__dtypes
+
+    def convert(self, type_, value):
+        pass

@@ -7,14 +7,14 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from pyathena.error import ProgrammingError
-from pyathena.formatter import ParameterFormatter
+from pyathena.formatter import DefaultParameterFormatter
 
 
-class TestParameterFormatter(unittest.TestCase):
+class TestDefaultParameterFormatter(unittest.TestCase):
 
     # TODO More DDL statement test case & Complex parameter format test case
 
-    FORMATTER = ParameterFormatter()
+    FORMATTER = DefaultParameterFormatter()
 
     def format(self, operation, parameters=None):
         return self.FORMATTER.format(operation, parameters)

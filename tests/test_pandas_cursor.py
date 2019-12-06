@@ -16,21 +16,18 @@ import numpy as np
 import pandas as pd
 from past.builtins.misc import xrange
 
-from pyathena import DatabaseError, ProgrammingError, connect
+from pyathena import DatabaseError, ProgrammingError
 from pyathena.error import NotSupportedError
 from pyathena.model import AthenaQueryExecution
 from pyathena.pandas_cursor import PandasCursor
 from pyathena.result_set import AthenaPandasResultSet
-from tests.conftest import ENV, S3_PREFIX, SCHEMA
+from tests import WithConnect, SCHEMA, ENV, S3_PREFIX
 from tests.util import with_pandas_cursor
 
 
-class TestPandasCursor(unittest.TestCase):
+class TestPandasCursor(unittest.TestCase, WithConnect):
 
-    def connect(self):
-        return connect(schema_name=SCHEMA)
-
-    @with_pandas_cursor
+    @with_pandas_cursor()
     def test_fetchone(self, cursor):
         cursor.execute('SELECT * FROM one_row')
         self.assertEqual(cursor.rownumber, 0)
@@ -38,43 +35,43 @@ class TestPandasCursor(unittest.TestCase):
         self.assertEqual(cursor.rownumber, 1)
         self.assertIsNone(cursor.fetchone())
 
-    @with_pandas_cursor
+    @with_pandas_cursor()
     def test_fetchmany(self, cursor):
         cursor.execute('SELECT * FROM many_rows LIMIT 15')
         self.assertEqual(len(cursor.fetchmany(10)), 10)
         self.assertEqual(len(cursor.fetchmany(10)), 5)
 
-    @with_pandas_cursor
+    @with_pandas_cursor()
     def test_fetchall(self, cursor):
         cursor.execute('SELECT * FROM one_row')
         self.assertEqual(cursor.fetchall(), [(1,)])
         cursor.execute('SELECT a FROM many_rows ORDER BY a')
         self.assertEqual(cursor.fetchall(), [(i,) for i in xrange(10000)])
 
-    @with_pandas_cursor
+    @with_pandas_cursor()
     def test_iterator(self, cursor):
         cursor.execute('SELECT * FROM one_row')
         self.assertEqual(list(cursor), [(1,)])
         self.assertRaises(StopIteration, cursor.__next__)
 
-    @with_pandas_cursor
+    @with_pandas_cursor()
     def test_arraysize(self, cursor):
         cursor.arraysize = 5
         cursor.execute('SELECT * FROM many_rows LIMIT 20')
         self.assertEqual(len(cursor.fetchmany()), 5)
 
-    @with_pandas_cursor
+    @with_pandas_cursor()
     def test_arraysize_default(self, cursor):
         self.assertEqual(cursor.arraysize, AthenaPandasResultSet.DEFAULT_FETCH_SIZE)
 
-    @with_pandas_cursor
+    @with_pandas_cursor()
     def test_invalid_arraysize(self, cursor):
         with self.assertRaises(ProgrammingError):
             cursor.arraysize = 10000
         with self.assertRaises(ProgrammingError):
             cursor.arraysize = -1
 
-    @with_pandas_cursor
+    @with_pandas_cursor()
     def test_complex(self, cursor):
         cursor.execute("""
         SELECT
@@ -141,14 +138,14 @@ class TestPandasCursor(unittest.TestCase):
         )]
         self.assertEqual(rows, expected)
 
-    @with_pandas_cursor
+    @with_pandas_cursor()
     def test_fetch_no_data(self, cursor):
         self.assertRaises(ProgrammingError, cursor.fetchone)
         self.assertRaises(ProgrammingError, cursor.fetchmany)
         self.assertRaises(ProgrammingError, cursor.fetchall)
         self.assertRaises(ProgrammingError, cursor.as_pandas)
 
-    @with_pandas_cursor
+    @with_pandas_cursor()
     def test_as_pandas(self, cursor):
         df = cursor.execute('SELECT * FROM one_row').as_pandas()
         self.assertEqual(df.shape[0], 1)
@@ -166,7 +163,7 @@ class TestPandasCursor(unittest.TestCase):
         self.assertIsNotNone(cursor.execution_time_in_millis)
         self.assertIsNotNone(cursor.output_location)
 
-    @with_pandas_cursor
+    @with_pandas_cursor()
     def test_many_as_pandas(self, cursor):
         df = cursor.execute('SELECT * FROM many_rows').as_pandas()
         self.assertEqual(df.shape[0], 10000)
@@ -174,7 +171,7 @@ class TestPandasCursor(unittest.TestCase):
         self.assertEqual([(row['a'],) for _, row in df.iterrows()],
                          [(i,) for i in xrange(10000)])
 
-    @with_pandas_cursor
+    @with_pandas_cursor()
     def test_complex_as_pandas(self, cursor):
         df = cursor.execute("""
         SELECT
@@ -281,7 +278,7 @@ class TestPandasCursor(unittest.TestCase):
             Decimal('0.1'),
         )])
 
-    @with_pandas_cursor
+    @with_pandas_cursor()
     def test_cancel(self, cursor):
         def cancel(c):
             time.sleep(random.randint(1, 5))
@@ -296,7 +293,7 @@ class TestPandasCursor(unittest.TestCase):
             CROSS JOIN many_rows b
             """))
 
-    @with_pandas_cursor
+    @with_pandas_cursor()
     def test_cancel_initial(self, cursor):
         self.assertRaises(ProgrammingError, cursor.cancel)
 
@@ -313,7 +310,7 @@ class TestPandasCursor(unittest.TestCase):
         cursor.close()
         conn.close()
 
-    @with_pandas_cursor
+    @with_pandas_cursor()
     def test_empty_result(self, cursor):
         table = 'test_pandas_cursor_empty_result_' + ''.join([random.choice(
             string.ascii_lowercase + string.digits) for _ in xrange(10)])
@@ -328,7 +325,7 @@ class TestPandasCursor(unittest.TestCase):
         self.assertEqual(df.shape[0], 0)
         self.assertEqual(df.shape[1], 0)
 
-    @with_pandas_cursor
+    @with_pandas_cursor()
     def test_integer_na_values(self, cursor):
         df = cursor.execute("""
         SELECT * FROM integer_na_values
@@ -341,4 +338,19 @@ class TestPandasCursor(unittest.TestCase):
             (1, 2),
             (1, np.nan),
             (np.nan, np.nan),
+        ])
+
+    @with_pandas_cursor()
+    def test_boolean_na_values(self, cursor):
+        df = cursor.execute("""
+        SELECT * FROM boolean_na_values
+        """).as_pandas()
+        rows = [tuple([
+            row['a'],
+            row['b'],
+        ]) for _, row in df.iterrows()]
+        self.assertEqual(rows, [
+            (True, False),
+            (False, None),
+            (None, None),
         ])

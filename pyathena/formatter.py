@@ -3,10 +3,12 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import logging
+from abc import ABCMeta, abstractmethod
+from copy import deepcopy
 from datetime import date, datetime
 from decimal import Decimal
 
-from future.utils import iteritems
+from future.utils import iteritems, with_metaclass
 from past.types import long, unicode
 
 from pyathena.error import ProgrammingError
@@ -66,7 +68,7 @@ def _format_str(formatter, escaper, val):
 def _format_seq(formatter, escaper, val):
     results = []
     for v in val:
-        func = formatter.get_formatter(v)
+        func = formatter.get(v)
         formatted = func(formatter, escaper, v)
         if not isinstance(formatted, (str, unicode, )):
             # force string format
@@ -76,43 +78,6 @@ def _format_seq(formatter, escaper, val):
                 formatted = '{0}'.format(formatted)
         results.append(formatted)
     return '({0})'.format(','.join(results))
-
-
-class ParameterFormatter(object):
-
-    def __init__(self):
-        self.mappings = _DEFAULT_FORMATTERS
-
-    def get_formatter(self, val):
-        func = self.mappings.get(type(val), None)
-        if not func:
-            raise TypeError('{0} is not defined formatter.'.format(type(val)))
-        return func
-
-    def format(self, operation, parameters=None):
-        if not operation or not operation.strip():
-            raise ProgrammingError('Query is none or empty.')
-        operation = operation.strip()
-
-        if operation.upper().startswith('SELECT') or operation.upper().startswith('WITH'):
-            escaper = _escape_presto
-        else:
-            escaper = _escape_hive
-
-        kwargs = dict()
-        if parameters:
-            if isinstance(parameters, dict):
-                for k, v in iteritems(parameters):
-                    func = self.get_formatter(v)
-                    kwargs.update({k: func(self, escaper, v)})
-            else:
-                raise ProgrammingError('Unsupported parameter ' +
-                                       '(Support for dict only): {0}'.format(parameters))
-
-        return (operation % kwargs).strip() if kwargs else operation.strip()
-
-    def register_formatter(self, type_, formatter):
-        self.mappings[type_] = formatter
 
 
 _DEFAULT_FORMATTERS = {
@@ -130,3 +95,61 @@ _DEFAULT_FORMATTERS = {
     set: _format_seq,
     tuple: _format_seq,
 }
+
+
+class Formatter(with_metaclass(ABCMeta, object)):
+
+    def __init__(self, mappings, default=None):
+        self._mappings = mappings
+        self._default = default
+
+    @property
+    def mappings(self):
+        return self._mappings
+
+    def get(self, type_):
+        return self.mappings.get(type(type_), self._default)
+
+    def set(self, type_, formatter):
+        self.mappings[type_] = formatter
+
+    def remove(self, type_):
+        self.mappings.pop(type_, None)
+
+    def update(self, mappings):
+        self.mappings.update(mappings)
+
+    @abstractmethod
+    def format(self, operation, parameters=None):
+        raise NotImplementedError  # pragma: no cover
+
+
+class DefaultParameterFormatter(Formatter):
+
+    def __init__(self):
+        super(DefaultParameterFormatter, self).__init__(
+            mappings=deepcopy(_DEFAULT_FORMATTERS), default=None)
+
+    def format(self, operation, parameters=None):
+        if not operation or not operation.strip():
+            raise ProgrammingError('Query is none or empty.')
+        operation = operation.strip()
+
+        if operation.upper().startswith('SELECT') or operation.upper().startswith('WITH'):
+            escaper = _escape_presto
+        else:
+            escaper = _escape_hive
+
+        kwargs = dict()
+        if parameters:
+            if isinstance(parameters, dict):
+                for k, v in iteritems(parameters):
+                    func = self.get(v)
+                    if not func:
+                        raise TypeError('{0} is not defined formatter.'.format(type(v)))
+                    kwargs.update({k: func(self, escaper, v)})
+            else:
+                raise ProgrammingError('Unsupported parameter ' +
+                                       '(Support for dict only): {0}'.format(parameters))
+
+        return (operation % kwargs).strip() if kwargs else operation.strip()

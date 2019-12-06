@@ -2,13 +2,10 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
-import binascii
 import collections
 import io
-import json
 import logging
 import re
-from decimal import Decimal
 
 from future.utils import raise_from
 from past.builtins.misc import xrange
@@ -342,11 +339,6 @@ class AthenaResultSet(CursorIterator):
 class AthenaPandasResultSet(AthenaResultSet):
 
     _pattern_output_location = re.compile(r'^s3://(?P<bucket>[a-zA-Z0-9.\-_]+)/(?P<key>.+)$')
-    _converters = {
-        'decimal': Decimal,
-        'varbinary': lambda b: binascii.a2b_hex(''.join(b.split(' '))),
-        'json': json.loads,
-    }
     _parse_dates = [
         'date',
         'time',
@@ -381,36 +373,17 @@ class AthenaPandasResultSet(AthenaResultSet):
             raise DataError('Unknown `output_location` format.')
 
     @property
-    def _dtypes(self):
-        if not hasattr(self, '__dtypes'):
-            import pandas as pd
-            self.__dtypes = {
-                'boolean': bool,
-                'tinyint': pd.Int64Dtype(),
-                'smallint': pd.Int64Dtype(),
-                'integer': pd.Int64Dtype(),
-                'bigint': pd.Int64Dtype(),
-                'float': float,
-                'real': float,
-                'double': float,
-                'char': str,
-                'varchar': str,
-                'array': str,
-                'map': str,
-                'row': str,
-            }
-        return self.__dtypes
-
-    @property
     def dtypes(self):
         return {
-            d[0]: self._dtypes[d[1]] for d in self.description if d[1] in self._dtypes
+            d[0]: self._converter.types[d[1]] for d in self.description
+            if d[1] in self._converter.types
         }
 
     @property
     def converters(self):
         return {
-            d[0]: self._converters[d[1]] for d in self.description if d[1] in self._converters
+            d[0]: self._converter.mappings[d[1]] for d in self.description
+            if d[1] in self._converter.mappings
         }
 
     @property
