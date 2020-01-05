@@ -16,8 +16,7 @@ import numpy as np
 import pandas as pd
 from past.builtins.misc import xrange
 
-from pyathena import DatabaseError, ProgrammingError
-from pyathena.error import NotSupportedError
+from pyathena.error import DatabaseError, ProgrammingError, NotSupportedError
 from pyathena.model import AthenaQueryExecution
 from pyathena.pandas_cursor import PandasCursor
 from pyathena.result_set import AthenaPandasResultSet
