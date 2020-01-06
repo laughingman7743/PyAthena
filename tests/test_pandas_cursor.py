@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from past.builtins.misc import xrange
 
-from pyathena.error import DatabaseError, ProgrammingError, NotSupportedError
+from pyathena.error import DatabaseError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.pandas_cursor import PandasCursor
 from pyathena.result_set import AthenaPandasResultSet
@@ -304,8 +304,6 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
     def test_no_ops(self):
         conn = self.connect()
         cursor = conn.cursor(PandasCursor)
-        self.assertRaises(NotSupportedError, lambda: cursor.executemany(
-            'SELECT * FROM one_row', []))
         cursor.close()
         conn.close()
 
@@ -353,3 +351,24 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
             (False, None),
             (None, None),
         ])
+
+    @with_pandas_cursor()
+    def test_executemany(self, cursor):
+        cursor.executemany(
+            'INSERT INTO execute_many_pandas (a) VALUES (%(a)s)',
+            [{'a': i} for i in xrange(1, 3)]
+        )
+        cursor.execute('SELECT * FROM execute_many_pandas')
+        self.assertEqual(sorted(cursor.fetchall()), [(i,) for i in xrange(1, 3)])
+
+    @with_pandas_cursor()
+    def test_executemany_fetch(self, cursor):
+        cursor.executemany(
+            'SELECT %(x)d FROM one_row',
+            [{'x': i} for i in range(1, 2)]
+        )
+        # Operations that have result sets are not allowed with executemany.
+        self.assertRaises(ProgrammingError, cursor.fetchall)
+        self.assertRaises(ProgrammingError, cursor.fetchmany)
+        self.assertRaises(ProgrammingError, cursor.fetchone)
+        self.assertRaises(ProgrammingError, cursor.as_pandas)

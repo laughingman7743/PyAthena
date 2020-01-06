@@ -7,7 +7,7 @@ import logging
 
 from pyathena.common import CursorIterator
 from pyathena.cursor import BaseCursor
-from pyathena.error import NotSupportedError, OperationalError, ProgrammingError
+from pyathena.error import OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaPandasResultSet, WithResultSet
 from pyathena.util import synchronized
@@ -60,7 +60,10 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         return self
 
     def executemany(self, operation, seq_of_parameters):
-        raise NotSupportedError
+        for parameters in seq_of_parameters:
+            self.execute(operation, parameters)
+        # Operations that have result sets are not allowed with executemany.
+        self._reset_state()
 
     @synchronized
     def cancel(self):
