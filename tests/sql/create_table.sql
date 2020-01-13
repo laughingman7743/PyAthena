@@ -54,3 +54,17 @@ CREATE EXTERNAL TABLE IF NOT EXISTS {schema}.boolean_na_values (
 )
 ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
 LOCATION '{location_boolean_na_values}';
+
+DROP TABLE IF EXISTS {schema}.execute_many;
+CREATE EXTERNAL TABLE IF NOT EXISTS {schema}.execute_many (
+    a INT
+)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
+LOCATION '{location_execute_many}';
+
+DROP TABLE IF EXISTS {schema}.execute_many_pandas;
+CREATE EXTERNAL TABLE IF NOT EXISTS {schema}.execute_many_pandas (
+    a INT
+)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
+LOCATION '{location_execute_many_pandas}';

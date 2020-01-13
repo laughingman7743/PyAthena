@@ -401,8 +401,6 @@ class TestCursor(unittest.TestCase, WithConnect):
         self.assertEqual(cursor.rowcount, -1)
         cursor.setinputsizes([])
         cursor.setoutputsize(1, 'blah')
-        self.assertRaises(NotSupportedError, lambda: cursor.executemany(
-            'SELECT * FROM one_row', []))
         conn.commit()
         self.assertRaises(NotSupportedError, lambda: conn.rollback())
         cursor.close()
@@ -425,3 +423,23 @@ class TestCursor(unittest.TestCase, WithConnect):
     def test_workgroup(self, cursor):
         cursor.execute('SELECT * FROM one_row')
         self.assertEqual(cursor.work_group, WORK_GROUP)
+
+    @with_cursor()
+    def test_executemany(self, cursor):
+        cursor.executemany(
+            'INSERT INTO execute_many (a) VALUES (%(a)s)',
+            [{'a': i} for i in xrange(1, 3)]
+        )
+        cursor.execute('SELECT * FROM execute_many')
+        self.assertEqual(sorted(cursor.fetchall()), [(i,) for i in xrange(1, 3)])
+
+    @with_cursor()
+    def test_executemany_fetch(self, cursor):
+        cursor.executemany(
+            'SELECT %(x)d FROM one_row',
+            [{'x': i} for i in range(1, 2)]
+        )
+        # Operations that have result sets are not allowed with executemany.
+        self.assertRaises(ProgrammingError, cursor.fetchall)
+        self.assertRaises(ProgrammingError, cursor.fetchmany)
+        self.assertRaises(ProgrammingError, cursor.fetchone)

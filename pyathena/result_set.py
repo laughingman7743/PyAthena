@@ -357,7 +357,10 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._arraysize = arraysize
         self._client = self._connection.session.client(
             's3', region_name=self._connection.region_name, **self._connection._client_kwargs)
-        if self._query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
+        if self._query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED and \
+                self._query_execution.statement_type == \
+                AthenaQueryExecution.STATEMENT_TYPE_DML and \
+                self._query_execution.output_location.endswith('.csv'):
             self._df = self._as_pandas()
         else:
             import pandas as pd
@@ -455,7 +458,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                                  parse_dates=self.parse_dates,
                                  infer_datetime_format=True)
                 df = self._trunc_date(df)
-            else:  # Allow empty response so DDL can be used
+            else:  # Allow empty response
                 df = pd.DataFrame()
             return df
 
