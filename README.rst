@@ -148,6 +148,61 @@ If you do not specify ``aws_access_key_id`` and ``aws_secret_access_key`` using 
 
 NOTE: ``s3_staging_dir`` requires quote. If ``aws_access_key_id``, ``aws_secret_access_key`` and other parameter contain special characters, quote is also required.
 
+Working with struct
+^^^^^^^^^^^^^^^^^^^
+
+If there is a table which contains struct like this:
+
+.. code:: sql
+
+    CREATE TABLE accounts (
+        id STRING,
+        name STRING,
+        address STRUCT<zip INT, state STRING, city STRING, addr1: STRING, addr2 STRING>
+    )
+
+You can working with this table and SQLAlchemy like this:
+
+.. code:: python
+
+    accounts = Table('accounts', MetaData(bind=engine), autoload=True)
+    live_in_NY = session.query(accounts).filter(accounts.c.address.city == 'New York').all()
+
+Or use flask_sqlalchemy
+
+.. code:: python
+
+    from flask import Flask
+    from flask_sqlalchemy import SQLAlchemy
+    from pyathena.sqlalchemy_athena import StructType
+
+    app = Flask(__name__)
+    db = SQLAlchemy(app)
+
+    ...
+
+    class Accounts(db.Model):
+        __tablename__ = 'accounts'
+        id = db.Column(db.Text)
+        name = db.Column(db.Text)
+        address = db.Column(
+                StructType(
+                    'address',
+                    [
+                        db.Column('zip', db.Integer),
+                        db.Column('state', db.Text),
+                        db.Column('city', db.Text),
+                        db.Column('addr1', db.Text),
+                        db.Column('addr2', db.Text)
+                    ]
+                )
+        )
+
+    ...
+
+    live_in_NY = Accounts.query.filter(Accounts.address.city == 'New York').all()
+
+
 Pandas
 ~~~~~~
 
