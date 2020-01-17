@@ -17,3 +17,5 @@ cover/
 .tox
 .python-version
 .pytest_cache
+venv/
+env/

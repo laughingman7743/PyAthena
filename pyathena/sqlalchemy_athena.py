@@ -5,13 +5,17 @@ from __future__ import unicode_literals
 import math
 import numbers
 import re
+from collections import namedtuple
 
 import tenacity
 from future.utils import raise_from
-from sqlalchemy import exc, util
+from sqlalchemy import exc, util, Column
 from sqlalchemy.engine import reflection, Engine
 from sqlalchemy.engine.default import DefaultDialect
 from sqlalchemy.exc import NoSuchTableError, OperationalError
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.sql.expression import FunctionElement
+from sqlalchemy.types import (SchemaType, to_instance, TypeDecorator, TypeEngine, UserDefinedType)
 from sqlalchemy.sql.compiler import (BIND_PARAMS, BIND_PARAMS_ESC,
                                      IdentifierPreparer, SQLCompiler, DDLCompiler)
 from sqlalchemy.sql.sqltypes import (BIGINT, BINARY, BOOLEAN, DATE, DECIMAL, FLOAT,
@@ -19,6 +23,8 @@ from sqlalchemy.sql.sqltypes import (BIGINT, BINARY, BOOLEAN, DATE, DECIMAL, FLO
 from tenacity import retry_if_exception, stop_after_attempt, wait_exponential
 
 import pyathena
+
+iteritems = getattr(dict, 'iteritems', dict.items)  # py2-3 compatibility
 
 
 class UniversalSet(object):
@@ -168,6 +174,151 @@ class AthenaDDLCompiler(DDLCompiler):
         return text
 
 
+class StructElement(FunctionElement):
+    """
+    Instances of this class wrap a struct type.
+    """
+    def __init__(self, base, field, type_):
+        self.name = field
+        self.type = to_instance(type_)
+
+        super(StructElement, self).__init__(base)
+
+
+class StructValue(dict):
+    """
+    Instances of this class wrap a struct children's values.
+    """
+    def __getattr__(self, item):
+        if item in self:
+            return self[item]
+        return super(dict).__getattribute__(item)
+
+    def __hash__(self):
+        h = 0
+        for key, value in iteritems(self):
+            h ^= hash((key, value))
+        return h
+
+
+def _parse_struct(value, open_delimiter='{', close_delimiter='}'):
+    parsed = {}
+    value = value.strip()[1:-1]
+
+    t = 'key'
+    k = None
+    v = ''
+    prev_c = None
+    sub_struct = False
+    for c in value:
+        if c == '=' and t == 'key':
+            k = v.strip()
+            t = 'value'
+            v = ''
+        elif not sub_struct and c == ',' and t == 'value':
+            parsed[k] = v
+            k = None
+            t = 'key'
+            v = ''
+        elif sub_struct and c == close_delimiter:
+            sub_struct = False
+            parsed[k] = v + c
+            t = 'key'
+            v = ''
+        elif prev_c == '=' and c == open_delimiter:
+            sub_struct = True
+            v += c
+        else:
+            v += c
+
+        prev_c = c
+    if k:
+        parsed[k] = v
+
+    return {
+        k: v if v != 'null' else None
+        for k, v in iteritems(parsed)
+    }
+
+
+@compiles(StructElement)
+def _compile_struct_elem(expr, compiler, **kwargs):
+    return '(%s).%s' % (compiler.process(expr.clauses, **kwargs), expr.name)
+
+
+class StructType(UserDefinedType, SchemaType):
+    """
+    Represents a struct type.
+
+    :param name:
+        Name of the struct type.
+    :param columns:
+        List of columns that this struct consists of
+    """
+    python_type = tuple
+
+    class comparator_factory(UserDefinedType.Comparator):
+        def __getattr__(self, key):
+            try:
+                type_ = self.type.colmap[key].type
+            except KeyError:
+                raise KeyError(
+                    "struct '%s' doesn't have an attribute: '%s'" % (
+                        super(StructType, self.type).name, key
+                    )
+                )
+
+            return StructElement(self.expr, key, type_)
+
+    def __init__(self, name, columns):
+        SchemaType.__init__(self)
+        self.name = name
+        self.columns = columns
+        self.colmap = {}
+        for column in columns:
+            self.colmap[column.name] = column
+
+        self.type_cls = namedtuple(
+            self.name, [c.name for c in columns]
+        )
+
+    def get_col_spec(self):
+        return self.name
+
+    def bind_processor(self, dialect):
+        raise NotImplemented()
+
+    def result_processor(self, dialect, coltype):
+        def process(value):
+            if value is None:
+                return None
+            parsed_value = _parse_struct(value)
+            data_dict = {}
+
+            for column in self.columns:
+                column_value = parsed_value.get(column.name)
+                if isinstance(column.type, StructType):
+                    if column_value:
+                        column_value = process(column_value)
+                    data_dict[column.name] = column_value
+                elif isinstance(column.type, TypeDecorator):
+                    data_dict[column.name] = column.type.process_result_value(column_value, dialect)
+                elif isinstance(column.type, TypeEngine):
+                    if column_value:
+                        column_value = column.type.python_type(column_value)
+                    data_dict[column.name] = column_value
+                else:
+                    data_dict[column.name] = column_value
+            return StructValue(data_dict)
+        return process
+
+    def create(self, bind=None, checkfirst=None):
+        raise NotImplemented()
+
+    def drop(self, bind=None, checkfirst=True):
+        raise NotImplemented()
+
+
 _TYPE_MAPPINGS = {
     'boolean': BOOLEAN,
     'real': FLOAT,
@@ -181,7 +332,7 @@ _TYPE_MAPPINGS = {
     'char': STRINGTYPE,
     'varchar': STRINGTYPE,
     'array': STRINGTYPE,
-    'row': STRINGTYPE,  # StructType
+    'row': StructType,
     'varbinary': BINARY,
     'map': STRINGTYPE,
     'date': DATE,
@@ -294,7 +445,7 @@ class AthenaDialect(DefaultDialect):
             return [
                 {
                     'name': row.column_name,
-                    'type': _TYPE_MAPPINGS.get(self._get_column_type(row.data_type), NULLTYPE),
+                    'type': self._get_column_type(row.column_name, row.data_type),
                     'nullable': True if row.is_nullable == 'YES' else False,
                     'default': row.column_default if not self._is_nan(row.column_default) else None,
                     'ordinal_position': row.ordinal_position,
@@ -317,8 +468,52 @@ class AthenaDialect(DefaultDialect):
             return False
         return True
 
-    def _get_column_type(self, type_):
-        return self._pattern_column_type.sub(r'\1', type_)
+    @staticmethod
+    def _parse_struct_schema(schema):
+        parsed = {}
+        schema = schema.strip()[1:-1]
+
+        t = 'name'
+        k = None
+        v = ''
+        prev_c = None
+        for c in schema:
+            if c == ' ' and t == 'name':
+                if prev_c == ',':
+                    continue
+                t = 'type'
+                k = v
+                v = ''
+            elif c == ',' and t == 'type':
+                t = 'name'
+                parsed[k] = v
+                k = None
+                v = ''
+            else:
+                v += c
+
+            prev_c = c
+        if k:
+            parsed[k] = v
+
+        return parsed
+
+    def _get_column_type(self, column_name, column_type):
+        type_name = self._pattern_column_type.sub(r'\1', column_type)
+        type_ = _TYPE_MAPPINGS.get(type_name, NULLTYPE)
+
+        if type_name in ('row',):
+            def struct_wrapper():
+                return StructType(
+                    column_name,
+                    [
+                        Column(name, self._get_column_type(name, type_))
+                        for name, type_ in iteritems(self._parse_struct_schema(column_type[len(type_name):]))
+                    ]
+                )
+            return struct_wrapper
+        else:
+            return type_
 
     def get_foreign_keys(self, connection, table_name, schema=None, **kw):
         # Athena has no support for foreign keys.

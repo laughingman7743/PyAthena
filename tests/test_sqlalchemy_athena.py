@@ -17,6 +17,7 @@ from sqlalchemy.sql import expression
 from sqlalchemy.sql.schema import Column, MetaData, Table
 from sqlalchemy.sql.sqltypes import (BIGINT, BINARY, BOOLEAN, DATE, DECIMAL,
                                      FLOAT, INTEGER, STRINGTYPE, TIMESTAMP)
+from pyathena.sqlalchemy_athena import StructType
 
 from tests.conftest import ENV, SCHEMA
 from tests.util import with_engine
@@ -169,7 +170,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
             b'123',
             '[1, 2]',
             '{1=2, 3=4}',
-            '{a=1, b=2}',
+            {'a': 1, 'b': 2},
             Decimal('0.1'),
         ])
         self.assertIsInstance(one_row_complex.c.col_boolean.type, BOOLEAN)
@@ -185,7 +186,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertIsInstance(one_row_complex.c.col_binary.type, BINARY)
         self.assertIsInstance(one_row_complex.c.col_array.type, type(STRINGTYPE))
         self.assertIsInstance(one_row_complex.c.col_map.type, type(STRINGTYPE))
-        self.assertIsInstance(one_row_complex.c.col_struct.type, type(STRINGTYPE))
+        self.assertIsInstance(one_row_complex.c.col_struct.type, StructType)
         self.assertIsInstance(one_row_complex.c.col_decimal.type, DECIMAL)
 
     @with_engine()
