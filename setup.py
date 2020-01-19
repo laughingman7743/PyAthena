@@ -38,7 +38,10 @@ setup(
         'tenacity>=4.1.0',
     ],
     extras_require={
-        'Pandas': ['pandas>=0.24.0'],
+        'Pandas': [
+            'pandas>=0.24.0',
+            'pyarrow>=0.15.0'
+        ],
         'SQLAlchemy': ['SQLAlchemy>=1.0.0, <2.0.0'],
     },
     tests_require=[
