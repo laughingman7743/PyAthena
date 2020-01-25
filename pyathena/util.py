@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import functools
+import logging
 import threading
 import re
 import uuid
@@ -13,6 +14,8 @@ from tenacity import (after_log, retry_if_exception,
                       stop_after_attempt, wait_exponential)
 
 from pyathena import DataError, OperationalError
+
+_logger = logging.getLogger(__name__)
 
 PATTERN_OUTPUT_LOCATION = re.compile(r'^s3://(?P<bucket>[a-zA-Z0-9.\-_]+)/(?P<key>.+)$')
 
