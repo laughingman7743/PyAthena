@@ -8,12 +8,31 @@ from decimal import Decimal
 
 import numpy as np
 
-from pyathena.util import as_pandas
+from pyathena import DataError
+from pyathena.util import as_pandas, parse_output_location
 from tests import WithConnect
 from tests.util import with_cursor
 
 
 class TestUtil(unittest.TestCase, WithConnect):
+
+    def test_parse_output_location(self):
+        # valid
+        actual = parse_output_location('s3://bucket/path/to')
+        self.assertEqual(actual[0], 'bucket')
+        self.assertEqual(actual[1], 'path/to')
+
+        # invalid
+        with self.assertRaises(DataError):
+            parse_output_location('http://foobar')
+
+    def test_get_chunks(self):
+        # TODO
+        pass
+
+    def get_reset_index(self):
+        # TODO
+        pass
 
     @with_cursor()
     def test_as_pandas(self, cursor):
@@ -120,3 +139,15 @@ class TestUtil(unittest.TestCase, WithConnect):
             (False, None),
             (None, None),
         ])
+
+    def test_to_sql_type_mappings(self):
+        # TODO
+        pass
+
+    def test_get_column_names_and_types(self):
+        # TODO
+        pass
+
+    def test_generate_ddl(self):
+        # TODO
+        pass
