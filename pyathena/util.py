@@ -95,10 +95,11 @@ def to_sql(df, name, conn, location, schema='default',
 
     import pyarrow as pa
     import pyarrow.parquet as pq
-    client = conn.session.client('s3', region_name=conn.region_name, **conn._client_kwargs)
+    bucket_name, key_prefix = parse_output_location(location)
+    bucket = conn.session.resource('s3', region_name=conn.region_name,
+                                   **conn._client_kwargs).Bucket(bucket_name)
     cursor = conn.cursor()
     retry_config = conn.retry_config
-    bucket, key = parse_output_location(location)
 
     table = cursor.execute("""
     SELECT table_name
@@ -114,7 +115,9 @@ def to_sql(df, name, conn, location, schema='default',
             cursor.execute("""
             DROP TABLE {schema}.{table}
             """.format(schema=schema, table=name))
-            # TODO delete s3 file
+            objects = bucket.objects.filter(Prefix=key_prefix)
+            if list(objects.limit(1)):
+                objects.delete()
 
     rows, chunksize, chunks = get_chunks(df, chunksize)
     if index:
@@ -130,11 +133,10 @@ def to_sql(df, name, conn, location, schema='default',
         pq.write_table(table, buf,
                        compression=compression,
                        flavor=flavor)
-        retry_api_call(client.put_object,
+        retry_api_call(bucket.put_object,
                        config=retry_config,
                        Body=buf.getvalue().to_pybytes(),
-                       Bucket=bucket,
-                       Key=key + str(uuid.uuid4()))
+                       Key=key_prefix + str(uuid.uuid4()))
 
     ddl = generate_ddl(df=df,
                        name=name,
