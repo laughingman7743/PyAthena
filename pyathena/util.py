@@ -83,9 +83,6 @@ def to_sql_type_mappings(col):
         return 'BOOLEAN'
     elif col_type == "date":
         return 'DATE'
-    # elif col_type == 'time':
-    #     raise ValueError('Time datatype not supported')
-    # TODO deciaml
     elif col_type == 'complex':
         raise ValueError('Complex datatype not supported')
     return 'VARCHAR'
