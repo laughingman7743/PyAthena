@@ -14,6 +14,7 @@ from tenacity import (after_log, retry_if_exception,
                       stop_after_attempt, wait_exponential)
 
 from pyathena import DataError, OperationalError
+from pyathena.model import AthenaCompression
 
 _logger = logging.getLogger(__name__)
 
@@ -98,7 +99,8 @@ def to_sql(df, name, conn, location, schema='default',
     # TODO Supports partitioning
     if if_exists not in ('fail', 'replace', 'append'):
         raise ValueError('`{0}` is not valid for if_exists'.format(if_exists))
-    # TODO validate compression: 'snappy', 'zlib', 'lzo', 'gzip', None
+    if compression is not None and not AthenaCompression.is_valid(compression):
+        raise ValueError('`{0}` is not valid for compression'.format(compression))
 
     import pyarrow as pa
     import pyarrow.parquet as pq
