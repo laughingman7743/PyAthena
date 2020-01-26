@@ -11,7 +11,7 @@ from decimal import Decimal
 import numpy as np
 import pandas as pd
 
-from pyathena import DataError
+from pyathena import DataError, OperationalError
 from pyathena.util import (as_pandas, generate_ddl, to_sql, get_chunks,
                            parse_output_location, reset_index)
 from tests import WithConnect, SCHEMA, ENV, S3_PREFIX
@@ -253,6 +253,13 @@ class TestUtil(unittest.TestCase, WithConnect):
         table_name = 'to_sql_{0}'.format(str(uuid.uuid4()).replace('-', ''))
         location = '{0}{1}/{2}/'.format(ENV.s3_staging_dir, S3_PREFIX, table_name)
         to_sql(df, table_name, cursor._connection, location,
+               schema=SCHEMA, if_exists='fail', compression='snappy')
+        # table already exists
+        with self.assertRaises(OperationalError):
+            to_sql(df, table_name, cursor._connection, location,
+                   schema=SCHEMA, if_exists='fail', compression='snappy')
+        # replace
+        to_sql(df, table_name, cursor._connection, location,
                schema=SCHEMA, if_exists='replace', compression='snappy')
 
         cursor.execute('SELECT * FROM {0}'.format(table_name))
@@ -276,3 +283,56 @@ class TestUtil(unittest.TestCase, WithConnect):
             ('col_timestamp', 'timestamp'),
             ('col_date', 'date'),
         ])
+
+        # append
+        to_sql(df, table_name, cursor._connection, location,
+               schema=SCHEMA, if_exists='append', compression='snappy')
+        cursor.execute('SELECT * FROM {0}'.format(table_name))
+        self.assertEqual(cursor.fetchall(), [(
+            1,
+            12345,
+            1.0,
+            1.2345,
+            'a',
+            True,
+            datetime(2020, 1, 1, 0, 0, 0),
+            date(2020, 12, 31),
+        ), (
+            1,
+            12345,
+            1.0,
+            1.2345,
+            'a',
+            True,
+            datetime(2020, 1, 1, 0, 0, 0),
+            date(2020, 12, 31),
+        )])
+
+    @with_cursor()
+    def test_to_sql_with_index(self, cursor):
+        df = pd.DataFrame({'col_int': np.int32([1])})
+        table_name = 'to_sql_{0}'.format(str(uuid.uuid4()).replace('-', ''))
+        location = '{0}{1}/{2}/'.format(ENV.s3_staging_dir, S3_PREFIX, table_name)
+        to_sql(df, table_name, cursor._connection, location,
+               schema=SCHEMA, if_exists='fail', compression='snappy',
+               index=True, index_label='col_index')
+        cursor.execute('SELECT * FROM {0}'.format(table_name))
+        self.assertEqual(cursor.fetchall(), [(0, 1)])
+        self.assertEqual([(d[0], d[1]) for d in cursor.description], [
+            ('col_index', 'bigint'),
+            ('col_int', 'integer'),
+        ])
+
+    @with_cursor()
+    def test_to_sql_invalid_args(self, cursor):
+        df = pd.DataFrame({'col_int': np.int32([1])})
+        table_name = 'to_sql_{0}'.format(str(uuid.uuid4()).replace('-', ''))
+        location = '{0}{1}/{2}/'.format(ENV.s3_staging_dir, S3_PREFIX, table_name)
+        # invalid if_exists
+        with self.assertRaises(ValueError):
+            to_sql(df, table_name, cursor._connection, location,
+                   schema=SCHEMA, if_exists='foobar', compression='snappy')
+        # invalid compression
+        with self.assertRaises(ValueError):
+            to_sql(df, table_name, cursor._connection, location,
+                   schema=SCHEMA, if_exists='fail', compression='foobar')
