@@ -67,6 +67,8 @@ def to_sql_type_mappings(col):
     col_type = pd._lib.infer_dtype(col, skipna=True)
     if col_type == 'datetime64' or col_type == 'datetime':
         return 'TIMESTAMP'
+    elif col_type == 'timedelta':
+        return 'INT'
     elif col_type == "timedelta64":
         return 'BIGINT'
     elif col_type == 'floating':
@@ -83,9 +85,11 @@ def to_sql_type_mappings(col):
         return 'BOOLEAN'
     elif col_type == "date":
         return 'DATE'
-    elif col_type == 'complex':
-        raise ValueError('Complex datatype not supported')
-    return 'VARCHAR'
+    elif col_type == 'bytes':
+        return 'BINARY'
+    elif col_type in ['complex', 'time']:
+        raise ValueError('{0} datatype not supported'.format(col_type))
+    return 'STRING'
 
 
 def to_sql(df, name, conn, location, schema='default',
