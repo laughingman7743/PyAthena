@@ -176,6 +176,9 @@ class TestUtil(unittest.TestCase, WithConnect):
             'col_timedelta': [np.timedelta64(1, 'D')],
             'col_binary': [b'123']
         })
+        # Explicitly specify column order
+        df = df[['col_int', 'col_bigint', 'col_float', 'col_double', 'col_string',
+                 'col_boolean', 'col_timestamp', 'col_date', 'col_timedelta', 'col_binary']]
 
         actual = generate_ddl(df, 'test_table', 's3://bucket/path/to/', 'test_schema')
         self.assertEqual(actual.strip(), textwrap.dedent(
@@ -242,6 +245,9 @@ class TestUtil(unittest.TestCase, WithConnect):
             'col_date': [date(2020, 12, 31)],
             'col_binary': [b'123']
         })
+        # Explicitly specify column order
+        df = df[['col_int', 'col_bigint', 'col_float', 'col_double', 'col_string',
+                 'col_boolean', 'col_timestamp', 'col_date', 'col_binary']]
         table_name = 'to_sql_{0}'.format(str(uuid.uuid4()).replace('-', ''))
         location = '{0}{1}/{2}/'.format(ENV.s3_staging_dir, S3_PREFIX, table_name)
         to_sql(df, table_name, cursor._connection, location,
