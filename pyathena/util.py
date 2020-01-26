@@ -35,8 +35,8 @@ def get_chunks(df, chunksize=None):
         return
     if chunksize is None:
         chunksize = rows
-    elif chunksize == 0:
-        raise ValueError('Chunksize argument should be non-zero')
+    elif chunksize <= 0:
+        raise ValueError('Chunk size argument must be greater than zero')
 
     chunks = int(rows / chunksize) + 1
     for i in xrange(chunks):
