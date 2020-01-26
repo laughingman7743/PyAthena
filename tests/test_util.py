@@ -57,6 +57,10 @@ class TestUtil(unittest.TestCase, WithConnect):
         reset_index(df, index_label='__index__')
         self.assertEqual(list(df.columns), ['__index__', 'a'])
 
+        df = pd.DataFrame({'a': [1, 2, 3, 4, 5]})
+        with self.assertRaises(ValueError):
+            reset_index(df, index_label='a')
+
     @with_cursor()
     def test_as_pandas(self, cursor):
         cursor.execute("""
