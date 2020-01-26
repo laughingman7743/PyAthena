@@ -36,7 +36,14 @@ def get_chunks(df, chunksize=None):
         chunksize = rows
     elif chunksize == 0:
         raise ValueError('Chunksize argument should be non-zero')
-    return rows, chunksize, int(rows / chunksize) + 1
+
+    chunks = int(rows / chunksize) + 1
+    for i in xrange(chunks):
+        start_i = i * chunksize
+        end_i = min((i + 1) * chunksize, rows)
+        if start_i >= end_i:
+            break
+        yield df[start_i:end_i]
 
 
 def reset_index(df, index_label=None):
@@ -119,16 +126,10 @@ def to_sql(df, name, conn, location, schema='default',
             if list(objects.limit(1)):
                 objects.delete()
 
-    rows, chunksize, chunks = get_chunks(df, chunksize)
     if index:
         reset_index(df, index_label)
-    for i in xrange(chunks):
-        start_i = i * chunksize
-        end_i = min((i + 1) * chunksize, rows)
-        if start_i >= end_i:
-            break
-
-        table = pa.Table.from_pandas(df[start_i:end_i])
+    for chunk in get_chunks(df, chunksize):
+        table = pa.Table.from_pandas(chunk)
         buf = pa.BufferOutputStream()
         pq.write_table(table, buf,
                        compression=compression,
