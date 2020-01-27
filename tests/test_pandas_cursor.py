@@ -280,7 +280,7 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
     @with_pandas_cursor()
     def test_cancel(self, cursor):
         def cancel(c):
-            time.sleep(random.randint(1, 5))
+            time.sleep(random.randint(5, 10))
             c.cancel()
 
         with ThreadPoolExecutor(max_workers=1) as executor:

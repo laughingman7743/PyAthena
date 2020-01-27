@@ -367,7 +367,7 @@ class TestCursor(unittest.TestCase, WithConnect):
     @with_cursor()
     def test_cancel(self, cursor):
         def cancel(c):
-            time.sleep(randint(1, 5))
+            time.sleep(randint(5, 10))
             c.cancel()
 
         with ThreadPoolExecutor(max_workers=1) as executor:
