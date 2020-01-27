@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 import unittest
 from datetime import datetime
 
-from pyathena.model import AthenaQueryExecution
+from pyathena.model import AthenaQueryExecution, AthenaRowFormat, AthenaCompression
 
 ATHENA_QUERY_EXECUTION_RESPONSE = {
     "QueryExecution": {
@@ -55,3 +55,21 @@ class TestAthenaQueryExecution(unittest.TestCase):
         self.assertEqual(actual.encryption_option, 'test_encryption_option')
         self.assertEqual(actual.kms_key, 'test_kms_key')
         self.assertEqual(actual.work_group, 'test_work_group')
+
+
+class TestAthenaRowFormat(unittest.TestCase):
+
+    def test_is_valid(self):
+        self.assertTrue(AthenaRowFormat.is_valid('parquet'))
+        self.assertFalse(AthenaRowFormat.is_valid(None))
+        self.assertFalse(AthenaRowFormat.is_valid(''))
+        self.assertFalse(AthenaRowFormat.is_valid('foobar'))
+
+
+class TestAthenaCompression(unittest.TestCase):
+
+    def test_is_valid(self):
+        self.assertTrue(AthenaCompression.is_valid('snappy'))
+        self.assertFalse(AthenaCompression.is_valid(None))
+        self.assertFalse(AthenaCompression.is_valid(''))
+        self.assertFalse(AthenaCompression.is_valid('foobar'))

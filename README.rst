@@ -221,6 +221,21 @@ If ``s3_dir`` is not specified, ``s3_staging_dir`` parameter will be used. The f
 
 The data format only supports Parquet. The compression format is specified by the ``compression`` parameter in the connection string.
 
+The ``pyathena.util`` package also has helper methods.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.util import to_sql
+
+    conn = connect(aws_access_key_id='YOUR_ACCESS_KEY_ID',
+                   aws_secret_access_key='YOUR_SECRET_ACCESS_KEY',
+                   s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                   region_name='us-west-2')
+    df = pd.DataFrame({'a': [1, 2, 3, 4, 5]})
+    to_sql(df, 'YOUR_TABLE', conn, 's3://YOUR_S3_BUCKET/path/to/',
+           schema='YOUR_SCHEMA', index=False, if_exists='replace')
+
 .. _`pandas.DataFrame.to_sql`: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_sql.html
 
 AsynchronousCursor

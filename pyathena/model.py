@@ -114,3 +114,35 @@ class AthenaQueryExecution(object):
     @property
     def work_group(self):
         return self._work_group
+
+
+class AthenaRowFormat(object):
+
+    ROW_FORMAT_PARQUET = 'parquet'
+    ROW_FORMAT_ORC = 'orc'
+    ROW_FORMAT_CSV = 'csv'
+    ROW_FORMAT_JSON = 'json'
+    ROW_FORMAT_AVRO = 'avro'
+
+    @staticmethod
+    def is_valid(value):
+        return value in [AthenaRowFormat.ROW_FORMAT_PARQUET,
+                         AthenaRowFormat.ROW_FORMAT_ORC,
+                         AthenaRowFormat.ROW_FORMAT_CSV,
+                         AthenaRowFormat.ROW_FORMAT_JSON,
+                         AthenaRowFormat.ROW_FORMAT_AVRO]
+
+
+class AthenaCompression(object):
+
+    COMPRESSION_SNAPPY = 'snappy'
+    COMPRESSION_ZLIB = 'zlib'
+    COMPRESSION_LZO = 'lzo'
+    COMPRESSION_GZIP = 'gzip'
+
+    @staticmethod
+    def is_valid(value):
+        return value in [AthenaCompression.COMPRESSION_SNAPPY,
+                         AthenaCompression.COMPRESSION_ZLIB,
+                         AthenaCompression.COMPRESSION_LZO,
+                         AthenaCompression.COMPRESSION_GZIP]

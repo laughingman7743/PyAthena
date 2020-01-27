@@ -4,14 +4,14 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-"e1839a8" = {path = ".", extras = ["sqlalchemy", "pandas"], editable = true}
+e1839a8 = {path = ".",extras = ["sqlalchemy", "pandas"],editable = true}
 
 [dev-packages]
 awscli = "*"
 tox = "*"
 twine = "*"
 wheel = "*"
-
 pytest = ">=3.5"
 pytest-cov = "*"
 pytest-flake8 = ">=1.0.1"
+pytest-xdist = "*"

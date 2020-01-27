@@ -5,7 +5,6 @@ from __future__ import unicode_literals
 import collections
 import io
 import logging
-import re
 
 from future.utils import raise_from
 from past.builtins.misc import xrange
@@ -13,7 +12,7 @@ from past.builtins.misc import xrange
 from pyathena.common import CursorIterator
 from pyathena.error import DataError, OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
-from pyathena.util import retry_api_call
+from pyathena.util import retry_api_call, parse_output_location
 
 _logger = logging.getLogger(__name__)
 
@@ -338,7 +337,6 @@ class AthenaResultSet(CursorIterator):
 
 class AthenaPandasResultSet(AthenaResultSet):
 
-    _pattern_output_location = re.compile(r'^s3://(?P<bucket>[a-zA-Z0-9.\-_]+)/(?P<key>.+)$')
     _parse_dates = [
         'date',
         'time',
@@ -366,14 +364,6 @@ class AthenaPandasResultSet(AthenaResultSet):
             import pandas as pd
             self._df = pd.DataFrame()
         self._iterrows = self._df.iterrows()
-
-    @classmethod
-    def _parse_output_location(cls, output_location):
-        match = cls._pattern_output_location.search(output_location)
-        if match:
-            return match.group('bucket'), match.group('key')
-        else:
-            raise DataError('Unknown `output_location` format.')
 
     @property
     def dtypes(self):
@@ -439,7 +429,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         import pandas as pd
         if not self.output_location:
             raise ProgrammingError('OutputLocation is none or empty.')
-        bucket, key = self._parse_output_location(self.output_location)
+        bucket, key = parse_output_location(self.output_location)
         try:
             response = retry_api_call(self._client.get_object,
                                       config=self._retry_config,
