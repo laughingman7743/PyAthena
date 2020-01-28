@@ -225,6 +225,7 @@ The ``pyathena.util`` package also has helper methods.
 
 .. code:: python
 
+    import pandas as pd
     from pyathena import connect
     from pyathena.util import to_sql
 
