@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 
 import contextlib
 import random
+import re
 import string
 import time
 import unittest
@@ -331,11 +332,19 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
             row['a'],
             row['b'],
         ]) for _, row in df.iterrows()]
-        self.assertEqual(rows, [
-            (1, 2),
-            (1, np.nan),
-            (np.nan, np.nan),
-        ])
+        version = float(re.search(r'^([\d]+\.[\d]+)\..+', pd.__version__).group(1))
+        if version >= 1.0:
+            self.assertEqual(rows, [
+                (1, 2),
+                (1, pd.NA),
+                (pd.NA, pd.NA),
+            ])
+        else:
+            self.assertEqual(rows, [
+                (1, 2),
+                (1, np.nan),
+                (np.nan, np.nan),
+            ])
 
     @with_pandas_cursor()
     def test_boolean_na_values(self, cursor):
