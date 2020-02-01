@@ -137,7 +137,7 @@ class AthenaResultSet(CursorIterator):
         self._rows = collections.deque()
         self._next_token = None
 
-        if self._query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
+        if self.state == AthenaQueryExecution.STATE_SUCCEEDED:
             self._rownumber = 0
             self._pre_fetch()
 
@@ -215,12 +215,12 @@ class AthenaResultSet(CursorIterator):
         ]
 
     def __fetch(self, next_token=None):
-        if not self._query_execution.query_id:
+        if not self.query_id:
             raise ProgrammingError('QueryExecutionId is none or empty.')
-        if self._query_execution.state != AthenaQueryExecution.STATE_SUCCEEDED:
+        if self.state != AthenaQueryExecution.STATE_SUCCEEDED:
             raise ProgrammingError('QueryExecutionState is not SUCCEEDED.')
         request = {
-            'QueryExecutionId': self._query_execution.query_id,
+            'QueryExecutionId': self.query_id,
             'MaxResults': self._arraysize,
         }
         if next_token:
@@ -355,10 +355,8 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._arraysize = arraysize
         self._client = self._connection.session.client(
             's3', region_name=self._connection.region_name, **self._connection._client_kwargs)
-        if self._query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED and \
-                self._query_execution.statement_type == \
-                AthenaQueryExecution.STATEMENT_TYPE_DML and \
-                self._query_execution.output_location.endswith('.csv'):
+        if self.state == AthenaQueryExecution.STATE_SUCCEEDED and \
+                self.output_location.endswith(('.csv', '.txt')):
             self._df = self._as_pandas()
         else:
             import pandas as pd
@@ -442,7 +440,18 @@ class AthenaPandasResultSet(AthenaResultSet):
         else:
             length = response['ContentLength']
             if length:
+                if self.output_location.endswith('.txt'):
+                    sep = '\t'
+                    header = None
+                    names = [d[0] for d in self.description]
+                else:  # csv format
+                    sep = ','
+                    header = 0
+                    names = None
                 df = pd.read_csv(io.BytesIO(response['Body'].read()),
+                                 sep=sep,
+                                 header=header,
+                                 names=names,
                                  dtype=self.dtypes,
                                  converters=self.converters,
                                  parse_dates=self.parse_dates,
