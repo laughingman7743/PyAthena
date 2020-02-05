@@ -309,6 +309,11 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
         conn.close()
 
     @with_pandas_cursor()
+    def test_show_columns(self, cursor):
+        cursor.execute('SHOW COLUMNS IN one_row')
+        self.assertEqual(cursor.fetchall(), [('number_of_rows      ',)])
+
+    @with_pandas_cursor()
     def test_empty_result(self, cursor):
         table = 'test_pandas_cursor_empty_result_' + ''.join([random.choice(
             string.ascii_lowercase + string.digits) for _ in xrange(10)])
