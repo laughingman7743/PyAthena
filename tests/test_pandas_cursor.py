@@ -386,3 +386,10 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
         self.assertRaises(ProgrammingError, cursor.fetchmany)
         self.assertRaises(ProgrammingError, cursor.fetchone)
         self.assertRaises(ProgrammingError, cursor.as_pandas)
+
+    @with_pandas_cursor()
+    def test_not_skip_blank_lines(self, cursor):
+        cursor.execute("""
+        select * from (values (1), (NULL))
+        """)
+        self.assertEqual(len(cursor.fetchall()), 2)
