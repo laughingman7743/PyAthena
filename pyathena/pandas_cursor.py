@@ -61,6 +61,9 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         work_group=None,
         s3_staging_dir=None,
         cache_size=0,
+        keep_default_na=False,
+        na_values=None,
+        quoting=1,
     ):
         self._reset_state()
         self._query_id = self._execute(
@@ -73,11 +76,14 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         query_execution = self._poll(self._query_id)
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
             self._result_set = AthenaPandasResultSet(
-                self._connection,
-                self._converter,
-                query_execution,
-                self.arraysize,
-                self._retry_config,
+                connection=self._connection,
+                converter=self._converter,
+                query_execution=query_execution,
+                arraysize=self.arraysize,
+                retry_config=self._retry_config,
+                keep_default_na=keep_default_na,
+                na_values=na_values,
+                quoting=quoting,
             )
         else:
             raise OperationalError(query_execution.state_change_reason)

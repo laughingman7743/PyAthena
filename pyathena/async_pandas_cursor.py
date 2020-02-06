@@ -44,7 +44,9 @@ class AsyncPandasCursor(AsyncCursor):
             kill_on_interrupt=kill_on_interrupt,
         )
 
-    def _collect_result_set(self, query_id):
+    def _collect_result_set(
+        self, query_id, keep_default_na=False, na_values=None, quoting=1,
+    ):
         query_execution = self._poll(query_id)
         return AthenaPandasResultSet(
             connection=self._connection,
@@ -52,4 +54,32 @@ class AsyncPandasCursor(AsyncCursor):
             query_execution=query_execution,
             arraysize=self._arraysize,
             retry_config=self._retry_config,
+            keep_default_na=keep_default_na,
+            na_values=na_values,
+            quoting=quoting,
+        )
+
+    def execute(
+        self,
+        operation,
+        parameters=None,
+        work_group=None,
+        s3_staging_dir=None,
+        cache_size=0,
+        keep_default_na=False,
+        na_values=None,
+        quoting=1,
+    ):
+        query_id = self._execute(
+            operation,
+            parameters=parameters,
+            work_group=work_group,
+            s3_staging_dir=s3_staging_dir,
+            cache_size=cache_size,
+        )
+        return (
+            query_id,
+            self._executor.submit(
+                self._collect_result_set, query_id, keep_default_na, na_values, quoting
+            ),
         )

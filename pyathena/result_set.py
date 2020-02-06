@@ -412,7 +412,8 @@ class AthenaPandasResultSet(AthenaResultSet):
         "timestamp with time zone",
     ]
 
-    def __init__(self, connection, converter, query_execution, arraysize, retry_config):
+    def __init__(self, connection, converter, query_execution, arraysize, retry_config,
+                 keep_default_na=False, na_values=None, quoting=1):
         super(AthenaPandasResultSet, self).__init__(
             connection=connection,
             converter=converter,
@@ -436,6 +437,9 @@ class AthenaPandasResultSet(AthenaResultSet):
 
             self._df = pd.DataFrame()
         self._iterrows = self._df.iterrows()
+        self.keep_default_na = keep_default_na
+        self.na_values = na_values
+        self.quoting = quoting
 
     @property
     def dtypes(self):
@@ -537,6 +541,9 @@ class AthenaPandasResultSet(AthenaResultSet):
                     parse_dates=self.parse_dates,
                     infer_datetime_format=True,
                     skip_blank_lines=False,
+                    keep_default_na=self.keep_default_na,
+                    na_values=self.na_values,
+                    quoting=self.quoting,
                 )
                 df = self._trunc_date(df)
             else:  # Allow empty response

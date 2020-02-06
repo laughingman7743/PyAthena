@@ -419,3 +419,11 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
             """
         )
         self.assertEqual(len(cursor.fetchall()), 2)
+
+    @with_pandas_cursor()
+    def test_empty_and_null_string(self, cursor):
+        cursor.execute("""
+        select * from (values ('', 'a'), ('N/A', 'a'), ('NULL', 'a'), (NULL, 'a'))
+        """)
+        self.assertEqual(cursor.fetchall(),
+                         [('', 'a'), ('N/A', 'a'), ('NULL', 'a'), (np.nan, 'a')])
