@@ -237,6 +237,11 @@ class TestCursor(unittest.TestCase, WithConnect):
         self.assertEqual(cursor.fetchall(), [(unicode_str,)])
 
     @with_cursor()
+    def test_decimal(self, cursor):
+        cursor.execute('SELECT %(decimal)s', {'decimal': Decimal('0.00000000001')})
+        self.assertEqual(cursor.fetchall(), [(Decimal('0.00000000001'),)])
+
+    @with_cursor()
     def test_null(self, cursor):
         cursor.execute('SELECT null FROM many_rows')
         self.assertEqual(cursor.fetchall(), [(None,)] * 10000)

@@ -119,13 +119,13 @@ class TestDefaultParameterFormatter(unittest.TestCase):
         expected = """
         SELECT *
         FROM test_table
-        WHERE col_decimal <= 0.0000000001
+        WHERE col_decimal <= DECIMAL '0.0000000001'
         """.strip()
 
         actual = self.format("""
         SELECT *
         FROM test_table
-        WHERE col_decimal <= %(param).10f
+        WHERE col_decimal <= %(param)s
         """, {'param': Decimal('0.0000000001')})
         self.assertEqual(actual, expected)
 
@@ -175,7 +175,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
         expected = """
         SELECT *
         FROM test_table
-        WHERE col IN (null,null)
+        WHERE col IN (null, null)
         """.strip()
 
         actual = self.format("""
@@ -190,7 +190,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
         SELECT *
         FROM test_table
         WHERE col_timestamp IN
-        (timestamp'2017-01-01 12:00:00.000',timestamp'2017-01-02 06:00:00.000')
+        (timestamp'2017-01-01 12:00:00.000', timestamp'2017-01-02 06:00:00.000')
         """.strip()
 
         actual = self.format("""
@@ -205,7 +205,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
         expected = """
         SELECT *
         FROM test_table
-        WHERE col_date IN (date'2017-01-01',date'2017-01-02')
+        WHERE col_date IN (date'2017-01-01', date'2017-01-02')
         """.strip()
 
         actual = self.format("""
@@ -219,7 +219,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
         expected = """
         SELECT *
         FROM test_table
-        WHERE col_int IN (1,2)
+        WHERE col_int IN (1, 2)
         """.strip()
 
         actual = self.format("""
@@ -234,7 +234,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
         expected = """
         SELECT *
         FROM test_table
-        WHERE col_float IN (0.100000,0.200000)
+        WHERE col_float IN (0.100000, 0.200000)
         """.strip()
 
         actual = self.format("""
@@ -248,7 +248,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
         expected = """
         SELECT *
         FROM test_table
-        WHERE col_decimal IN (0.0000000001,99.9999999999)
+        WHERE col_decimal IN (DECIMAL '0.0000000001', DECIMAL '99.9999999999')
         """.strip()
 
         actual = self.format("""
@@ -262,7 +262,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
         expected = """
         SELECT *
         FROM test_table
-        WHERE col_boolean IN (True,False)
+        WHERE col_boolean IN (True, False)
         """.strip()
 
         actual = self.format("""
@@ -276,7 +276,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
         expected = """
         SELECT *
         FROM test_table
-        WHERE col_string IN ('amazon','athena')
+        WHERE col_string IN ('amazon', 'athena')
         """.strip()
 
         actual = self.format("""
@@ -290,7 +290,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
         expected = """
         SELECT *
         FROM test_table
-        WHERE col_string IN ('密林','女神')
+        WHERE col_string IN ('密林', '女神')
         """.strip()
 
         actual = self.format("""
