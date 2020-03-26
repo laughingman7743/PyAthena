@@ -22,7 +22,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
     def test_add_partition(self):
         expected = """
         ALTER TABLE test_table
-        ADD PARTITION (dt='2017-01-01', hour=1)
+        ADD PARTITION (dt=DATE '2017-01-01', hour=1)
         """.strip()
 
         actual = self.format("""
@@ -34,7 +34,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
     def test_drop_partition(self):
         expected = """
         ALTER TABLE test_table
-        DROP PARTITION (dt='2017-01-01', hour=1)
+        DROP PARTITION (dt=DATE '2017-01-01', hour=1)
         """.strip()
 
         actual = self.format("""
@@ -61,8 +61,8 @@ class TestDefaultParameterFormatter(unittest.TestCase):
         expected = """
         SELECT *
         FROM test_table
-        WHERE col_timestamp >= timestamp'2017-01-01 12:00:00.000'
-          AND col_timestamp <= timestamp'2017-01-02 06:00:00.000'
+        WHERE col_timestamp >= TIMESTAMP '2017-01-01 12:00:00.000'
+          AND col_timestamp <= TIMESTAMP '2017-01-02 06:00:00.000'
         """.strip()
 
         actual = self.format("""
@@ -77,7 +77,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
         expected = """
         SELECT *
         FROM test_table
-        WHERE col_date between date'2017-01-01' and date'2017-01-02'
+        WHERE col_date between DATE '2017-01-01' and DATE '2017-01-02'
         """.strip()
 
         actual = self.format("""
@@ -190,7 +190,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
         SELECT *
         FROM test_table
         WHERE col_timestamp IN
-        (timestamp'2017-01-01 12:00:00.000', timestamp'2017-01-02 06:00:00.000')
+        (TIMESTAMP '2017-01-01 12:00:00.000', TIMESTAMP '2017-01-02 06:00:00.000')
         """.strip()
 
         actual = self.format("""
@@ -205,7 +205,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
         expected = """
         SELECT *
         FROM test_table
-        WHERE col_date IN (date'2017-01-01', date'2017-01-02')
+        WHERE col_date IN (DATE '2017-01-01', DATE '2017-01-02')
         """.strip()
 
         actual = self.format("""
