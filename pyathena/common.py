@@ -146,9 +146,13 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
                                              next_token=None):
         request = {'MaxResults': max_results}
         if self._work_group or work_group:
-            request['WorkGroup'] = work_group
+            request.update({
+                'WorkGroup': work_group if work_group else self._work_group
+            })
         if next_token:
-            request['NextToken'] = next_token
+            request.update({
+                'NextToken': next_token
+            })
         return request
 
     def _find_previous_query_id(self, query, work_group, cache_size):
