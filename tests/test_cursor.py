@@ -80,20 +80,33 @@ class TestCursor(unittest.TestCase, WithConnect):
         query = 'SELECT * FROM one_row -- {0}'.format(str(datetime.utcnow()))
 
         cursor.execute(query)
-        cursor.fetchall()
         first_query_id = cursor.query_id
 
         cursor.execute(query)
-        cursor.fetchall()
         second_query_id = cursor.query_id
+
+        cursor.execute(query, cache_size=100)
+        third_query_id = cursor.query_id
+
         # Make sure default behavior is no caching, i.e. same query has
         # run twice results in different query IDs
         self.assertNotEqual(first_query_id, second_query_id)
-
-        cursor.execute(query, cache_size=100)
-        cursor.fetchall()
-        third_query_id = cursor.query_id
         # When using caching, the same query ID should be returned.
+        self.assertIn(third_query_id, [first_query_id, second_query_id])
+
+    @with_cursor(work_group=WORK_GROUP)
+    def test_cache_size_with_work_group(self, cursor):
+        now = datetime.utcnow()
+        cursor.execute('SELECT %(now)s as date', {'now': now})
+        first_query_id = cursor.query_id
+
+        cursor.execute('SELECT %(now)s as date', {'now': now})
+        second_query_id = cursor.query_id
+
+        cursor.execute('SELECT %(now)s as date', {'now': now}, cache_size=100)
+        third_query_id = cursor.query_id
+
+        self.assertNotEqual(first_query_id, second_query_id)
         self.assertIn(third_query_id, [first_query_id, second_query_id])
 
     @with_cursor()
