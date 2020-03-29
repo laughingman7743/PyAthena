@@ -154,12 +154,13 @@ def to_sql(df, name, conn, location, schema='default',
         futures = []
         if partitions:
             for keys, group in df.groupby(by=partitions, observed=True):
+                keys = keys if isinstance(keys, tuple) else (keys, )
                 group = group.drop(partitions, axis=1)
                 partition_prefix = '/'.join(['{0}={1}'.format(key, val)
-                                             for key, val in zip(partitions, list(keys))])
+                                             for key, val in zip(partitions, keys)])
                 for chunk in get_chunks(group, chunksize):
                     futures.append(e.submit(to_parquet, chunk, conn, bucket,
-                                            '{0}/{1}'.format(key_prefix, partition_prefix),
+                                            '{0}{1}/'.format(key_prefix, partition_prefix),
                                             compression, flavor))
         else:
             for chunk in get_chunks(df, chunksize):
@@ -172,6 +173,7 @@ def to_sql(df, name, conn, location, schema='default',
                        name=name,
                        location=location,
                        schema=schema,
+                       partitions=partitions,
                        compression=compression,
                        type_mappings=type_mappings)
     cursor.execute(ddl)
