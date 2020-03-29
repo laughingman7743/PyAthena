@@ -223,6 +223,50 @@ class TestUtil(unittest.TestCase, WithConnect):
             TBLPROPERTIES ('parquet.compress'='SNAPPY')
             """).strip())
 
+        # partitions
+        actual = generate_ddl(df, 'test_table', 's3://bucket/path/to/', 'test_schema',
+                              partitions=['col_int'])
+        self.assertEqual(actual.strip(), textwrap.dedent(
+            """
+            CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
+            `col_bigint` BIGINT,
+            `col_float` FLOAT,
+            `col_double` DOUBLE,
+            `col_string` STRING,
+            `col_boolean` BOOLEAN,
+            `col_timestamp` TIMESTAMP,
+            `col_date` DATE,
+            `col_timedelta` BIGINT
+            )
+            PARTITIONED BY (
+            `col_int` INT
+            )
+            STORED AS PARQUET
+            LOCATION 's3://bucket/path/to/'
+            """).strip())
+
+        # multiple partitions
+        actual = generate_ddl(df, 'test_table', 's3://bucket/path/to/', 'test_schema',
+                              partitions=['col_int', 'col_string'])
+        self.assertEqual(actual.strip(), textwrap.dedent(
+            """
+            CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
+            `col_bigint` BIGINT,
+            `col_float` FLOAT,
+            `col_double` DOUBLE,
+            `col_boolean` BOOLEAN,
+            `col_timestamp` TIMESTAMP,
+            `col_date` DATE,
+            `col_timedelta` BIGINT
+            )
+            PARTITIONED BY (
+            `col_int` INT,
+            `col_string` STRING
+            )
+            STORED AS PARQUET
+            LOCATION 's3://bucket/path/to/'
+            """).strip())
+
         # complex
         df = pd.DataFrame({'col_complex': np.complex_([1.0, 2.0, 3.0, 4.0, 5.0])})
         with self.assertRaises(ValueError):
