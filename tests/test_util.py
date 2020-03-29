@@ -168,7 +168,7 @@ class TestUtil(unittest.TestCase, WithConnect):
         ])
 
     def test_generate_ddl(self):
-        # TODO Add binary column (Drop support for Python 2.7)
+        # TODO Add binary column (After dropping support for Python 2.7)
         df = pd.DataFrame({
             'col_int': np.int32([1]),
             'col_bigint': np.int64([12345]),
@@ -236,7 +236,7 @@ class TestUtil(unittest.TestCase, WithConnect):
 
     @with_cursor()
     def test_to_sql(self, cursor):
-        # TODO Add binary column (Drop support for Python 2.7)
+        # TODO Add binary column (After dropping support for Python 2.7)
         df = pd.DataFrame({
             'col_int': np.int32([1]),
             'col_bigint': np.int64([12345]),
