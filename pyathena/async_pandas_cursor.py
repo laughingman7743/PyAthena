@@ -4,16 +4,10 @@ from __future__ import unicode_literals
 
 import logging
 
+from pyathena import cpu_count
 from pyathena.async_cursor import AsyncCursor
 from pyathena.common import CursorIterator
 from pyathena.result_set import AthenaPandasResultSet
-
-try:
-    from multiprocessing import cpu_count
-except ImportError:
-    def cpu_count():
-        return None
-
 
 _logger = logging.getLogger(__name__)
 

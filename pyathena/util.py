@@ -2,12 +2,14 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
+import concurrent
 import functools
 import logging
 import threading
 import re
 import uuid
 from collections import OrderedDict
+from concurrent.futures.thread import ThreadPoolExecutor
 
 import tenacity
 from future.utils import iteritems
@@ -15,7 +17,7 @@ from past.builtins import xrange
 from tenacity import (after_log, retry_if_exception,
                       stop_after_attempt, wait_exponential)
 
-from pyathena import DataError, OperationalError
+from pyathena import DataError, OperationalError, cpu_count
 from pyathena.model import AthenaCompression
 
 _logger = logging.getLogger(__name__)
@@ -112,7 +114,9 @@ def to_parquet(df, conn, bucket, prefix, compression=None, flavor='spark'):
 def to_sql(df, name, conn, location, schema='default',
            index=False, index_label=None, partitions=None, chunksize=None,
            if_exists='fail', compression=None, flavor='spark',
-           type_mappings=to_sql_type_mappings):
+           type_mappings=to_sql_type_mappings,
+           executor_class=ThreadPoolExecutor,
+           max_workers=(cpu_count() or 1) * 5):
     # TODO Supports orc, avro, json, csv or tsv format
     if if_exists not in ('fail', 'replace', 'append'):
         raise ValueError('`{0}` is not valid for if_exists'.format(if_exists))
@@ -146,25 +150,23 @@ def to_sql(df, name, conn, location, schema='default',
 
     if index:
         reset_index(df, index_label)
-    if partitions:
-        for keys, group in df.groupby(by=partitions, observed=True):
-            group = group.drop(partitions, axis=1)
-            partition_prefix = '/'.join(['{0}={1}'.format(key, val)
-                                         for key, val in zip(partitions, list(keys))])
-            for chunk in get_chunks(group, chunksize):
-                # TODO threading
-                # TODO executor, max_workers
-                to_parquet(chunk, conn, bucket,
-                           '{0}/{1}'.format(key_prefix, partition_prefix),
-                           compression=compression,
-                           flavor=flavor)
-    else:
-        for chunk in get_chunks(df, chunksize):
-            # TODO threading
-            # TODO executor, max_workers
-            to_parquet(chunk, conn, bucket, key_prefix,
-                       compression=compression,
-                       flavor=flavor)
+    with executor_class(max_workers=max_workers) as e:
+        futures = []
+        if partitions:
+            for keys, group in df.groupby(by=partitions, observed=True):
+                group = group.drop(partitions, axis=1)
+                partition_prefix = '/'.join(['{0}={1}'.format(key, val)
+                                             for key, val in zip(partitions, list(keys))])
+                for chunk in get_chunks(group, chunksize):
+                    futures.append(e.submit(to_parquet, chunk, conn, bucket,
+                                            '{0}/{1}'.format(key_prefix, partition_prefix),
+                                            compression, flavor))
+        else:
+            for chunk in get_chunks(df, chunksize):
+                futures.append(e.submit(to_parquet, chunk, conn, bucket,
+                                        key_prefix, compression, flavor))
+        for future in concurrent.futures.as_completed(futures):
+            future.result()
 
     ddl = generate_ddl(df=df,
                        name=name,

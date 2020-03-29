@@ -5,17 +5,11 @@ from __future__ import unicode_literals
 import logging
 from concurrent.futures.thread import ThreadPoolExecutor
 
+from pyathena import cpu_count
 from pyathena.common import CursorIterator
 from pyathena.cursor import BaseCursor
 from pyathena.error import NotSupportedError, ProgrammingError
 from pyathena.result_set import AthenaResultSet
-
-try:
-    from multiprocessing import cpu_count
-except ImportError:
-    def cpu_count():
-        return None
-
 
 _logger = logging.getLogger(__name__)
 
