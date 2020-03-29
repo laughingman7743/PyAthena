@@ -176,7 +176,7 @@ def to_sql(df, name, conn, location, schema='default',
                        type_mappings=type_mappings)
     cursor.execute(ddl)
     if partitions:
-        cursor.execute('MSCK REPAIR TABLE {0}'.format(name))
+        cursor.execute('MSCK REPAIR TABLE {0}.{1}'.format(schema, name))
 
 
 def get_column_names_and_types(df, type_mappings):
