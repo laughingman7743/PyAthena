@@ -230,7 +230,8 @@ class AthenaDialect(DefaultDialect):
         opts = {
             'aws_access_key_id': url.username if url.username else None,
             'aws_secret_access_key': url.password if url.password else None,
-            'region_name': re.sub(r'^athena\.([a-z0-9-]+)\.amazonaws\.com$', r'\1', url.host),
+            'region_name': re.sub(r'^athena\.([a-z0-9-]+)\.amazonaws\.(com|com.cn)$', r'\1',
+                                  url.host),
             'schema_name': url.database if url.database else 'default'
         }
         opts.update(url.query)
