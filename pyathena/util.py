@@ -10,8 +10,10 @@ import re
 import uuid
 from collections import OrderedDict
 from concurrent.futures.thread import ThreadPoolExecutor
+from copy import deepcopy
 
 import tenacity
+from boto3 import Session
 from future.utils import iteritems
 from past.builtins import xrange
 from tenacity import (after_log, retry_if_exception,
@@ -96,19 +98,24 @@ def to_sql_type_mappings(col):
     return 'STRING'
 
 
-def to_parquet(df, conn, bucket, prefix, compression=None, flavor='spark'):
+def to_parquet(df, bucket_name, prefix, retry_config, session_kwargs, client_kwargs,
+               compression=None, flavor='spark'):
     import pyarrow as pa
     import pyarrow.parquet as pq
-    retry_config = conn.retry_config
+
+    session = Session(**session_kwargs)
+    client = session.resource('s3', **client_kwargs)
+    bucket = client.Bucket(bucket_name)
     table = pa.Table.from_pandas(df)
     buf = pa.BufferOutputStream()
     pq.write_table(table, buf,
                    compression=compression,
                    flavor=flavor)
-    retry_api_call(bucket.put_object,
-                   config=retry_config,
-                   Body=buf.getvalue().to_pybytes(),
-                   Key=prefix + str(uuid.uuid4()))
+    response = retry_api_call(bucket.put_object,
+                              config=retry_config,
+                              Body=buf.getvalue().to_pybytes(),
+                              Key=prefix + str(uuid.uuid4()))
+    return 's3://{0}/{1}'.format(response.bucket_name, response.key)
 
 
 def to_sql(df, name, conn, location, schema='default',
@@ -152,6 +159,10 @@ def to_sql(df, name, conn, location, schema='default',
         reset_index(df, index_label)
     with executor_class(max_workers=max_workers) as e:
         futures = []
+        session_kwargs = deepcopy(conn._session_kwargs)
+        session_kwargs.update({'profile_name': conn.profile_name})
+        client_kwargs = deepcopy(conn._client_kwargs)
+        client_kwargs.update({'region_name': conn.region_name})
         if partitions:
             for keys, group in df.groupby(by=partitions, observed=True):
                 keys = keys if isinstance(keys, tuple) else (keys, )
@@ -159,15 +170,19 @@ def to_sql(df, name, conn, location, schema='default',
                 partition_prefix = '/'.join(['{0}={1}'.format(key, val)
                                              for key, val in zip(partitions, keys)])
                 for chunk in get_chunks(group, chunksize):
-                    futures.append(e.submit(to_parquet, chunk, conn, bucket,
+                    futures.append(e.submit(to_parquet, chunk, bucket_name,
                                             '{0}{1}/'.format(key_prefix, partition_prefix),
+                                            conn._retry_config, session_kwargs, client_kwargs,
                                             compression, flavor))
         else:
             for chunk in get_chunks(df, chunksize):
-                futures.append(e.submit(to_parquet, chunk, conn, bucket,
-                                        key_prefix, compression, flavor))
+                futures.append(e.submit(to_parquet, chunk, bucket_name,
+                                        key_prefix, conn._retry_config,
+                                        session_kwargs, client_kwargs,
+                                        compression, flavor))
         for future in concurrent.futures.as_completed(futures):
-            future.result()
+            result = future.result()
+            _logger.info('to_parquet: {0}'.format(result))
 
     ddl = generate_ddl(df=df,
                        name=name,
@@ -176,9 +191,12 @@ def to_sql(df, name, conn, location, schema='default',
                        partitions=partitions,
                        compression=compression,
                        type_mappings=type_mappings)
+    _logger.info(ddl)
     cursor.execute(ddl)
     if partitions:
-        cursor.execute('MSCK REPAIR TABLE {0}.{1}'.format(schema, name))
+        repair = 'MSCK REPAIR TABLE {0}.{1}'.format(schema, name)
+        _logger.info(repair)
+        cursor.execute(repair)
 
 
 def get_column_names_and_types(df, type_mappings):
