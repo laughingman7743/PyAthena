@@ -114,17 +114,17 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
                 time.sleep(self._poll_interval)
 
     def _build_start_query_execution_request(self, query, work_group=None, s3_staging_dir=None):
-        if not s3_staging_dir:
-            s3_staging_dir = self._s3_staging_dir
         request = {
             'QueryString': query,
             'QueryExecutionContext': {
                 'Database': self._schema_name,
             },
-            'ResultConfiguration': {
-                'OutputLocation': s3_staging_dir,
-            },
+            'ResultConfiguration': {}
         }
+        if self._s3_staging_dir or s3_staging_dir:
+            request['ResultConfiguration'].update({
+                'OutputLocation': s3_staging_dir if s3_staging_dir else self._s3_staging_dir
+            })
         if self._work_group or work_group:
             request.update({
                 'WorkGroup': work_group if work_group else self._work_group

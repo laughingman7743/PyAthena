@@ -755,7 +755,7 @@ Depends on the following environment variables:
     $ export AWS_DEFAULT_REGION=us-west-2
     $ export AWS_ATHENA_S3_STAGING_DIR=s3://YOUR_S3_BUCKET/path/to/
 
-And you need to create a workgroup named ``test-pyathena``.
+And you need to create a workgroup named ``test-pyathena`` with the ``Query result location`` configuration.
 
 Run test
 ~~~~~~~~
