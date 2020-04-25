@@ -442,9 +442,9 @@ class TestCursor(unittest.TestCase, WithConnect):
         cursor.execute('SELECT * FROM one_row')
         self.assertEqual(cursor.work_group, WORK_GROUP)
 
-    def test_no_s3_staging_dir(self):
-        conn = self.connect()
-        cursor = conn.cursor(s3_staging_dir=None, work_group=WORK_GROUP)
+    @with_cursor(work_group=WORK_GROUP)
+    def test_no_s3_staging_dir(self, cursor):
+        cursor._s3_staging_dir = None
         cursor.execute('SELECT * FROM one_row')
         self.assertNotEqual(cursor.output_location, None)
 
