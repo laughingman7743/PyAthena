@@ -10,6 +10,7 @@ from decimal import Decimal
 
 import numpy as np
 import pandas as pd
+from past.builtins import xrange
 
 from pyathena import DataError, OperationalError
 from pyathena.util import (as_pandas, generate_ddl, to_sql, get_chunks,
@@ -168,7 +169,7 @@ class TestUtil(unittest.TestCase, WithConnect):
         ])
 
     def test_generate_ddl(self):
-        # TODO Add binary column (Drop support for Python 2.7)
+        # TODO Add binary column (After dropping support for Python 2.7)
         df = pd.DataFrame({
             'col_int': np.int32([1]),
             'col_bigint': np.int64([12345]),
@@ -223,6 +224,50 @@ class TestUtil(unittest.TestCase, WithConnect):
             TBLPROPERTIES ('parquet.compress'='SNAPPY')
             """).strip())
 
+        # partitions
+        actual = generate_ddl(df, 'test_table', 's3://bucket/path/to/', 'test_schema',
+                              partitions=['col_int'])
+        self.assertEqual(actual.strip(), textwrap.dedent(
+            """
+            CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
+            `col_bigint` BIGINT,
+            `col_float` FLOAT,
+            `col_double` DOUBLE,
+            `col_string` STRING,
+            `col_boolean` BOOLEAN,
+            `col_timestamp` TIMESTAMP,
+            `col_date` DATE,
+            `col_timedelta` BIGINT
+            )
+            PARTITIONED BY (
+            `col_int` INT
+            )
+            STORED AS PARQUET
+            LOCATION 's3://bucket/path/to/'
+            """).strip())
+
+        # multiple partitions
+        actual = generate_ddl(df, 'test_table', 's3://bucket/path/to/', 'test_schema',
+                              partitions=['col_int', 'col_string'])
+        self.assertEqual(actual.strip(), textwrap.dedent(
+            """
+            CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
+            `col_bigint` BIGINT,
+            `col_float` FLOAT,
+            `col_double` DOUBLE,
+            `col_boolean` BOOLEAN,
+            `col_timestamp` TIMESTAMP,
+            `col_date` DATE,
+            `col_timedelta` BIGINT
+            )
+            PARTITIONED BY (
+            `col_int` INT,
+            `col_string` STRING
+            )
+            STORED AS PARQUET
+            LOCATION 's3://bucket/path/to/'
+            """).strip())
+
         # complex
         df = pd.DataFrame({'col_complex': np.complex_([1.0, 2.0, 3.0, 4.0, 5.0])})
         with self.assertRaises(ValueError):
@@ -236,7 +281,7 @@ class TestUtil(unittest.TestCase, WithConnect):
 
     @with_cursor()
     def test_to_sql(self, cursor):
-        # TODO Add binary column (Drop support for Python 2.7)
+        # TODO Add binary column (After dropping support for Python 2.7)
         df = pd.DataFrame({
             'col_int': np.int32([1]),
             'col_bigint': np.int64([12345]),
@@ -322,6 +367,41 @@ class TestUtil(unittest.TestCase, WithConnect):
             ('col_index', 'bigint'),
             ('col_int', 'integer'),
         ])
+
+    @with_cursor()
+    def test_to_sql_with_partitions(self, cursor):
+        df = pd.DataFrame({
+            'col_int': np.int32([i for i in xrange(10)]),
+            'col_bigint': np.int64([12345 for _ in xrange(10)]),
+            'col_string': ['a' for _ in xrange(10)],
+        })
+        table_name = 'to_sql_{0}'.format(str(uuid.uuid4()).replace('-', ''))
+        location = '{0}{1}/{2}/'.format(ENV.s3_staging_dir, S3_PREFIX, table_name)
+        to_sql(df, table_name, cursor._connection, location, schema=SCHEMA,
+               partitions=['col_int'], if_exists='fail', compression='snappy')
+        cursor.execute('SHOW PARTITIONS {0}'.format(table_name))
+        self.assertEqual(sorted(cursor.fetchall()),
+                         [('col_int={0}'.format(i),) for i in xrange(10)])
+        cursor.execute('SELECT COUNT(*) FROM {0}'.format(table_name))
+        self.assertEqual(cursor.fetchall(), [(10, ), ])
+
+    @with_cursor()
+    def test_to_sql_with_multiple_partitions(self, cursor):
+        df = pd.DataFrame({
+            'col_int': np.int32([i for i in xrange(10)]),
+            'col_bigint': np.int64([12345 for _ in xrange(10)]),
+            'col_string': ['a' for _ in xrange(5)] + ['b' for _ in xrange(5)],
+        })
+        table_name = 'to_sql_{0}'.format(str(uuid.uuid4()).replace('-', ''))
+        location = '{0}{1}/{2}/'.format(ENV.s3_staging_dir, S3_PREFIX, table_name)
+        to_sql(df, table_name, cursor._connection, location, schema=SCHEMA,
+               partitions=['col_int', 'col_string'], if_exists='fail', compression='snappy')
+        cursor.execute('SHOW PARTITIONS {0}'.format(table_name))
+        self.assertEqual(sorted(cursor.fetchall()),
+                         [('col_int={0}/col_string=a'.format(i),) for i in xrange(5)] +
+                         [('col_int={0}/col_string=b'.format(i),) for i in xrange(5, 10)])
+        cursor.execute('SELECT COUNT(*) FROM {0}'.format(table_name))
+        self.assertEqual(cursor.fetchall(), [(10, ), ])
 
     @with_cursor()
     def test_to_sql_invalid_args(self, cursor):

@@ -6,6 +6,12 @@ import datetime
 
 from pyathena.error import *  # noqa
 
+try:
+    from multiprocessing import cpu_count
+except ImportError:
+    def cpu_count():
+        return None
+
 __version__ = '1.10.4'
 
 # Globals https://www.python.org/dev/peps/pep-0249/#globals

@@ -2,18 +2,24 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
+import concurrent
 import functools
 import logging
 import threading
 import re
 import uuid
+from collections import OrderedDict
+from concurrent.futures.thread import ThreadPoolExecutor
+from copy import deepcopy
 
 import tenacity
+from boto3 import Session
+from future.utils import iteritems
 from past.builtins import xrange
 from tenacity import (after_log, retry_if_exception,
                       stop_after_attempt, wait_exponential)
 
-from pyathena import DataError, OperationalError
+from pyathena import DataError, OperationalError, cpu_count
 from pyathena.model import AthenaCompression
 
 _logger = logging.getLogger(__name__)
@@ -92,24 +98,44 @@ def to_sql_type_mappings(col):
     return 'STRING'
 
 
+def to_parquet(df, bucket_name, prefix, retry_config, session_kwargs, client_kwargs,
+               compression=None, flavor='spark'):
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    session = Session(**session_kwargs)
+    client = session.resource('s3', **client_kwargs)
+    bucket = client.Bucket(bucket_name)
+    table = pa.Table.from_pandas(df)
+    buf = pa.BufferOutputStream()
+    pq.write_table(table, buf,
+                   compression=compression,
+                   flavor=flavor)
+    response = retry_api_call(bucket.put_object,
+                              config=retry_config,
+                              Body=buf.getvalue().to_pybytes(),
+                              Key=prefix + str(uuid.uuid4()))
+    return 's3://{0}/{1}'.format(response.bucket_name, response.key)
+
+
 def to_sql(df, name, conn, location, schema='default',
-           index=False, index_label=None, chunksize=None,
+           index=False, index_label=None, partitions=None, chunksize=None,
            if_exists='fail', compression=None, flavor='spark',
-           type_mappings=to_sql_type_mappings):
+           type_mappings=to_sql_type_mappings,
+           executor_class=ThreadPoolExecutor,
+           max_workers=(cpu_count() or 1) * 5):
     # TODO Supports orc, avro, json, csv or tsv format
-    # TODO Supports partitioning
     if if_exists not in ('fail', 'replace', 'append'):
         raise ValueError('`{0}` is not valid for if_exists'.format(if_exists))
     if compression is not None and not AthenaCompression.is_valid(compression):
         raise ValueError('`{0}` is not valid for compression'.format(compression))
+    if partitions is None:
+        partitions = []
 
-    import pyarrow as pa
-    import pyarrow.parquet as pq
     bucket_name, key_prefix = parse_output_location(location)
     bucket = conn.session.resource('s3', region_name=conn.region_name,
                                    **conn._client_kwargs).Bucket(bucket_name)
     cursor = conn.cursor()
-    retry_config = conn.retry_config
 
     table = cursor.execute("""
     SELECT table_name
@@ -131,41 +157,72 @@ def to_sql(df, name, conn, location, schema='default',
 
     if index:
         reset_index(df, index_label)
-    for chunk in get_chunks(df, chunksize):
-        table = pa.Table.from_pandas(chunk)
-        buf = pa.BufferOutputStream()
-        pq.write_table(table, buf,
-                       compression=compression,
-                       flavor=flavor)
-        retry_api_call(bucket.put_object,
-                       config=retry_config,
-                       Body=buf.getvalue().to_pybytes(),
-                       Key=key_prefix + str(uuid.uuid4()))
+    with executor_class(max_workers=max_workers) as e:
+        futures = []
+        session_kwargs = deepcopy(conn._session_kwargs)
+        session_kwargs.update({'profile_name': conn.profile_name})
+        client_kwargs = deepcopy(conn._client_kwargs)
+        client_kwargs.update({'region_name': conn.region_name})
+        if partitions:
+            for keys, group in df.groupby(by=partitions, observed=True):
+                keys = keys if isinstance(keys, tuple) else (keys, )
+                group = group.drop(partitions, axis=1)
+                partition_prefix = '/'.join(['{0}={1}'.format(key, val)
+                                             for key, val in zip(partitions, keys)])
+                for chunk in get_chunks(group, chunksize):
+                    futures.append(e.submit(to_parquet, chunk, bucket_name,
+                                            '{0}{1}/'.format(key_prefix, partition_prefix),
+                                            conn._retry_config, session_kwargs, client_kwargs,
+                                            compression, flavor))
+        else:
+            for chunk in get_chunks(df, chunksize):
+                futures.append(e.submit(to_parquet, chunk, bucket_name,
+                                        key_prefix, conn._retry_config,
+                                        session_kwargs, client_kwargs,
+                                        compression, flavor))
+        for future in concurrent.futures.as_completed(futures):
+            result = future.result()
+            _logger.info('to_parquet: {0}'.format(result))
 
     ddl = generate_ddl(df=df,
                        name=name,
                        location=location,
                        schema=schema,
+                       partitions=partitions,
                        compression=compression,
                        type_mappings=type_mappings)
+    _logger.info(ddl)
     cursor.execute(ddl)
+    if partitions:
+        repair = 'MSCK REPAIR TABLE {0}.{1}'.format(schema, name)
+        _logger.info(repair)
+        cursor.execute(repair)
 
 
 def get_column_names_and_types(df, type_mappings):
-    return [
+    return OrderedDict((
         (str(df.columns[i]), type_mappings(df.iloc[:, i]))
         for i in xrange(len(df.columns))
-    ]
+    ))
 
 
-def generate_ddl(df, name, location, schema='default', compression=None,
+def generate_ddl(df, name, location, schema='default', partitions=None, compression=None,
                  type_mappings=to_sql_type_mappings):
+    if partitions is None:
+        partitions = []
+    column_names_and_types = get_column_names_and_types(df, type_mappings)
     ddl = 'CREATE EXTERNAL TABLE IF NOT EXISTS `{0}`.`{1}` (\n'.format(schema, name)
     ddl += ',\n'.join([
-        '`{0}` {1}'.format(c[0], c[1])
-        for c in get_column_names_and_types(df, type_mappings)
+        '`{0}` {1}'.format(col, type_)
+        for col, type_ in iteritems(column_names_and_types) if col not in partitions
     ])
     ddl += '\n)\n'
+    if partitions:
+        ddl += 'PARTITIONED BY (\n'
+        ddl += ',\n'.join([
+            '`{0}` {1}'.format(p, column_names_and_types[p]) for p in partitions
+        ])
+        ddl += '\n)\n'
     ddl += 'STORED AS PARQUET\n'
     ddl += "LOCATION '{0}'\n".format(location)
     if compression:

@@ -55,23 +55,24 @@ class Connection(object):
         self.poll_interval = poll_interval
         self.encryption_option = encryption_option
         self.kms_key = kms_key
+        self.profile_name = profile_name
 
         assert self.schema_name, 'Required argument `schema_name` not found.'
         assert self.s3_staging_dir or self.work_group,\
             'Required argument `s3_staging_dir` or `work_group` not found.'
 
         if role_arn:
-            creds = self._assume_role(profile_name, region_name, role_arn,
+            creds = self._assume_role(self.profile_name, self.region_name, role_arn,
                                       role_session_name, duration_seconds)
-            profile_name = None
+            self.profile_name = None
             self._kwargs.update({
                 'aws_access_key_id': creds['AccessKeyId'],
                 'aws_secret_access_key': creds['SecretAccessKey'],
                 'aws_session_token': creds['SessionToken'],
             })
-        self._session = Session(profile_name=profile_name,
+        self._session = Session(profile_name=self.profile_name,
                                 **self._session_kwargs)
-        self._client = self._session.client('athena', region_name=region_name,
+        self._client = self._session.client('athena', region_name=self.region_name,
                                             **self._client_kwargs)
         self._converter = converter
         self._formatter = formatter if formatter else DefaultParameterFormatter()

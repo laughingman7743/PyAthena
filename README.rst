@@ -237,7 +237,56 @@ The ``pyathena.util`` package also has helper methods.
     to_sql(df, 'YOUR_TABLE', conn, 's3://YOUR_S3_BUCKET/path/to/',
            schema='YOUR_SCHEMA', index=False, if_exists='replace')
 
+This helper method supports partitioning.
+
+.. code:: python
+
+    import pandas as pd
+    from datetime import date
+    from pyathena import connect
+    from pyathena.util import to_sql
+
+    conn = connect(aws_access_key_id='YOUR_ACCESS_KEY_ID',
+                   aws_secret_access_key='YOUR_SECRET_ACCESS_KEY',
+                   s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                   region_name='us-west-2')
+    df = pd.DataFrame({
+        'a': [1, 2, 3, 4, 5],
+        'dt': [
+            date(2020, 1, 1), date(2020, 1, 1), date(2020, 1, 1),
+            date(2020, 1, 2),
+            date(2020, 1, 3)
+        ],
+    })
+    to_sql(df, 'YOUR_TABLE', conn, 's3://YOUR_S3_BUCKET/path/to/',
+           schema='YOUR_SCHEMA', partitions=['dt'])
+
+    cursor = conn.cursor()
+    cursor.execute('SHOW PARTITIONS YOUR_TABLE')
+    print(cursor.fetchall())
+
+Conversion to Parquet and upload to S3 use `ThreadPoolExecutor`_ by default.
+It is also possible to use `ProcessPoolExecutor`_.
+
+.. code:: python
+
+    import pandas as pd
+    from concurrent.futures.process import ProcessPoolExecutor
+    from pyathena import connect
+    from pyathena.util import to_sql
+
+    conn = connect(aws_access_key_id='YOUR_ACCESS_KEY_ID',
+                   aws_secret_access_key='YOUR_SECRET_ACCESS_KEY',
+                   s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
+                   region_name='us-west-2')
+    df = pd.DataFrame({'a': [1, 2, 3, 4, 5]})
+    to_sql(df, 'YOUR_TABLE', conn, 's3://YOUR_S3_BUCKET/path/to/',
+           schema='YOUR_SCHEMA', index=False, if_exists='replace',
+           chunksize=1, executor_class=ProcessPoolExecutor, max_workers=5)
+
 .. _`pandas.DataFrame.to_sql`: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_sql.html
+.. _`ThreadPoolExecutor`: https://docs.python.org/3/library/concurrent.futures.html#threadpoolexecutor
+.. _`ProcessPoolExecutor`: https://docs.python.org/3/library/concurrent.futures.html#processpoolexecutor
 
 AsynchronousCursor
 ~~~~~~~~~~~~~~~~~~
