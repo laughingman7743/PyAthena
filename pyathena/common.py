@@ -134,7 +134,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
     ):
         request = {
             "QueryString": query,
-            "QueryExecutionContext": {"Database": self._schema_name,},
+            "QueryExecutionContext": {"Database": self._schema_name},
             "ResultConfiguration": {},
         }
         if self._s3_staging_dir or s3_staging_dir:
@@ -155,9 +155,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
             }
             if self._kms_key:
                 enc_conf.update({"KmsKey": self._kms_key})
-            request["ResultConfiguration"].update(
-                {"EncryptionConfiguration": enc_conf,}
-            )
+            request["ResultConfiguration"].update({"EncryptionConfiguration": enc_conf})
         return request
 
     def _build_list_query_executions_request(

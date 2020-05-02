@@ -23,9 +23,9 @@ setup(
     author_email="laughingman7743@gmail.com",
     license="MIT License",
     packages=find_packages(".", exclude=["tests"]),
-    package_data={"": ["LICENSE", "*.rst", "Pipfile*"],},
+    package_data={"": ["LICENSE", "*.rst", "Pipfile*"]},
     include_package_data=True,
-    data_files=[("", ["LICENSE"] + glob("*.rst") + glob("Pipfile*")),],
+    data_files=[("", ["LICENSE"] + glob("*.rst") + glob("Pipfile*"))],
     install_requires=[
         "future",
         'futures;python_version=="2.7"',
