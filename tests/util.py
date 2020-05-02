@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import codecs
 import contextlib
@@ -14,7 +13,9 @@ def with_cursor(work_group=None):
             with contextlib.closing(self.connect(work_group=work_group)) as conn:
                 with conn.cursor() as cursor:
                     fn(self, cursor, *args, **kwargs)
+
         return wrapped_fn
+
     return _with_cursor
 
 
@@ -27,7 +28,9 @@ def with_async_cursor():
             with contextlib.closing(self.connect()) as conn:
                 with conn.cursor(AsyncCursor) as cursor:
                     fn(self, cursor, *args, **kwargs)
+
         return wrapped_fn
+
     return _with_async_cursor
 
 
@@ -40,7 +43,9 @@ def with_pandas_cursor():
             with contextlib.closing(self.connect()) as conn:
                 with conn.cursor(PandasCursor) as cursor:
                     fn(self, cursor, *args, **kwargs)
+
         return wrapped_fn
+
     return _with_pandas_cursor
 
 
@@ -53,7 +58,9 @@ def with_async_pandas_cursor():
             with contextlib.closing(self.connect()) as conn:
                 with conn.cursor(AsyncPandasCursor) as cursor:
                     fn(self, cursor, *args, **kwargs)
+
         return wrapped_fn
+
     return _with_async_pandas_cursor
 
 
@@ -67,11 +74,13 @@ def with_engine():
                     fn(self, engine, conn, *args, **kwargs)
             finally:
                 engine.dispose()
+
         return wrapped_fn
+
     return _with_engine
 
 
 def read_query(path):
-    with codecs.open(path, 'rb', 'utf-8') as f:
+    with codecs.open(path, "rb", "utf-8") as f:
         query = f.read()
-    return [q.strip() for q in query.split(';') if q and q.strip()]
+    return [q.strip() for q in query.split(";") if q and q.strip()]

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import collections
 import io
@@ -12,13 +11,12 @@ from past.builtins.misc import xrange
 from pyathena.common import CursorIterator
 from pyathena.error import DataError, OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
-from pyathena.util import retry_api_call, parse_output_location
+from pyathena.util import parse_output_location, retry_api_call
 
 _logger = logging.getLogger(__name__)
 
 
 class WithResultSet(object):
-
     def __init__(self):
         super(WithResultSet, self).__init__()
         self._query_id = None
@@ -124,13 +122,12 @@ class WithResultSet(object):
 
 
 class AthenaResultSet(CursorIterator):
-
     def __init__(self, connection, converter, query_execution, arraysize, retry_config):
         super(AthenaResultSet, self).__init__(arraysize=arraysize)
         self._connection = connection
         self._converter = converter
         self._query_execution = query_execution
-        assert self._query_execution, 'Required argument `query_execution` not found.'
+        assert self._query_execution, "Required argument `query_execution` not found."
         self._retry_config = retry_config
 
         self._meta_data = None
@@ -203,42 +200,44 @@ class AthenaResultSet(CursorIterator):
             return None
         return [
             (
-                m.get('Name', None),
-                m.get('Type', None),
+                m.get("Name", None),
+                m.get("Type", None),
                 None,
                 None,
-                m.get('Precision', None),
-                m.get('Scale', None),
-                m.get('Nullable', None)
+                m.get("Precision", None),
+                m.get("Scale", None),
+                m.get("Nullable", None),
             )
             for m in self._meta_data
         ]
 
     def __fetch(self, next_token=None):
         if not self.query_id:
-            raise ProgrammingError('QueryExecutionId is none or empty.')
+            raise ProgrammingError("QueryExecutionId is none or empty.")
         if self.state != AthenaQueryExecution.STATE_SUCCEEDED:
-            raise ProgrammingError('QueryExecutionState is not SUCCEEDED.')
+            raise ProgrammingError("QueryExecutionState is not SUCCEEDED.")
         request = {
-            'QueryExecutionId': self.query_id,
-            'MaxResults': self._arraysize,
+            "QueryExecutionId": self.query_id,
+            "MaxResults": self._arraysize,
         }
         if next_token:
-            request.update({'NextToken': next_token})
+            request.update({"NextToken": next_token})
         try:
-            response = retry_api_call(self._connection.client.get_query_results,
-                                      config=self._retry_config,
-                                      logger=_logger,
-                                      **request)
+            response = retry_api_call(
+                self._connection.client.get_query_results,
+                config=self._retry_config,
+                logger=_logger,
+                **request
+            )
         except Exception as e:
-            _logger.exception('Failed to fetch result set.')
+            _logger.exception("Failed to fetch result set.")
             raise_from(OperationalError(*e.args), e)
         else:
             return response
 
     def _fetch(self):
         if not self._next_token:
-            raise ProgrammingError('NextToken is none or empty.')
+            raise ProgrammingError("NextToken is none or empty.")
         response = self.__fetch(self._next_token)
         self._process_rows(response)
 
@@ -279,40 +278,49 @@ class AthenaResultSet(CursorIterator):
         return rows
 
     def _process_meta_data(self, response):
-        result_set = response.get('ResultSet', None)
+        result_set = response.get("ResultSet", None)
         if not result_set:
-            raise DataError('KeyError `ResultSet`')
-        meta_data = result_set.get('ResultSetMetadata', None)
+            raise DataError("KeyError `ResultSet`")
+        meta_data = result_set.get("ResultSetMetadata", None)
         if not meta_data:
-            raise DataError('KeyError `ResultSetMetadata`')
-        column_info = meta_data.get('ColumnInfo', None)
+            raise DataError("KeyError `ResultSetMetadata`")
+        column_info = meta_data.get("ColumnInfo", None)
         if column_info is None:
-            raise DataError('KeyError `ColumnInfo`')
+            raise DataError("KeyError `ColumnInfo`")
         self._meta_data = tuple(column_info)
 
     def _process_rows(self, response):
-        result_set = response.get('ResultSet', None)
+        result_set = response.get("ResultSet", None)
         if not result_set:
-            raise DataError('KeyError `ResultSet`')
-        rows = result_set.get('Rows', None)
+            raise DataError("KeyError `ResultSet`")
+        rows = result_set.get("Rows", None)
         if rows is None:
-            raise DataError('KeyError `Rows`')
+            raise DataError("KeyError `Rows`")
         processed_rows = []
         if len(rows) > 0:
-            offset = 1 if not self._next_token and self._is_first_row_column_labels(rows) else 0
+            offset = (
+                1
+                if not self._next_token and self._is_first_row_column_labels(rows)
+                else 0
+            )
             processed_rows = [
-                tuple([self._converter.convert(meta.get('Type', None),
-                                               row.get('VarCharValue', None))
-                       for meta, row in zip(self._meta_data, rows[i].get('Data', []))])
+                tuple(
+                    [
+                        self._converter.convert(
+                            meta.get("Type", None), row.get("VarCharValue", None)
+                        )
+                        for meta, row in zip(self._meta_data, rows[i].get("Data", []))
+                    ]
+                )
                 for i in xrange(offset, len(rows))
             ]
         self._rows.extend(processed_rows)
-        self._next_token = response.get('NextToken', None)
+        self._next_token = response.get("NextToken", None)
 
     def _is_first_row_column_labels(self, rows):
-        first_row_data = rows[0].get('Data', [])
+        first_row_data = rows[0].get("Data", [])
         for meta, data in zip(self._meta_data, first_row_data):
-            if meta.get('Name', None) != data.get('VarCharValue', None):
+            if meta.get("Name", None) != data.get("VarCharValue", None):
                 return False
         return True
 
@@ -338,11 +346,11 @@ class AthenaResultSet(CursorIterator):
 class AthenaPandasResultSet(AthenaResultSet):
 
     _parse_dates = [
-        'date',
-        'time',
-        'time with time zone',
-        'timestamp',
-        'timestamp with time zone',
+        "date",
+        "time",
+        "time with time zone",
+        "timestamp",
+        "timestamp with time zone",
     ]
 
     def __init__(self, connection, converter, query_execution, arraysize, retry_config):
@@ -351,40 +359,49 @@ class AthenaPandasResultSet(AthenaResultSet):
             converter=converter,
             query_execution=query_execution,
             arraysize=1,  # Fetch one row to retrieve metadata
-            retry_config=retry_config)
+            retry_config=retry_config,
+        )
         self._arraysize = arraysize
         self._client = self._connection.session.client(
-            's3', region_name=self._connection.region_name, **self._connection._client_kwargs)
-        if self.state == AthenaQueryExecution.STATE_SUCCEEDED and \
-                self.output_location.endswith(('.csv', '.txt')):
+            "s3",
+            region_name=self._connection.region_name,
+            **self._connection._client_kwargs
+        )
+        if (
+            self.state == AthenaQueryExecution.STATE_SUCCEEDED
+            and self.output_location.endswith((".csv", ".txt"))
+        ):
             self._df = self._as_pandas()
         else:
             import pandas as pd
+
             self._df = pd.DataFrame()
         self._iterrows = self._df.iterrows()
 
     @property
     def dtypes(self):
         return {
-            d[0]: self._converter.types[d[1]] for d in self.description
+            d[0]: self._converter.types[d[1]]
+            for d in self.description
             if d[1] in self._converter.types
         }
 
     @property
     def converters(self):
         return {
-            d[0]: self._converter.mappings[d[1]] for d in self.description
+            d[0]: self._converter.mappings[d[1]]
+            for d in self.description
             if d[1] in self._converter.mappings
         }
 
     @property
     def parse_dates(self):
-        return [
-            d[0] for d in self.description if d[1] in self._parse_dates
-        ]
+        return [d[0] for d in self.description if d[1] in self._parse_dates]
 
     def _trunc_date(self, df):
-        times = [d[0] for d in self.description if d[1] in ('time', 'time with time zone')]
+        times = [
+            d[0] for d in self.description if d[1] in ("time", "time with time zone")
+        ]
         if times:
             df.loc[:, times] = df.loc[:, times].apply(lambda r: r.dt.time)
         return df
@@ -425,38 +442,43 @@ class AthenaPandasResultSet(AthenaResultSet):
 
     def _as_pandas(self):
         import pandas as pd
+
         if not self.output_location:
-            raise ProgrammingError('OutputLocation is none or empty.')
+            raise ProgrammingError("OutputLocation is none or empty.")
         bucket, key = parse_output_location(self.output_location)
         try:
-            response = retry_api_call(self._client.get_object,
-                                      config=self._retry_config,
-                                      logger=_logger,
-                                      Bucket=bucket,
-                                      Key=key)
+            response = retry_api_call(
+                self._client.get_object,
+                config=self._retry_config,
+                logger=_logger,
+                Bucket=bucket,
+                Key=key,
+            )
         except Exception as e:
-            _logger.exception('Failed to download csv.')
+            _logger.exception("Failed to download csv.")
             raise_from(OperationalError(*e.args), e)
         else:
-            length = response['ContentLength']
+            length = response["ContentLength"]
             if length:
-                if self.output_location.endswith('.txt'):
-                    sep = '\t'
+                if self.output_location.endswith(".txt"):
+                    sep = "\t"
                     header = None
                     names = [d[0] for d in self.description]
                 else:  # csv format
-                    sep = ','
+                    sep = ","
                     header = 0
                     names = None
-                df = pd.read_csv(io.BytesIO(response['Body'].read()),
-                                 sep=sep,
-                                 header=header,
-                                 names=names,
-                                 dtype=self.dtypes,
-                                 converters=self.converters,
-                                 parse_dates=self.parse_dates,
-                                 infer_datetime_format=True,
-                                 skip_blank_lines=False)
+                df = pd.read_csv(
+                    io.BytesIO(response["Body"].read()),
+                    sep=sep,
+                    header=header,
+                    names=names,
+                    dtype=self.dtypes,
+                    converters=self.converters,
+                    parse_dates=self.parse_dates,
+                    infer_datetime_format=True,
+                    skip_blank_lines=False,
+                )
                 df = self._trunc_date(df)
             else:  # Allow empty response
                 df = pd.DataFrame()

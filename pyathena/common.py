@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import logging
 import time
@@ -21,7 +20,7 @@ class CursorIterator(with_metaclass(ABCMeta, object)):
 
     def __init__(self, **kwargs):
         super(CursorIterator, self).__init__()
-        self.arraysize = kwargs.get('arraysize', self.DEFAULT_FETCH_SIZE)
+        self.arraysize = kwargs.get("arraysize", self.DEFAULT_FETCH_SIZE)
         self._rownumber = None
 
     @property
@@ -31,8 +30,11 @@ class CursorIterator(with_metaclass(ABCMeta, object)):
     @arraysize.setter
     def arraysize(self, value):
         if value <= 0 or value > self.DEFAULT_FETCH_SIZE:
-            raise ProgrammingError('MaxResults is more than maximum allowed length {0}.'.format(
-                self.DEFAULT_FETCH_SIZE))
+            raise ProgrammingError(
+                "MaxResults is more than maximum allowed length {0}.".format(
+                    self.DEFAULT_FETCH_SIZE
+                )
+            )
         self._arraysize = value
 
     @property
@@ -70,10 +72,20 @@ class CursorIterator(with_metaclass(ABCMeta, object)):
 
 
 class BaseCursor(with_metaclass(ABCMeta, object)):
-
-    def __init__(self, connection, s3_staging_dir, schema_name, work_group,
-                 poll_interval, encryption_option, kms_key, converter, formatter,
-                 retry_config, **kwargs):
+    def __init__(
+        self,
+        connection,
+        s3_staging_dir,
+        schema_name,
+        work_group,
+        poll_interval,
+        encryption_option,
+        kms_key,
+        converter,
+        formatter,
+        retry_config,
+        **kwargs
+    ):
         super(BaseCursor, self).__init__(**kwargs)
         self._connection = connection
         self._s3_staging_dir = s3_staging_dir
@@ -91,14 +103,16 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
         return self._connection
 
     def _get_query_execution(self, query_id):
-        request = {'QueryExecutionId': query_id}
+        request = {"QueryExecutionId": query_id}
         try:
-            response = retry_api_call(self._connection.client.get_query_execution,
-                                      config=self._retry_config,
-                                      logger=_logger,
-                                      **request)
+            response = retry_api_call(
+                self._connection.client.get_query_execution,
+                config=self._retry_config,
+                logger=_logger,
+                **request
+            )
         except Exception as e:
-            _logger.exception('Failed to get query execution.')
+            _logger.exception("Failed to get query execution.")
             raise_from(OperationalError(*e.args), e)
         else:
             return AthenaQueryExecution(response)
@@ -106,53 +120,54 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
     def _poll(self, query_id):
         while True:
             query_execution = self._get_query_execution(query_id)
-            if query_execution.state in [AthenaQueryExecution.STATE_SUCCEEDED,
-                                         AthenaQueryExecution.STATE_FAILED,
-                                         AthenaQueryExecution.STATE_CANCELLED]:
+            if query_execution.state in [
+                AthenaQueryExecution.STATE_SUCCEEDED,
+                AthenaQueryExecution.STATE_FAILED,
+                AthenaQueryExecution.STATE_CANCELLED,
+            ]:
                 return query_execution
             else:
                 time.sleep(self._poll_interval)
 
-    def _build_start_query_execution_request(self, query, work_group=None, s3_staging_dir=None):
+    def _build_start_query_execution_request(
+        self, query, work_group=None, s3_staging_dir=None
+    ):
         request = {
-            'QueryString': query,
-            'QueryExecutionContext': {
-                'Database': self._schema_name,
-            },
-            'ResultConfiguration': {}
+            "QueryString": query,
+            "QueryExecutionContext": {"Database": self._schema_name},
+            "ResultConfiguration": {},
         }
         if self._s3_staging_dir or s3_staging_dir:
-            request['ResultConfiguration'].update({
-                'OutputLocation': s3_staging_dir if s3_staging_dir else self._s3_staging_dir
-            })
+            request["ResultConfiguration"].update(
+                {
+                    "OutputLocation": s3_staging_dir
+                    if s3_staging_dir
+                    else self._s3_staging_dir
+                }
+            )
         if self._work_group or work_group:
-            request.update({
-                'WorkGroup': work_group if work_group else self._work_group
-            })
+            request.update(
+                {"WorkGroup": work_group if work_group else self._work_group}
+            )
         if self._encryption_option:
             enc_conf = {
-                'EncryptionOption': self._encryption_option,
+                "EncryptionOption": self._encryption_option,
             }
             if self._kms_key:
-                enc_conf.update({
-                    'KmsKey': self._kms_key
-                })
-            request['ResultConfiguration'].update({
-                'EncryptionConfiguration': enc_conf,
-            })
+                enc_conf.update({"KmsKey": self._kms_key})
+            request["ResultConfiguration"].update({"EncryptionConfiguration": enc_conf})
         return request
 
-    def _build_list_query_executions_request(self, max_results, work_group,
-                                             next_token=None):
-        request = {'MaxResults': max_results}
+    def _build_list_query_executions_request(
+        self, max_results, work_group, next_token=None
+    ):
+        request = {"MaxResults": max_results}
         if self._work_group or work_group:
-            request.update({
-                'WorkGroup': work_group if work_group else self._work_group
-            })
+            request.update(
+                {"WorkGroup": work_group if work_group else self._work_group}
+            )
         if next_token:
-            request.update({
-                'NextToken': next_token
-            })
+            request.update({"NextToken": next_token})
         return request
 
     def _find_previous_query_id(self, query, work_group, cache_size):
@@ -162,56 +177,78 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
             while cache_size > 0:
                 n = min(cache_size, 50)  # 50 is max allowed by AWS API
                 cache_size -= n
-                request = self._build_list_query_executions_request(n, work_group, next_token)
-                response = retry_api_call(self.connection._client.list_query_executions,
-                                          config=self._retry_config,
-                                          logger=_logger,
-                                          **request)
-                query_ids = response.get('QueryExecutionIds', None)
+                request = self._build_list_query_executions_request(
+                    n, work_group, next_token
+                )
+                response = retry_api_call(
+                    self.connection._client.list_query_executions,
+                    config=self._retry_config,
+                    logger=_logger,
+                    **request
+                )
+                query_ids = response.get("QueryExecutionIds", None)
                 if not query_ids:
                     break  # no queries left to check
-                next_token = response.get('NextToken', None)
+                next_token = response.get("NextToken", None)
                 query_executions = retry_api_call(
                     self.connection._client.batch_get_query_execution,
                     config=self._retry_config,
                     logger=_logger,
-                    QueryExecutionIds=query_ids
-                ).get('QueryExecutions', [])
+                    QueryExecutionIds=query_ids,
+                ).get("QueryExecutions", [])
                 for execution in query_executions:
                     if (
-                        execution['Query'] == query and
-                        execution['Status']['State'] == AthenaQueryExecution.STATE_SUCCEEDED and
-                        execution['StatementType'] == AthenaQueryExecution.STATEMENT_TYPE_DML
+                        execution["Query"] == query
+                        and execution["Status"]["State"]
+                        == AthenaQueryExecution.STATE_SUCCEEDED
+                        and execution["StatementType"]
+                        == AthenaQueryExecution.STATEMENT_TYPE_DML
                     ):
-                        query_id = execution['QueryExecutionId']
+                        query_id = execution["QueryExecutionId"]
                         break
                 if query_id or next_token is None:
                     break
         except Exception:
-            _logger.warning('Failed to check the cache. Moving on without cache.')
+            _logger.warning("Failed to check the cache. Moving on without cache.")
         return query_id
 
-    def _execute(self, operation, parameters=None, work_group=None, s3_staging_dir=None,
-                 cache_size=0):
+    def _execute(
+        self,
+        operation,
+        parameters=None,
+        work_group=None,
+        s3_staging_dir=None,
+        cache_size=0,
+    ):
         query = self._formatter.format(operation, parameters)
         _logger.debug(query)
 
-        request = self._build_start_query_execution_request(query, work_group, s3_staging_dir)
+        request = self._build_start_query_execution_request(
+            query, work_group, s3_staging_dir
+        )
         query_id = self._find_previous_query_id(query, work_group, cache_size)
         if query_id is None:
             try:
-                query_id = retry_api_call(self._connection.client.start_query_execution,
-                                          config=self._retry_config,
-                                          logger=_logger,
-                                          **request).get('QueryExecutionId', None)
+                query_id = retry_api_call(
+                    self._connection.client.start_query_execution,
+                    config=self._retry_config,
+                    logger=_logger,
+                    **request
+                ).get("QueryExecutionId", None)
             except Exception as e:
-                _logger.exception('Failed to execute query.')
+                _logger.exception("Failed to execute query.")
                 raise_from(DatabaseError(*e.args), e)
         return query_id
 
     @abstractmethod
-    def execute(self, operation, parameters=None, work_group=None, s3_staging_dir=None,
-                cache_size=0):
+    def execute(
+        self,
+        operation,
+        parameters=None,
+        work_group=None,
+        s3_staging_dir=None,
+        cache_size=0,
+    ):
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
@@ -223,14 +260,16 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
         raise NotImplementedError  # pragma: no cover
 
     def _cancel(self, query_id):
-        request = {'QueryExecutionId': query_id}
+        request = {"QueryExecutionId": query_id}
         try:
-            retry_api_call(self._connection.client.stop_query_execution,
-                           config=self._retry_config,
-                           logger=_logger,
-                           **request)
+            retry_api_call(
+                self._connection.client.stop_query_execution,
+                config=self._retry_config,
+                logger=_logger,
+                **request
+            )
         except Exception as e:
-            _logger.exception('Failed to cancel query.')
+            _logger.exception("Failed to cancel query.")
             raise_from(OperationalError(*e.args), e)
 
     def setinputsizes(self, sizes):
