@@ -73,27 +73,27 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
     def test_complex(self, cursor):
         cursor.execute(
             """
-        SELECT
-          col_boolean
-          ,col_tinyint
-          ,col_smallint
-          ,col_int
-          ,col_bigint
-          ,col_float
-          ,col_double
-          ,col_string
-          ,col_timestamp
-          ,CAST(col_timestamp AS time) AS col_time
-          ,col_date
-          ,col_binary
-          ,col_array
-          ,CAST(col_array AS json) AS col_array_json
-          ,col_map
-          ,CAST(col_map AS json) AS col_map_json
-          ,col_struct
-          ,col_decimal
-        FROM one_row_complex
-        """
+            SELECT
+              col_boolean
+              ,col_tinyint
+              ,col_smallint
+              ,col_int
+              ,col_bigint
+              ,col_float
+              ,col_double
+              ,col_string
+              ,col_timestamp
+              ,CAST(col_timestamp AS time) AS col_time
+              ,col_date
+              ,col_binary
+              ,col_array
+              ,CAST(col_array AS json) AS col_array_json
+              ,col_map
+              ,CAST(col_map AS json) AS col_map_json
+              ,col_struct
+              ,col_decimal
+            FROM one_row_complex
+            """
         )
         self.assertEqual(
             cursor.description,
@@ -181,27 +181,27 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
     def test_complex_as_pandas(self, cursor):
         df = cursor.execute(
             """
-        SELECT
-          col_boolean
-          ,col_tinyint
-          ,col_smallint
-          ,col_int
-          ,col_bigint
-          ,col_float
-          ,col_double
-          ,col_string
-          ,col_timestamp
-          ,CAST(col_timestamp AS time) AS col_time
-          ,col_date
-          ,col_binary
-          ,col_array
-          ,CAST(col_array AS json) AS col_array_json
-          ,col_map
-          ,CAST(col_map AS json) AS col_map_json
-          ,col_struct
-          ,col_decimal
-        FROM one_row_complex
-        """
+            SELECT
+              col_boolean
+              ,col_tinyint
+              ,col_smallint
+              ,col_int
+              ,col_bigint
+              ,col_float
+              ,col_double
+              ,col_string
+              ,col_timestamp
+              ,CAST(col_timestamp AS time) AS col_time
+              ,col_date
+              ,col_binary
+              ,col_array
+              ,CAST(col_array AS json) AS col_array_json
+              ,col_map
+              ,CAST(col_map AS json) AS col_map_json
+              ,col_struct
+              ,col_decimal
+            FROM one_row_complex
+            """
         ).as_pandas()
         self.assertEqual(df.shape[0], 1)
         self.assertEqual(df.shape[1], 18)
@@ -351,12 +351,12 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
         location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, S3_PREFIX, table)
         df = cursor.execute(
             """
-        CREATE EXTERNAL TABLE IF NOT EXISTS
-        {schema}.{table} (number_of_rows INT)
-        ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
-        LINES TERMINATED BY '\n' STORED AS TEXTFILE
-        LOCATION '{location}'
-        """.format(
+            CREATE EXTERNAL TABLE IF NOT EXISTS
+            {schema}.{table} (number_of_rows INT)
+            ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+            LINES TERMINATED BY '\n' STORED AS TEXTFILE
+            LOCATION '{location}'
+            """.format(
                 schema=SCHEMA, table=table, location=location
             )
         ).as_pandas()
@@ -367,8 +367,8 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
     def test_integer_na_values(self, cursor):
         df = cursor.execute(
             """
-        SELECT * FROM integer_na_values
-        """
+            SELECT * FROM integer_na_values
+            """
         ).as_pandas()
         rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
         version = float(re.search(r"^([\d]+\.[\d]+)\..+", pd.__version__).group(1))
@@ -381,8 +381,8 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
     def test_boolean_na_values(self, cursor):
         df = cursor.execute(
             """
-        SELECT * FROM boolean_na_values
-        """
+            SELECT * FROM boolean_na_values
+            """
         ).as_pandas()
         rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
         self.assertEqual(rows, [(True, False), (False, None), (None, None)])
@@ -409,7 +409,7 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
     def test_not_skip_blank_lines(self, cursor):
         cursor.execute(
             """
-        select * from (values (1), (NULL))
-        """
+            select * from (values (1), (NULL))
+            """
         )
         self.assertEqual(len(cursor.fetchall()), 2)

@@ -146,8 +146,8 @@ class TestUtil(unittest.TestCase, WithConnect):
     def test_as_pandas_integer_na_values(self, cursor):
         cursor.execute(
             """
-        SELECT * FROM integer_na_values
-        """
+            SELECT * FROM integer_na_values
+            """
         )
         df = as_pandas(cursor, coerce_float=True)
         rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
@@ -206,20 +206,20 @@ class TestUtil(unittest.TestCase, WithConnect):
             actual.strip(),
             textwrap.dedent(
                 """
-            CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
-            `col_int` INT,
-            `col_bigint` BIGINT,
-            `col_float` FLOAT,
-            `col_double` DOUBLE,
-            `col_string` STRING,
-            `col_boolean` BOOLEAN,
-            `col_timestamp` TIMESTAMP,
-            `col_date` DATE,
-            `col_timedelta` BIGINT
-            )
-            STORED AS PARQUET
-            LOCATION 's3://bucket/path/to/'
-            """
+                CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
+                `col_int` INT,
+                `col_bigint` BIGINT,
+                `col_float` FLOAT,
+                `col_double` DOUBLE,
+                `col_string` STRING,
+                `col_boolean` BOOLEAN,
+                `col_timestamp` TIMESTAMP,
+                `col_date` DATE,
+                `col_timedelta` BIGINT
+                )
+                STORED AS PARQUET
+                LOCATION 's3://bucket/path/to/'
+                """
             ).strip(),
         )
 
@@ -235,21 +235,21 @@ class TestUtil(unittest.TestCase, WithConnect):
             actual.strip(),
             textwrap.dedent(
                 """
-            CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
-            `col_int` INT,
-            `col_bigint` BIGINT,
-            `col_float` FLOAT,
-            `col_double` DOUBLE,
-            `col_string` STRING,
-            `col_boolean` BOOLEAN,
-            `col_timestamp` TIMESTAMP,
-            `col_date` DATE,
-            `col_timedelta` BIGINT
-            )
-            STORED AS PARQUET
-            LOCATION 's3://bucket/path/to/'
-            TBLPROPERTIES ('parquet.compress'='SNAPPY')
-            """
+                CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
+                `col_int` INT,
+                `col_bigint` BIGINT,
+                `col_float` FLOAT,
+                `col_double` DOUBLE,
+                `col_string` STRING,
+                `col_boolean` BOOLEAN,
+                `col_timestamp` TIMESTAMP,
+                `col_date` DATE,
+                `col_timedelta` BIGINT
+                )
+                STORED AS PARQUET
+                LOCATION 's3://bucket/path/to/'
+                TBLPROPERTIES ('parquet.compress'='SNAPPY')
+                """
             ).strip(),
         )
 
@@ -265,22 +265,22 @@ class TestUtil(unittest.TestCase, WithConnect):
             actual.strip(),
             textwrap.dedent(
                 """
-            CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
-            `col_bigint` BIGINT,
-            `col_float` FLOAT,
-            `col_double` DOUBLE,
-            `col_string` STRING,
-            `col_boolean` BOOLEAN,
-            `col_timestamp` TIMESTAMP,
-            `col_date` DATE,
-            `col_timedelta` BIGINT
-            )
-            PARTITIONED BY (
-            `col_int` INT
-            )
-            STORED AS PARQUET
-            LOCATION 's3://bucket/path/to/'
-            """
+                CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
+                `col_bigint` BIGINT,
+                `col_float` FLOAT,
+                `col_double` DOUBLE,
+                `col_string` STRING,
+                `col_boolean` BOOLEAN,
+                `col_timestamp` TIMESTAMP,
+                `col_date` DATE,
+                `col_timedelta` BIGINT
+                )
+                PARTITIONED BY (
+                `col_int` INT
+                )
+                STORED AS PARQUET
+                LOCATION 's3://bucket/path/to/'
+                """
             ).strip(),
         )
 
@@ -296,22 +296,22 @@ class TestUtil(unittest.TestCase, WithConnect):
             actual.strip(),
             textwrap.dedent(
                 """
-            CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
-            `col_bigint` BIGINT,
-            `col_float` FLOAT,
-            `col_double` DOUBLE,
-            `col_boolean` BOOLEAN,
-            `col_timestamp` TIMESTAMP,
-            `col_date` DATE,
-            `col_timedelta` BIGINT
-            )
-            PARTITIONED BY (
-            `col_int` INT,
-            `col_string` STRING
-            )
-            STORED AS PARQUET
-            LOCATION 's3://bucket/path/to/'
-            """
+                CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
+                `col_bigint` BIGINT,
+                `col_float` FLOAT,
+                `col_double` DOUBLE,
+                `col_boolean` BOOLEAN,
+                `col_timestamp` TIMESTAMP,
+                `col_date` DATE,
+                `col_timedelta` BIGINT
+                )
+                PARTITIONED BY (
+                `col_int` INT,
+                `col_string` STRING
+                )
+                STORED AS PARQUET
+                LOCATION 's3://bucket/path/to/'
+                """
             ).strip(),
         )
 

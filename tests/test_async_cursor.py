@@ -178,10 +178,10 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
     def test_cancel(self, cursor):
         query_id, future = cursor.execute(
             """
-                           SELECT a.a * rand(), b.a * rand()
-                           FROM many_rows a
-                           CROSS JOIN many_rows b
-                           """
+            SELECT a.a * rand(), b.a * rand()
+            FROM many_rows a
+            CROSS JOIN many_rows b
+            """
         )
         time.sleep(randint(1, 5))
         cursor.cancel(query_id)

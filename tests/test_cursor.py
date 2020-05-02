@@ -186,30 +186,30 @@ class TestCursor(unittest.TestCase, WithConnect):
     def test_contain_special_character_query(self, cursor):
         cursor.execute(
             """
-                       SELECT col_string FROM one_row_complex
-                       WHERE col_string LIKE '%str%'
-                       """
+            SELECT col_string FROM one_row_complex
+            WHERE col_string LIKE '%str%'
+            """
         )
         self.assertEqual(cursor.fetchall(), [("a string",)])
         cursor.execute(
             """
-                       SELECT col_string FROM one_row_complex
-                       WHERE col_string LIKE '%%str%%'
-                       """
+            SELECT col_string FROM one_row_complex
+            WHERE col_string LIKE '%%str%%'
+            """
         )
         self.assertEqual(cursor.fetchall(), [("a string",)])
         cursor.execute(
             """
-                       SELECT col_string, '%' FROM one_row_complex
-                       WHERE col_string LIKE '%str%'
-                       """
+            SELECT col_string, '%' FROM one_row_complex
+            WHERE col_string LIKE '%str%'
+            """
         )
         self.assertEqual(cursor.fetchall(), [("a string", "%")])
         cursor.execute(
             """
-                       SELECT col_string, '%%' FROM one_row_complex
-                       WHERE col_string LIKE '%%str%%'
-                       """
+            SELECT col_string, '%%' FROM one_row_complex
+            WHERE col_string LIKE '%%str%%'
+            """
         )
         self.assertEqual(cursor.fetchall(), [("a string", "%%")])
 
@@ -219,9 +219,9 @@ class TestCursor(unittest.TestCase, WithConnect):
             TypeError,
             lambda: cursor.execute(
                 """
-            SELECT col_string, %(param)s FROM one_row_complex
-            WHERE col_string LIKE '%str%'
-            """,
+                SELECT col_string, %(param)s FROM one_row_complex
+                WHERE col_string LIKE '%str%'
+                """,
                 {"param": "a string"},
             ),
         )
@@ -237,9 +237,9 @@ class TestCursor(unittest.TestCase, WithConnect):
             ValueError,
             lambda: cursor.execute(
                 """
-            SELECT col_string, '%' FROM one_row_complex
-            WHERE col_string LIKE %(param)s
-            """,
+                SELECT col_string, '%' FROM one_row_complex
+                WHERE col_string LIKE %(param)s
+                """,
                 {"param": "%str%"},
             ),
         )
@@ -337,27 +337,27 @@ class TestCursor(unittest.TestCase, WithConnect):
     def test_complex(self, cursor):
         cursor.execute(
             """
-        SELECT
-          col_boolean
-          ,col_tinyint
-          ,col_smallint
-          ,col_int
-          ,col_bigint
-          ,col_float
-          ,col_double
-          ,col_string
-          ,col_timestamp
-          ,CAST(col_timestamp AS time) AS col_time
-          ,col_date
-          ,col_binary
-          ,col_array
-          ,CAST(col_array AS json) AS col_array_json
-          ,col_map
-          ,CAST(col_map AS json) AS col_map_json
-          ,col_struct
-          ,col_decimal
-        FROM one_row_complex
-        """
+            SELECT
+              col_boolean
+              ,col_tinyint
+              ,col_smallint
+              ,col_int
+              ,col_bigint
+              ,col_float
+              ,col_double
+              ,col_string
+              ,col_timestamp
+              ,CAST(col_timestamp AS time) AS col_time
+              ,col_date
+              ,col_binary
+              ,col_array
+              ,CAST(col_array AS json) AS col_array_json
+              ,col_map
+              ,CAST(col_map AS json) AS col_map_json
+              ,col_struct
+              ,col_decimal
+            FROM one_row_complex
+            """
         )
         self.assertEqual(
             cursor.description,
@@ -446,10 +446,10 @@ class TestCursor(unittest.TestCase, WithConnect):
                 DatabaseError,
                 lambda: cursor.execute(
                     """
-            SELECT a.a * rand(), b.a * rand()
-            FROM many_rows a
-            CROSS JOIN many_rows b
-            """
+                    SELECT a.a * rand(), b.a * rand()
+                    FROM many_rows a
+                    CROSS JOIN many_rows b
+                    """
                 ),
             )
 
@@ -488,9 +488,9 @@ class TestCursor(unittest.TestCase, WithConnect):
         for i in xrange(10):
             cursor.execute(
                 """
-                           ALTER TABLE partition_table ADD PARTITION (b=%(b)d)
-                           LOCATION %(location)s
-                           """,
+                ALTER TABLE partition_table ADD PARTITION (b=%(b)d)
+                LOCATION %(location)s
+                """,
                 {"b": i, "location": location},
             )
         cursor.execute("SHOW PARTITIONS partition_table")

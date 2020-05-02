@@ -358,8 +358,8 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     def test_contain_percents_character_query(self, engine, conn):
         query = sqlalchemy.sql.text(
             """
-        SELECT date_parse('20191030', '%Y%m%d')
-        """
+            SELECT date_parse('20191030', '%Y%m%d')
+            """
         )
         result = engine.execute(query)
         self.assertEqual(result.fetchall(), [(datetime(2019, 10, 30),)])
@@ -368,8 +368,8 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     def test_query_with_parameter(self, engine, conn):
         query = sqlalchemy.sql.text(
             """
-        SELECT :word
-        """
+            SELECT :word
+            """
         )
         result = engine.execute(query, word="cat")
         self.assertEqual(result.fetchall(), [("cat",)])
@@ -378,17 +378,17 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     def test_contain_percents_character_query_with_parameter(self, engine, conn):
         query = sqlalchemy.sql.text(
             """
-        SELECT date_parse('20191030', '%Y%m%d'), :word
-        """
+            SELECT date_parse('20191030', '%Y%m%d'), :word
+            """
         )
         result = engine.execute(query, word="cat")
         self.assertEqual(result.fetchall(), [(datetime(2019, 10, 30), "cat")])
 
         query = sqlalchemy.sql.text(
             """
-        SELECT col_string FROM one_row_complex
-        WHERE col_string LIKE 'a%' OR col_string LIKE :param
-        """
+            SELECT col_string FROM one_row_complex
+            WHERE col_string LIKE 'a%' OR col_string LIKE :param
+            """
         )
         result = engine.execute(query, param="b%")
         self.assertEqual(result.fetchall(), [("a string",)])

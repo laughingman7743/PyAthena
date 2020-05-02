@@ -184,10 +184,10 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
     def test_cancel(self, cursor):
         query_id, future = cursor.execute(
             """
-                           SELECT a.a * rand(), b.a * rand()
-                           FROM many_rows a
-                           CROSS JOIN many_rows b
-                           """
+            SELECT a.a * rand(), b.a * rand()
+            FROM many_rows a
+            CROSS JOIN many_rows b
+            """
         )
         time.sleep(randint(1, 5))
         cursor.cancel(query_id)
@@ -221,12 +221,12 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, S3_PREFIX, table)
         query_id, future = cursor.execute(
             """
-        CREATE EXTERNAL TABLE IF NOT EXISTS
-        {schema}.{table} (number_of_rows INT)
-        ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
-        LINES TERMINATED BY '\n' STORED AS TEXTFILE
-        LOCATION '{location}'
-        """.format(
+            CREATE EXTERNAL TABLE IF NOT EXISTS
+            {schema}.{table} (number_of_rows INT)
+            ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+            LINES TERMINATED BY '\n' STORED AS TEXTFILE
+            LOCATION '{location}'
+            """.format(
                 schema=SCHEMA, table=table, location=location
             )
         )
