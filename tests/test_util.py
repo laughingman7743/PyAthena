@@ -150,7 +150,7 @@ class TestUtil(unittest.TestCase, WithConnect):
         """
         )
         df = as_pandas(cursor, coerce_float=True)
-        rows = [tuple([row["a"], row["b"],]) for _, row in df.iterrows()]
+        rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
         # TODO AssertionError: Lists differ:
         #  [(1.0, 2.0), (1.0, nan), (nan, nan)] != [(1.0, 2.0), (1.0, nan), (nan, nan)]
         # self.assertEqual(rows, [
@@ -158,7 +158,7 @@ class TestUtil(unittest.TestCase, WithConnect):
         #     (1.0, np.nan),
         #     (np.nan, np.nan),
         # ])
-        np.testing.assert_array_equal(rows, [(1, 2), (1, np.nan), (np.nan, np.nan),])
+        np.testing.assert_array_equal(rows, [(1, 2), (1, np.nan), (np.nan, np.nan)])
 
     @with_cursor()
     def test_as_pandas_boolean_na_values(self, cursor):
@@ -168,8 +168,8 @@ class TestUtil(unittest.TestCase, WithConnect):
         """
         )
         df = as_pandas(cursor)
-        rows = [tuple([row["a"], row["b"],]) for _, row in df.iterrows()]
-        self.assertEqual(rows, [(True, False), (False, None), (None, None),])
+        rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
+        self.assertEqual(rows, [(True, False), (False, None), (None, None)])
 
     def test_generate_ddl(self):
         # TODO Add binary column (After dropping support for Python 2.7)
@@ -475,7 +475,7 @@ class TestUtil(unittest.TestCase, WithConnect):
         self.assertEqual(cursor.fetchall(), [(0, 1)])
         self.assertEqual(
             [(d[0], d[1]) for d in cursor.description],
-            [("col_index", "bigint"), ("col_int", "integer"),],
+            [("col_index", "bigint"), ("col_int", "integer")],
         )
 
     @with_cursor()
@@ -504,7 +504,7 @@ class TestUtil(unittest.TestCase, WithConnect):
             sorted(cursor.fetchall()), [("col_int={0}".format(i),) for i in xrange(10)]
         )
         cursor.execute("SELECT COUNT(*) FROM {0}".format(table_name))
-        self.assertEqual(cursor.fetchall(), [(10,),])
+        self.assertEqual(cursor.fetchall(), [(10,)])
 
     @with_cursor()
     def test_to_sql_with_multiple_partitions(self, cursor):
@@ -534,7 +534,7 @@ class TestUtil(unittest.TestCase, WithConnect):
             + [("col_int={0}/col_string=b".format(i),) for i in xrange(5, 10)],
         )
         cursor.execute("SELECT COUNT(*) FROM {0}".format(table_name))
-        self.assertEqual(cursor.fetchall(), [(10,),])
+        self.assertEqual(cursor.fetchall(), [(10,)])
 
     @with_cursor()
     def test_to_sql_invalid_args(self, cursor):

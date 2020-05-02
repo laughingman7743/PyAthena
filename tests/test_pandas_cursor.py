@@ -370,12 +370,12 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
         SELECT * FROM integer_na_values
         """
         ).as_pandas()
-        rows = [tuple([row["a"], row["b"],]) for _, row in df.iterrows()]
+        rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
         version = float(re.search(r"^([\d]+\.[\d]+)\..+", pd.__version__).group(1))
         if version >= 1.0:
-            self.assertEqual(rows, [(1, 2), (1, pd.NA), (pd.NA, pd.NA),])
+            self.assertEqual(rows, [(1, 2), (1, pd.NA), (pd.NA, pd.NA)])
         else:
-            self.assertEqual(rows, [(1, 2), (1, np.nan), (np.nan, np.nan),])
+            self.assertEqual(rows, [(1, 2), (1, np.nan), (np.nan, np.nan)])
 
     @with_pandas_cursor()
     def test_boolean_na_values(self, cursor):
@@ -384,8 +384,8 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
         SELECT * FROM boolean_na_values
         """
         ).as_pandas()
-        rows = [tuple([row["a"], row["b"],]) for _, row in df.iterrows()]
-        self.assertEqual(rows, [(True, False), (False, None), (None, None),])
+        rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
+        self.assertEqual(rows, [(True, False), (False, None), (None, None)])
 
     @with_pandas_cursor()
     def test_executemany(self, cursor):
