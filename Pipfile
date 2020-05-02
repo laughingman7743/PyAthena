@@ -3,6 +3,9 @@ url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
 
+[pipenv]
+allow_prereleases = true
+
 [packages]
 e1839a8 = {path = ".",extras = ["sqlalchemy", "pandas"],editable = true}
 
@@ -14,4 +17,6 @@ wheel = "*"
 pytest = ">=3.5"
 pytest-cov = "*"
 pytest-flake8 = ">=1.0.1"
+pytest-black = "*"
+pytest-isort = "*"
 pytest-xdist = "*"
