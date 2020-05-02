@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import math
 import numbers
@@ -9,13 +8,28 @@ import re
 import tenacity
 from future.utils import raise_from
 from sqlalchemy import exc, util
-from sqlalchemy.engine import reflection, Engine
+from sqlalchemy.engine import Engine, reflection
 from sqlalchemy.engine.default import DefaultDialect
 from sqlalchemy.exc import NoSuchTableError, OperationalError
-from sqlalchemy.sql.compiler import (BIND_PARAMS, BIND_PARAMS_ESC,
-                                     IdentifierPreparer, SQLCompiler, DDLCompiler)
-from sqlalchemy.sql.sqltypes import (BIGINT, BINARY, BOOLEAN, DATE, DECIMAL, FLOAT,
-                                     INTEGER, NULLTYPE, STRINGTYPE, TIMESTAMP)
+from sqlalchemy.sql.compiler import (
+    BIND_PARAMS,
+    BIND_PARAMS_ESC,
+    DDLCompiler,
+    IdentifierPreparer,
+    SQLCompiler,
+)
+from sqlalchemy.sql.sqltypes import (
+    BIGINT,
+    BINARY,
+    BOOLEAN,
+    DATE,
+    DECIMAL,
+    FLOAT,
+    INTEGER,
+    NULLTYPE,
+    STRINGTYPE,
+    TIMESTAMP,
+)
 from tenacity import retry_if_exception, stop_after_attempt, wait_exponential
 
 import pyathena
@@ -25,6 +39,7 @@ class UniversalSet(object):
     """UniversalSet
 
     https://github.com/dropbox/PyHive/blob/master/pyhive/common.py"""
+
     def __contains__(self, item):
         return True
 
@@ -33,19 +48,19 @@ class AthenaDMLIdentifierPreparer(IdentifierPreparer):
     """PrestoIdentifierPreparer
 
     https://github.com/dropbox/PyHive/blob/master/pyhive/sqlalchemy_presto.py"""
+
     reserved_words = UniversalSet()
 
 
 class AthenaDDLIdentifierPreparer(IdentifierPreparer):
-
     def __init__(
-            self,
-            dialect,
-            initial_quote='`',
-            final_quote=None,
-            escape_quote='`',
-            quote_case_sensitive_collations=True,
-            omit_schema=False
+        self,
+        dialect,
+        initial_quote="`",
+        final_quote=None,
+        escape_quote="`",
+        quote_case_sensitive_collations=True,
+        omit_schema=False,
     ):
         super(AthenaDDLIdentifierPreparer, self).__init__(
             dialect=dialect,
@@ -53,7 +68,7 @@ class AthenaDDLIdentifierPreparer(IdentifierPreparer):
             final_quote=final_quote,
             escape_quote=escape_quote,
             quote_case_sensitive_collations=quote_case_sensitive_collations,
-            omit_schema=omit_schema
+            omit_schema=omit_schema,
         )
 
 
@@ -63,7 +78,7 @@ class AthenaStatementCompiler(SQLCompiler):
     https://github.com/dropbox/PyHive/blob/master/pyhive/sqlalchemy_presto.py"""
 
     def visit_char_length_func(self, fn, **kw):
-        return 'length{0}'.format(self.function_argspec(fn, **kw))
+        return "length{0}".format(self.function_argspec(fn, **kw))
 
     def visit_textclause(self, textclause, **kw):
         def do_bindparam(m):
@@ -83,14 +98,11 @@ class AthenaStatementCompiler(SQLCompiler):
             # un-escape any \:params
             return BIND_PARAMS_ESC.sub(
                 lambda m: m.group(1),
-                BIND_PARAMS.sub(
-                    do_bindparam,
-                    self.post_process_text(textclause.text))
+                BIND_PARAMS.sub(do_bindparam, self.post_process_text(textclause.text)),
             )
 
 
 class AthenaDDLCompiler(DDLCompiler):
-
     @property
     def preparer(self):
         return self._preparer
@@ -100,29 +112,31 @@ class AthenaDDLCompiler(DDLCompiler):
         pass
 
     def __init__(
-            self,
-            dialect,
-            statement,
-            bind=None,
-            schema_translate_map=None,
-            compile_kwargs=util.immutabledict()):
+        self,
+        dialect,
+        statement,
+        bind=None,
+        schema_translate_map=None,
+        compile_kwargs=util.immutabledict(),
+    ):
         self._preparer = AthenaDDLIdentifierPreparer(dialect)
         super(AthenaDDLCompiler, self).__init__(
             dialect=dialect,
             statement=statement,
             bind=bind,
             schema_translate_map=schema_translate_map,
-            compile_kwargs=compile_kwargs)
+            compile_kwargs=compile_kwargs,
+        )
 
     def visit_create_table(self, create):
         table = create.element
         preparer = self.preparer
 
-        text = '\nCREATE EXTERNAL '
-        text += 'TABLE ' + preparer.format_table(table) + ' '
-        text += '('
+        text = "\nCREATE EXTERNAL "
+        text += "TABLE " + preparer.format_table(table) + " "
+        text += "("
 
-        separator = '\n'
+        separator = "\n"
         for create_column in create.columns:
             column = create_column.element
             try:
@@ -135,7 +149,8 @@ class AthenaDDLCompiler(DDLCompiler):
                 util.raise_from_cause(
                     exc.CompileError(
                         util.u("(in table '{0}', column '{1}'): {2}").format(
-                            table.description, column.name, ce.args[0])
+                            table.description, column.name, ce.args[0]
+                        )
                     )
                 )
 
@@ -152,47 +167,54 @@ class AthenaDDLCompiler(DDLCompiler):
     def post_create_table(self, table):
         raw_connection = table.bind.raw_connection()
         # TODO Supports orc, avro, json, csv or tsv format
-        text = 'STORED AS PARQUET\n'
+        text = "STORED AS PARQUET\n"
 
-        location = raw_connection._kwargs['s3_dir'] if 's3_dir' in raw_connection._kwargs \
+        location = (
+            raw_connection._kwargs["s3_dir"]
+            if "s3_dir" in raw_connection._kwargs
             else raw_connection.s3_staging_dir
+        )
         if not location:
-            raise exc.CompileError('`s3_dir` or `s3_staging_dir` parameter is required'
-                                   ' in the connection string.')
+            raise exc.CompileError(
+                "`s3_dir` or `s3_staging_dir` parameter is required"
+                " in the connection string."
+            )
         text += "LOCATION '{0}{1}/{2}/'\n".format(location, table.schema, table.name)
 
-        compression = raw_connection._kwargs.get('compression')
+        compression = raw_connection._kwargs.get("compression")
         if compression:
-            text += "TBLPROPERTIES ('parquet.compress'='{0}')\n".format(compression.upper())
+            text += "TBLPROPERTIES ('parquet.compress'='{0}')\n".format(
+                compression.upper()
+            )
 
         return text
 
 
 _TYPE_MAPPINGS = {
-    'boolean': BOOLEAN,
-    'real': FLOAT,
-    'float': FLOAT,
-    'double': FLOAT,
-    'tinyint': INTEGER,
-    'smallint': INTEGER,
-    'integer': INTEGER,
-    'bigint': BIGINT,
-    'decimal': DECIMAL,
-    'char': STRINGTYPE,
-    'varchar': STRINGTYPE,
-    'array': STRINGTYPE,
-    'row': STRINGTYPE,  # StructType
-    'varbinary': BINARY,
-    'map': STRINGTYPE,
-    'date': DATE,
-    'timestamp': TIMESTAMP,
+    "boolean": BOOLEAN,
+    "real": FLOAT,
+    "float": FLOAT,
+    "double": FLOAT,
+    "tinyint": INTEGER,
+    "smallint": INTEGER,
+    "integer": INTEGER,
+    "bigint": BIGINT,
+    "decimal": DECIMAL,
+    "char": STRINGTYPE,
+    "varchar": STRINGTYPE,
+    "array": STRINGTYPE,
+    "row": STRINGTYPE,  # StructType
+    "varbinary": BINARY,
+    "map": STRINGTYPE,
+    "date": DATE,
+    "timestamp": TIMESTAMP,
 }
 
 
 class AthenaDialect(DefaultDialect):
 
-    name = 'awsathena'
-    driver = 'rest'
+    name = "awsathena"
+    driver = "rest"
     preparer = AthenaDMLIdentifierPreparer
     statement_compiler = AthenaStatementCompiler
     ddl_compiler = AthenaDDLCompiler
@@ -210,8 +232,9 @@ class AthenaDialect(DefaultDialect):
     postfetch_lastrowid = False
 
     _pattern_data_catlog_exception = re.compile(
-        r'(((Database|Namespace)\ (?P<schema>.+))|(Table\ (?P<table>.+)))\ not\ found\.')
-    _pattern_column_type = re.compile(r'^([a-zA-Z]+)($|\(.+\)$)')
+        r"(((Database|Namespace)\ (?P<schema>.+))|(Table\ (?P<table>.+)))\ not\ found\."
+    )
+    _pattern_column_type = re.compile(r"^([a-zA-Z]+)($|\(.+\)$)")
 
     @classmethod
     def dbapi(cls):
@@ -228,11 +251,12 @@ class AthenaDialect(DefaultDialect):
         #   {aws_access_key_id}:{aws_secret_access_key}@athena.{region_name}.amazonaws.com:443/
         #   {schema_name}?s3_staging_dir={s3_staging_dir}&...
         opts = {
-            'aws_access_key_id': url.username if url.username else None,
-            'aws_secret_access_key': url.password if url.password else None,
-            'region_name': re.sub(r'^athena\.([a-z0-9-]+)\.amazonaws\.(com|com.cn)$', r'\1',
-                                  url.host),
-            'schema_name': url.database if url.database else 'default'
+            "aws_access_key_id": url.username if url.username else None,
+            "aws_secret_access_key": url.password if url.password else None,
+            "region_name": re.sub(
+                r"^athena\.([a-z0-9-]+)\.amazonaws\.(com|com.cn)$", r"\1", url.host
+            ),
+            "schema_name": url.database if url.database else "default",
         }
         opts.update(url.query)
         return [[], opts]
@@ -254,7 +278,9 @@ class AthenaDialect(DefaultDialect):
                 SELECT table_name
                 FROM information_schema.tables
                 WHERE table_schema = '{schema}'
-                """.format(schema=schema)
+                """.format(
+            schema=schema
+        )
         return [row.table_name for row in connection.execute(query).fetchall()]
 
     def has_table(self, connection, table_name, schema=None):
@@ -281,26 +307,39 @@ class AthenaDialect(DefaultDialect):
                 FROM information_schema.columns
                 WHERE table_schema = '{schema}'
                 AND table_name = '{table}'
-                """.format(schema=schema, table=table_name)
+                """.format(
+            schema=schema, table=table_name
+        )
         retry_config = raw_connection.retry_config
         retry = tenacity.Retrying(
             retry=retry_if_exception(
-                lambda exc: self._retry_if_data_catalog_exception(exc, schema, table_name)),
+                lambda exc: self._retry_if_data_catalog_exception(
+                    exc, schema, table_name
+                )
+            ),
             stop=stop_after_attempt(retry_config.attempt),
-            wait=wait_exponential(multiplier=retry_config.multiplier,
-                                  max=retry_config.max_delay,
-                                  exp_base=retry_config.exponential_base),
-            reraise=True)
+            wait=wait_exponential(
+                multiplier=retry_config.multiplier,
+                max=retry_config.max_delay,
+                exp_base=retry_config.exponential_base,
+            ),
+            reraise=True,
+        )
         try:
             return [
                 {
-                    'name': row.column_name,
-                    'type': _TYPE_MAPPINGS.get(self._get_column_type(row.data_type), NULLTYPE),
-                    'nullable': True if row.is_nullable == 'YES' else False,
-                    'default': row.column_default if not self._is_nan(row.column_default) else None,
-                    'ordinal_position': row.ordinal_position,
-                    'comment': row.comment,
-                } for row in retry(connection.execute, query).fetchall()
+                    "name": row.column_name,
+                    "type": _TYPE_MAPPINGS.get(
+                        self._get_column_type(row.data_type), NULLTYPE
+                    ),
+                    "nullable": True if row.is_nullable == "YES" else False,
+                    "default": row.column_default
+                    if not self._is_nan(row.column_default)
+                    else None,
+                    "ordinal_position": row.ordinal_position,
+                    "comment": row.comment,
+                }
+                for row in retry(connection.execute, query).fetchall()
             ]
         except OperationalError as e:
             if not self._retry_if_data_catalog_exception(e, schema, table_name):
@@ -313,13 +352,14 @@ class AthenaDialect(DefaultDialect):
             return False
 
         match = self._pattern_data_catlog_exception.search(str(exc))
-        if match and (match.group('schema') == schema or
-                      match.group('table') == table_name):
+        if match and (
+            match.group("schema") == schema or match.group("table") == table_name
+        ):
             return False
         return True
 
     def _get_column_type(self, type_):
-        return self._pattern_column_type.sub(r'\1', type_)
+        return self._pattern_column_type.sub(r"\1", type_)
 
     def get_foreign_keys(self, connection, table_name, schema=None, **kw):
         # Athena has no support for foreign keys.
