@@ -70,27 +70,27 @@ class TestUtil(unittest.TestCase, WithConnect):
     def test_as_pandas(self, cursor):
         cursor.execute(
             """
-        SELECT
-          col_boolean
-          ,col_tinyint
-          ,col_smallint
-          ,col_int
-          ,col_bigint
-          ,col_float
-          ,col_double
-          ,col_string
-          ,col_timestamp
-          ,CAST(col_timestamp AS time) AS col_time
-          ,col_date
-          ,col_binary
-          ,col_array
-          ,CAST(col_array AS json) AS col_array_json
-          ,col_map
-          ,CAST(col_map AS json) AS col_map_json
-          ,col_struct
-          ,col_decimal
-        FROM one_row_complex
-        """
+            SELECT
+              col_boolean
+              , col_tinyint
+              , col_smallint
+              , col_int
+              , col_bigint
+              , col_float
+              , col_double
+              , col_string
+              , col_timestamp
+              , CAST(col_timestamp AS time) AS col_time
+              , col_date
+              , col_binary
+              , col_array
+              , CAST(col_array AS json) AS col_array_json
+              , col_map
+              , CAST(col_map AS json) AS col_map_json
+              , col_struct
+              , col_decimal
+            FROM one_row_complex
+            """
         )
         df = as_pandas(cursor)
         rows = [
@@ -164,8 +164,8 @@ class TestUtil(unittest.TestCase, WithConnect):
     def test_as_pandas_boolean_na_values(self, cursor):
         cursor.execute(
             """
-        SELECT * FROM boolean_na_values
-        """
+            SELECT * FROM boolean_na_values
+            """
         )
         df = as_pandas(cursor)
         rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
