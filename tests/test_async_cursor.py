@@ -37,6 +37,7 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         self.assertIsInstance(result_set.submission_date_time, datetime)
         self.assertIsNotNone(result_set.data_scanned_in_bytes)
         self.assertIsNotNone(result_set.execution_time_in_millis)
+        self.assertIsNotNone(result_set.query_queue_time_in_millis)
         self.assertIsNotNone(result_set.output_location)
 
     @with_async_cursor()
@@ -116,6 +117,7 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         self.assertIsInstance(query_execution.submission_date_time, datetime)
         self.assertIsNotNone(query_execution.data_scanned_in_bytes)
         self.assertIsNotNone(query_execution.execution_time_in_millis)
+        self.assertIsNotNone(query_execution.query_queue_time_in_millis)
         self.assertIsNotNone(query_execution.output_location)
         self.assertIsNone(query_execution.encryption_option)
         self.assertIsNone(query_execution.kms_key)
@@ -141,6 +143,10 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         self.assertEqual(
             result_set.execution_time_in_millis,
             query_execution.execution_time_in_millis,
+        )
+        self.assertEqual(
+            result_set.query_queue_time_in_millis,
+            query_execution.query_queue_time_in_millis,
         )
         self.assertEqual(result_set.output_location, query_execution.output_location)
         self.assertEqual(

@@ -97,6 +97,12 @@ class WithResultSet(object):
         return self._result_set.execution_time_in_millis
 
     @property
+    def query_queue_time_in_millis(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.query_queue_time_in_millis
+
+    @property
     def output_location(self):
         if not self.has_result_set:
             return None
@@ -177,6 +183,10 @@ class AthenaResultSet(CursorIterator):
     @property
     def execution_time_in_millis(self):
         return self._query_execution.execution_time_in_millis
+
+    @property
+    def query_queue_time_in_millis(self):
+        return self._query_execution.query_queue_time_in_millis
 
     @property
     def output_location(self):

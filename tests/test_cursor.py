@@ -58,6 +58,7 @@ class TestCursor(unittest.TestCase, WithConnect):
         self.assertIsInstance(cursor.submission_date_time, datetime)
         self.assertIsNotNone(cursor.data_scanned_in_bytes)
         self.assertIsNotNone(cursor.execution_time_in_millis)
+        self.assertIsNotNone(cursor.query_queue_time_in_millis)
         self.assertIsNotNone(cursor.output_location)
         self.assertIsNone(cursor.encryption_option)
         self.assertIsNone(cursor.kms_key)
@@ -331,6 +332,7 @@ class TestCursor(unittest.TestCase, WithConnect):
         self.assertIsNone(cursor.submission_date_time)
         self.assertIsNone(cursor.data_scanned_in_bytes)
         self.assertIsNone(cursor.execution_time_in_millis)
+        self.assertIsNone(cursor.query_queue_time_in_millis)
         self.assertIsNone(cursor.output_location)
 
     @with_cursor()
