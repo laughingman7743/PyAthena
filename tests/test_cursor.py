@@ -64,7 +64,7 @@ class TestCursor(unittest.TestCase, WithConnect):
         self.assertIsNotNone(cursor.query_planning_time_in_millis)
         self.assertIsNotNone(cursor.service_processing_time_in_millis)
         self.assertIsNotNone(cursor.output_location)
-        self.assertIsNotNone(cursor.data_manifest_location)
+        self.assertIsNone(cursor.data_manifest_location)
         self.assertIsNone(cursor.encryption_option)
         self.assertIsNone(cursor.kms_key)
         self.assertEqual(cursor.work_group, "primary")

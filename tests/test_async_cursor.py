@@ -43,7 +43,7 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         self.assertIsNotNone(result_set.query_planning_time_in_millis)
         self.assertIsNotNone(result_set.service_processing_time_in_millis)
         self.assertIsNotNone(result_set.output_location)
-        self.assertIsNotNone(result_set.data_manifest_location)
+        self.assertIsNone(result_set.data_manifest_location)
 
     @with_async_cursor()
     def test_fetchmany(self, cursor):
