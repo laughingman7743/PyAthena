@@ -50,6 +50,9 @@ class AthenaQueryExecution(object):
         self._execution_time_in_millis = statistics.get(
             "EngineExecutionTimeInMillis", None
         )
+        self._query_queue_time_in_millis = statistics.get(
+            "QueryQueueTimeInMillis", None
+        )
 
         result_conf = query_execution.get("ResultConfiguration", {})
         self._output_location = result_conf.get("OutputLocation", None)
@@ -99,6 +102,10 @@ class AthenaQueryExecution(object):
     @property
     def execution_time_in_millis(self):
         return self._execution_time_in_millis
+
+    @property
+    def query_queue_time_in_millis(self):
+        return self._query_queue_time_in_millis
 
     @property
     def output_location(self):
