@@ -37,8 +37,13 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         self.assertIsInstance(result_set.submission_date_time, datetime)
         self.assertIsNotNone(result_set.data_scanned_in_bytes)
         self.assertIsNotNone(result_set.execution_time_in_millis)
+        self.assertIsNotNone(result_set.engine_execution_time_in_millis)
         self.assertIsNotNone(result_set.query_queue_time_in_millis)
+        self.assertIsNotNone(result_set.total_execution_time_in_millis)
+        self.assertIsNotNone(result_set.query_planning_time_in_millis)
+        self.assertIsNotNone(result_set.service_processing_time_in_millis)
         self.assertIsNotNone(result_set.output_location)
+        self.assertIsNone(result_set.data_manifest_location)
 
     @with_async_cursor()
     def test_fetchmany(self, cursor):
@@ -145,10 +150,29 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
             query_execution.execution_time_in_millis,
         )
         self.assertEqual(
+            result_set.engine_execution_time_in_millis,
+            query_execution.engine_execution_time_in_millis,
+        )
+        self.assertEqual(
             result_set.query_queue_time_in_millis,
             query_execution.query_queue_time_in_millis,
         )
+        self.assertEqual(
+            result_set.total_execution_time_in_millis,
+            query_execution.total_execution_time_in_millis,
+        )
+        self.assertEqual(
+            result_set.query_planning_time_in_millis,
+            query_execution.query_planning_time_in_millis,
+        )
+        self.assertEqual(
+            result_set.service_processing_time_in_millis,
+            query_execution.service_processing_time_in_millis,
+        )
         self.assertEqual(result_set.output_location, query_execution.output_location)
+        self.assertEqual(
+            result_set.data_manifest_location, query_execution.data_manifest_location
+        )
         self.assertEqual(
             result_set.encryption_option, query_execution.encryption_option
         )

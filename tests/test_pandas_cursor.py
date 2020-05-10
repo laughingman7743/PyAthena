@@ -166,8 +166,13 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
         self.assertIsInstance(cursor.submission_date_time, datetime)
         self.assertIsNotNone(cursor.data_scanned_in_bytes)
         self.assertIsNotNone(cursor.execution_time_in_millis)
+        self.assertIsNotNone(cursor.engine_execution_time_in_millis)
         self.assertIsNotNone(cursor.query_queue_time_in_millis)
+        self.assertIsNotNone(cursor.total_execution_time_in_millis)
+        self.assertIsNotNone(cursor.query_planning_time_in_millis)
+        self.assertIsNotNone(cursor.service_processing_time_in_millis)
         self.assertIsNotNone(cursor.output_location)
+        self.assertIsNone(cursor.data_manifest_location)
 
     @with_pandas_cursor()
     def test_many_as_pandas(self, cursor):

@@ -97,16 +97,46 @@ class WithResultSet(object):
         return self._result_set.execution_time_in_millis
 
     @property
+    def engine_execution_time_in_millis(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.engine_execution_time_in_millis
+
+    @property
     def query_queue_time_in_millis(self):
         if not self.has_result_set:
             return None
         return self._result_set.query_queue_time_in_millis
 
     @property
+    def total_execution_time_in_millis(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.total_execution_time_in_millis
+
+    @property
+    def query_planning_time_in_millis(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.query_planning_time_in_millis
+
+    @property
+    def service_processing_time_in_millis(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.service_processing_time_in_millis
+
+    @property
     def output_location(self):
         if not self.has_result_set:
             return None
         return self._result_set.output_location
+
+    @property
+    def data_manifest_location(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.data_manifest_location
 
     @property
     def encryption_option(self):
@@ -185,12 +215,32 @@ class AthenaResultSet(CursorIterator):
         return self._query_execution.execution_time_in_millis
 
     @property
+    def engine_execution_time_in_millis(self):
+        return self._query_execution.engine_execution_time_in_millis
+
+    @property
     def query_queue_time_in_millis(self):
         return self._query_execution.query_queue_time_in_millis
 
     @property
+    def total_execution_time_in_millis(self):
+        return self._query_execution.total_execution_time_in_millis
+
+    @property
+    def query_planning_time_in_millis(self):
+        return self._query_execution.query_planning_time_in_millis
+
+    @property
+    def service_processing_time_in_millis(self):
+        return self._query_execution.service_processing_time_in_millis
+
+    @property
     def output_location(self):
         return self._query_execution.output_location
+
+    @property
+    def data_manifest_location(self):
+        return self._query_execution.data_manifest_location
 
     @property
     def encryption_option(self):
