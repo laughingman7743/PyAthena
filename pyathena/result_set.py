@@ -215,12 +215,32 @@ class AthenaResultSet(CursorIterator):
         return self._query_execution.execution_time_in_millis
 
     @property
+    def engine_execution_time_in_millis(self):
+        return self._query_execution.engine_execution_time_in_millis
+
+    @property
     def query_queue_time_in_millis(self):
         return self._query_execution.query_queue_time_in_millis
 
     @property
+    def total_execution_time_in_millis(self):
+        return self._query_execution.total_execution_time_in_millis
+
+    @property
+    def query_planning_time_in_millis(self):
+        return self._query_execution.query_planning_time_in_millis
+
+    @property
+    def service_processing_time_in_millis(self):
+        return self._query_execution.service_processing_time_in_millis
+
+    @property
     def output_location(self):
         return self._query_execution.output_location
+
+    @property
+    def data_manifest_location(self):
+        return self._query_execution.data_manifest_location
 
     @property
     def encryption_option(self):
