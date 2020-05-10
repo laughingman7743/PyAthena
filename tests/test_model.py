@@ -23,6 +23,10 @@ ATHENA_QUERY_EXECUTION_RESPONSE = {
             "DataScannedInBytes": 1234567890,
             "EngineExecutionTimeInMillis": 1234567890,
             "QueryQueueTimeInMillis": 1234567890,
+            "TotalExecutionTimeInMillis": 1234567890,
+            "QueryPlanningTimeInMillis": 1234567890,
+            "ServiceProcessingTimeInMillis": 1234567890,
+            "DataManifestLocation": "s3://bucket/path/to/",
         },
         "Status": {
             "CompletionDateTime": datetime(2019, 1, 1, 0, 0, 0),
@@ -48,8 +52,13 @@ class TestAthenaQueryExecution(unittest.TestCase):
         self.assertEqual(actual.submission_date_time, datetime(2019, 1, 1, 0, 0, 0))
         self.assertEqual(actual.data_scanned_in_bytes, 1234567890)
         self.assertEqual(actual.execution_time_in_millis, 1234567890)
+        self.assertEqual(actual.engine_execution_time_in_millis, 1234567890)
         self.assertEqual(actual.query_queue_time_in_millis, 1234567890)
+        self.assertEqual(actual.total_execution_time_in_millis, 1234567890)
+        self.assertEqual(actual.query_planning_time_in_millis, 1234567890)
+        self.assertEqual(actual.service_processing_time_in_millis, 1234567890)
         self.assertEqual(actual.output_location, "s3://bucket/path/to/")
+        self.assertEqual(actual.data_manifest_location, "s3://bucket/path/to/")
         self.assertEqual(actual.encryption_option, "test_encryption_option")
         self.assertEqual(actual.kms_key, "test_kms_key")
         self.assertEqual(actual.work_group, "test_work_group")

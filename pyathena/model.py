@@ -47,12 +47,22 @@ class AthenaQueryExecution(object):
 
         statistics = query_execution.get("Statistics", {})
         self._data_scanned_in_bytes = statistics.get("DataScannedInBytes", None)
-        self._execution_time_in_millis = statistics.get(
+        self._engine_execution_time_in_millis = statistics.get(
             "EngineExecutionTimeInMillis", None
         )
         self._query_queue_time_in_millis = statistics.get(
             "QueryQueueTimeInMillis", None
         )
+        self._total_execution_time_in_millis = statistics.get(
+            "TotalExecutionTimeInMillis", None
+        )
+        self._query_planning_time_in_millis = statistics.get(
+            "QueryPlanningTimeInMillis", None
+        )
+        self._service_processing_time_in_millis = statistics.get(
+            "ServiceProcessingTimeInMillis", None
+        )
+        self._data_manifest_location = statistics.get("DataManifestLocation", None)
 
         result_conf = query_execution.get("ResultConfiguration", {})
         self._output_location = result_conf.get("OutputLocation", None)
@@ -101,15 +111,35 @@ class AthenaQueryExecution(object):
 
     @property
     def execution_time_in_millis(self):
-        return self._execution_time_in_millis
+        return self.engine_execution_time_in_millis
+
+    @property
+    def engine_execution_time_in_millis(self):
+        return self._engine_execution_time_in_millis
 
     @property
     def query_queue_time_in_millis(self):
         return self._query_queue_time_in_millis
 
     @property
+    def total_execution_time_in_millis(self):
+        return self._total_execution_time_in_millis
+
+    @property
+    def query_planning_time_in_millis(self):
+        return self._query_planning_time_in_millis
+
+    @property
+    def service_processing_time_in_millis(self):
+        return self._service_processing_time_in_millis
+
+    @property
     def output_location(self):
         return self._output_location
+
+    @property
+    def data_manifest_location(self):
+        return self._data_manifest_location
 
     @property
     def encryption_option(self):

@@ -97,16 +97,46 @@ class WithResultSet(object):
         return self._result_set.execution_time_in_millis
 
     @property
+    def engine_execution_time_in_millis(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.engine_execution_time_in_millis
+
+    @property
     def query_queue_time_in_millis(self):
         if not self.has_result_set:
             return None
         return self._result_set.query_queue_time_in_millis
 
     @property
+    def total_execution_time_in_millis(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.total_execution_time_in_millis
+
+    @property
+    def query_planning_time_in_millis(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.query_planning_time_in_millis
+
+    @property
+    def service_processing_time_in_millis(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.service_processing_time_in_millis
+
+    @property
     def output_location(self):
         if not self.has_result_set:
             return None
         return self._result_set.output_location
+
+    @property
+    def data_manifest_location(self):
+        if not self.has_result_set:
+            return None
+        return self._result_set.data_manifest_location
 
     @property
     def encryption_option(self):
