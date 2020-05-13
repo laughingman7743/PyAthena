@@ -2,7 +2,6 @@
 from __future__ import absolute_import, unicode_literals
 
 import collections
-import io
 import logging
 
 from future.utils import raise_from
@@ -529,7 +528,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                     header = 0
                     names = None
                 df = pd.read_csv(
-                    io.BytesIO(response["Body"].read()),
+                    response["Body"],
                     sep=sep,
                     header=header,
                     names=names,
