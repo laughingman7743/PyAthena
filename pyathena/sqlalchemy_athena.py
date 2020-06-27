@@ -143,7 +143,7 @@ class AthenaTypeCompiler(GenericTypeCompiler):
         return "DATE"
 
     def visit_TIME(self, type_, **kw):
-        exc.CompileError("Data type `{0}` is not supported".format(type_))
+        raise exc.CompileError("Data type `{0}` is not supported".format(type_))
 
     def visit_CLOB(self, type_, **kw):
         return "BINARY"
