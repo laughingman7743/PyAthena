@@ -105,7 +105,7 @@ class AthenaStatementCompiler(SQLCompiler):
 
 class AthenaTypeCompiler(GenericTypeCompiler):
     def visit_FLOAT(self, type_, **kw):
-        return "FLOAT"
+        return self.visit_REAL(type_, **kw)
 
     def visit_REAL(self, type_, **kw):
         return "DOUBLE"
@@ -137,7 +137,7 @@ class AthenaTypeCompiler(GenericTypeCompiler):
         return "TIMESTAMP"
 
     def visit_DATETIME(self, type_, **kw):
-        return "TIMESTAMP"
+        return self.visit_TIMESTAMP(type_, **kw)
 
     def visit_DATE(self, type_, **kw):
         return "DATE"
@@ -146,10 +146,10 @@ class AthenaTypeCompiler(GenericTypeCompiler):
         raise exc.CompileError("Data type `{0}` is not supported".format(type_))
 
     def visit_CLOB(self, type_, **kw):
-        return "BINARY"
+        return self.visit_BINARY(type_, **kw)
 
     def visit_NCLOB(self, type_, **kw):
-        return "BINARY"
+        return self.visit_BINARY(type_, **kw)
 
     def visit_CHAR(self, type_, **kw):
         return self._render_string_type(type_, "CHAR")
@@ -167,13 +167,13 @@ class AthenaTypeCompiler(GenericTypeCompiler):
         return "STRING"
 
     def visit_BLOB(self, type_, **kw):
-        return "BINARY"
+        return self.visit_BINARY(type_, **kw)
 
     def visit_BINARY(self, type_, **kw):
         return "BINARY"
 
     def visit_VARBINARY(self, type_, **kw):
-        return "BINARY"
+        return self.visit_BINARY(type_, **kw)
 
     def visit_BOOLEAN(self, type_, **kw):
         return "BOOLEAN"
