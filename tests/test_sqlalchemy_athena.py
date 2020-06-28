@@ -417,6 +417,19 @@ class TestSQLAlchemyAthena(unittest.TestCase):
                 "col_date": [date(2020, 12, 31)],
             }
         )
+        # Explicitly specify column order
+        df = df[
+            [
+                "col_int",
+                "col_bigint",
+                "col_float",
+                "col_double",
+                "col_string",
+                "col_boolean",
+                "col_timestamp",
+                "col_date",
+            ]
+        ]
         df.to_sql(
             table_name,
             engine,
