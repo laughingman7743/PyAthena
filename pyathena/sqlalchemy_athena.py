@@ -15,6 +15,7 @@ from sqlalchemy.sql.compiler import (
     BIND_PARAMS,
     BIND_PARAMS_ESC,
     DDLCompiler,
+    GenericTypeCompiler,
     IdentifierPreparer,
     SQLCompiler,
 )
@@ -102,6 +103,82 @@ class AthenaStatementCompiler(SQLCompiler):
             )
 
 
+class AthenaTypeCompiler(GenericTypeCompiler):
+    def visit_FLOAT(self, type_, **kw):
+        return self.visit_REAL(type_, **kw)
+
+    def visit_REAL(self, type_, **kw):
+        return "DOUBLE"
+
+    def visit_NUMERIC(self, type_, **kw):
+        return self.visit_DECIMAL(type_, **kw)
+
+    def visit_DECIMAL(self, type_, **kw):
+        if type_.precision is None:
+            return "DECIMAL"
+        elif type_.scale is None:
+            return "DECIMAL(%(precision)s)" % {"precision": type_.precision}
+        else:
+            return "DECIMAL(%(precision)s, %(scale)s)" % {
+                "precision": type_.precision,
+                "scale": type_.scale,
+            }
+
+    def visit_INTEGER(self, type_, **kw):
+        return "INTEGER"
+
+    def visit_SMALLINT(self, type_, **kw):
+        return "SMALLINT"
+
+    def visit_BIGINT(self, type_, **kw):
+        return "BIGINT"
+
+    def visit_TIMESTAMP(self, type_, **kw):
+        return "TIMESTAMP"
+
+    def visit_DATETIME(self, type_, **kw):
+        return self.visit_TIMESTAMP(type_, **kw)
+
+    def visit_DATE(self, type_, **kw):
+        return "DATE"
+
+    def visit_TIME(self, type_, **kw):
+        raise exc.CompileError("Data type `{0}` is not supported".format(type_))
+
+    def visit_CLOB(self, type_, **kw):
+        return self.visit_BINARY(type_, **kw)
+
+    def visit_NCLOB(self, type_, **kw):
+        return self.visit_BINARY(type_, **kw)
+
+    def visit_CHAR(self, type_, **kw):
+        return self._render_string_type(type_, "CHAR")
+
+    def visit_NCHAR(self, type_, **kw):
+        return self._render_string_type(type_, "CHAR")
+
+    def visit_VARCHAR(self, type_, **kw):
+        return self._render_string_type(type_, "VARCHAR")
+
+    def visit_NVARCHAR(self, type_, **kw):
+        return self._render_string_type(type_, "VARCHAR")
+
+    def visit_TEXT(self, type_, **kw):
+        return "STRING"
+
+    def visit_BLOB(self, type_, **kw):
+        return self.visit_BINARY(type_, **kw)
+
+    def visit_BINARY(self, type_, **kw):
+        return "BINARY"
+
+    def visit_VARBINARY(self, type_, **kw):
+        return self.visit_BINARY(type_, **kw)
+
+    def visit_BOOLEAN(self, type_, **kw):
+        return "BOOLEAN"
+
+
 class AthenaDDLCompiler(DDLCompiler):
     @property
     def preparer(self):
@@ -179,7 +256,8 @@ class AthenaDDLCompiler(DDLCompiler):
                 "`s3_dir` or `s3_staging_dir` parameter is required"
                 " in the connection string."
             )
-        text += "LOCATION '{0}{1}/{2}/'\n".format(location, table.schema, table.name)
+        schema = table.schema if table.schema else raw_connection.schema_name
+        text += "LOCATION '{0}{1}/{2}/'\n".format(location, schema, table.name)
 
         compression = raw_connection._kwargs.get("compression")
         if compression:
@@ -218,6 +296,7 @@ class AthenaDialect(DefaultDialect):
     preparer = AthenaDMLIdentifierPreparer
     statement_compiler = AthenaStatementCompiler
     ddl_compiler = AthenaDDLCompiler
+    type_compiler = AthenaTypeCompiler
     default_paramstyle = pyathena.paramstyle
     supports_alter = False
     supports_pk_autoincrement = False

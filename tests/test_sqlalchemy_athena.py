@@ -7,6 +7,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
+import numpy as np
 import pandas as pd
 import sqlalchemy
 from future.utils import PY2
@@ -402,8 +403,33 @@ class TestSQLAlchemyAthena(unittest.TestCase):
 
     @with_engine()
     def test_to_sql(self, engine, conn):
+        # TODO Add binary column (After dropping support for Python 2.7)
         table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
-        df = pd.DataFrame({"a": [1, 2, 3, 4, 5]})
+        df = pd.DataFrame(
+            {
+                "col_int": np.int32([1]),
+                "col_bigint": np.int64([12345]),
+                "col_float": np.float32([1.0]),
+                "col_double": np.float64([1.2345]),
+                "col_string": ["a"],
+                "col_boolean": np.bool_([True]),
+                "col_timestamp": [datetime(2020, 1, 1, 0, 0, 0)],
+                "col_date": [date(2020, 12, 31)],
+            }
+        )
+        # Explicitly specify column order
+        df = df[
+            [
+                "col_int",
+                "col_bigint",
+                "col_float",
+                "col_double",
+                "col_string",
+                "col_boolean",
+                "col_timestamp",
+                "col_date",
+            ]
+        ]
         df.to_sql(
             table_name,
             engine,
@@ -414,5 +440,18 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
 
         table = Table(table_name, MetaData(bind=engine), autoload=True)
-        rows = table.select().execute().fetchall()
-        self.assertEqual(sorted(rows), [(1,), (2,), (3,), (4,), (5,)])
+        self.assertEqual(
+            table.select().execute().fetchall(),
+            [
+                (
+                    1,
+                    12345,
+                    1.0,
+                    1.2345,
+                    "a",
+                    True,
+                    datetime(2020, 1, 1, 0, 0, 0),
+                    date(2020, 12, 31),
+                )
+            ],
+        )

@@ -95,7 +95,7 @@ def to_sql_type_mappings(col):
     elif col_type == "bytes":
         return "BINARY"
     elif col_type in ["complex", "time"]:
-        raise ValueError("{0} datatype not supported".format(col_type))
+        raise ValueError("Data type `{0}` is not supported".format(col_type))
     return "STRING"
 
 
