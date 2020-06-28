@@ -256,7 +256,8 @@ class AthenaDDLCompiler(DDLCompiler):
                 "`s3_dir` or `s3_staging_dir` parameter is required"
                 " in the connection string."
             )
-        text += "LOCATION '{0}{1}/{2}/'\n".format(location, table.schema, table.name)
+        schema = table.schema if table.schema else raw_connection.schema_name
+        text += "LOCATION '{0}{1}/{2}/'\n".format(location, schema, table.name)
 
         compression = raw_connection._kwargs.get("compression")
         if compression:
