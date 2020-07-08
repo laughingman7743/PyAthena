@@ -110,7 +110,7 @@ def to_parquet(
     flavor="spark",
 ):
     import pyarrow as pa
-    import pyarrow.parquet as pq
+    from pyarrow import parquet as pq
 
     session = Session(**session_kwargs)
     client = session.resource("s3", **client_kwargs)
