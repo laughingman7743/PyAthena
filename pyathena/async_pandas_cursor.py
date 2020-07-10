@@ -26,6 +26,7 @@ class AsyncPandasCursor(AsyncCursor):
         retry_config,
         max_workers=(cpu_count() or 1) * 5,
         arraysize=CursorIterator.DEFAULT_FETCH_SIZE,
+        kill_on_interrupt=True,
     ):
         super(AsyncPandasCursor, self).__init__(
             connection=connection,
@@ -40,6 +41,7 @@ class AsyncPandasCursor(AsyncCursor):
             retry_config=retry_config,
             max_workers=max_workers,
             arraysize=arraysize,
+            kill_on_interrupt=kill_on_interrupt,
         )
 
     def _collect_result_set(self, query_id):

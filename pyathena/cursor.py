@@ -25,6 +25,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         converter,
         formatter,
         retry_config,
+        kill_on_interrupt=True,
         **kwargs
     ):
         super(Cursor, self).__init__(
@@ -38,6 +39,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
             converter=converter,
             formatter=formatter,
             retry_config=retry_config,
+            kill_on_interrupt=kill_on_interrupt,
             **kwargs
         )
 
