@@ -84,6 +84,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
         converter,
         formatter,
         retry_config,
+        kill_on_interrupt,
         **kwargs
     ):
         super(BaseCursor, self).__init__(**kwargs)
@@ -97,6 +98,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
         self._converter = converter
         self._formatter = formatter
         self._retry_config = retry_config
+        self._kill_on_interrupt = kill_on_interrupt
 
     @property
     def connection(self):
@@ -117,7 +119,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
         else:
             return AthenaQueryExecution(response)
 
-    def _poll(self, query_id):
+    def __poll(self, query_id):
         while True:
             query_execution = self._get_query_execution(query_id)
             if query_execution.state in [
@@ -128,6 +130,18 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
                 return query_execution
             else:
                 time.sleep(self._poll_interval)
+
+    def _poll(self, query_id):
+        try:
+            query_execution = self.__poll(query_id)
+        except KeyboardInterrupt as e:
+            if self._kill_on_interrupt:
+                _logger.warning("Query canceled by user.")
+                self._cancel(query_id)
+                query_execution = self.__poll(query_id)
+            else:
+                raise e
+        return query_execution
 
     def _build_start_query_execution_request(
         self, query, work_group=None, s3_staging_dir=None

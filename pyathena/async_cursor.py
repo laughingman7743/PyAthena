@@ -28,6 +28,7 @@ class AsyncCursor(BaseCursor):
         retry_config,
         max_workers=(cpu_count() or 1) * 5,
         arraysize=CursorIterator.DEFAULT_FETCH_SIZE,
+        kill_on_interrupt=True,
     ):
         super(AsyncCursor, self).__init__(
             connection=connection,
@@ -40,6 +41,7 @@ class AsyncCursor(BaseCursor):
             converter=converter,
             formatter=formatter,
             retry_config=retry_config,
+            kill_on_interrupt=kill_on_interrupt,
         )
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._arraysize = arraysize

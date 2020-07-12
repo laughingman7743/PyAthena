@@ -59,6 +59,7 @@ class Connection(object):
         formatter=None,
         retry_config=None,
         cursor_class=Cursor,
+        kill_on_interrupt=True,
         **kwargs
     ):
         self._kwargs = kwargs
@@ -106,6 +107,7 @@ class Connection(object):
         self._formatter = formatter if formatter else DefaultParameterFormatter()
         self._retry_config = retry_config if retry_config else RetryConfig()
         self.cursor_class = cursor_class
+        self.kill_on_interrupt = kill_on_interrupt
 
     def _assume_role(
         self, profile_name, region_name, role_arn, role_session_name, duration_seconds
@@ -171,6 +173,7 @@ class Connection(object):
             converter=converter,
             formatter=kwargs.pop("formatter", self._formatter),
             retry_config=kwargs.pop("retry_config", self._retry_config),
+            kill_on_interrupt=kwargs.pop("kill_on_interrupt", self.kill_on_interrupt),
             **kwargs
         )
 
