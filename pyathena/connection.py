@@ -113,7 +113,7 @@ class Connection(object):
         self, profile_name, region_name, role_arn, role_session_name, duration_seconds
     ):
         # MFA is not supported. If you want to use MFA, create a configuration file.
-        # http://boto3.readthedocs.io/en/latest/guide/configuration.html#assume-role-provider
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#assume-role-provider
         session = Session(profile_name=profile_name, **self._session_kwargs)
         client = session.client("sts", region_name=region_name, **self._client_kwargs)
         response = client.assume_role(
