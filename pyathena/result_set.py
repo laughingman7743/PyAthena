@@ -422,6 +422,9 @@ class AthenaPandasResultSet(AthenaResultSet):
             retry_config=retry_config,
         )
         self._arraysize = arraysize
+        self._keep_default_na = keep_default_na
+        self._na_values = na_values
+        self._quoting = quoting
         self._client = self._connection.session.client(
             "s3",
             region_name=self._connection.region_name,
@@ -437,9 +440,6 @@ class AthenaPandasResultSet(AthenaResultSet):
 
             self._df = pd.DataFrame()
         self._iterrows = self._df.iterrows()
-        self.keep_default_na = keep_default_na
-        self.na_values = na_values
-        self.quoting = quoting
 
     @property
     def dtypes(self):
@@ -541,9 +541,9 @@ class AthenaPandasResultSet(AthenaResultSet):
                     parse_dates=self.parse_dates,
                     infer_datetime_format=True,
                     skip_blank_lines=False,
-                    keep_default_na=self.keep_default_na,
-                    na_values=self.na_values,
-                    quoting=self.quoting,
+                    keep_default_na=self._keep_default_na,
+                    na_values=self._na_values,
+                    quoting=self._quoting,
                 )
                 df = self._trunc_date(df)
             else:  # Allow empty response
