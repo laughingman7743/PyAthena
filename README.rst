@@ -58,10 +58,10 @@ Basic usage
 
     from pyathena import connect
 
-    cursor = connect(aws_access_key_id='YOUR_ACCESS_KEY_ID',
-                     aws_secret_access_key='YOUR_SECRET_ACCESS_KEY',
-                     s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2').cursor()
+    cursor = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
+                     aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+                     s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor()
     cursor.execute("SELECT * FROM one_row")
     print(cursor.description)
     print(cursor.fetchall())
@@ -73,10 +73,10 @@ Cursor iteration
 
     from pyathena import connect
 
-    cursor = connect(aws_access_key_id='YOUR_ACCESS_KEY_ID',
-                     aws_secret_access_key='YOUR_SECRET_ACCESS_KEY',
-                     s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2').cursor()
+    cursor = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
+                     aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+                     s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor()
     cursor.execute("SELECT * FROM many_rows LIMIT 10")
     for row in cursor:
         print(row)
@@ -91,14 +91,14 @@ Supported `DB API paramstyle`_ is only ``PyFormat``.
 
     from pyathena import connect
 
-    cursor = connect(aws_access_key_id='YOUR_ACCESS_KEY_ID',
-                     aws_secret_access_key='YOUR_SECRET_ACCESS_KEY',
-                     s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2').cursor()
+    cursor = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
+                     aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+                     s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor()
     cursor.execute("""
                    SELECT col_string FROM one_row_complex
                    WHERE col_string = %(param)s
-                   """, {'param': 'a string'})
+                   """, {"param": "a string"})
     print(cursor.fetchall())
 
 if ``%`` character is contained in your query, it must be escaped with ``%%`` like the following:
@@ -125,16 +125,16 @@ Supported SQLAlchemy is 1.0.0 or higher and less than 2.0.0.
     from sqlalchemy.sql.functions import func
     from sqlalchemy.sql.schema import Table, MetaData
 
-    conn_str = 'awsathena+rest://{aws_access_key_id}:{aws_secret_access_key}@athena.{region_name}.amazonaws.com:443/'\
-               '{schema_name}?s3_staging_dir={s3_staging_dir}'
+    conn_str = "awsathena+rest://{aws_access_key_id}:{aws_secret_access_key}@athena.{region_name}.amazonaws.com:443/"\
+               "{schema_name}?s3_staging_dir={s3_staging_dir}""
     engine = create_engine(conn_str.format(
-        aws_access_key_id=quote_plus('YOUR_ACCESS_KEY_ID'),
-        aws_secret_access_key=quote_plus('YOUR_SECRET_ACCESS_KEY'),
-        region_name='us-west-2',
-        schema_name='default',
-        s3_staging_dir=quote_plus('s3://YOUR_S3_BUCKET/path/to/')))
-    many_rows = Table('many_rows', MetaData(bind=engine), autoload=True)
-    print(select([func.count('*')], from_obj=many_rows).scalar())
+        aws_access_key_id=quote_plus("YOUR_ACCESS_KEY_ID"),
+        aws_secret_access_key=quote_plus("YOUR_SECRET_ACCESS_KEY"),
+        region_name="us-west-2",
+        schema_name="default",
+        s3_staging_dir=quote_plus("s3://YOUR_S3_BUCKET/path/to/")))
+    many_rows = Table("many_rows", MetaData(bind=engine), autoload=True)
+    print(select([func.count("*")], from_obj=many_rows).scalar())
 
 The connection string has the following format:
 
@@ -163,10 +163,10 @@ You can use the `pandas.read_sql`_ to handle the query results as a `DataFrame o
     from pyathena import connect
     import pandas as pd
 
-    conn = connect(aws_access_key_id='YOUR_ACCESS_KEY_ID',
-                   aws_secret_access_key='YOUR_SECRET_ACCESS_KEY',
-                   s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                   region_name='us-west-2')
+    conn = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
+                   aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+                   s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                   region_name="us-west-2")
     df = pd.read_sql("SELECT * FROM many_rows", conn)
     print(df.head())
 
@@ -177,10 +177,10 @@ The ``pyathena.util`` package also has helper methods.
     from pyathena import connect
     from pyathena.util import as_pandas
 
-    cursor = connect(aws_access_key_id='YOUR_ACCESS_KEY_ID',
-                     aws_secret_access_key='YOUR_SECRET_ACCESS_KEY',
-                     s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2').cursor()
+    cursor = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
+                     aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+                     s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor()
     cursor.execute("SELECT * FROM many_rows")
     df = as_pandas(cursor)
     print(df.describe())
@@ -203,16 +203,16 @@ You can use `pandas.DataFrame.to_sql`_ to write records stored in DataFrame to A
     from urllib.parse import quote_plus
     from sqlalchemy import create_engine
 
-    conn_str = 'awsathena+rest://:@athena.{region_name}.amazonaws.com:443/'\
-               '{schema_name}?s3_staging_dir={s3_staging_dir}&s3_dir={s3_dir}&compression=snappy'
+    conn_str = "awsathena+rest://:@athena.{region_name}.amazonaws.com:443/"\
+               "{schema_name}?s3_staging_dir={s3_staging_dir}&s3_dir={s3_dir}&compression=snappy"
     engine = create_engine(conn_str.format(
-        region_name='us-west-2',
-        schema_name='YOUR_SCHEMA',
-        s3_staging_dir=quote_plus('s3://YOUR_S3_BUCKET/path/to/'),
-        s3_dir=quote_plus('s3://YOUR_S3_BUCKET/path/to/')))
+        region_name="us-west-2",
+        schema_name="YOUR_SCHEMA",
+        s3_staging_dir=quote_plus("s3://YOUR_S3_BUCKET/path/to/"),
+        s3_dir=quote_plus("s3://YOUR_S3_BUCKET/path/to/")))
 
-    df = pd.DataFrame({'a': [1, 2, 3, 4, 5]})
-    df.to_sql('YOUR_TABLE', engine, schema="YOUR_SCHEMA", index=False, if_exists='replace', method='multi')
+    df = pd.DataFrame({"a": [1, 2, 3, 4, 5]})
+    df.to_sql("YOUR_TABLE", engine, schema="YOUR_SCHEMA", index=False, if_exists="replace", method="multi")
 
 The location of the Amazon S3 table is specified by the ``s3_dir`` parameter in the connection string.
 If ``s3_dir`` is not specified, ``s3_staging_dir`` parameter will be used. The following rules apply.
@@ -231,13 +231,13 @@ The ``pyathena.util`` package also has helper methods.
     from pyathena import connect
     from pyathena.util import to_sql
 
-    conn = connect(aws_access_key_id='YOUR_ACCESS_KEY_ID',
-                   aws_secret_access_key='YOUR_SECRET_ACCESS_KEY',
-                   s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                   region_name='us-west-2')
-    df = pd.DataFrame({'a': [1, 2, 3, 4, 5]})
-    to_sql(df, 'YOUR_TABLE', conn, 's3://YOUR_S3_BUCKET/path/to/',
-           schema='YOUR_SCHEMA', index=False, if_exists='replace')
+    conn = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
+                   aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+                   s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                   region_name="us-west-2")
+    df = pd.DataFrame({"a": [1, 2, 3, 4, 5]})
+    to_sql(df, "YOUR_TABLE", conn, "s3://YOUR_S3_BUCKET/path/to/",
+           schema="YOUR_SCHEMA", index=False, if_exists="replace")
 
 This helper method supports partitioning.
 
@@ -248,23 +248,23 @@ This helper method supports partitioning.
     from pyathena import connect
     from pyathena.util import to_sql
 
-    conn = connect(aws_access_key_id='YOUR_ACCESS_KEY_ID',
-                   aws_secret_access_key='YOUR_SECRET_ACCESS_KEY',
-                   s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                   region_name='us-west-2')
+    conn = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
+                   aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+                   s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                   region_name="us-west-2")
     df = pd.DataFrame({
-        'a': [1, 2, 3, 4, 5],
-        'dt': [
+        "a": [1, 2, 3, 4, 5],
+        "dt": [
             date(2020, 1, 1), date(2020, 1, 1), date(2020, 1, 1),
             date(2020, 1, 2),
             date(2020, 1, 3)
         ],
     })
-    to_sql(df, 'YOUR_TABLE', conn, 's3://YOUR_S3_BUCKET/path/to/',
-           schema='YOUR_SCHEMA', partitions=['dt'])
+    to_sql(df, "YOUR_TABLE", conn, "s3://YOUR_S3_BUCKET/path/to/",
+           schema="YOUR_SCHEMA", partitions=["dt"])
 
     cursor = conn.cursor()
-    cursor.execute('SHOW PARTITIONS YOUR_TABLE')
+    cursor.execute("SHOW PARTITIONS YOUR_TABLE")
     print(cursor.fetchall())
 
 Conversion to Parquet and upload to S3 use `ThreadPoolExecutor`_ by default.
@@ -277,13 +277,13 @@ It is also possible to use `ProcessPoolExecutor`_.
     from pyathena import connect
     from pyathena.util import to_sql
 
-    conn = connect(aws_access_key_id='YOUR_ACCESS_KEY_ID',
-                   aws_secret_access_key='YOUR_SECRET_ACCESS_KEY',
-                   s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                   region_name='us-west-2')
-    df = pd.DataFrame({'a': [1, 2, 3, 4, 5]})
-    to_sql(df, 'YOUR_TABLE', conn, 's3://YOUR_S3_BUCKET/path/to/',
-           schema='YOUR_SCHEMA', index=False, if_exists='replace',
+    conn = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
+                   aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+                   s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                   region_name="us-west-2")
+    df = pd.DataFrame({"a": [1, 2, 3, 4, 5]})
+    to_sql(df, "YOUR_TABLE", conn, "s3://YOUR_S3_BUCKET/path/to/",
+           schema="YOUR_SCHEMA", index=False, if_exists="replace",
            chunksize=1, executor_class=ProcessPoolExecutor, max_workers=5)
 
 .. _`pandas.DataFrame.to_sql`: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_sql.html
@@ -305,8 +305,8 @@ with the connect method or connection object.
     from pyathena import connect
     from pyathena.async_cursor import AsyncCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=AsyncCursor).cursor()
 
 .. code:: python
@@ -314,8 +314,8 @@ with the connect method or connection object.
     from pyathena.connection import Connection
     from pyathena.async_cursor import AsyncCursor
 
-    cursor = Connection(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                        region_name='us-west-2',
+    cursor = Connection(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                        region_name="us-west-2",
                         cursor_class=AsyncCursor).cursor()
 
 It can also be used by specifying the cursor class when calling the connection object's cursor method.
@@ -325,16 +325,16 @@ It can also be used by specifying the cursor class when calling the connection o
     from pyathena import connect
     from pyathena.async_cursor import AsyncCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2').cursor(AsyncCursor)
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor(AsyncCursor)
 
 .. code:: python
 
     from pyathena.connection import Connection
     from pyathena.async_cursor import AsyncCursor
 
-    cursor = Connection(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                        region_name='us-west-2').cursor(AsyncCursor)
+    cursor = Connection(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                        region_name="us-west-2").cursor(AsyncCursor)
 
 The default number of workers is 5 or cpu number * 5.
 If you want to change the number of workers you can specify like the following.
@@ -344,8 +344,8 @@ If you want to change the number of workers you can specify like the following.
     from pyathena import connect
     from pyathena.async_cursor import AsyncCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=AsyncCursor).cursor(max_workers=10)
 
 The execute method of the AsynchronousCursor returns the tuple of the query ID and the `future object`_.
@@ -355,8 +355,8 @@ The execute method of the AsynchronousCursor returns the tuple of the query ID a
     from pyathena import connect
     from pyathena.async_cursor import AsyncCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=AsyncCursor).cursor()
 
     query_id, future = cursor.execute("SELECT * FROM many_rows")
@@ -370,8 +370,8 @@ It also has information on the result of query execution.
     from pyathena import connect
     from pyathena.async_cursor import AsyncCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=AsyncCursor).cursor()
 
     query_id, future = cursor.execute("SELECT * FROM many_rows")
@@ -392,8 +392,8 @@ It also has information on the result of query execution.
     from pyathena import connect
     from pyathena.async_cursor import AsyncCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=AsyncCursor).cursor()
 
     query_id, future = cursor.execute("SELECT * FROM many_rows")
@@ -407,8 +407,8 @@ A query ID is required to cancel a query with the AsynchronousCursor.
     from pyathena import connect
     from pyathena.async_cursor import AsyncCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=AsyncCursor).cursor()
 
     query_id, future = cursor.execute("SELECT * FROM many_rows")
@@ -434,8 +434,8 @@ with the connect method or connection object.
     from pyathena import connect
     from pyathena.pandas_cursor import PandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=PandasCursor).cursor()
 
 .. code:: python
@@ -443,8 +443,8 @@ with the connect method or connection object.
     from pyathena.connection import Connection
     from pyathena.pandas_cursor import PandasCursor
 
-    cursor = Connection(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                        region_name='us-west-2',
+    cursor = Connection(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                        region_name="us-west-2",
                         cursor_class=PandasCursor).cursor()
 
 It can also be used by specifying the cursor class when calling the connection object's cursor method.
@@ -454,16 +454,16 @@ It can also be used by specifying the cursor class when calling the connection o
     from pyathena import connect
     from pyathena.pandas_cursor import PandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2').cursor(PandasCursor)
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor(PandasCursor)
 
 .. code:: python
 
     from pyathena.connection import Connection
     from pyathena.pandas_cursor import PandasCursor
 
-    cursor = Connection(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                        region_name='us-west-2').cursor(PandasCursor)
+    cursor = Connection(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                        region_name="us-west-2").cursor(PandasCursor)
 
 The as_pandas method returns a `DataFrame object`_.
 
@@ -472,8 +472,8 @@ The as_pandas method returns a `DataFrame object`_.
     from pyathena import connect
     from pyathena.pandas_cursor import PandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=PandasCursor).cursor()
 
     df = cursor.execute("SELECT * FROM many_rows").as_pandas()
@@ -487,8 +487,8 @@ Support fetch and iterate query results.
     from pyathena import connect
     from pyathena.pandas_cursor import PandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=PandasCursor).cursor()
 
     cursor.execute("SELECT * FROM many_rows")
@@ -501,8 +501,8 @@ Support fetch and iterate query results.
     from pyathena import connect
     from pyathena.pandas_cursor import PandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=PandasCursor).cursor()
 
     cursor.execute("SELECT * FROM many_rows")
@@ -516,8 +516,8 @@ The DATE and TIMESTAMP of Athena's data type are returned as `pandas.Timestamp`_
     from pyathena import connect
     from pyathena.pandas_cursor import PandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=PandasCursor).cursor()
 
     cursor.execute("SELECT col_timestamp FROM one_row_complex")
@@ -530,8 +530,8 @@ Execution information of the query can also be retrieved.
     from pyathena import connect
     from pyathena.pandas_cursor import PandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=PandasCursor).cursor()
 
     cursor.execute("SELECT * FROM many_rows")
@@ -555,22 +555,22 @@ If you want to customize the Dataframe object dtypes and converters, create a co
             super(CustomPandasTypeConverter, self).__init__(
                 mappings=None,
                 types={
-                    'boolean': object,
-                    'tinyint': float,
-                    'smallint': float,
-                    'integer': float,
-                    'bigint': float,
-                    'float': float,
-                    'real': float,
-                    'double': float,
-                    'decimal': float,
-                    'char': str,
-                    'varchar': str,
-                    'array': str,
-                    'map': str,
-                    'row': str,
-                    'varbinary': str,
-                    'json': str,
+                    "boolean": object,
+                    "tinyint": float,
+                    "smallint": float,
+                    "integer": float,
+                    "bigint": float,
+                    "float": float,
+                    "real": float,
+                    "double": float,
+                    "decimal": float,
+                    "char": str,
+                    "varchar": str,
+                    "array": str,
+                    "map": str,
+                    "row": str,
+                    "varbinary": str,
+                    "json": str,
                 }
             )
 
@@ -587,17 +587,32 @@ Then you simply specify an instance of this class in the convertes argument when
     from pyathena import connect
     from pyathena.pandas_cursor import PandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2').cursor(PandasCursor, converter=CustomPandasTypeConverter())
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor(PandasCursor, converter=CustomPandasTypeConverter())
 
 .. code:: python
 
     from pyathena import connect
     from pyathena.pandas_cursor import PandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      converter=CustomPandasTypeConverter()).cursor(PandasCursor)
+
+If you want to change the NaN behavior of Pandas Dataframe,
+you can do so by using the ``keep_default_na``, ``na_values`` and ``quoting`` arguments of the cursor object's execute method.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.pandas_cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PandasCursor).cursor()
+    df = cursor.execute("SELECT * FROM many_rows",
+                        keep_default_na=False,
+                        na_values=[""]).as_pandas()
 
 NOTE: PandasCursor handles the CSV file on memory. Pay attention to the memory capacity.
 
@@ -618,8 +633,8 @@ with the connect method or connection object.
     from pyathena import connect
     from pyathena.async_pandas_cursor import AsyncPandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=AsyncPandasCursor).cursor()
 
 .. code:: python
@@ -627,8 +642,8 @@ with the connect method or connection object.
     from pyathena.connection import Connection
     from pyathena.async_pandas_cursor import AsyncPandasCursor
 
-    cursor = Connection(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                        region_name='us-west-2',
+    cursor = Connection(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                        region_name="us-west-2",
                         cursor_class=AsyncPandasCursor).cursor()
 
 It can also be used by specifying the cursor class when calling the connection object's cursor method.
@@ -638,16 +653,16 @@ It can also be used by specifying the cursor class when calling the connection o
     from pyathena import connect
     from pyathena.async_pandas_cursor import AsyncPandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2').cursor(AsyncPandasCursor)
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor(AsyncPandasCursor)
 
 .. code:: python
 
     from pyathena.connection import Connection
     from pyathena.async_pandas_cursor import AsyncPandasCursor
 
-    cursor = Connection(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                        region_name='us-west-2').cursor(AsyncPandasCursor)
+    cursor = Connection(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                        region_name="us-west-2").cursor(AsyncPandasCursor)
 
 The default number of workers is 5 or cpu number * 5.
 If you want to change the number of workers you can specify like the following.
@@ -657,8 +672,8 @@ If you want to change the number of workers you can specify like the following.
     from pyathena import connect
     from pyathena.async_pandas_cursor import AsyncPandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=AsyncPandasCursor).cursor(max_workers=10)
 
 The execute method of the AsynchronousPandasCursor returns the tuple of the query ID and the `future object`_.
@@ -668,8 +683,8 @@ The execute method of the AsynchronousPandasCursor returns the tuple of the quer
     from pyathena import connect
     from pyathena.async_pandas_cursor import AsyncPandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=AsyncPandasCursor).cursor()
 
     query_id, future = cursor.execute("SELECT * FROM many_rows")
@@ -682,8 +697,8 @@ This object has an interface similar to ``AthenaResultSetObject``.
     from pyathena import connect
     from pyathena.async_pandas_cursor import AsyncPandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=AsyncPandasCursor).cursor()
 
     query_id, future = cursor.execute("SELECT * FROM many_rows")
@@ -704,8 +719,8 @@ This object has an interface similar to ``AthenaResultSetObject``.
     from pyathena import connect
     from pyathena.async_pandas_cursor import AsyncPandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=AsyncPandasCursor).cursor()
 
     query_id, future = cursor.execute("SELECT * FROM many_rows")
@@ -719,8 +734,8 @@ This object also has an as_pandas method that returns a `DataFrame object`_ simi
     from pyathena import connect
     from pyathena.async_pandas_cursor import AsyncPandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=AsyncPandasCursor).cursor()
 
     query_id, future = cursor.execute("SELECT * FROM many_rows")
@@ -736,8 +751,8 @@ The DATE and TIMESTAMP of Athena's data type are returned as `pandas.Timestamp`_
     from pyathena import connect
     from pyathena.async_pandas_cursor import AsyncPandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=AsyncPandasCursor).cursor()
 
     query_id, future = cursor.execute("SELECT col_timestamp FROM one_row_complex")
@@ -751,8 +766,8 @@ As with AsynchronousCursor, you need a query ID to cancel a query.
     from pyathena import connect
     from pyathena.async_pandas_cursor import AsyncPandasCursor
 
-    cursor = connect(s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2',
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
                      cursor_class=AsyncPandasCursor).cursor()
 
     query_id, future = cursor.execute("SELECT * FROM many_rows")
@@ -767,10 +782,10 @@ You can attempt to re-use the results from a previously run query to help save t
 
     from pyathena import connect
 
-    cursor = connect(aws_access_key_id='YOUR_ACCESS_KEY_ID',
-                     aws_secret_access_key='YOUR_SECRET_ACCESS_KEY',
-                     s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-                     region_name='us-west-2').cursor()
+    cursor = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
+                     aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+                     s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor()
     cursor.execute("SELECT * FROM one_row")  # run once
     print(cursor.query_id)
     cursor.execute("SELECT * FROM one_row", cache_size=10)  # re-use earlier results
