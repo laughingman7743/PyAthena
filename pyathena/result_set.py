@@ -412,8 +412,17 @@ class AthenaPandasResultSet(AthenaResultSet):
         "timestamp with time zone",
     ]
 
-    def __init__(self, connection, converter, query_execution, arraysize, retry_config,
-                 keep_default_na=False, na_values=None, quoting=1):
+    def __init__(
+        self,
+        connection,
+        converter,
+        query_execution,
+        arraysize,
+        retry_config,
+        keep_default_na=False,
+        na_values=None,
+        quoting=1,
+    ):
         super(AthenaPandasResultSet, self).__init__(
             connection=connection,
             converter=converter,
