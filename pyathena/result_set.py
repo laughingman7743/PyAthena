@@ -412,7 +412,17 @@ class AthenaPandasResultSet(AthenaResultSet):
         "timestamp with time zone",
     ]
 
-    def __init__(self, connection, converter, query_execution, arraysize, retry_config):
+    def __init__(
+        self,
+        connection,
+        converter,
+        query_execution,
+        arraysize,
+        retry_config,
+        keep_default_na=False,
+        na_values=None,
+        quoting=1,
+    ):
         super(AthenaPandasResultSet, self).__init__(
             connection=connection,
             converter=converter,
@@ -421,6 +431,9 @@ class AthenaPandasResultSet(AthenaResultSet):
             retry_config=retry_config,
         )
         self._arraysize = arraysize
+        self._keep_default_na = keep_default_na
+        self._na_values = na_values
+        self._quoting = quoting
         self._client = self._connection.session.client(
             "s3",
             region_name=self._connection.region_name,
@@ -537,6 +550,9 @@ class AthenaPandasResultSet(AthenaResultSet):
                     parse_dates=self.parse_dates,
                     infer_datetime_format=True,
                     skip_blank_lines=False,
+                    keep_default_na=self._keep_default_na,
+                    na_values=self._na_values,
+                    quoting=self._quoting,
                 )
                 df = self._trunc_date(df)
             else:  # Allow empty response

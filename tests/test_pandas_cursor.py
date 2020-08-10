@@ -419,3 +419,19 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
             """
         )
         self.assertEqual(len(cursor.fetchall()), 2)
+
+    @with_pandas_cursor()
+    def test_empty_and_null_string(self, cursor):
+        # TODO https://github.com/laughingman7743/PyAthena/issues/118
+        query = """
+        select * from (values ('', 'a'), ('N/A', 'a'), ('NULL', 'a'), (NULL, 'a'))
+        """
+        cursor.execute(query)
+        self.assertEqual(
+            cursor.fetchall(), [("", "a"), ("N/A", "a"), ("NULL", "a"), ("", "a")]
+        )
+        cursor.execute(query, na_values=[""])
+        self.assertEqual(
+            cursor.fetchall(),
+            [(np.nan, "a"), ("N/A", "a"), ("NULL", "a"), (np.nan, "a")],
+        )
