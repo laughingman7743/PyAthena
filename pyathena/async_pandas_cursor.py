@@ -45,7 +45,11 @@ class AsyncPandasCursor(AsyncCursor):
         )
 
     def _collect_result_set(
-        self, query_id, keep_default_na=False, na_values=None, quoting=1,
+        self,
+        query_id,
+        keep_default_na=False,
+        na_values=None,
+        quoting=1,
     ):
         query_execution = self._poll(query_id)
         return AthenaPandasResultSet(

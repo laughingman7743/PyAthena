@@ -265,7 +265,15 @@ class TestCursor(unittest.TestCase, WithConnect):
     @with_cursor()
     def run_escape_case(self, cursor, bad_str):
         cursor.execute("SELECT %(a)d, %(b)s FROM one_row", {"a": 1, "b": bad_str})
-        self.assertEqual(cursor.fetchall(), [(1, bad_str,)])
+        self.assertEqual(
+            cursor.fetchall(),
+            [
+                (
+                    1,
+                    bad_str,
+                )
+            ],
+        )
 
     @with_cursor()
     def test_none_empty_query(self, cursor):
