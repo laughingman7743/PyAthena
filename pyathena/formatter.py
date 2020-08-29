@@ -25,7 +25,7 @@ def _escape_presto(val):
 def _escape_hive(val):
     """HiveParamEscaper
 
-     https://github.com/dropbox/PyHive/blob/master/pyhive/hive.py"""
+    https://github.com/dropbox/PyHive/blob/master/pyhive/hive.py"""
     return "'{0}'".format(
         val.replace("\\", "\\\\")
         .replace("'", "\\'")
@@ -64,9 +64,21 @@ def _format_seq(formatter, escaper, val):
     for v in val:
         func = formatter.get(v)
         formatted = func(formatter, escaper, v)
-        if not isinstance(formatted, (str, unicode,)):
+        if not isinstance(
+            formatted,
+            (
+                str,
+                unicode,
+            ),
+        ):
             # force string format
-            if isinstance(formatted, (float, Decimal,)):
+            if isinstance(
+                formatted,
+                (
+                    float,
+                    Decimal,
+                ),
+            ):
                 formatted = "{0:f}".format(formatted)
             else:
                 formatted = "{0}".format(formatted)

@@ -42,6 +42,8 @@ setup(
         "pytest>=3.5",
         "pytest-cov",
         "pytest-flake8>=1.0.1",
+        "pytest-black",
+        "pytest-isort",
     ],
     entry_points={
         "sqlalchemy.dialects": [
