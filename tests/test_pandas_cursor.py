@@ -435,3 +435,8 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
             cursor.fetchall(),
             [(np.nan, "a"), ("N/A", "a"), ("NULL", "a"), (np.nan, "a")],
         )
+
+    @with_pandas_cursor()
+    def test_null_decimal_value(self, cursor):
+        cursor.execute("SELECT CAST(null AS DECIMAL)")
+        self.assertEqual(cursor.fetchall(), [(None,)])

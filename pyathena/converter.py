@@ -46,7 +46,7 @@ def _to_int(varchar_value):
 
 
 def _to_decimal(varchar_value):
-    if varchar_value is None:
+    if varchar_value is None or varchar_value == "":
         return None
     return Decimal(varchar_value)
 
