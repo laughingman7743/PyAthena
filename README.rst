@@ -381,7 +381,11 @@ It also has information on the result of query execution.
     print(result_set.completion_date_time)
     print(result_set.submission_date_time)
     print(result_set.data_scanned_in_bytes)
-    print(result_set.execution_time_in_millis)
+    print(result_set.engine_execution_time_in_millis)
+    print(result_set.query_queue_time_in_millis)
+    print(result_set.total_time_in_millis)
+    print(result_set.query_planning_time_in_millis)
+    print(result_set.service_processing_time_in_millis)
     print(result_set.output_location)
     print(result_set.description)
     for row in result_set:
@@ -540,7 +544,11 @@ Execution information of the query can also be retrieved.
     print(cursor.completion_date_time)
     print(cursor.submission_date_time)
     print(cursor.data_scanned_in_bytes)
-    print(cursor.execution_time_in_millis)
+    print(cursor.engine_execution_time_in_millis)
+    print(cursor.query_queue_time_in_millis)
+    print(cursor.total_time_in_millis)
+    print(cursor.query_planning_time_in_millis)
+    print(cursor.service_processing_time_in_millis)
     print(cursor.output_location)
 
 If you want to customize the Dataframe object dtypes and converters, create a converter class like this:
@@ -708,7 +716,11 @@ This object has an interface similar to ``AthenaResultSetObject``.
     print(result_set.completion_date_time)
     print(result_set.submission_date_time)
     print(result_set.data_scanned_in_bytes)
-    print(result_set.execution_time_in_millis)
+    print(result_set.engine_execution_time_in_millis)
+    print(result_set.query_queue_time_in_millis)
+    print(result_set.total_time_in_millis)
+    print(result_set.query_planning_time_in_millis)
+    print(result_set.service_processing_time_in_millis)
     print(result_set.output_location)
     print(result_set.description)
     for row in result_set:
