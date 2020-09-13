@@ -34,7 +34,6 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
         self.assertIsNotNone(result_set.submission_date_time)
         self.assertIsInstance(result_set.submission_date_time, datetime)
         self.assertIsNotNone(result_set.data_scanned_in_bytes)
-        self.assertIsNotNone(result_set.execution_time_in_millis)
         self.assertIsNotNone(result_set.engine_execution_time_in_millis)
         self.assertIsNotNone(result_set.query_queue_time_in_millis)
         self.assertIsNotNone(result_set.total_execution_time_in_millis)
@@ -42,6 +41,8 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
         # self.assertIsNotNone(result_set.service_processing_time_in_millis)  # TODO flaky test
         self.assertIsNotNone(result_set.output_location)
         self.assertIsNone(result_set.data_manifest_location)
+        self.assertIsNone(result_set.encryption_option)
+        self.assertIsNone(result_set.kms_key)
 
     @with_async_pandas_cursor()
     def test_fetchmany(self, cursor):
@@ -133,14 +134,6 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
         )
         self.assertEqual(
             result_set.data_scanned_in_bytes, query_execution.data_scanned_in_bytes
-        )
-        self.assertEqual(
-            result_set.execution_time_in_millis,
-            query_execution.execution_time_in_millis,
-        )
-        self.assertEqual(
-            result_set.engine_execution_time_in_millis,
-            query_execution.engine_execution_time_in_millis,
         )
         self.assertEqual(
             result_set.query_queue_time_in_millis,

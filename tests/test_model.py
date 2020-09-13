@@ -49,7 +49,6 @@ class TestAthenaQueryExecution(unittest.TestCase):
         self.assertEqual(actual.completion_date_time, datetime(2019, 1, 1, 0, 0, 0))
         self.assertEqual(actual.submission_date_time, datetime(2019, 1, 1, 0, 0, 0))
         self.assertEqual(actual.data_scanned_in_bytes, 1234567890)
-        self.assertEqual(actual.execution_time_in_millis, 1234567890)
         self.assertEqual(actual.engine_execution_time_in_millis, 1234567890)
         self.assertEqual(actual.query_queue_time_in_millis, 1234567890)
         self.assertEqual(actual.total_execution_time_in_millis, 1234567890)

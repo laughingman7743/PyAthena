@@ -142,10 +142,6 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
             result_set.data_scanned_in_bytes, query_execution.data_scanned_in_bytes
         )
         self.assertEqual(
-            result_set.execution_time_in_millis,
-            query_execution.execution_time_in_millis,
-        )
-        self.assertEqual(
             result_set.engine_execution_time_in_millis,
             query_execution.engine_execution_time_in_millis,
         )
