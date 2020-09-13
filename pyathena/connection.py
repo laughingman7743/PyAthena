@@ -1,19 +1,14 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import logging
 import os
 import time
 
 from boto3.session import Session
-from future.utils import iteritems
 
-from pyathena.async_pandas_cursor import AsyncPandasCursor
 from pyathena.converter import DefaultPandasTypeConverter, DefaultTypeConverter
 from pyathena.cursor import Cursor
 from pyathena.error import NotSupportedError
 from pyathena.formatter import DefaultParameterFormatter
-from pyathena.pandas_cursor import PandasCursor
 from pyathena.util import RetryConfig
 
 _logger = logging.getLogger(__name__)
@@ -126,14 +121,12 @@ class Connection(object):
     @property
     def _session_kwargs(self):
         return {
-            k: v for k, v in iteritems(self._kwargs) if k in self._SESSION_PASSING_ARGS
+            k: v for k, v in self._kwargs.items() if k in self._SESSION_PASSING_ARGS
         }
 
     @property
     def _client_kwargs(self):
-        return {
-            k: v for k, v in iteritems(self._kwargs) if k in self._CLIENT_PASSING_ARGS
-        }
+        return {k: v for k, v in self._kwargs.items() if k in self._CLIENT_PASSING_ARGS}
 
     @property
     def session(self):
@@ -158,6 +151,9 @@ class Connection(object):
             cursor = self.cursor_class
         converter = kwargs.pop("converter", self._converter)
         if not converter:
+            from pyathena.pandas.async_cursor import AsyncPandasCursor
+            from pyathena.pandas.cursor import PandasCursor
+
             if cursor is PandasCursor or cursor is AsyncPandasCursor:
                 converter = DefaultPandasTypeConverter()
             else:

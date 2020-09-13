@@ -1,14 +1,12 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import logging
 
 from pyathena.common import CursorIterator
 from pyathena.cursor import BaseCursor
 from pyathena.error import OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
-from pyathena.result_set import AthenaPandasResultSet, WithResultSet
+from pyathena.pandas.result_set import AthenaPandasResultSet
+from pyathena.result_set import WithResultSet
 from pyathena.util import synchronized
 
 _logger = logging.getLogger(__name__)

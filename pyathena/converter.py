@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import binascii
 import json
 import logging
@@ -9,8 +7,6 @@ from copy import deepcopy
 from datetime import datetime
 from decimal import Decimal
 from distutils.util import strtobool
-
-from future.utils import with_metaclass
 
 _logger = logging.getLogger(__name__)
 
@@ -106,7 +102,7 @@ _DEFAULT_PANDAS_CONVERTERS = {
 }
 
 
-class Converter(with_metaclass(ABCMeta, object)):
+class Converter(object, metaclass=ABCMeta):
     def __init__(self, mappings, default=None, types=None):
         if mappings:
             self._mappings = mappings

@@ -1,14 +1,9 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import logging
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from datetime import date, datetime
 from decimal import Decimal
-
-from future.utils import iteritems, with_metaclass
-from past.types import long, unicode
 
 from pyathena.error import ProgrammingError
 
@@ -66,10 +61,7 @@ def _format_seq(formatter, escaper, val):
         formatted = func(formatter, escaper, v)
         if not isinstance(
             formatted,
-            (
-                str,
-                unicode,
-            ),
+            (str,),
         ):
             # force string format
             if isinstance(
@@ -96,18 +88,16 @@ _DEFAULT_FORMATTERS = {
     datetime: _format_datetime,
     int: _format_default,
     float: _format_default,
-    long: _format_default,
     Decimal: _format_decimal,
     bool: _format_bool,
     str: _format_str,
-    unicode: _format_str,
     list: _format_seq,
     set: _format_seq,
     tuple: _format_seq,
 }
 
 
-class Formatter(with_metaclass(ABCMeta, object)):
+class Formatter(object, metaclass=ABCMeta):
     def __init__(self, mappings, default=None):
         self._mappings = mappings
         self._default = default
@@ -154,7 +144,7 @@ class DefaultParameterFormatter(Formatter):
         kwargs = dict()
         if parameters:
             if isinstance(parameters, dict):
-                for k, v in iteritems(parameters):
+                for k, v in parameters.items():
                     func = self.get(v)
                     if not func:
                         raise TypeError("{0} is not defined formatter.".format(type(v)))

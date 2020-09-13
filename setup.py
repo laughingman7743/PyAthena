@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 #  -*- coding: utf-8 -*-
-from __future__ import print_function
-
 import codecs
 from glob import glob
 
@@ -16,7 +14,7 @@ with codecs.open("README.rst", "rb", "utf-8") as readme:
 setup(
     name="PyAthena",
     version=pyathena.__version__,
-    description="Python DB API 2.0 (PEP 249) compliant client for Amazon Athena",
+    description="Python DB API 2.0 (PEP 249) client for Amazon Athena",
     long_description=long_description,
     url="https://github.com/laughingman7743/PyAthena/",
     author="laughingman7743",
@@ -27,14 +25,12 @@ setup(
     include_package_data=True,
     data_files=[("", ["LICENSE"] + glob("*.rst") + glob("Pipfile*"))],
     install_requires=[
-        "future",
-        'futures;python_version=="2.7"',
         "botocore>=1.5.52",
         "boto3>=1.4.4",
         "tenacity>=4.1.0",
     ],
     extras_require={
-        "Pandas": ["pandas>=0.24.0", "pyarrow>=0.15.0"],
+        "Pandas": ["pandas>=1.0.0", "pyarrow>=1.0.0"],
         "SQLAlchemy": ["SQLAlchemy>=1.0.0, <2.0.0"],
     },
     tests_require=[
@@ -57,10 +53,7 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Topic :: Database :: Front-Ends",
-        "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",

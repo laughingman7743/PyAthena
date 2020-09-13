@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import contextlib
 import re
 import time
@@ -10,8 +8,6 @@ from concurrent.futures.thread import ThreadPoolExecutor
 from datetime import date, datetime
 from decimal import Decimal
 from random import randint
-
-from past.builtins.misc import xrange
 
 from pyathena import (
     BINARY,
@@ -80,7 +76,7 @@ class TestCursor(unittest.TestCase, WithConnect):
         cursor.execute("SELECT * FROM one_row")
         self.assertEqual(cursor.fetchall(), [(1,)])
         cursor.execute("SELECT a FROM many_rows ORDER BY a")
-        self.assertEqual(cursor.fetchall(), [(i,) for i in xrange(10000)])
+        self.assertEqual(cursor.fetchall(), [(i,) for i in range(10000)])
 
     @with_cursor()
     def test_iterator(self, cursor):
@@ -311,7 +307,7 @@ class TestCursor(unittest.TestCase, WithConnect):
         self.assertEqual(cursor.fetchall(), [(None,)] * 10000)
         cursor.execute("SELECT IF(a % 11 = 0, null, a) FROM many_rows")
         self.assertEqual(
-            cursor.fetchall(), [(None if a % 11 == 0 else a,) for a in xrange(10000)]
+            cursor.fetchall(), [(None if a % 11 == 0 else a,) for a in range(10000)]
         )
 
     @with_cursor()
@@ -500,7 +496,7 @@ class TestCursor(unittest.TestCase, WithConnect):
         location = "{0}{1}/{2}/".format(
             ENV.s3_staging_dir, S3_PREFIX, "partition_table"
         )
-        for i in xrange(10):
+        for i in range(10):
             cursor.execute(
                 """
                 ALTER TABLE partition_table ADD PARTITION (b=%(b)d)
@@ -510,7 +506,7 @@ class TestCursor(unittest.TestCase, WithConnect):
             )
         cursor.execute("SHOW PARTITIONS partition_table")
         self.assertEqual(
-            sorted(cursor.fetchall()), [("b={0}".format(i),) for i in xrange(10)]
+            sorted(cursor.fetchall()), [("b={0}".format(i),) for i in range(10)]
         )
 
     @with_cursor(work_group=WORK_GROUP)
@@ -528,10 +524,10 @@ class TestCursor(unittest.TestCase, WithConnect):
     def test_executemany(self, cursor):
         cursor.executemany(
             "INSERT INTO execute_many (a) VALUES (%(a)s)",
-            [{"a": i} for i in xrange(1, 3)],
+            [{"a": i} for i in range(1, 3)],
         )
         cursor.execute("SELECT * FROM execute_many")
-        self.assertEqual(sorted(cursor.fetchall()), [(i,) for i in xrange(1, 3)])
+        self.assertEqual(sorted(cursor.fetchall()), [(i,) for i in range(1, 3)])
 
     @with_cursor()
     def test_executemany_fetch(self, cursor):

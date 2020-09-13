@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import re
 import unittest
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
+from urllib.parse import quote_plus
 
 import numpy as np
 import pandas as pd
 import sqlalchemy
-from future.utils import PY2
 from sqlalchemy.engine import create_engine
 from sqlalchemy.exc import NoSuchTableError, OperationalError, ProgrammingError
 from sqlalchemy.sql import expression
@@ -29,11 +27,6 @@ from sqlalchemy.sql.sqltypes import (
 
 from tests.conftest import ENV, SCHEMA
 from tests.util import with_engine
-
-if PY2:
-    from urllib import quote_plus
-else:
-    from urllib.parse import quote_plus
 
 
 class TestSQLAlchemyAthena(unittest.TestCase):

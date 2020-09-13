@@ -1,11 +1,7 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import logging
 import time
 from abc import ABCMeta, abstractmethod
-
-from future.utils import raise_from, with_metaclass
 
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
@@ -14,7 +10,7 @@ from pyathena.util import retry_api_call
 _logger = logging.getLogger(__name__)
 
 
-class CursorIterator(with_metaclass(ABCMeta, object)):
+class CursorIterator(object, metaclass=ABCMeta):
 
     DEFAULT_FETCH_SIZE = 1000
 
@@ -71,7 +67,7 @@ class CursorIterator(with_metaclass(ABCMeta, object)):
         return self
 
 
-class BaseCursor(with_metaclass(ABCMeta, object)):
+class BaseCursor(object, metaclass=ABCMeta):
     def __init__(
         self,
         connection,
@@ -115,7 +111,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
             )
         except Exception as e:
             _logger.exception("Failed to get query execution.")
-            raise_from(OperationalError(*e.args), e)
+            raise OperationalError(*e.args) from e
         else:
             return AthenaQueryExecution(response)
 
@@ -251,7 +247,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
                 ).get("QueryExecutionId", None)
             except Exception as e:
                 _logger.exception("Failed to execute query.")
-                raise_from(DatabaseError(*e.args), e)
+                raise DatabaseError(*e.args) from e
         return query_id
 
     @abstractmethod
@@ -284,7 +280,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
             )
         except Exception as e:
             _logger.exception("Failed to cancel query.")
-            raise_from(OperationalError(*e.args), e)
+            raise OperationalError(*e.args) from e
 
     def setinputsizes(self, sizes):
         """Does nothing by default"""

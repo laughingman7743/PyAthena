@@ -19,7 +19,7 @@
 PyAthena
 ========
 
-PyAthena is a Python `DB API 2.0 (PEP 249)`_ compliant client for `Amazon Athena`_.
+PyAthena is a Python `DB API 2.0 (PEP 249)`_ client for `Amazon Athena`_.
 
 .. _`DB API 2.0 (PEP 249)`: https://www.python.org/dev/peps/pep-0249/
 .. _`Amazon Athena`: https://docs.aws.amazon.com/athena/latest/APIReference/Welcome.html
@@ -29,7 +29,7 @@ Requirements
 
 * Python
 
-  - CPython 2,7, 3.5, 3.6, 3.7 3.8
+  - CPython 3.6, 3.7 3.8
 
 Installation
 ------------
@@ -43,7 +43,7 @@ Extra packages:
 +---------------+--------------------------------------+------------------+
 | Package       | Install command                      | Version          |
 +===============+======================================+==================+
-| Pandas        | ``pip install PyAthena[Pandas]``     | >=0.24.0         |
+| Pandas        | ``pip install PyAthena[Pandas]``     | >=1.0.0         |
 +---------------+--------------------------------------+------------------+
 | SQLAlchemy    | ``pip install PyAthena[SQLAlchemy]`` | >=1.0.0, <2.0.0  |
 +---------------+--------------------------------------+------------------+
@@ -295,7 +295,7 @@ AsynchronousCursor
 
 AsynchronousCursor is a simple implementation using the concurrent.futures package.
 Python 2.7 uses `backport of the concurrent.futures`_ package.
-This cursor is not `DB API 2.0 (PEP 249)`_ compliant.
+This cursor does not follow the `DB API 2.0 (PEP 249)`_.
 
 You can use the AsynchronousCursor by specifying the ``cursor_class``
 with the connect method or connection object.
