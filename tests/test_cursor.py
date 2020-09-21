@@ -345,8 +345,15 @@ class TestCursor(unittest.TestCase, WithConnect):
         self.assertIsNone(cursor.submission_date_time)
         self.assertIsNone(cursor.data_scanned_in_bytes)
         self.assertIsNone(cursor.execution_time_in_millis)
+        self.assertIsNone(cursor.engine_execution_time_in_millis)
         self.assertIsNone(cursor.query_queue_time_in_millis)
+        self.assertIsNone(cursor.total_execution_time_in_millis)
+        self.assertIsNone(cursor.query_planning_time_in_millis)
         self.assertIsNone(cursor.output_location)
+        self.assertIsNone(cursor.data_manifest_location)
+        self.assertIsNone(cursor.encryption_option)
+        self.assertIsNone(cursor.kms_key)
+        self.assertIsNone(cursor.work_group)
 
     @with_cursor()
     def test_complex(self, cursor):

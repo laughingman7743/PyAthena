@@ -46,6 +46,8 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
         # self.assertIsNotNone(result_set.service_processing_time_in_millis)  # TODO flaky test
         self.assertIsNotNone(result_set.output_location)
         self.assertIsNone(result_set.data_manifest_location)
+        self.assertIsNone(result_set.encryption_option)
+        self.assertIsNone(result_set.kms_key)
 
     @with_async_pandas_cursor()
     def test_fetchmany(self, cursor):

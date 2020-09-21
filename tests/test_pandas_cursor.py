@@ -173,6 +173,8 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
         # self.assertIsNotNone(cursor.service_processing_time_in_millis)  # TODO flaky test
         self.assertIsNotNone(cursor.output_location)
         self.assertIsNone(cursor.data_manifest_location)
+        self.assertIsNone(cursor.encryption_option)
+        self.assertIsNone(cursor.kms_key)
 
     @with_pandas_cursor()
     def test_many_as_pandas(self, cursor):
