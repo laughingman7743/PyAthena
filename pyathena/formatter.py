@@ -141,8 +141,9 @@ class DefaultParameterFormatter(Formatter):
         else:
             escaper = _escape_hive
 
-        kwargs = dict()
-        if parameters:
+        kwargs = None
+        if parameters is not None:
+            kwargs = dict()
             if isinstance(parameters, dict):
                 for k, v in parameters.items():
                     func = self.get(v)
@@ -155,4 +156,4 @@ class DefaultParameterFormatter(Formatter):
                     + "(Support for dict only): {0}".format(parameters)
                 )
 
-        return (operation % kwargs).strip() if kwargs else operation.strip()
+        return (operation % kwargs).strip() if kwargs is not None else operation.strip()

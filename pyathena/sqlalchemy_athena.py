@@ -78,27 +78,6 @@ class AthenaStatementCompiler(SQLCompiler):
     def visit_char_length_func(self, fn, **kw):
         return "length{0}".format(self.function_argspec(fn, **kw))
 
-    def visit_textclause(self, textclause, **kw):
-        def do_bindparam(m):
-            name = m.group(1)
-            if name in textclause._bindparams:
-                return self.process(textclause._bindparams[name], **kw)
-            else:
-                return self.bindparam_string(name, **kw)
-
-        if not self.stack:
-            self.isplaintext = True
-
-        if len(textclause._bindparams) == 0:
-            # Prevents double escaping of percent character
-            return textclause.text
-        else:
-            # un-escape any \:params
-            return BIND_PARAMS_ESC.sub(
-                lambda m: m.group(1),
-                BIND_PARAMS.sub(do_bindparam, self.post_process_text(textclause.text)),
-            )
-
 
 class AthenaTypeCompiler(GenericTypeCompiler):
     def visit_FLOAT(self, type_, **kw):
