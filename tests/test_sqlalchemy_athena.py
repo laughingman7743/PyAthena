@@ -359,11 +359,13 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         table_expression = sqlalchemy.sql.selectable.TextAsFrom(select, []).cte()
 
-        query = sqlalchemy.select(['*']).select_from(table_expression)
+        query = sqlalchemy.select(["*"]).select_from(table_expression)
         result = engine.execute(query)
         self.assertEqual(result.fetchall(), [(datetime(2019, 10, 30),)])
 
-        query_with_limit = sqlalchemy.sql.select(['*']).select_from(table_expression).limit(1)
+        query_with_limit = (
+            sqlalchemy.sql.select(["*"]).select_from(table_expression).limit(1)
+        )
         result_with_limit = engine.execute(query_with_limit)
         self.assertEqual(result_with_limit.fetchall(), [(datetime(2019, 10, 30),)])
 
@@ -376,11 +378,13 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         table_expression = sqlalchemy.sql.selectable.TextAsFrom(select, []).cte()
 
-        query = sqlalchemy.select(['*']).select_from(table_expression)
+        query = sqlalchemy.select(["*"]).select_from(table_expression)
         result = engine.execute(query, word="cat")
         self.assertEqual(result.fetchall(), [("cat",)])
 
-        query_with_limit = sqlalchemy.select(['*']).select_from(table_expression).limit(1)
+        query_with_limit = (
+            sqlalchemy.select(["*"]).select_from(table_expression).limit(1)
+        )
         result_with_limit = engine.execute(query_with_limit, word="cat")
         self.assertEqual(result_with_limit.fetchall(), [("cat",)])
 
@@ -393,13 +397,17 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         table_expression1 = sqlalchemy.sql.selectable.TextAsFrom(select1, []).cte()
 
-        query1 = sqlalchemy.select(['*']).select_from(table_expression1)
+        query1 = sqlalchemy.select(["*"]).select_from(table_expression1)
         result1 = engine.execute(query1, word="cat")
         self.assertEqual(result1.fetchall(), [(datetime(2019, 10, 30), "cat")])
 
-        query_with_limit1 = sqlalchemy.select(['*']).select_from(table_expression1).limit(1)
+        query_with_limit1 = (
+            sqlalchemy.select(["*"]).select_from(table_expression1).limit(1)
+        )
         result_with_limit1 = engine.execute(query_with_limit1, word="cat")
-        self.assertEqual(result_with_limit1.fetchall(), [(datetime(2019, 10, 30), "cat")])
+        self.assertEqual(
+            result_with_limit1.fetchall(), [(datetime(2019, 10, 30), "cat")]
+        )
 
         select2 = sqlalchemy.sql.text(
             """
@@ -409,11 +417,13 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         table_expression2 = sqlalchemy.sql.selectable.TextAsFrom(select2, []).cte()
 
-        query2 = sqlalchemy.select(['*']).select_from(table_expression2)
+        query2 = sqlalchemy.select(["*"]).select_from(table_expression2)
         result2 = engine.execute(query2, param="b%")
         self.assertEqual(result2.fetchall(), [("a string", "b%")])
 
-        query_with_limit2 = sqlalchemy.select(['*']).select_from(table_expression2).limit(1)
+        query_with_limit2 = (
+            sqlalchemy.select(["*"]).select_from(table_expression2).limit(1)
+        )
         result_with_limit2 = engine.execute(query_with_limit2, param="b%")
         self.assertEqual(result_with_limit2.fetchall(), [("a string", "b%")])
 
