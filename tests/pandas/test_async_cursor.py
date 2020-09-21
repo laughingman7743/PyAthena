@@ -37,12 +37,13 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
         self.assertIsNotNone(result_set.engine_execution_time_in_millis)
         self.assertIsNotNone(result_set.query_queue_time_in_millis)
         self.assertIsNotNone(result_set.total_execution_time_in_millis)
-        self.assertIsNotNone(result_set.query_planning_time_in_millis)
+        # self.assertIsNotNone(result_set.query_planning_time_in_millis)  # TODO flaky test
         # self.assertIsNotNone(result_set.service_processing_time_in_millis)  # TODO flaky test
         self.assertIsNotNone(result_set.output_location)
         self.assertIsNone(result_set.data_manifest_location)
         self.assertIsNone(result_set.encryption_option)
         self.assertIsNone(result_set.kms_key)
+        self.assertEqual(result_set.work_group, "primary")
 
     @with_async_pandas_cursor()
     def test_fetchmany(self, cursor):
@@ -116,9 +117,16 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
         self.assertIsNotNone(query_execution.submission_date_time)
         self.assertIsInstance(query_execution.submission_date_time, datetime)
         self.assertIsNotNone(query_execution.data_scanned_in_bytes)
-        self.assertIsNotNone(query_execution.execution_time_in_millis)
+        self.assertIsNotNone(query_execution.engine_execution_time_in_millis)
         self.assertIsNotNone(query_execution.query_queue_time_in_millis)
+        self.assertIsNotNone(query_execution.total_execution_time_in_millis)
+        # self.assertIsNotNone(query_execution.query_planning_time_in_millis)  # TODO flaky test
+        # self.assertIsNotNone(query_execution.service_processing_time_in_millis)  # TODO flaky test
         self.assertIsNotNone(query_execution.output_location)
+        self.assertIsNone(query_execution.data_manifest_location)
+        self.assertIsNone(query_execution.encryption_option)
+        self.assertIsNone(query_execution.kms_key)
+        self.assertIsNotNone(query_execution.work_group)
 
         self.assertEqual(result_set.query_id, query_execution.query_id)
         self.assertEqual(result_set.query, query_execution.query)
