@@ -120,9 +120,8 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
         self.assertIsNotNone(query_execution.engine_execution_time_in_millis)
         self.assertIsNotNone(query_execution.query_queue_time_in_millis)
         self.assertIsNotNone(query_execution.total_execution_time_in_millis)
-        self.assertIsNotNone(query_execution.query_planning_time_in_millis)
-        # TODO flaky test
-        # self.assertIsNotNone(query_execution.service_processing_time_in_millis)
+        # self.assertIsNotNone(query_execution.query_planning_time_in_millis)  # TODO flaky test
+        # self.assertIsNotNone(query_execution.service_processing_time_in_millis)  # TODO flaky test
         self.assertIsNotNone(query_execution.output_location)
         self.assertIsNone(query_execution.data_manifest_location)
         self.assertIsNone(query_execution.encryption_option)
