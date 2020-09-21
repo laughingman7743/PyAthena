@@ -20,7 +20,7 @@ from tests.conftest import ENV, S3_PREFIX, SCHEMA
 from tests.util import with_async_pandas_cursor
 
 
-class TestAsyncCursor(unittest.TestCase, WithConnect):
+class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
     @with_async_pandas_cursor()
     def test_fetchone(self, cursor):
         query_id, future = cursor.execute("SELECT * FROM one_row")
