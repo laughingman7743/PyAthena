@@ -108,10 +108,6 @@ class AthenaQueryExecution(object):
         return self._data_scanned_in_bytes
 
     @property
-    def execution_time_in_millis(self):
-        return self.engine_execution_time_in_millis
-
-    @property
     def engine_execution_time_in_millis(self):
         return self._engine_execution_time_in_millis
 
