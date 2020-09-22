@@ -169,7 +169,6 @@ class TestUtil(unittest.TestCase, WithConnect):
         self.assertEqual(rows, [(True, False), (False, None), (None, None)])
 
     def test_generate_ddl(self):
-        # TODO Add binary column (After dropping support for Python 2.7)
         df = pd.DataFrame(
             {
                 "col_int": np.int32([1]),
@@ -181,6 +180,7 @@ class TestUtil(unittest.TestCase, WithConnect):
                 "col_timestamp": [datetime(2020, 1, 1, 0, 0, 0)],
                 "col_date": [date(2020, 12, 31)],
                 "col_timedelta": [np.timedelta64(1, "D")],
+                "col_binary": ["foobar".encode()],
             }
         )
         # Explicitly specify column order
@@ -195,6 +195,7 @@ class TestUtil(unittest.TestCase, WithConnect):
                 "col_timestamp",
                 "col_date",
                 "col_timedelta",
+                "col_binary",
             ]
         ]
 
@@ -212,7 +213,8 @@ class TestUtil(unittest.TestCase, WithConnect):
                 `col_boolean` BOOLEAN,
                 `col_timestamp` TIMESTAMP,
                 `col_date` DATE,
-                `col_timedelta` BIGINT
+                `col_timedelta` BIGINT,
+                `col_binary` BINARY
                 )
                 STORED AS PARQUET
                 LOCATION 's3://bucket/path/to/'
@@ -241,7 +243,8 @@ class TestUtil(unittest.TestCase, WithConnect):
                 `col_boolean` BOOLEAN,
                 `col_timestamp` TIMESTAMP,
                 `col_date` DATE,
-                `col_timedelta` BIGINT
+                `col_timedelta` BIGINT,
+                `col_binary` BINARY
                 )
                 STORED AS PARQUET
                 LOCATION 's3://bucket/path/to/'
@@ -270,7 +273,8 @@ class TestUtil(unittest.TestCase, WithConnect):
                 `col_boolean` BOOLEAN,
                 `col_timestamp` TIMESTAMP,
                 `col_date` DATE,
-                `col_timedelta` BIGINT
+                `col_timedelta` BIGINT,
+                `col_binary` BINARY
                 )
                 PARTITIONED BY (
                 `col_int` INT
@@ -300,7 +304,8 @@ class TestUtil(unittest.TestCase, WithConnect):
                 `col_boolean` BOOLEAN,
                 `col_timestamp` TIMESTAMP,
                 `col_date` DATE,
-                `col_timedelta` BIGINT
+                `col_timedelta` BIGINT,
+                `col_binary` BINARY
                 )
                 PARTITIONED BY (
                 `col_int` INT,
@@ -326,7 +331,6 @@ class TestUtil(unittest.TestCase, WithConnect):
 
     @with_cursor()
     def test_to_sql(self, cursor):
-        # TODO Add binary column (After dropping support for Python 2.7)
         df = pd.DataFrame(
             {
                 "col_int": np.int32([1]),
@@ -337,6 +341,7 @@ class TestUtil(unittest.TestCase, WithConnect):
                 "col_boolean": np.bool_([True]),
                 "col_timestamp": [datetime(2020, 1, 1, 0, 0, 0)],
                 "col_date": [date(2020, 12, 31)],
+                "col_binary": "foobar".encode(),
             }
         )
         # Explicitly specify column order
@@ -350,6 +355,7 @@ class TestUtil(unittest.TestCase, WithConnect):
                 "col_boolean",
                 "col_timestamp",
                 "col_date",
+                "col_binary",
             ]
         ]
         table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
@@ -398,6 +404,7 @@ class TestUtil(unittest.TestCase, WithConnect):
                     True,
                     datetime(2020, 1, 1, 0, 0, 0),
                     date(2020, 12, 31),
+                    "foobar".encode(),
                 )
             ],
         )
@@ -412,6 +419,7 @@ class TestUtil(unittest.TestCase, WithConnect):
                 ("col_boolean", "boolean"),
                 ("col_timestamp", "timestamp"),
                 ("col_date", "date"),
+                ("col_binary", "varbinary"),
             ],
         )
 
@@ -438,6 +446,7 @@ class TestUtil(unittest.TestCase, WithConnect):
                     True,
                     datetime(2020, 1, 1, 0, 0, 0),
                     date(2020, 12, 31),
+                    "foobar".encode(),
                 ),
                 (
                     1,
@@ -448,6 +457,7 @@ class TestUtil(unittest.TestCase, WithConnect):
                     True,
                     datetime(2020, 1, 1, 0, 0, 0),
                     date(2020, 12, 31),
+                    "foobar".encode(),
                 ),
             ],
         )
