@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import textwrap
 import unittest
 import uuid
@@ -9,7 +7,6 @@ from decimal import Decimal
 
 import numpy as np
 import pandas as pd
-from past.builtins import xrange
 
 from pyathena import DataError, OperationalError
 from pyathena.util import (
@@ -482,9 +479,9 @@ class TestUtil(unittest.TestCase, WithConnect):
     def test_to_sql_with_partitions(self, cursor):
         df = pd.DataFrame(
             {
-                "col_int": np.int32([i for i in xrange(10)]),
-                "col_bigint": np.int64([12345 for _ in xrange(10)]),
-                "col_string": ["a" for _ in xrange(10)],
+                "col_int": np.int32([i for i in range(10)]),
+                "col_bigint": np.int64([12345 for _ in range(10)]),
+                "col_string": ["a" for _ in range(10)],
             }
         )
         table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
@@ -501,7 +498,7 @@ class TestUtil(unittest.TestCase, WithConnect):
         )
         cursor.execute("SHOW PARTITIONS {0}".format(table_name))
         self.assertEqual(
-            sorted(cursor.fetchall()), [("col_int={0}".format(i),) for i in xrange(10)]
+            sorted(cursor.fetchall()), [("col_int={0}".format(i),) for i in range(10)]
         )
         cursor.execute("SELECT COUNT(*) FROM {0}".format(table_name))
         self.assertEqual(cursor.fetchall(), [(10,)])
@@ -510,9 +507,9 @@ class TestUtil(unittest.TestCase, WithConnect):
     def test_to_sql_with_multiple_partitions(self, cursor):
         df = pd.DataFrame(
             {
-                "col_int": np.int32([i for i in xrange(10)]),
-                "col_bigint": np.int64([12345 for _ in xrange(10)]),
-                "col_string": ["a" for _ in xrange(5)] + ["b" for _ in xrange(5)],
+                "col_int": np.int32([i for i in range(10)]),
+                "col_bigint": np.int64([12345 for _ in range(10)]),
+                "col_string": ["a" for _ in range(5)] + ["b" for _ in range(5)],
             }
         )
         table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
@@ -530,8 +527,8 @@ class TestUtil(unittest.TestCase, WithConnect):
         cursor.execute("SHOW PARTITIONS {0}".format(table_name))
         self.assertEqual(
             sorted(cursor.fetchall()),
-            [("col_int={0}/col_string=a".format(i),) for i in xrange(5)]
-            + [("col_int={0}/col_string=b".format(i),) for i in xrange(5, 10)],
+            [("col_int={0}/col_string=a".format(i),) for i in range(5)]
+            + [("col_int={0}/col_string=b".format(i),) for i in range(5, 10)],
         )
         cursor.execute("SELECT COUNT(*) FROM {0}".format(table_name))
         self.assertEqual(cursor.fetchall(), [(10,)])

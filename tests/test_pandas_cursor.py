@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import contextlib
 import random
 import re
@@ -14,7 +12,6 @@ from decimal import Decimal
 
 import numpy as np
 import pandas as pd
-from past.builtins.misc import xrange
 
 from pyathena.error import DatabaseError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
@@ -44,7 +41,7 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
         cursor.execute("SELECT * FROM one_row")
         self.assertEqual(cursor.fetchall(), [(1,)])
         cursor.execute("SELECT a FROM many_rows ORDER BY a")
-        self.assertEqual(cursor.fetchall(), [(i,) for i in xrange(10000)])
+        self.assertEqual(cursor.fetchall(), [(i,) for i in range(10000)])
 
     @with_pandas_cursor()
     def test_iterator(self, cursor):
@@ -182,7 +179,7 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
         self.assertEqual(df.shape[0], 10000)
         self.assertEqual(df.shape[1], 1)
         self.assertEqual(
-            [(row["a"],) for _, row in df.iterrows()], [(i,) for i in xrange(10000)]
+            [(row["a"],) for _, row in df.iterrows()], [(i,) for i in range(10000)]
         )
 
     @with_pandas_cursor()
@@ -354,7 +351,7 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
     @with_pandas_cursor()
     def test_empty_result(self, cursor):
         table = "test_pandas_cursor_empty_result_" + "".join(
-            [random.choice(string.ascii_lowercase + string.digits) for _ in xrange(10)]
+            [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]
         )
         location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, S3_PREFIX, table)
         df = cursor.execute(
@@ -399,10 +396,10 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
     def test_executemany(self, cursor):
         cursor.executemany(
             "INSERT INTO execute_many_pandas (a) VALUES (%(a)s)",
-            [{"a": i} for i in xrange(1, 3)],
+            [{"a": i} for i in range(1, 3)],
         )
         cursor.execute("SELECT * FROM execute_many_pandas")
-        self.assertEqual(sorted(cursor.fetchall()), [(i,) for i in xrange(1, 3)])
+        self.assertEqual(sorted(cursor.fetchall()), [(i,) for i in range(1, 3)])
 
     @with_pandas_cursor()
     def test_executemany_fetch(self, cursor):

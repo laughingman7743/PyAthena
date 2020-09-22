@@ -1,11 +1,6 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import collections
 import logging
-
-from future.utils import raise_from
-from past.builtins.misc import xrange
 
 from pyathena.common import CursorIterator
 from pyathena.error import DataError, OperationalError, ProgrammingError
@@ -290,7 +285,7 @@ class AthenaResultSet(CursorIterator):
             )
         except Exception as e:
             _logger.exception("Failed to fetch result set.")
-            raise_from(OperationalError(*e.args), e)
+            raise OperationalError(*e.args) from e
         else:
             return response
 
@@ -318,7 +313,7 @@ class AthenaResultSet(CursorIterator):
         if not size or size <= 0:
             size = self._arraysize
         rows = []
-        for _ in xrange(size):
+        for _ in range(size):
             row = self.fetchone()
             if row:
                 rows.append(row)
@@ -371,7 +366,7 @@ class AthenaResultSet(CursorIterator):
                         for meta, row in zip(self._meta_data, rows[i].get("Data", []))
                     ]
                 )
-                for i in xrange(offset, len(rows))
+                for i in range(offset, len(rows))
             ]
         self._rows.extend(processed_rows)
         self._next_token = response.get("NextToken", None)
@@ -494,7 +489,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         if not size or size <= 0:
             size = self._arraysize
         rows = []
-        for _ in xrange(size):
+        for _ in range(size):
             row = self.fetchone()
             if row:
                 rows.append(row)
@@ -528,7 +523,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             )
         except Exception as e:
             _logger.exception("Failed to download csv.")
-            raise_from(OperationalError(*e.args), e)
+            raise OperationalError(*e.args) from e
         else:
             length = response["ContentLength"]
             if length:

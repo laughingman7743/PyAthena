@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import concurrent
 import functools
 import logging
@@ -10,14 +8,13 @@ import uuid
 from collections import OrderedDict
 from concurrent.futures.thread import ThreadPoolExecutor
 from copy import deepcopy
+from multiprocessing import cpu_count
 
 import tenacity
 from boto3 import Session
-from future.utils import iteritems
-from past.builtins import xrange
 from tenacity import after_log, retry_if_exception, stop_after_attempt, wait_exponential
 
-from pyathena import DataError, OperationalError, cpu_count
+from pyathena import DataError, OperationalError
 from pyathena.model import AthenaCompression
 
 _logger = logging.getLogger(__name__)
@@ -43,7 +40,7 @@ def get_chunks(df, chunksize=None):
         raise ValueError("Chunk size argument must be greater than zero")
 
     chunks = int(rows / chunksize) + 1
-    for i in xrange(chunks):
+    for i in range(chunks):
         start_i = i * chunksize
         end_i = min((i + 1) * chunksize, rows)
         if start_i >= end_i:
@@ -255,7 +252,7 @@ def get_column_names_and_types(df, type_mappings):
     return OrderedDict(
         (
             (str(df.columns[i]), type_mappings(df.iloc[:, i]))
-            for i in xrange(len(df.columns))
+            for i in range(len(df.columns))
         )
     )
 
@@ -276,7 +273,7 @@ def generate_ddl(
     ddl += ",\n".join(
         [
             "`{0}` {1}".format(col, type_)
-            for col, type_ in iteritems(column_names_and_types)
+            for col, type_ in column_names_and_types.items()
             if col not in partitions
         ]
     )

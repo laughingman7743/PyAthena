@@ -1,13 +1,9 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import contextlib
 import time
 import unittest
 from datetime import datetime
 from random import randint
-
-from past.builtins.misc import xrange
 
 from pyathena.async_cursor import AsyncCursor
 from pyathena.error import NotSupportedError, ProgrammingError
@@ -59,7 +55,7 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         self.assertEqual(result_set.fetchall(), [(1,)])
         query_id, future = cursor.execute("SELECT a FROM many_rows ORDER BY a")
         result_set = future.result()
-        self.assertEqual(result_set.fetchall(), [(i,) for i in xrange(10000)])
+        self.assertEqual(result_set.fetchall(), [(i,) for i in range(10000)])
 
     @with_async_cursor()
     def test_iterator(self, cursor):

@@ -1,17 +1,7 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import datetime
 
 from pyathena.error import *  # noqa
-
-try:
-    from multiprocessing import cpu_count
-except ImportError:
-
-    def cpu_count():
-        return None
-
 
 __version__ = "1.11.2"
 

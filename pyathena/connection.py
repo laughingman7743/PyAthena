@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import logging
 import os
 import time
 
 from boto3.session import Session
-from future.utils import iteritems
 
 from pyathena.async_pandas_cursor import AsyncPandasCursor
 from pyathena.converter import DefaultPandasTypeConverter, DefaultTypeConverter
@@ -126,14 +123,12 @@ class Connection(object):
     @property
     def _session_kwargs(self):
         return {
-            k: v for k, v in iteritems(self._kwargs) if k in self._SESSION_PASSING_ARGS
+            k: v for k, v in self._kwargs.items() if k in self._SESSION_PASSING_ARGS
         }
 
     @property
     def _client_kwargs(self):
-        return {
-            k: v for k, v in iteritems(self._kwargs) if k in self._CLIENT_PASSING_ARGS
-        }
+        return {k: v for k, v in self._kwargs.items() if k in self._CLIENT_PASSING_ARGS}
 
     @property
     def session(self):

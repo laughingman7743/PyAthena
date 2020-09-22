@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import contextlib
 import random
 import string
@@ -8,8 +6,6 @@ import time
 import unittest
 from datetime import datetime
 from random import randint
-
-from past.builtins.misc import xrange
 
 from pyathena.async_cursor import AsyncCursor
 from pyathena.error import NotSupportedError, ProgrammingError
@@ -63,7 +59,7 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
         self.assertEqual(result_set.fetchall(), [(1,)])
         query_id, future = cursor.execute("SELECT a FROM many_rows ORDER BY a")
         result_set = future.result()
-        self.assertEqual(result_set.fetchall(), [(i,) for i in xrange(10000)])
+        self.assertEqual(result_set.fetchall(), [(i,) for i in range(10000)])
 
     @with_async_pandas_cursor()
     def test_iterator(self, cursor):
@@ -209,7 +205,7 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
         self.assertEqual(df.shape[0], 10000)
         self.assertEqual(df.shape[1], 1)
         self.assertEqual(
-            [(row["a"],) for _, row in df.iterrows()], [(i,) for i in xrange(10000)]
+            [(row["a"],) for _, row in df.iterrows()], [(i,) for i in range(10000)]
         )
 
     @with_async_pandas_cursor()
@@ -248,7 +244,7 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
     @with_async_pandas_cursor()
     def test_empty_result(self, cursor):
         table = "test_pandas_cursor_empty_result_" + "".join(
-            [random.choice(string.ascii_lowercase + string.digits) for _ in xrange(10)]
+            [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]
         )
         location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, S3_PREFIX, table)
         query_id, future = cursor.execute(

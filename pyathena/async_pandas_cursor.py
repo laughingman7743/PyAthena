@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import logging
+from multiprocessing import cpu_count
 
-from pyathena import cpu_count
 from pyathena.async_cursor import AsyncCursor
 from pyathena.common import CursorIterator
 from pyathena.result_set import AthenaPandasResultSet
