@@ -19,11 +19,11 @@ ATHENA_QUERY_EXECUTION_RESPONSE = {
         "StatementType": "DML",
         "Statistics": {
             "DataScannedInBytes": 1234567890,
-            "EngineExecutionTimeInMillis": 1234567890,
-            "QueryQueueTimeInMillis": 1234567890,
-            "TotalExecutionTimeInMillis": 1234567890,
-            "QueryPlanningTimeInMillis": 1234567890,
-            "ServiceProcessingTimeInMillis": 1234567890,
+            "EngineExecutionTimeInMillis": 234567890,
+            "QueryQueueTimeInMillis": 34567890,
+            "TotalExecutionTimeInMillis": 4567890,
+            "QueryPlanningTimeInMillis": 567890,
+            "ServiceProcessingTimeInMillis": 67890,
             "DataManifestLocation": "s3://bucket/path/to/",
         },
         "Status": {
@@ -49,12 +49,11 @@ class TestAthenaQueryExecution(unittest.TestCase):
         self.assertEqual(actual.completion_date_time, datetime(2019, 1, 1, 0, 0, 0))
         self.assertEqual(actual.submission_date_time, datetime(2019, 1, 1, 0, 0, 0))
         self.assertEqual(actual.data_scanned_in_bytes, 1234567890)
-        self.assertEqual(actual.execution_time_in_millis, 1234567890)
-        self.assertEqual(actual.engine_execution_time_in_millis, 1234567890)
-        self.assertEqual(actual.query_queue_time_in_millis, 1234567890)
-        self.assertEqual(actual.total_execution_time_in_millis, 1234567890)
-        self.assertEqual(actual.query_planning_time_in_millis, 1234567890)
-        self.assertEqual(actual.service_processing_time_in_millis, 1234567890)
+        self.assertEqual(actual.engine_execution_time_in_millis, 234567890)
+        self.assertEqual(actual.query_queue_time_in_millis, 34567890)
+        self.assertEqual(actual.total_execution_time_in_millis, 4567890)
+        self.assertEqual(actual.query_planning_time_in_millis, 567890)
+        self.assertEqual(actual.service_processing_time_in_millis, 67890)
         self.assertEqual(actual.output_location, "s3://bucket/path/to/")
         self.assertEqual(actual.data_manifest_location, "s3://bucket/path/to/")
         self.assertEqual(actual.encryption_option, "test_encryption_option")
