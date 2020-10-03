@@ -17,7 +17,7 @@ from tenacity import after_log, retry_if_exception, stop_after_attempt, wait_exp
 from pyathena import DataError, OperationalError
 from pyathena.model import AthenaCompression
 
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)  # type: ignore
 
 PATTERN_OUTPUT_LOCATION = re.compile(r"^s3://(?P<bucket>[a-zA-Z0-9.\-_]+)/(?P<key>.+)$")
 

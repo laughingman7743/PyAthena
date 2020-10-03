@@ -1,31 +1,37 @@
 # -*- coding: utf-8 -*-
 import logging
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from pyathena.common import BaseCursor, CursorIterator
+from pyathena.converter import Converter
 from pyathena.error import OperationalError, ProgrammingError
+from pyathena.formatter import Formatter
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet, WithResultSet
-from pyathena.util import synchronized
+from pyathena.util import RetryConfig, synchronized
 
-_logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from pyathena.connection import Connection
+
+_logger = logging.getLogger(__name__)  # type: ignore
 
 
 class Cursor(BaseCursor, CursorIterator, WithResultSet):
     def __init__(
         self,
-        connection,
-        s3_staging_dir,
-        schema_name,
-        work_group,
-        poll_interval,
-        encryption_option,
-        kms_key,
-        converter,
-        formatter,
-        retry_config,
-        kill_on_interrupt=True,
+        connection: "Connection",
+        s3_staging_dir: str,
+        schema_name: str,
+        work_group: str,
+        poll_interval: float,
+        encryption_option: str,
+        kms_key: str,
+        converter: Converter,
+        formatter: Formatter,
+        retry_config: RetryConfig,
+        kill_on_interrupt: bool = True,
         **kwargs
-    ):
+    ) -> None:
         super(Cursor, self).__init__(
             connection=connection,
             s3_staging_dir=s3_staging_dir,
@@ -42,21 +48,21 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         )
 
     @property
-    def rownumber(self):
+    def rownumber(self) -> Optional[int]:
         return self._result_set.rownumber if self._result_set else None
 
-    def close(self):
+    def close(self) -> None:
         if self._result_set and not self._result_set.is_closed:
             self._result_set.close()
 
     @synchronized
     def execute(
         self,
-        operation,
-        parameters=None,
-        work_group=None,
-        s3_staging_dir=None,
-        cache_size=0,
+        operation: str,
+        parameters: Dict[str, Any] = None,
+        work_group: Optional[str] = None,
+        s3_staging_dir: Optional[str] = None,
+        cache_size: int = 0,
     ):
         self._reset_state()
         self._query_id = self._execute(
@@ -79,14 +85,14 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
             raise OperationalError(query_execution.state_change_reason)
         return self
 
-    def executemany(self, operation, seq_of_parameters):
+    def executemany(self, operation: str, seq_of_parameters: List[Dict[str, Any]]):
         for parameters in seq_of_parameters:
             self.execute(operation, parameters)
         # Operations that have result sets are not allowed with executemany.
         self._reset_state()
 
     @synchronized
-    def cancel(self):
+    def cancel(self) -> None:
         if not self._query_id:
             raise ProgrammingError("QueryExecutionId is none or empty.")
         self._cancel(self._query_id)
@@ -98,7 +104,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         return self._result_set.fetchone()
 
     @synchronized
-    def fetchmany(self, size=None):
+    def fetchmany(self, size: int = None):
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
         return self._result_set.fetchmany(size)

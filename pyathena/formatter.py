@@ -7,17 +7,17 @@ from decimal import Decimal
 
 from pyathena.error import ProgrammingError
 
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)  # type: ignore
 
 
-def _escape_presto(val):
+def _escape_presto(val: str) -> str:
     """ParamEscaper
 
     https://github.com/dropbox/PyHive/blob/master/pyhive/common.py"""
     return "'{0}'".format(val.replace("'", "''"))
 
 
-def _escape_hive(val):
+def _escape_hive(val: str) -> str:
     """HiveParamEscaper
 
     https://github.com/dropbox/PyHive/blob/master/pyhive/hive.py"""

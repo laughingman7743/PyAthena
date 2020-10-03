@@ -8,7 +8,7 @@ from datetime import datetime
 from decimal import Decimal
 from distutils.util import strtobool
 
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)  # type: ignore
 
 
 def _to_date(varchar_value):

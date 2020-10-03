@@ -1,29 +1,37 @@
 # -*- coding: utf-8 -*-
 import collections
 import logging
+from datetime import datetime
+from typing import TYPE_CHECKING, Optional
 
 from pyathena.common import CursorIterator
+from pyathena.converter import Converter
 from pyathena.error import DataError, OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
-from pyathena.util import parse_output_location, retry_api_call
+from pyathena.util import RetryConfig, parse_output_location, retry_api_call
 
-_logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from pandas import DataFrame
+
+    from pyathena.connection import Connection
+
+_logger = logging.getLogger(__name__)  # type: ignore
 
 
 class WithResultSet(object):
     def __init__(self):
         super(WithResultSet, self).__init__()
-        self._query_id = None
-        self._result_set = None
+        self._query_id: Optional[str] = None
+        self._result_set: Optional[AthenaResultSet] = None
 
-    def _reset_state(self):
+    def _reset_state(self) -> None:
         self._query_id = None
         if self._result_set and not self._result_set.is_closed:
             self._result_set.close()
         self._result_set = None
 
     @property
-    def has_result_set(self):
+    def has_result_set(self) -> bool:
         return self._result_set is not None
 
     @property
@@ -33,120 +41,127 @@ class WithResultSet(object):
         return self._result_set.description
 
     @property
-    def database(self):
+    def database(self) -> Optional[str]:
         if not self.has_result_set:
             return None
         return self._result_set.database
 
     @property
-    def query_id(self):
+    def query_id(self) -> Optional[str]:
         return self._query_id
 
     @property
-    def query(self):
+    def query(self) -> Optional[str]:
         if not self.has_result_set:
             return None
         return self._result_set.query
 
     @property
-    def statement_type(self):
+    def statement_type(self) -> Optional[str]:
         if not self.has_result_set:
             return None
         return self._result_set.statement_type
 
     @property
-    def state(self):
+    def state(self) -> Optional[str]:
         if not self.has_result_set:
             return None
         return self._result_set.state
 
     @property
-    def state_change_reason(self):
+    def state_change_reason(self) -> Optional[str]:
         if not self.has_result_set:
             return None
         return self._result_set.state_change_reason
 
     @property
-    def completion_date_time(self):
+    def completion_date_time(self) -> Optional[datetime]:
         if not self.has_result_set:
             return None
         return self._result_set.completion_date_time
 
     @property
-    def submission_date_time(self):
+    def submission_date_time(self) -> Optional[datetime]:
         if not self.has_result_set:
             return None
         return self._result_set.submission_date_time
 
     @property
-    def data_scanned_in_bytes(self):
+    def data_scanned_in_bytes(self) -> Optional[int]:
         if not self.has_result_set:
             return None
         return self._result_set.data_scanned_in_bytes
 
     @property
-    def engine_execution_time_in_millis(self):
+    def engine_execution_time_in_millis(self) -> Optional[int]:
         if not self.has_result_set:
             return None
         return self._result_set.engine_execution_time_in_millis
 
     @property
-    def query_queue_time_in_millis(self):
+    def query_queue_time_in_millis(self) -> Optional[int]:
         if not self.has_result_set:
             return None
         return self._result_set.query_queue_time_in_millis
 
     @property
-    def total_execution_time_in_millis(self):
+    def total_execution_time_in_millis(self) -> Optional[int]:
         if not self.has_result_set:
             return None
         return self._result_set.total_execution_time_in_millis
 
     @property
-    def query_planning_time_in_millis(self):
+    def query_planning_time_in_millis(self) -> Optional[int]:
         if not self.has_result_set:
             return None
         return self._result_set.query_planning_time_in_millis
 
     @property
-    def service_processing_time_in_millis(self):
+    def service_processing_time_in_millis(self) -> Optional[int]:
         if not self.has_result_set:
             return None
         return self._result_set.service_processing_time_in_millis
 
     @property
-    def output_location(self):
+    def output_location(self) -> Optional[str]:
         if not self.has_result_set:
             return None
         return self._result_set.output_location
 
     @property
-    def data_manifest_location(self):
+    def data_manifest_location(self) -> Optional[str]:
         if not self.has_result_set:
             return None
         return self._result_set.data_manifest_location
 
     @property
-    def encryption_option(self):
+    def encryption_option(self) -> Optional[str]:
         if not self.has_result_set:
             return None
         return self._result_set.encryption_option
 
     @property
-    def kms_key(self):
+    def kms_key(self) -> Optional[str]:
         if not self.has_result_set:
             return None
         return self._result_set.kms_key
 
     @property
-    def work_group(self):
+    def work_group(self) -> Optional[str]:
         if not self.has_result_set:
             return None
         return self._result_set.work_group
 
 
 class AthenaResultSet(CursorIterator):
-    def __init__(self, connection, converter, query_execution, arraysize, retry_config):
+    def __init__(
+        self,
+        connection: "Connection",
+        converter: Converter,
+        query_execution: AthenaQueryExecution,
+        arraysize: int,
+        retry_config: RetryConfig,
+    ):
         super(AthenaResultSet, self).__init__(arraysize=arraysize)
         self._connection = connection
         self._converter = converter
@@ -163,79 +178,79 @@ class AthenaResultSet(CursorIterator):
             self._pre_fetch()
 
     @property
-    def database(self):
+    def database(self) -> Optional[str]:
         return self._query_execution.database
 
     @property
-    def query_id(self):
+    def query_id(self) -> Optional[str]:
         return self._query_execution.query_id
 
     @property
-    def query(self):
+    def query(self) -> Optional[str]:
         return self._query_execution.query
 
     @property
-    def statement_type(self):
+    def statement_type(self) -> Optional[str]:
         return self._query_execution.statement_type
 
     @property
-    def state(self):
+    def state(self) -> Optional[str]:
         return self._query_execution.state
 
     @property
-    def state_change_reason(self):
+    def state_change_reason(self) -> Optional[str]:
         return self._query_execution.state_change_reason
 
     @property
-    def completion_date_time(self):
+    def completion_date_time(self) -> Optional[datetime]:
         return self._query_execution.completion_date_time
 
     @property
-    def submission_date_time(self):
+    def submission_date_time(self) -> Optional[datetime]:
         return self._query_execution.submission_date_time
 
     @property
-    def data_scanned_in_bytes(self):
+    def data_scanned_in_bytes(self) -> Optional[int]:
         return self._query_execution.data_scanned_in_bytes
 
     @property
-    def engine_execution_time_in_millis(self):
+    def engine_execution_time_in_millis(self) -> Optional[int]:
         return self._query_execution.engine_execution_time_in_millis
 
     @property
-    def query_queue_time_in_millis(self):
+    def query_queue_time_in_millis(self) -> Optional[int]:
         return self._query_execution.query_queue_time_in_millis
 
     @property
-    def total_execution_time_in_millis(self):
+    def total_execution_time_in_millis(self) -> Optional[int]:
         return self._query_execution.total_execution_time_in_millis
 
     @property
-    def query_planning_time_in_millis(self):
+    def query_planning_time_in_millis(self) -> Optional[int]:
         return self._query_execution.query_planning_time_in_millis
 
     @property
-    def service_processing_time_in_millis(self):
+    def service_processing_time_in_millis(self) -> Optional[int]:
         return self._query_execution.service_processing_time_in_millis
 
     @property
-    def output_location(self):
+    def output_location(self) -> Optional[str]:
         return self._query_execution.output_location
 
     @property
-    def data_manifest_location(self):
+    def data_manifest_location(self) -> Optional[str]:
         return self._query_execution.data_manifest_location
 
     @property
-    def encryption_option(self):
+    def encryption_option(self) -> Optional[str]:
         return self._query_execution.encryption_option
 
     @property
-    def kms_key(self):
+    def kms_key(self) -> Optional[str]:
         return self._query_execution.kms_key
 
     @property
-    def work_group(self):
+    def work_group(self) -> Optional[str]:
         return self._query_execution.work_group
 
     @property
@@ -369,10 +384,10 @@ class AthenaResultSet(CursorIterator):
         return True
 
     @property
-    def is_closed(self):
+    def is_closed(self) -> bool:
         return self._connection is None
 
-    def close(self):
+    def close(self) -> None:
         self._connection = None
         self._query_execution = None
         self._meta_data = None
@@ -497,7 +512,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                 break
         return rows
 
-    def _as_pandas(self):
+    def _as_pandas(self) -> "DataFrame":
         import pandas as pd
 
         if not self.output_location:
@@ -544,10 +559,12 @@ class AthenaPandasResultSet(AthenaResultSet):
                 df = pd.DataFrame()
             return df
 
-    def as_pandas(self):
+    def as_pandas(self) -> "DataFrame":
         return self._df
 
-    def close(self):
+    def close(self) -> None:
+        import pandas as pd
+
         super(AthenaPandasResultSet, self).close()
-        self._df = None
+        self._df = pd.DataFrame()
         self._iterrows = None

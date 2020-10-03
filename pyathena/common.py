@@ -2,17 +2,18 @@
 import logging
 import time
 from abc import ABCMeta, abstractmethod
+from typing import Optional
 
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.util import retry_api_call
 
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)  # type: ignore
 
 
 class CursorIterator(object, metaclass=ABCMeta):
 
-    DEFAULT_FETCH_SIZE = 1000
+    DEFAULT_FETCH_SIZE: int = 1000
 
     def __init__(self, **kwargs):
         super(CursorIterator, self).__init__()
@@ -20,11 +21,11 @@ class CursorIterator(object, metaclass=ABCMeta):
         self._rownumber = None
 
     @property
-    def arraysize(self):
+    def arraysize(self) -> int:
         return self._arraysize
 
     @arraysize.setter
-    def arraysize(self, value):
+    def arraysize(self, value: int):
         if value <= 0 or value > self.DEFAULT_FETCH_SIZE:
             raise ProgrammingError(
                 "MaxResults is more than maximum allowed length {0}.".format(
@@ -34,11 +35,11 @@ class CursorIterator(object, metaclass=ABCMeta):
         self._arraysize = value
 
     @property
-    def rownumber(self):
+    def rownumber(self) -> Optional[int]:
         return self._rownumber
 
     @property
-    def rowcount(self):
+    def rowcount(self) -> int:
         """By default, return -1 to indicate that this is not supported."""
         return -1
 
@@ -83,7 +84,7 @@ class BaseCursor(object, metaclass=ABCMeta):
         kill_on_interrupt,
         **kwargs
     ):
-        super(BaseCursor, self).__init__(**kwargs)
+        super(BaseCursor, self).__init__()
         self._connection = connection
         self._s3_staging_dir = s3_staging_dir
         self._schema_name = schema_name
