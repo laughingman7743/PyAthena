@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import collections
 import logging
+from abc import abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
@@ -16,141 +17,6 @@ if TYPE_CHECKING:
     from pyathena.connection import Connection
 
 _logger = logging.getLogger(__name__)  # type: ignore
-
-
-class WithResultSet(object):
-    def __init__(self):
-        super(WithResultSet, self).__init__()
-        self._query_id: Optional[str] = None
-        self._result_set: Optional[AthenaResultSet] = None
-
-    def _reset_state(self) -> None:
-        self._query_id = None
-        if self._result_set and not self._result_set.is_closed:
-            self._result_set.close()
-        self._result_set = None
-
-    @property
-    def has_result_set(self) -> bool:
-        return self._result_set is not None
-
-    @property
-    def description(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.description
-
-    @property
-    def database(self) -> Optional[str]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.database
-
-    @property
-    def query_id(self) -> Optional[str]:
-        return self._query_id
-
-    @property
-    def query(self) -> Optional[str]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.query
-
-    @property
-    def statement_type(self) -> Optional[str]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.statement_type
-
-    @property
-    def state(self) -> Optional[str]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.state
-
-    @property
-    def state_change_reason(self) -> Optional[str]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.state_change_reason
-
-    @property
-    def completion_date_time(self) -> Optional[datetime]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.completion_date_time
-
-    @property
-    def submission_date_time(self) -> Optional[datetime]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.submission_date_time
-
-    @property
-    def data_scanned_in_bytes(self) -> Optional[int]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.data_scanned_in_bytes
-
-    @property
-    def engine_execution_time_in_millis(self) -> Optional[int]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.engine_execution_time_in_millis
-
-    @property
-    def query_queue_time_in_millis(self) -> Optional[int]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.query_queue_time_in_millis
-
-    @property
-    def total_execution_time_in_millis(self) -> Optional[int]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.total_execution_time_in_millis
-
-    @property
-    def query_planning_time_in_millis(self) -> Optional[int]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.query_planning_time_in_millis
-
-    @property
-    def service_processing_time_in_millis(self) -> Optional[int]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.service_processing_time_in_millis
-
-    @property
-    def output_location(self) -> Optional[str]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.output_location
-
-    @property
-    def data_manifest_location(self) -> Optional[str]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.data_manifest_location
-
-    @property
-    def encryption_option(self) -> Optional[str]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.encryption_option
-
-    @property
-    def kms_key(self) -> Optional[str]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.kms_key
-
-    @property
-    def work_group(self) -> Optional[str]:
-        if not self.has_result_set:
-            return None
-        return self._result_set.work_group
 
 
 class AthenaResultSet(CursorIterator):
@@ -270,7 +136,7 @@ class AthenaResultSet(CursorIterator):
             for m in self._meta_data
         ]
 
-    def __fetch(self, next_token=None):
+    def __fetch(self, next_token: Optional[str] = None):
         if not self.query_id:
             raise ProgrammingError("QueryExecutionId is none or empty.")
         if self.state != AthenaQueryExecution.STATE_SUCCEEDED:
@@ -311,10 +177,12 @@ class AthenaResultSet(CursorIterator):
         if not self._rows:
             return None
         else:
+            if self._rownumber is None:
+                self._rownumber = 0
             self._rownumber += 1
             return self._rows.popleft()
 
-    def fetchmany(self, size=None):
+    def fetchmany(self, size: Optional[int] = None):
         if not size or size <= 0:
             size = self._arraysize
         rows = []
@@ -490,7 +358,7 @@ class AthenaPandasResultSet(AthenaResultSet):
     def fetchone(self):
         return self._fetch()
 
-    def fetchmany(self, size=None):
+    def fetchmany(self, size: Optional[int] = None):
         if not size or size <= 0:
             size = self._arraysize
         rows = []
@@ -568,3 +436,152 @@ class AthenaPandasResultSet(AthenaResultSet):
         super(AthenaPandasResultSet, self).close()
         self._df = pd.DataFrame()
         self._iterrows = None
+
+
+class WithResultSet(object):
+    def __init__(self):
+        super(WithResultSet, self).__init__()
+
+    def _reset_state(self) -> None:
+        self.query_id = None
+        if self.result_set and not self.result_set.is_closed:
+            self.result_set.close()
+        self.result_set = None
+
+    @property
+    @abstractmethod
+    def result_set(self) -> Optional[AthenaResultSet]:
+        raise NotImplementedError  # pragma: no cover
+
+    @result_set.setter
+    @abstractmethod
+    def result_set(self, val: Optional[AthenaResultSet]) -> None:
+        raise NotImplementedError  # pragma: no cover
+
+    @property
+    def has_result_set(self) -> bool:
+        return self.result_set is not None
+
+    @property
+    def description(self):
+        if not self.has_result_set:
+            return None
+        return self.result_set.description
+
+    @property
+    def database(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.database
+
+    @property
+    @abstractmethod
+    def query_id(self) -> Optional[str]:
+        raise NotImplementedError  # pragma: no cover
+
+    @query_id.setter
+    @abstractmethod
+    def query_id(self, val: Optional[str]) -> None:
+        raise NotImplementedError  # pragma: no cover
+
+    @property
+    def query(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.query
+
+    @property
+    def statement_type(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.statement_type
+
+    @property
+    def state(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.state
+
+    @property
+    def state_change_reason(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.state_change_reason
+
+    @property
+    def completion_date_time(self) -> Optional[datetime]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.completion_date_time
+
+    @property
+    def submission_date_time(self) -> Optional[datetime]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.submission_date_time
+
+    @property
+    def data_scanned_in_bytes(self) -> Optional[int]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.data_scanned_in_bytes
+
+    @property
+    def engine_execution_time_in_millis(self) -> Optional[int]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.engine_execution_time_in_millis
+
+    @property
+    def query_queue_time_in_millis(self) -> Optional[int]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.query_queue_time_in_millis
+
+    @property
+    def total_execution_time_in_millis(self) -> Optional[int]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.total_execution_time_in_millis
+
+    @property
+    def query_planning_time_in_millis(self) -> Optional[int]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.query_planning_time_in_millis
+
+    @property
+    def service_processing_time_in_millis(self) -> Optional[int]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.service_processing_time_in_millis
+
+    @property
+    def output_location(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.output_location
+
+    @property
+    def data_manifest_location(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.data_manifest_location
+
+    @property
+    def encryption_option(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.encryption_option
+
+    @property
+    def kms_key(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.kms_key
+
+    @property
+    def work_group(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        return self.result_set.work_group

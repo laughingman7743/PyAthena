@@ -46,14 +46,32 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
             kill_on_interrupt=kill_on_interrupt,
             **kwargs
         )
+        self._query_id: Optional[str] = None
+        self._result_set: Optional[AthenaResultSet] = None
+
+    @property
+    def result_set(self) -> Optional[AthenaResultSet]:
+        return self._result_set
+
+    @result_set.setter
+    def result_set(self, val) -> None:
+        self._result_set = val
+
+    @property
+    def query_id(self) -> Optional[str]:
+        return self._query_id
+
+    @query_id.setter
+    def query_id(self, val) -> None:
+        self._query_id = val
 
     @property
     def rownumber(self) -> Optional[int]:
-        return self._result_set.rownumber if self._result_set else None
+        return self.result_set.rownumber if self.result_set else None
 
     def close(self) -> None:
-        if self._result_set and not self._result_set.is_closed:
-            self._result_set.close()
+        if self.result_set and not self.result_set.is_closed:
+            self.result_set.close()
 
     @synchronized
     def execute(
@@ -65,16 +83,16 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         cache_size: int = 0,
     ):
         self._reset_state()
-        self._query_id = self._execute(
+        self.query_id = self._execute(
             operation,
             parameters=parameters,
             work_group=work_group,
             s3_staging_dir=s3_staging_dir,
             cache_size=cache_size,
         )
-        query_execution = self._poll(self._query_id)
+        query_execution = self._poll(self.query_id)
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
-            self._result_set = AthenaResultSet(
+            self.result_set = AthenaResultSet(
                 self._connection,
                 self._converter,
                 query_execution,
@@ -93,24 +111,24 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
 
     @synchronized
     def cancel(self) -> None:
-        if not self._query_id:
+        if not self.query_id:
             raise ProgrammingError("QueryExecutionId is none or empty.")
-        self._cancel(self._query_id)
+        self._cancel(self.query_id)
 
     @synchronized
     def fetchone(self):
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        return self._result_set.fetchone()
+        return self.result_set.fetchone()
 
     @synchronized
     def fetchmany(self, size: int = None):
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        return self._result_set.fetchmany(size)
+        return self.result_set.fetchmany(size)
 
     @synchronized
     def fetchall(self):
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        return self._result_set.fetchall()
+        return self.result_set.fetchall()
