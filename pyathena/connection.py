@@ -47,7 +47,7 @@ class Connection(object):
         self,
         s3_staging_dir: Optional[str] = None,
         region_name: Optional[str] = None,
-        schema_name: Optional[str] = "default",
+        schema_name: str = "default",
         work_group: Optional[str] = None,
         poll_interval: int = 1,
         encryption_option: Optional[str] = None,

@@ -2,11 +2,16 @@
 import logging
 import time
 from abc import ABCMeta, abstractmethod
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Dict, Any, List
 
+from pyathena.converter import Converter
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
+from pyathena.formatter import Formatter
 from pyathena.model import AthenaQueryExecution
-from pyathena.util import retry_api_call
+from pyathena.util import RetryConfig, retry_api_call
+
+if TYPE_CHECKING:
+    from pyathena.connection import Connection
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
@@ -17,15 +22,15 @@ class CursorIterator(object, metaclass=ABCMeta):
 
     def __init__(self, **kwargs):
         super(CursorIterator, self).__init__()
-        self.arraysize = kwargs.get("arraysize", self.DEFAULT_FETCH_SIZE)
-        self._rownumber = None
+        self.arraysize: int = kwargs.get("arraysize", self.DEFAULT_FETCH_SIZE)
+        self._rownumber: Optional[int] = None
 
     @property
     def arraysize(self) -> int:
         return self._arraysize
 
     @arraysize.setter
-    def arraysize(self, value: int):
+    def arraysize(self, value: int) -> None:
         if value <= 0 or value > self.DEFAULT_FETCH_SIZE:
             raise ProgrammingError(
                 "MaxResults is more than maximum allowed length {0}.".format(
@@ -71,17 +76,17 @@ class CursorIterator(object, metaclass=ABCMeta):
 class BaseCursor(object, metaclass=ABCMeta):
     def __init__(
         self,
-        connection,
-        s3_staging_dir,
-        schema_name,
-        work_group,
-        poll_interval,
-        encryption_option,
-        kms_key,
-        converter,
-        formatter,
-        retry_config,
-        kill_on_interrupt,
+        connection: "Connection",
+        s3_staging_dir: Optional[str],
+        schema_name: str,
+        work_group: Optional[str],
+        poll_interval: float,
+        encryption_option: Optional[str],
+        kms_key: Optional[str],
+        converter: Converter,
+        formatter: Formatter,
+        retry_config: RetryConfig,
+        kill_on_interrupt: bool,
         **kwargs
     ):
         super(BaseCursor, self).__init__()
@@ -98,10 +103,10 @@ class BaseCursor(object, metaclass=ABCMeta):
         self._kill_on_interrupt = kill_on_interrupt
 
     @property
-    def connection(self):
+    def connection(self) -> "Connection":
         return self._connection
 
-    def _get_query_execution(self, query_id):
+    def _get_query_execution(self, query_id: str) -> AthenaQueryExecution:
         request = {"QueryExecutionId": query_id}
         try:
             response = retry_api_call(
@@ -116,7 +121,7 @@ class BaseCursor(object, metaclass=ABCMeta):
         else:
             return AthenaQueryExecution(response)
 
-    def __poll(self, query_id):
+    def __poll(self, query_id: str) -> AthenaQueryExecution:
         while True:
             query_execution = self._get_query_execution(query_id)
             if query_execution.state in [
@@ -128,7 +133,7 @@ class BaseCursor(object, metaclass=ABCMeta):
             else:
                 time.sleep(self._poll_interval)
 
-    def _poll(self, query_id):
+    def _poll(self, query_id: str) -> AthenaQueryExecution:
         try:
             query_execution = self.__poll(query_id)
         except KeyboardInterrupt as e:
@@ -141,8 +146,11 @@ class BaseCursor(object, metaclass=ABCMeta):
         return query_execution
 
     def _build_start_query_execution_request(
-        self, query, work_group=None, s3_staging_dir=None
-    ):
+        self,
+        query: str,
+        work_group: Optional[str] = None,
+        s3_staging_dir: Optional[str] = None,
+    ) -> Dict[str, Any]:
         request = {
             "QueryString": query,
             "QueryExecutionContext": {"Database": self._schema_name},
@@ -170,8 +178,11 @@ class BaseCursor(object, metaclass=ABCMeta):
         return request
 
     def _build_list_query_executions_request(
-        self, max_results, work_group, next_token=None
-    ):
+        self,
+        max_results: int,
+        work_group: Optional[str],
+        next_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
         request = {"MaxResults": max_results}
         if self._work_group or work_group:
             request.update(
@@ -181,7 +192,12 @@ class BaseCursor(object, metaclass=ABCMeta):
             request.update({"NextToken": next_token})
         return request
 
-    def _find_previous_query_id(self, query, work_group, cache_size):
+    def _find_previous_query_id(
+        self,
+        query: str,
+        work_group: Optional[str],
+        cache_size: int
+    ) -> str:
         query_id = None
         try:
             next_token = None
@@ -225,11 +241,11 @@ class BaseCursor(object, metaclass=ABCMeta):
 
     def _execute(
         self,
-        operation,
-        parameters=None,
-        work_group=None,
-        s3_staging_dir=None,
-        cache_size=0,
+        operation: str,
+        parameters: Dict[str, Any] = None,
+        work_group: Optional[str] = None,
+        s3_staging_dir: Optional[str] = None,
+        cache_size: int = 0,
     ):
         query = self._formatter.format(operation, parameters)
         _logger.debug(query)
@@ -254,23 +270,23 @@ class BaseCursor(object, metaclass=ABCMeta):
     @abstractmethod
     def execute(
         self,
-        operation,
-        parameters=None,
-        work_group=None,
-        s3_staging_dir=None,
-        cache_size=0,
+        operation: str,
+        parameters: Dict[str, Any] = None,
+        work_group: Optional[str] = None,
+        s3_staging_dir: Optional[str] = None,
+        cache_size: int = 0,
     ):
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
-    def executemany(self, operation, seq_of_parameters):
+    def executemany(self, operation: str, seq_of_parameters: List[Dict[str, Any]]):
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
-    def close(self):
+    def close(self) -> None:
         raise NotImplementedError  # pragma: no cover
 
-    def _cancel(self, query_id):
+    def _cancel(self, query_id: str) -> None:
         request = {"QueryExecutionId": query_id}
         try:
             retry_api_call(
