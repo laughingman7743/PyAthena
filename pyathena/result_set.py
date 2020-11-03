@@ -35,8 +35,8 @@ class AthenaResultSet(CursorIterator):
         assert self._query_execution, "Required argument `query_execution` not found."
         self._retry_config = retry_config
 
-        self._meta_data: Optional[Tuple[Dict[str, Any]]] = None
-        self._rows: Deque[Tuple[Any]] = collections.deque()
+        self._meta_data: Optional[Tuple[Any, Any]] = None
+        self._rows: Deque[Tuple[Optional[Any]]] = collections.deque()
         self._next_token: Optional[str] = None
 
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED:
@@ -244,13 +244,14 @@ class AthenaResultSet(CursorIterator):
                 if not self._next_token and self._is_first_row_column_labels(rows)
                 else 0
             )
+            meta_data = cast(Tuple[Any, Any], self._meta_data)
             processed_rows = [
                 tuple(
                     [
                         self._converter.convert(
                             meta.get("Type", None), row.get("VarCharValue", None)
                         )
-                        for meta, row in zip(self._meta_data, rows[i].get("Data", []))
+                        for meta, row in zip(meta_data, rows[i].get("Data", []))
                     ]
                 )
                 for i in range(offset, len(rows))
@@ -260,7 +261,8 @@ class AthenaResultSet(CursorIterator):
 
     def _is_first_row_column_labels(self, rows: List[Dict[str, Any]]) -> bool:
         first_row_data = rows[0].get("Data", [])
-        for meta, data in zip(self._meta_data, first_row_data):
+        meta_data = cast(Tuple[Any, Any], self._meta_data)
+        for meta, data in zip(meta_data, first_row_data):
             if meta.get("Name", None) != data.get("VarCharValue", None):
                 return False
         return True
