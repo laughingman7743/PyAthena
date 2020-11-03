@@ -69,7 +69,21 @@ class AsyncCursor(BaseCursor):
     def close(self, wait: bool = False) -> None:
         self._executor.shutdown(wait=wait)
 
-    def _description(self, query_id: str):
+    def _description(
+        self, query_id: str
+    ) -> Optional[
+        List[
+            Tuple[
+                Optional[Any],
+                Optional[Any],
+                None,
+                None,
+                Optional[Any],
+                Optional[Any],
+                Optional[Any],
+            ]
+        ]
+    ]:
         result_set = self._collect_result_set(query_id)
         return result_set.description
 

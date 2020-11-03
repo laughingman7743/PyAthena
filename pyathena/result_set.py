@@ -120,7 +120,21 @@ class AthenaResultSet(CursorIterator):
         return self._query_execution.work_group
 
     @property
-    def description(self):
+    def description(
+        self,
+    ) -> Optional[
+        List[
+            Tuple[
+                Optional[Any],
+                Optional[Any],
+                None,
+                None,
+                Optional[Any],
+                Optional[Any],
+                Optional[Any],
+            ]
+        ]
+    ]:
         if self._meta_data is None:
             return None
         return [
