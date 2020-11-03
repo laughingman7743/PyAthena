@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import datetime
-from typing import Type
+from typing import Type, FrozenSet
 
 from pyathena.error import *  # noqa
 
@@ -12,7 +12,7 @@ threadsafety: int = 3
 paramstyle: str = "pyformat"
 
 
-class DBAPITypeObject(frozenset):
+class DBAPITypeObject(FrozenSet[str]):
     """Type Objects and Constructors
 
     https://www.python.org/dev/peps/pep-0249/#type-objects-and-constructors
