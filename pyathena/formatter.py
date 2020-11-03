@@ -72,35 +72,35 @@ def _escape_hive(val: str) -> str:
     )
 
 
-def _format_none(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> str:
+def _format_none(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
     return "null"
 
 
 def _format_default(
     formatter: Formatter, escaper: Callable[[str], str], val: Any
-) -> str:
+) -> Any:
     return val
 
 
-def _format_date(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> str:
+def _format_date(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
     return "DATE '{0}'".format(val.strftime("%Y-%m-%d"))
 
 
 def _format_datetime(
     formatter: Formatter, escaper: Callable[[str], str], val: Any
-) -> str:
+) -> Any:
     return "TIMESTAMP '{0}'".format(val.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3])
 
 
-def _format_bool(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> str:
+def _format_bool(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
     return str(val)
 
 
-def _format_str(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> str:
+def _format_str(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
     return escaper(val)
 
 
-def _format_seq(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> str:
+def _format_seq(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
     results = []
     for v in val:
         func = formatter.get(v)
@@ -126,7 +126,7 @@ def _format_seq(formatter: Formatter, escaper: Callable[[str], str], val: Any) -
 
 def _format_decimal(
     formatter: Formatter, escaper: Callable[[str], str], val: Any
-) -> str:
+) -> Any:
     return "DECIMAL {0}".format(escaper("{0:f}".format(val)))
 
 
