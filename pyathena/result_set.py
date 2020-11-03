@@ -3,7 +3,7 @@ import collections
 import logging
 from abc import abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, cast
+from typing import TYPE_CHECKING, Any, Deque, Dict, List, Optional, Tuple, cast
 
 from pyathena.common import CursorIterator
 from pyathena.converter import Converter
@@ -36,7 +36,7 @@ class AthenaResultSet(CursorIterator):
         self._retry_config = retry_config
 
         self._meta_data: Optional[Tuple[Dict[str, Any]]] = None
-        self._rows: collections.deque[Tuple[Any]] = collections.deque()
+        self._rows: Deque[Tuple[Any]] = collections.deque()
         self._next_token: Optional[str] = None
 
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED:
