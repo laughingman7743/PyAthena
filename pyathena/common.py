@@ -243,7 +243,7 @@ class BaseCursor(object, metaclass=ABCMeta):
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
-    ):
+    ) -> str:
         query = self._formatter.format(operation, parameters)
         _logger.debug(query)
 
