@@ -4,7 +4,7 @@ import json
 import logging
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 from distutils.util import strtobool
 from typing import Any, Callable, Dict, Optional, Type
@@ -12,49 +12,49 @@ from typing import Any, Callable, Dict, Optional, Type
 _logger = logging.getLogger(__name__)  # type: ignore
 
 
-def _to_date(varchar_value: Optional[str]) -> Optional[Any]:
+def _to_date(varchar_value: Optional[str]) -> Optional[date]:
     if varchar_value is None:
         return None
     return datetime.strptime(varchar_value, "%Y-%m-%d").date()
 
 
-def _to_datetime(varchar_value: Optional[str]) -> Optional[Any]:
+def _to_datetime(varchar_value: Optional[str]) -> Optional[datetime]:
     if varchar_value is None:
         return None
     return datetime.strptime(varchar_value, "%Y-%m-%d %H:%M:%S.%f")
 
 
-def _to_time(varchar_value: Optional[str]) -> Optional[Any]:
+def _to_time(varchar_value: Optional[str]) -> Optional[time]:
     if varchar_value is None:
         return None
     return datetime.strptime(varchar_value, "%H:%M:%S.%f").time()
 
 
-def _to_float(varchar_value: Optional[str]) -> Optional[Any]:
+def _to_float(varchar_value: Optional[str]) -> Optional[float]:
     if varchar_value is None:
         return None
     return float(varchar_value)
 
 
-def _to_int(varchar_value: Optional[str]) -> Optional[Any]:
+def _to_int(varchar_value: Optional[str]) -> Optional[int]:
     if varchar_value is None:
         return None
     return int(varchar_value)
 
 
-def _to_decimal(varchar_value: Optional[str]) -> Optional[Any]:
+def _to_decimal(varchar_value: Optional[str]) -> Optional[Decimal]:
     if varchar_value is None or varchar_value == "":
         return None
     return Decimal(varchar_value)
 
 
-def _to_boolean(varchar_value: Optional[str]) -> Optional[Any]:
+def _to_boolean(varchar_value: Optional[str]) -> Optional[bool]:
     if varchar_value is None or varchar_value == "":
         return None
     return bool(strtobool(varchar_value))
 
 
-def _to_binary(varchar_value: Optional[str]) -> Optional[Any]:
+def _to_binary(varchar_value: Optional[str]) -> Optional[bytes]:
     if varchar_value is None:
         return None
     return binascii.a2b_hex("".join(varchar_value.split(" ")))
@@ -66,7 +66,7 @@ def _to_json(varchar_value: Optional[str]) -> Optional[Any]:
     return json.loads(varchar_value)
 
 
-def _to_default(varchar_value: Optional[str]) -> Optional[Any]:
+def _to_default(varchar_value: Optional[str]) -> Optional[str]:
     return varchar_value
 
 
@@ -125,7 +125,7 @@ class Converter(object, metaclass=ABCMeta):
     def types(self) -> Dict[str, Type[Any]]:
         return self._types
 
-    def get(self, type_: str) -> Callable[[Optional[str]], Optional[Any]]:
+    def get(self, type_: str) -> Optional[Callable[[Optional[str]], Optional[Any]]]:
         return self.mappings.get(type_, self._default)
 
     def set(

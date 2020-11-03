@@ -27,7 +27,7 @@ class Formatter(object, metaclass=ABCMeta):
     ) -> Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], str]]:
         return self._mappings
 
-    def get(self, type_) -> Callable[[_T, Callable[[str], str], Any], str]:
+    def get(self, type_) -> Optional[Callable[[_T, Callable[[str], str], Any], str]]:
         return self.mappings.get(type(type_), self._default)
 
     def set(
