@@ -204,7 +204,7 @@ class AthenaResultSet(CursorIterator):
                 break
         return rows
 
-    def _process_meta_data(self, response):
+    def _process_meta_data(self, response: Dict[str, Any]) -> None:
         result_set = response.get("ResultSet", None)
         if not result_set:
             raise DataError("KeyError `ResultSet`")
@@ -216,7 +216,7 @@ class AthenaResultSet(CursorIterator):
             raise DataError("KeyError `ColumnInfo`")
         self._meta_data = tuple(column_info)
 
-    def _process_rows(self, response):
+    def _process_rows(self, response: Dict[str, Any]) -> None:
         result_set = response.get("ResultSet", None)
         if not result_set:
             raise DataError("KeyError `ResultSet`")
@@ -244,7 +244,7 @@ class AthenaResultSet(CursorIterator):
         self._rows.extend(processed_rows)
         self._next_token = response.get("NextToken", None)
 
-    def _is_first_row_column_labels(self, rows):
+    def _is_first_row_column_labels(self, rows: List[Dict[str, Any]]) -> bool:
         first_row_data = rows[0].get("Data", [])
         for meta, data in zip(self._meta_data, first_row_data):
             if meta.get("Name", None) != data.get("VarCharValue", None):
@@ -282,14 +282,14 @@ class AthenaPandasResultSet(AthenaResultSet):
 
     def __init__(
         self,
-        connection,
-        converter,
-        query_execution,
-        arraysize,
-        retry_config,
-        keep_default_na=False,
-        na_values=None,
-        quoting=1,
+        connection: "Connection",
+        converter: Converter,
+        query_execution: AthenaQueryExecution,
+        arraysize: int,
+        retry_config: RetryConfig,
+        keep_default_na: bool = False,
+        na_values: Optional[List[str]] = None,
+        quoting: int = 1,
     ):
         super(AthenaPandasResultSet, self).__init__(
             connection=connection,
