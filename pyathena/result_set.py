@@ -443,17 +443,17 @@ class WithResultSet(object):
         super(WithResultSet, self).__init__()
 
     def _reset_state(self) -> None:
-        self.query_id = None
+        self.query_id = None  # type: ignore
         if self.result_set and not self.result_set.is_closed:
             self.result_set.close()
-        self.result_set = None
+        self.result_set = None  # type: ignore
 
-    @property
+    @property  # type: ignore
     @abstractmethod
     def result_set(self) -> Optional[AthenaResultSet]:
         raise NotImplementedError  # pragma: no cover
 
-    @result_set.setter
+    @result_set.setter  # type: ignore
     @abstractmethod
     def result_set(self, val: Optional[AthenaResultSet]) -> None:
         raise NotImplementedError  # pragma: no cover
@@ -474,12 +474,12 @@ class WithResultSet(object):
             return None
         return self.result_set.database
 
-    @property
+    @property  # type: ignore
     @abstractmethod
     def query_id(self) -> Optional[str]:
         raise NotImplementedError  # pragma: no cover
 
-    @query_id.setter
+    @query_id.setter  # type: ignore
     @abstractmethod
     def query_id(self, val: Optional[str]) -> None:
         raise NotImplementedError  # pragma: no cover
