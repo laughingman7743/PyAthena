@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any, Dict, Optional
 
 from pyathena.error import ProgrammingError
 
@@ -129,7 +130,7 @@ class DefaultParameterFormatter(Formatter):
             mappings=deepcopy(_DEFAULT_FORMATTERS), default=None
         )
 
-    def format(self, operation, parameters=None):
+    def format(self, operation: str, parameters: Optional[Dict[str, Any]] = None):
         if not operation or not operation.strip():
             raise ProgrammingError("Query is none or empty.")
         operation = operation.strip()

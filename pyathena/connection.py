@@ -56,9 +56,9 @@ class Connection(object):
         role_arn: Optional[str] = None,
         role_session_name: str = "PyAthena-session-{0}".format(int(time.time())),
         duration_seconds: int = 3600,
-        converter: Converter = None,
-        formatter: Formatter = None,
-        retry_config: RetryConfig = None,
+        converter: Optional[Converter] = None,
+        formatter: Optional[Formatter] = None,
+        retry_config: Optional[RetryConfig] = None,
         cursor_class: Type[BaseCursor] = Cursor,
         kill_on_interrupt: bool = True,
         **kwargs

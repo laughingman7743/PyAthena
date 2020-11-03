@@ -80,7 +80,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
     def execute(
         self,
         operation: str,
-        parameters: Dict[str, Any] = None,
+        parameters: Optional[Dict[str, Any]] = None,
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
@@ -113,7 +113,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         return self
 
     def executemany(
-        self, operation: str, seq_of_parameters: List[Dict[str, Any]]
+        self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]]
     ) -> None:
         for parameters in seq_of_parameters:
             self.execute(operation, parameters)

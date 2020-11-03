@@ -72,7 +72,7 @@ class AsyncPandasCursor(AsyncCursor):
     def execute(
         self,
         operation: str,
-        parameters: Dict[str, Any] = None,
+        parameters: Optional[Dict[str, Any]] = None,
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,

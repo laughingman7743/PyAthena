@@ -95,7 +95,7 @@ class AsyncCursor(BaseCursor):
     def execute(
         self,
         operation: str,
-        parameters: Dict[str, Any] = None,
+        parameters: Optional[Dict[str, Any]] = None,
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
@@ -109,7 +109,9 @@ class AsyncCursor(BaseCursor):
         )
         return query_id, self._executor.submit(self._collect_result_set, query_id)
 
-    def executemany(self, operation: str, seq_of_parameters: List[Dict[str, Any]]):
+    def executemany(
+        self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]]
+    ):
         raise NotSupportedError
 
     def cancel(self, query_id: str) -> Future:

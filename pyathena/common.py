@@ -194,7 +194,7 @@ class BaseCursor(object, metaclass=ABCMeta):
 
     def _find_previous_query_id(
         self, query: str, work_group: Optional[str], cache_size: int
-    ) -> str:
+    ) -> Optional[str]:
         query_id = None
         try:
             next_token = None
@@ -239,7 +239,7 @@ class BaseCursor(object, metaclass=ABCMeta):
     def _execute(
         self,
         operation: str,
-        parameters: Dict[str, Any] = None,
+        parameters: Optional[Dict[str, Any]] = None,
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
@@ -268,7 +268,7 @@ class BaseCursor(object, metaclass=ABCMeta):
     def execute(
         self,
         operation: str,
-        parameters: Dict[str, Any] = None,
+        parameters: Optional[Dict[str, Any]] = None,
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
@@ -276,7 +276,9 @@ class BaseCursor(object, metaclass=ABCMeta):
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
-    def executemany(self, operation: str, seq_of_parameters: List[Dict[str, Any]]):
+    def executemany(
+        self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]]
+    ):
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod

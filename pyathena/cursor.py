@@ -77,7 +77,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
     def execute(
         self,
         operation: str,
-        parameters: Dict[str, Any] = None,
+        parameters: Optional[Dict[str, Any]] = None,
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
@@ -103,7 +103,9 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
             raise OperationalError(query_execution.state_change_reason)
         return self
 
-    def executemany(self, operation: str, seq_of_parameters: List[Dict[str, Any]]):
+    def executemany(
+        self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]]
+    ):
         for parameters in seq_of_parameters:
             self.execute(operation, parameters)
         # Operations that have result sets are not allowed with executemany.
