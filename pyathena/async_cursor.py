@@ -109,7 +109,7 @@ class AsyncCursor(BaseCursor):
         )
         return query_id, self._executor.submit(self._collect_result_set, query_id)
 
-    def executemany(self, operation: str, seq_of_parameters: Dict[str, Any]):
+    def executemany(self, operation: str, seq_of_parameters: List[Dict[str, Any]]):
         raise NotSupportedError
 
     def cancel(self, query_id: str) -> Future:
