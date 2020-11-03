@@ -309,6 +309,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         )
         if (
             self.state == AthenaQueryExecution.STATE_SUCCEEDED
+            and self.output_location
             and self.output_location.endswith((".csv", ".txt"))
         ):
             self._df = self._as_pandas()
