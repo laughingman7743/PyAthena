@@ -2,7 +2,7 @@
 import logging
 import time
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Optional, Dict, Any, List
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from pyathena.converter import Converter
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
@@ -193,10 +193,7 @@ class BaseCursor(object, metaclass=ABCMeta):
         return request
 
     def _find_previous_query_id(
-        self,
-        query: str,
-        work_group: Optional[str],
-        cache_size: int
+        self, query: str, work_group: Optional[str], cache_size: int
     ) -> str:
         query_id = None
         try:

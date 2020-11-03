@@ -4,10 +4,10 @@ import json
 import logging
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
 from distutils.util import strtobool
-from typing import Type, Optional
+from typing import Optional, Type
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
