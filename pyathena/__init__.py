@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import datetime
-from typing import Type, FrozenSet
+from typing import FrozenSet, Type
 
 from pyathena.error import *  # noqa
 
