@@ -167,7 +167,7 @@ class DefaultParameterFormatter(Formatter):
         else:
             escaper = _escape_hive
 
-        kwargs = None
+        kwargs: Optional[Dict[str, Any]] = None
         if parameters is not None:
             kwargs = dict()
             if isinstance(parameters, dict):
