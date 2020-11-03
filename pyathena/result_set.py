@@ -337,28 +337,30 @@ class AthenaPandasResultSet(AthenaResultSet):
 
     @property
     def dtypes(self):
+        description = self.description if self.description else []
         return {
             d[0]: self._converter.types[d[1]]
-            for d in self.description
+            for d in description
             if d[1] in self._converter.types
         }
 
     @property
     def converters(self):
+        description = self.description if self.description else []
         return {
             d[0]: self._converter.mappings[d[1]]
-            for d in self.description
+            for d in description
             if d[1] in self._converter.mappings
         }
 
     @property
     def parse_dates(self):
-        return [d[0] for d in self.description if d[1] in self._parse_dates]
+        description = self.description if self.description else []
+        return [d[0] for d in description if d[1] in self._parse_dates]
 
     def _trunc_date(self, df):
-        times = [
-            d[0] for d in self.description if d[1] in ("time", "time with time zone")
-        ]
+        description = self.description if self.description else []
+        times = [d[0] for d in description if d[1] in ("time", "time with time zone")]
         if times:
             df.loc[:, times] = df.loc[:, times].apply(lambda r: r.dt.time)
         return df
@@ -370,7 +372,8 @@ class AthenaPandasResultSet(AthenaResultSet):
             return None
         else:
             self._rownumber = row[0] + 1
-            return tuple([row[1][d[0]] for d in self.description])
+            description = self.description if self.description else []
+            return tuple([row[1][d[0]] for d in description])
 
     def fetchone(self):
         return self._fetch()
@@ -420,7 +423,8 @@ class AthenaPandasResultSet(AthenaResultSet):
                 if self.output_location.endswith(".txt"):
                     sep = "\t"
                     header = None
-                    names = [d[0] for d in self.description]
+                    description = self.description if self.description else []
+                    names: Optional[Any] = [d[0] for d in description]
                 else:  # csv format
                     sep = ","
                     header = 0
