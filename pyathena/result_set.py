@@ -259,7 +259,7 @@ class AthenaResultSet(CursorIterator):
         self._connection = None
         self._query_execution = None
         self._meta_data = None
-        self._rows = None
+        self._rows.clear()
         self._next_token = None
         self._rownumber = None
 
