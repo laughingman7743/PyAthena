@@ -7,7 +7,7 @@ from copy import deepcopy
 from datetime import date, datetime
 from decimal import Decimal
 from distutils.util import strtobool
-from typing import Optional, Type
+from typing import Optional
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
