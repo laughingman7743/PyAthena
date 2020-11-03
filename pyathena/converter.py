@@ -154,7 +154,9 @@ class DefaultTypeConverter(Converter):
 
     def convert(self, type_: str, value: Optional[str]) -> Optional[Any]:
         converter = self.get(type_)
-        return converter(value)
+        if converter:
+            return converter(value)
+        return value
 
 
 class DefaultPandasTypeConverter(Converter):
