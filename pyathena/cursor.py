@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
 
 from pyathena.common import BaseCursor, CursorIterator
 from pyathena.converter import Converter
@@ -121,16 +121,19 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
     def fetchone(self):
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        return self.result_set.fetchone()
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.fetchone()
 
     @synchronized
     def fetchmany(self, size: int = None):
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        return self.result_set.fetchmany(size)
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.fetchmany(size)
 
     @synchronized
     def fetchall(self):
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        return self.result_set.fetchall()
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.fetchall()

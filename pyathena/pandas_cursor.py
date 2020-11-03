@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
 
 from pyathena.common import CursorIterator
 from pyathena.converter import Converter
@@ -130,22 +130,26 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
     def fetchone(self):
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        return self.result_set.fetchone()
+        result_set = cast(AthenaPandasResultSet, self.result_set)
+        return result_set.fetchone()
 
     @synchronized
     def fetchmany(self, size: Optional[int] = None):
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        return self.result_set.fetchmany(size)
+        result_set = cast(AthenaPandasResultSet, self.result_set)
+        return result_set.fetchmany(size)
 
     @synchronized
     def fetchall(self):
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        return self.result_set.fetchall()
+        result_set = cast(AthenaPandasResultSet, self.result_set)
+        return result_set.fetchall()
 
     @synchronized
     def as_pandas(self) -> "DataFrame":
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        return self.result_set.as_pandas()
+        result_set = cast(AthenaPandasResultSet, self.result_set)
+        return result_set.as_pandas()

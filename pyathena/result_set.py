@@ -3,7 +3,7 @@ import collections
 import logging
 from abc import abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
 
 from pyathena.common import CursorIterator
 from pyathena.converter import Converter
@@ -466,13 +466,15 @@ class WithResultSet(object):
     def description(self):
         if not self.has_result_set:
             return None
-        return self.result_set.description
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.description
 
     @property
     def database(self) -> Optional[str]:
         if not self.has_result_set:
             return None
-        return self.result_set.database
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.database
 
     @property  # type: ignore
     @abstractmethod
@@ -488,100 +490,117 @@ class WithResultSet(object):
     def query(self) -> Optional[str]:
         if not self.has_result_set:
             return None
-        return self.result_set.query
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.query
 
     @property
     def statement_type(self) -> Optional[str]:
         if not self.has_result_set:
             return None
-        return self.result_set.statement_type
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.statement_type
 
     @property
     def state(self) -> Optional[str]:
         if not self.has_result_set:
             return None
-        return self.result_set.state
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.state
 
     @property
     def state_change_reason(self) -> Optional[str]:
         if not self.has_result_set:
             return None
-        return self.result_set.state_change_reason
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.state_change_reason
 
     @property
     def completion_date_time(self) -> Optional[datetime]:
         if not self.has_result_set:
             return None
-        return self.result_set.completion_date_time
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.completion_date_time
 
     @property
     def submission_date_time(self) -> Optional[datetime]:
         if not self.has_result_set:
             return None
-        return self.result_set.submission_date_time
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.submission_date_time
 
     @property
     def data_scanned_in_bytes(self) -> Optional[int]:
         if not self.has_result_set:
             return None
-        return self.result_set.data_scanned_in_bytes
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.data_scanned_in_bytes
 
     @property
     def engine_execution_time_in_millis(self) -> Optional[int]:
         if not self.has_result_set:
             return None
-        return self.result_set.engine_execution_time_in_millis
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.engine_execution_time_in_millis
 
     @property
     def query_queue_time_in_millis(self) -> Optional[int]:
         if not self.has_result_set:
             return None
-        return self.result_set.query_queue_time_in_millis
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.query_queue_time_in_millis
 
     @property
     def total_execution_time_in_millis(self) -> Optional[int]:
         if not self.has_result_set:
             return None
-        return self.result_set.total_execution_time_in_millis
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.total_execution_time_in_millis
 
     @property
     def query_planning_time_in_millis(self) -> Optional[int]:
         if not self.has_result_set:
             return None
-        return self.result_set.query_planning_time_in_millis
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.query_planning_time_in_millis
 
     @property
     def service_processing_time_in_millis(self) -> Optional[int]:
         if not self.has_result_set:
             return None
-        return self.result_set.service_processing_time_in_millis
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.service_processing_time_in_millis
 
     @property
     def output_location(self) -> Optional[str]:
         if not self.has_result_set:
             return None
-        return self.result_set.output_location
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.output_location
 
     @property
     def data_manifest_location(self) -> Optional[str]:
         if not self.has_result_set:
             return None
-        return self.result_set.data_manifest_location
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.data_manifest_location
 
     @property
     def encryption_option(self) -> Optional[str]:
         if not self.has_result_set:
             return None
-        return self.result_set.encryption_option
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.encryption_option
 
     @property
     def kms_key(self) -> Optional[str]:
         if not self.has_result_set:
             return None
-        return self.result_set.kms_key
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.kms_key
 
     @property
     def work_group(self) -> Optional[str]:
         if not self.has_result_set:
             return None
-        return self.result_set.work_group
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.work_group
