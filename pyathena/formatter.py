@@ -15,8 +15,8 @@ _T = TypeVar("_T", bound="Formatter")
 class Formatter(object, metaclass=ABCMeta):
     def __init__(
         self,
-        mappings: Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], str]],
-        default: Callable[[_T, Callable[[str], str], Any], str] = None,
+        mappings: Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], Any]],
+        default: Callable[[_T, Callable[[str], str], Any], Any] = None,
     ):
         self._mappings = mappings
         self._default = default
@@ -24,16 +24,16 @@ class Formatter(object, metaclass=ABCMeta):
     @property
     def mappings(
         self,
-    ) -> Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], str]]:
+    ) -> Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], Any]]:
         return self._mappings
 
-    def get(self, type_) -> Optional[Callable[[_T, Callable[[str], str], Any], str]]:
+    def get(self, type_) -> Optional[Callable[[_T, Callable[[str], str], Any], Any]]:
         return self.mappings.get(type(type_), self._default)
 
     def set(
         self,
         type_: Type[Any],
-        formatter: Callable[[_T, Callable[[str], str], Any], str],
+        formatter: Callable[[_T, Callable[[str], str], Any], Any],
     ) -> None:
         self.mappings[type_] = formatter
 
@@ -41,7 +41,7 @@ class Formatter(object, metaclass=ABCMeta):
         self.mappings.pop(type_, None)
 
     def update(
-        self, mappings: Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], str]]
+        self, mappings: Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], Any]]
     ) -> None:
         self.mappings.update(mappings)
 
@@ -104,6 +104,8 @@ def _format_seq(formatter: Formatter, escaper: Callable[[str], str], val: Any) -
     results = []
     for v in val:
         func = formatter.get(v)
+        if not func:
+            raise TypeError("{0} is not defined formatter.".format(type(v)))
         formatted = func(formatter, escaper, v)
         if not isinstance(
             formatted,
@@ -131,7 +133,7 @@ def _format_decimal(
 
 
 _DEFAULT_FORMATTERS: Dict[
-    Type[Any], Callable[[Formatter, Callable[[str], str], Any], str]
+    Type[Any], Callable[[Formatter, Callable[[str], str], Any], Any]
 ] = {
     type(None): _format_none,
     date: _format_date,
