@@ -7,7 +7,7 @@ from copy import deepcopy
 from datetime import date, datetime
 from decimal import Decimal
 from distutils.util import strtobool
-from typing import Optional
+from typing import Any, Callable, Dict, Optional, Type
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
@@ -70,7 +70,7 @@ def _to_default(varchar_value: Optional[str]) -> Optional[str]:
     return varchar_value
 
 
-_DEFAULT_CONVERTERS = {
+_DEFAULT_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[str]]] = {
     "boolean": _to_boolean,
     "tinyint": _to_int,
     "smallint": _to_int,
@@ -92,7 +92,7 @@ _DEFAULT_CONVERTERS = {
     "decimal": _to_decimal,
     "json": _to_json,
 }
-_DEFAULT_PANDAS_CONVERTERS = {
+_DEFAULT_PANDAS_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[str]]] = {
     "boolean": _to_boolean,
     "decimal": _to_decimal,
     "varbinary": _to_binary,
@@ -101,7 +101,12 @@ _DEFAULT_PANDAS_CONVERTERS = {
 
 
 class Converter(object, metaclass=ABCMeta):
-    def __init__(self, mappings, default=None, types=None):
+    def __init__(
+        self,
+        mappings: Dict[str, Callable[[Optional[str]], Optional[str]]],
+        default: Callable[[Optional[str]], Optional[str]] = None,
+        types: Dict[str, Type[Any]] = None,
+    ):
         if mappings:
             self._mappings = mappings
         else:
@@ -113,27 +118,31 @@ class Converter(object, metaclass=ABCMeta):
             self._types = dict()
 
     @property
-    def mappings(self):
+    def mappings(self) -> Dict[str, Callable[[Optional[str]], Optional[str]]]:
         return self._mappings
 
     @property
-    def types(self):
+    def types(self) -> Dict[str, Type[Any]]:
         return self._types
 
-    def get(self, type_):
+    def get(self, type_: str) -> Callable[[Optional[str]], Optional[str]]:
         return self.mappings.get(type_, self._default)
 
-    def set(self, type_, converter):
+    def set(
+        self, type_: str, converter: Callable[[Optional[str]], Optional[str]]
+    ) -> None:
         self.mappings[type_] = converter
 
-    def remove(self, type_):
+    def remove(self, type_: str) -> None:
         self.mappings.pop(type_, None)
 
-    def update(self, mappings):
+    def update(
+        self, mappings: Dict[str, Callable[[Optional[str]], Optional[str]]]
+    ) -> None:
         self.mappings.update(mappings)
 
     @abstractmethod
-    def convert(self, type_, value):
+    def convert(self, type_: str, value: Optional[str]) -> Optional[str]:
         raise NotImplementedError  # pragma: no cover
 
 
@@ -143,7 +152,7 @@ class DefaultTypeConverter(Converter):
             mappings=deepcopy(_DEFAULT_CONVERTERS), default=_to_default
         )
 
-    def convert(self, type_, value):
+    def convert(self, type_: str, value: Optional[str]) -> Optional[str]:
         converter = self.get(type_)
         return converter(value)
 
@@ -178,5 +187,5 @@ class DefaultPandasTypeConverter(Converter):
             }
         return self.__dtypes
 
-    def convert(self, type_, value):
+    def convert(self, type_: str, value: Optional[str]) -> Optional[str]:
         pass

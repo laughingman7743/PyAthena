@@ -151,7 +151,7 @@ class BaseCursor(object, metaclass=ABCMeta):
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
     ) -> Dict[str, Any]:
-        request = {
+        request: Dict[str, Any] = {
             "QueryString": query,
             "QueryExecutionContext": {"Database": self._schema_name},
             "ResultConfiguration": {},
@@ -183,7 +183,7 @@ class BaseCursor(object, metaclass=ABCMeta):
         work_group: Optional[str],
         next_token: Optional[str] = None,
     ) -> Dict[str, Any]:
-        request = {"MaxResults": max_results}
+        request: Dict[str, Any] = {"MaxResults": max_results}
         if self._work_group or work_group:
             request.update(
                 {"WorkGroup": work_group if work_group else self._work_group}

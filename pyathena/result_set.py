@@ -3,7 +3,7 @@ import collections
 import logging
 from abc import abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, cast
 
 from pyathena.common import CursorIterator
 from pyathena.converter import Converter
@@ -35,9 +35,9 @@ class AthenaResultSet(CursorIterator):
         assert self._query_execution, "Required argument `query_execution` not found."
         self._retry_config = retry_config
 
-        self._meta_data = None
+        self._meta_data: Optional[Tuple[Dict[str, Any]]] = None
         self._rows: collections.deque = collections.deque()
-        self._next_token = None
+        self._next_token: Optional[str] = None
 
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED:
             self._rownumber = 0
@@ -272,7 +272,7 @@ class AthenaResultSet(CursorIterator):
 
 class AthenaPandasResultSet(AthenaResultSet):
 
-    _parse_dates = [
+    _parse_dates: List[str] = [
         "date",
         "time",
         "time with time zone",

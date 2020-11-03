@@ -4,11 +4,52 @@ from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Type, TypeVar
 
 from pyathena.error import ProgrammingError
 
 _logger = logging.getLogger(__name__)  # type: ignore
+_T = TypeVar("_T", bound="Formatter")
+
+
+class Formatter(object, metaclass=ABCMeta):
+    def __init__(
+        self,
+        mappings: Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], str]],
+        default: Callable[[_T, Callable[[str], str], Any], str] = None,
+    ):
+        self._mappings = mappings
+        self._default = default
+
+    @property
+    def mappings(
+        self,
+    ) -> Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], str]]:
+        return self._mappings
+
+    def get(self, type_) -> Callable[[_T, Callable[[str], str], Any], str]:
+        return self.mappings.get(type(type_), self._default)
+
+    def set(
+        self,
+        type_: Type[Any],
+        formatter: Callable[[_T, Callable[[str], str], Any], str],
+    ) -> None:
+        self.mappings[type_] = formatter
+
+    def remove(self, type_: Type[Any]) -> None:
+        self.mappings.pop(type_, None)
+
+    def update(
+        self, mappings: Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], str]]
+    ) -> None:
+        self.mappings.update(mappings)
+
+    @abstractmethod
+    def format(
+        self, operation: str, parameters: Optional[Dict[str, Any]] = None
+    ) -> str:
+        raise NotImplementedError  # pragma: no cover
 
 
 def _escape_presto(val: str) -> str:
@@ -31,31 +72,35 @@ def _escape_hive(val: str) -> str:
     )
 
 
-def _format_none(formatter, escaper, val):
+def _format_none(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> str:
     return "null"
 
 
-def _format_default(formatter, escaper, val):
+def _format_default(
+    formatter: Formatter, escaper: Callable[[str], str], val: Any
+) -> str:
     return val
 
 
-def _format_date(formatter, escaper, val):
+def _format_date(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> str:
     return "DATE '{0}'".format(val.strftime("%Y-%m-%d"))
 
 
-def _format_datetime(formatter, escaper, val):
+def _format_datetime(
+    formatter: Formatter, escaper: Callable[[str], str], val: Any
+) -> str:
     return "TIMESTAMP '{0}'".format(val.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3])
 
 
-def _format_bool(formatter, escaper, val):
+def _format_bool(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> str:
     return str(val)
 
 
-def _format_str(formatter, escaper, val):
+def _format_str(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> str:
     return escaper(val)
 
 
-def _format_seq(formatter, escaper, val):
+def _format_seq(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> str:
     results = []
     for v in val:
         func = formatter.get(v)
@@ -79,11 +124,15 @@ def _format_seq(formatter, escaper, val):
     return "({0})".format(", ".join(results))
 
 
-def _format_decimal(formatter, escaper, val):
+def _format_decimal(
+    formatter: Formatter, escaper: Callable[[str], str], val: Any
+) -> str:
     return "DECIMAL {0}".format(escaper("{0:f}".format(val)))
 
 
-_DEFAULT_FORMATTERS = {
+_DEFAULT_FORMATTERS: Dict[
+    Type[Any], Callable[[Formatter, Callable[[str], str], Any], str]
+] = {
     type(None): _format_none,
     date: _format_date,
     datetime: _format_datetime,
@@ -98,39 +147,15 @@ _DEFAULT_FORMATTERS = {
 }
 
 
-class Formatter(object, metaclass=ABCMeta):
-    def __init__(self, mappings, default=None):
-        self._mappings = mappings
-        self._default = default
-
-    @property
-    def mappings(self):
-        return self._mappings
-
-    def get(self, type_):
-        return self.mappings.get(type(type_), self._default)
-
-    def set(self, type_, formatter):
-        self.mappings[type_] = formatter
-
-    def remove(self, type_):
-        self.mappings.pop(type_, None)
-
-    def update(self, mappings):
-        self.mappings.update(mappings)
-
-    @abstractmethod
-    def format(self, operation, parameters=None):
-        raise NotImplementedError  # pragma: no cover
-
-
 class DefaultParameterFormatter(Formatter):
     def __init__(self):
         super(DefaultParameterFormatter, self).__init__(
             mappings=deepcopy(_DEFAULT_FORMATTERS), default=None
         )
 
-    def format(self, operation: str, parameters: Optional[Dict[str, Any]] = None):
+    def format(
+        self, operation: str, parameters: Optional[Dict[str, Any]] = None
+    ) -> str:
         if not operation or not operation.strip():
             raise ProgrammingError("Query is none or empty.")
         operation = operation.strip()
