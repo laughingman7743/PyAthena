@@ -36,7 +36,7 @@ class AthenaResultSet(CursorIterator):
         self._retry_config = retry_config
 
         self._meta_data: Optional[Tuple[Any, ...]] = None
-        self._rows: Deque[Tuple[Optional[Any]]] = collections.deque()
+        self._rows: Deque[Tuple[Optional[Any], ...]] = collections.deque()
         self._next_token: Optional[str] = None
 
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED:
