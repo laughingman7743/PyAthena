@@ -35,7 +35,7 @@ class AthenaResultSet(CursorIterator):
         assert self._query_execution, "Required argument `query_execution` not found."
         self._retry_config = retry_config
 
-        self._meta_data: Optional[Tuple[Any, Any]] = None
+        self._meta_data: Optional[Tuple[Any, ...]] = None
         self._rows: Deque[Tuple[Optional[Any]]] = collections.deque()
         self._next_token: Optional[str] = None
 
@@ -285,7 +285,7 @@ class AthenaResultSet(CursorIterator):
                 if not self._next_token and self._is_first_row_column_labels(rows)
                 else 0
             )
-            meta_data = cast(Tuple[Any, Any], self._meta_data)
+            meta_data = cast(Tuple[Any, ...], self._meta_data)
             processed_rows = [
                 tuple(
                     [
