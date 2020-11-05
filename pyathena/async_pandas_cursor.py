@@ -2,7 +2,7 @@
 import logging
 from concurrent.futures import Future
 from multiprocessing import cpu_count
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from pyathena.async_cursor import AsyncCursor
 from pyathena.common import CursorIterator
@@ -13,6 +13,7 @@ from pyathena.util import RetryConfig
 
 if TYPE_CHECKING:
     from pyathena.connection import Connection
+    from pyathena.result_set import AthenaResultSet
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
@@ -56,7 +57,7 @@ class AsyncPandasCursor(AsyncCursor):
         keep_default_na: bool = False,
         na_values: List[str] = None,
         quoting: int = 1,
-    ):
+    ) -> AthenaPandasResultSet:
         query_execution = self._poll(query_id)
         return AthenaPandasResultSet(
             connection=self._connection,
@@ -79,7 +80,7 @@ class AsyncPandasCursor(AsyncCursor):
         keep_default_na: bool = False,
         na_values: List[str] = None,
         quoting: int = 1,
-    ) -> Tuple[str, Future]:
+    ) -> Tuple[str, "Future[Union[AthenaResultSet, AthenaPandasResultSet]]"]:
         query_id = self._execute(
             operation,
             parameters=parameters,

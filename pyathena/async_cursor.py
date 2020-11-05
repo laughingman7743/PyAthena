@@ -3,18 +3,20 @@ import logging
 from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
 from multiprocessing import cpu_count
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from pyathena.common import CursorIterator
 from pyathena.converter import Converter
 from pyathena.cursor import BaseCursor
 from pyathena.error import NotSupportedError, ProgrammingError
 from pyathena.formatter import Formatter
+from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
 from pyathena.util import RetryConfig
 
 if TYPE_CHECKING:
     from pyathena.connection import Connection
+    from pyathena.result_set import AthenaPandasResultSet
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
@@ -87,13 +89,29 @@ class AsyncCursor(BaseCursor):
         result_set = self._collect_result_set(query_id)
         return result_set.description
 
-    def description(self, query_id: str) -> Future:
+    def description(
+        self, query_id: str
+    ) -> "Future[\
+        Optional[\
+            List[\
+                Tuple[\
+                    Optional[Any],\
+                    Optional[Any],\
+                    None,\
+                    None,\
+                    Optional[Any],\
+                    Optional[Any],\
+                    Optional[Any],\
+                ]\
+            ]\
+        ]\
+    ]":
         return self._executor.submit(self._description, query_id)
 
-    def query_execution(self, query_id: str) -> Future:
+    def query_execution(self, query_id: str) -> "Future[AthenaQueryExecution]":
         return self._executor.submit(self._get_query_execution, query_id)
 
-    def poll(self, query_id: str) -> Future:
+    def poll(self, query_id: str) -> "Future[AthenaQueryExecution]":
         return self._executor.submit(self._poll, query_id)
 
     def _collect_result_set(self, query_id: str) -> AthenaResultSet:
@@ -113,7 +131,7 @@ class AsyncCursor(BaseCursor):
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
-    ) -> Tuple[str, Future]:
+    ) -> Tuple[str, "Future[Union[AthenaResultSet, AthenaPandasResultSet]]"]:
         query_id = self._execute(
             operation,
             parameters=parameters,
@@ -128,5 +146,5 @@ class AsyncCursor(BaseCursor):
     ):
         raise NotSupportedError
 
-    def cancel(self, query_id: str) -> Future:
+    def cancel(self, query_id: str) -> "Future[None]":
         return self._executor.submit(self._cancel, query_id)
