@@ -29,9 +29,9 @@ class AthenaResultSet(CursorIterator):
         retry_config: RetryConfig,
     ):
         super(AthenaResultSet, self).__init__(arraysize=arraysize)
-        self._connection = connection
+        self._connection: Optional["Connection"] = connection
         self._converter = converter
-        self._query_execution = query_execution
+        self._query_execution: Optional[AthenaQueryExecution] = query_execution
         assert self._query_execution, "Required argument `query_execution` not found."
         self._retry_config = retry_config
 
@@ -45,78 +45,116 @@ class AthenaResultSet(CursorIterator):
 
     @property
     def database(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.database
 
     @property
     def query_id(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.query_id
 
     @property
     def query(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.query
 
     @property
     def statement_type(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.statement_type
 
     @property
     def state(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.state
 
     @property
     def state_change_reason(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.state_change_reason
 
     @property
     def completion_date_time(self) -> Optional[datetime]:
+        if not self._query_execution:
+            return None
         return self._query_execution.completion_date_time
 
     @property
     def submission_date_time(self) -> Optional[datetime]:
+        if not self._query_execution:
+            return None
         return self._query_execution.submission_date_time
 
     @property
     def data_scanned_in_bytes(self) -> Optional[int]:
+        if not self._query_execution:
+            return None
         return self._query_execution.data_scanned_in_bytes
 
     @property
     def engine_execution_time_in_millis(self) -> Optional[int]:
+        if not self._query_execution:
+            return None
         return self._query_execution.engine_execution_time_in_millis
 
     @property
     def query_queue_time_in_millis(self) -> Optional[int]:
+        if not self._query_execution:
+            return None
         return self._query_execution.query_queue_time_in_millis
 
     @property
     def total_execution_time_in_millis(self) -> Optional[int]:
+        if not self._query_execution:
+            return None
         return self._query_execution.total_execution_time_in_millis
 
     @property
     def query_planning_time_in_millis(self) -> Optional[int]:
+        if not self._query_execution:
+            return None
         return self._query_execution.query_planning_time_in_millis
 
     @property
     def service_processing_time_in_millis(self) -> Optional[int]:
+        if not self._query_execution:
+            return None
         return self._query_execution.service_processing_time_in_millis
 
     @property
     def output_location(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.output_location
 
     @property
     def data_manifest_location(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.data_manifest_location
 
     @property
     def encryption_option(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.encryption_option
 
     @property
     def kms_key(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.kms_key
 
     @property
     def work_group(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.work_group
 
     @property
@@ -155,6 +193,8 @@ class AthenaResultSet(CursorIterator):
             raise ProgrammingError("QueryExecutionId is none or empty.")
         if self.state != AthenaQueryExecution.STATE_SUCCEEDED:
             raise ProgrammingError("QueryExecutionState is not SUCCEEDED.")
+        if self.is_closed:
+            raise ProgrammingError("AthenaResultSet is closed.")
         request = {
             "QueryExecutionId": self.query_id,
             "MaxResults": self._arraysize,
@@ -162,8 +202,9 @@ class AthenaResultSet(CursorIterator):
         if next_token:
             request.update({"NextToken": next_token})
         try:
+            connection = cast("Connection", self._connection)
             response = retry_api_call(
-                self._connection.client.get_query_results,
+                connection.client.get_query_results,
                 config=self._retry_config,
                 logger=_logger,
                 **request
@@ -318,10 +359,10 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._keep_default_na = keep_default_na
         self._na_values = na_values
         self._quoting = quoting
-        self._client = self._connection.session.client(
+        self._client = connection.session.client(
             "s3",
-            region_name=self._connection.region_name,
-            **self._connection._client_kwargs
+            region_name=connection.region_name,
+            **connection._client_kwargs
         )
         if (
             self.state == AthenaQueryExecution.STATE_SUCCEEDED
