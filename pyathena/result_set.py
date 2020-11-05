@@ -3,7 +3,18 @@ import collections
 import logging
 from abc import abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Deque, Dict, List, Optional, Tuple, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Deque,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    cast,
+)
 
 from pyathena.common import CursorIterator
 from pyathena.converter import Converter
@@ -27,7 +38,7 @@ class AthenaResultSet(CursorIterator):
         query_execution: AthenaQueryExecution,
         arraysize: int,
         retry_config: RetryConfig,
-    ):
+    ) -> None:
         super(AthenaResultSet, self).__init__(arraysize=arraysize)
         self._connection: Optional["Connection"] = connection
         self._converter = converter
@@ -347,7 +358,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         keep_default_na: bool = False,
         na_values: Optional[List[str]] = None,
         quoting: int = 1,
-    ):
+    ) -> None:
         super(AthenaPandasResultSet, self).__init__(
             connection=connection,
             converter=converter,
@@ -375,7 +386,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._iterrows = self._df.iterrows()
 
     @property
-    def dtypes(self):
+    def dtypes(self) -> Dict[Optional[Any], Type[Any]]:
         description = self.description if self.description else []
         return {
             d[0]: self._converter.types[d[1]]
@@ -384,7 +395,9 @@ class AthenaPandasResultSet(AthenaResultSet):
         }
 
     @property
-    def converters(self):
+    def converters(
+        self,
+    ) -> Dict[Optional[Any], Callable[[Optional[str]], Optional[Any]]]:
         description = self.description if self.description else []
         return {
             d[0]: self._converter.mappings[d[1]]
@@ -393,11 +406,11 @@ class AthenaPandasResultSet(AthenaResultSet):
         }
 
     @property
-    def parse_dates(self):
+    def parse_dates(self) -> List[Optional[Any]]:
         description = self.description if self.description else []
         return [d[0] for d in description if d[1] in self._parse_dates]
 
-    def _trunc_date(self, df):
+    def _trunc_date(self, df: "DataFrame") -> "DataFrame":
         description = self.description if self.description else []
         times = [d[0] for d in description if d[1] in ("time", "time with time zone")]
         if times:
@@ -523,7 +536,21 @@ class WithResultSet(object):
         return self.result_set is not None
 
     @property
-    def description(self):
+    def description(
+        self,
+    ) -> Optional[
+        List[
+            Tuple[
+                Optional[Any],
+                Optional[Any],
+                None,
+                None,
+                Optional[Any],
+                Optional[Any],
+                Optional[Any],
+            ]
+        ]
+    ]:
         if not self.has_result_set:
             return None
         result_set = cast(AthenaResultSet, self.result_set)

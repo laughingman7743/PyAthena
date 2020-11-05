@@ -2,7 +2,7 @@
 import logging
 import os
 import time
-from typing import Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 from boto3.session import Session
 
@@ -16,6 +16,9 @@ from pyathena.cursor import Cursor
 from pyathena.error import NotSupportedError
 from pyathena.formatter import DefaultParameterFormatter, Formatter
 from pyathena.util import RetryConfig
+
+if TYPE_CHECKING:
+    from botocore.client import BaseClient
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
@@ -117,7 +120,7 @@ class Connection(object):
         role_arn: Optional[str],
         role_session_name: str,
         duration_seconds: int,
-    ):
+    ) -> Dict[str, Any]:
         # MFA is not supported. If you want to use MFA, create a configuration file.
         # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#assume-role-provider
         session = Session(profile_name=profile_name, **self._session_kwargs)
@@ -127,7 +130,8 @@ class Connection(object):
             RoleSessionName=role_session_name,
             DurationSeconds=duration_seconds,
         )
-        return response["Credentials"]
+        creds: Dict[str, Any] = response["Credentials"]
+        return creds
 
     @property
     def _session_kwargs(self) -> Dict[str, Any]:
@@ -144,7 +148,7 @@ class Connection(object):
         return self._session
 
     @property
-    def client(self):
+    def client(self) -> "BaseClient":
         return self._client
 
     @property

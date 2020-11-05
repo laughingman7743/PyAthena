@@ -20,7 +20,7 @@ class AthenaQueryExecution(object):
     STATEMENT_TYPE_DML: str = "DML"
     STATEMENT_TYPE_UTILITY: str = "UTILITY"
 
-    def __init__(self, response: Dict[str, Any]):
+    def __init__(self, response: Dict[str, Any]) -> None:
         query_execution = response.get("QueryExecution", None)
         if not query_execution:
             raise DataError("KeyError `QueryExecution`")

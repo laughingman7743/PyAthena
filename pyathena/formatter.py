@@ -17,7 +17,7 @@ class Formatter(object, metaclass=ABCMeta):
         self,
         mappings: Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], Any]],
         default: Callable[[_T, Callable[[str], str], Any], Any] = None,
-    ):
+    ) -> None:
         self._mappings = mappings
         self._default = default
 
@@ -150,7 +150,7 @@ _DEFAULT_FORMATTERS: Dict[
 
 
 class DefaultParameterFormatter(Formatter):
-    def __init__(self):
+    def __init__(self) -> None:
         super(DefaultParameterFormatter, self).__init__(
             mappings=deepcopy(_DEFAULT_FORMATTERS), default=None
         )

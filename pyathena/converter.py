@@ -106,7 +106,7 @@ class Converter(object, metaclass=ABCMeta):
         mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]],
         default: Callable[[Optional[str]], Optional[Any]] = None,
         types: Dict[str, Type[Any]] = None,
-    ):
+    ) -> None:
         if mappings:
             self._mappings = mappings
         else:
@@ -147,7 +147,7 @@ class Converter(object, metaclass=ABCMeta):
 
 
 class DefaultTypeConverter(Converter):
-    def __init__(self):
+    def __init__(self) -> None:
         super(DefaultTypeConverter, self).__init__(
             mappings=deepcopy(_DEFAULT_CONVERTERS), default=_to_default
         )
@@ -160,7 +160,7 @@ class DefaultTypeConverter(Converter):
 
 
 class DefaultPandasTypeConverter(Converter):
-    def __init__(self):
+    def __init__(self) -> None:
         super(DefaultPandasTypeConverter, self).__init__(
             mappings=deepcopy(_DEFAULT_PANDAS_CONVERTERS),
             default=_to_default,
@@ -168,7 +168,7 @@ class DefaultPandasTypeConverter(Converter):
         )
 
     @property
-    def _dtypes(self):
+    def _dtypes(self) -> Dict[str, Type[Any]]:
         if not hasattr(self, "__dtypes"):
             import pandas as pd
 
