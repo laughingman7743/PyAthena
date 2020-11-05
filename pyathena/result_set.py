@@ -360,9 +360,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._na_values = na_values
         self._quoting = quoting
         self._client = connection.session.client(
-            "s3",
-            region_name=connection.region_name,
-            **connection._client_kwargs
+            "s3", region_name=connection.region_name, **connection._client_kwargs
         )
         if (
             self.state == AthenaQueryExecution.STATE_SUCCEEDED
