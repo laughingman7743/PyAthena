@@ -65,13 +65,13 @@ class Connection(object):
     ) -> None:
         self._kwargs = kwargs
         if s3_staging_dir:
-            self.s3_staging_dir = s3_staging_dir
+            self.s3_staging_dir: Optional[str] = s3_staging_dir
         else:
             self.s3_staging_dir = os.getenv(self._ENV_S3_STAGING_DIR, None)
         self.region_name = region_name
         self.schema_name = schema_name
         if work_group:
-            self.work_group = work_group
+            self.work_group: Optional[str] = work_group
         else:
             self.work_group = os.getenv(self._ENV_WORK_GROUP, None)
         self.poll_interval = poll_interval
