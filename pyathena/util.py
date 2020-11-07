@@ -6,9 +6,24 @@ import re
 import threading
 import uuid
 from collections import OrderedDict
+from concurrent.futures._base import Executor
+from concurrent.futures.process import ProcessPoolExecutor
 from concurrent.futures.thread import ThreadPoolExecutor
 from copy import deepcopy
 from multiprocessing import cpu_count
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Pattern,
+    Tuple,
+    Type,
+    Union,
+)
 
 import tenacity
 from boto3 import Session
@@ -17,12 +32,20 @@ from tenacity import after_log, retry_if_exception, stop_after_attempt, wait_exp
 from pyathena import DataError, OperationalError
 from pyathena.model import AthenaCompression
 
+if TYPE_CHECKING:
+    from pandas import DataFrame, Series
+
+    from pyathena.connection import Connection
+    from pyathena.cursor import Cursor
+
 _logger = logging.getLogger(__name__)  # type: ignore
 
-PATTERN_OUTPUT_LOCATION = re.compile(r"^s3://(?P<bucket>[a-zA-Z0-9.\-_]+)/(?P<key>.+)$")
+PATTERN_OUTPUT_LOCATION: Pattern[str] = re.compile(
+    r"^s3://(?P<bucket>[a-zA-Z0-9.\-_]+)/(?P<key>.+)$"
+)
 
 
-def parse_output_location(output_location):
+def parse_output_location(output_location: str) -> Tuple[str, str]:
     match = PATTERN_OUTPUT_LOCATION.search(output_location)
     if match:
         return match.group("bucket"), match.group("key")
@@ -30,7 +53,66 @@ def parse_output_location(output_location):
         raise DataError("Unknown `output_location` format.")
 
 
-def get_chunks(df, chunksize=None):
+def synchronized(wrapped: Callable[..., Any]):
+    """The missing @synchronized decorator
+
+    https://git.io/vydTA"""
+    _lock = threading.RLock()
+
+    @functools.wraps(wrapped)
+    def _wrapper(*args, **kwargs):
+        with _lock:
+            return wrapped(*args, **kwargs)
+
+    return _wrapper
+
+
+class RetryConfig(object):
+    def __init__(
+        self,
+        exceptions: Tuple[str, str] = (
+            "ThrottlingException",
+            "TooManyRequestsException",
+        ),
+        attempt: int = 5,
+        multiplier: int = 1,
+        max_delay: int = 100,
+        exponential_base: int = 2,
+    ) -> None:
+        self.exceptions = exceptions
+        self.attempt = attempt
+        self.multiplier = multiplier
+        self.max_delay = max_delay
+        self.exponential_base = exponential_base
+
+
+def retry_api_call(
+    func: Callable[..., Any],
+    config: RetryConfig,
+    logger: logging.Logger = None,
+    *args,
+    **kwargs
+) -> Any:
+    retry = tenacity.Retrying(
+        retry=retry_if_exception(
+            lambda e: getattr(e, "response", {}).get("Error", {}).get("Code", None)
+            in config.exceptions
+            if e
+            else False
+        ),
+        stop=stop_after_attempt(config.attempt),
+        wait=wait_exponential(
+            multiplier=config.multiplier,
+            max=config.max_delay,
+            exp_base=config.exponential_base,
+        ),
+        after=after_log(logger, logger.level) if logger else None,
+        reraise=True,
+    )
+    return retry(func, *args, **kwargs)
+
+
+def get_chunks(df: "DataFrame", chunksize: int = None) -> Iterator["DataFrame"]:
     rows = len(df)
     if rows == 0:
         return
@@ -48,7 +130,7 @@ def get_chunks(df, chunksize=None):
         yield df[start_i:end_i]
 
 
-def reset_index(df, index_label=None):
+def reset_index(df: "DataFrame", index_label: Optional[str] = None) -> None:
     df.index.name = index_label if index_label else "index"
     try:
         df.reset_index(inplace=True)
@@ -56,19 +138,22 @@ def reset_index(df, index_label=None):
         raise ValueError("Duplicate name in index/columns: {0}".format(e))
 
 
-def as_pandas(cursor, coerce_float=False):
+def as_pandas(cursor: "Cursor", coerce_float: bool = False) -> "DataFrame":
     from pandas import DataFrame
 
-    names = [metadata[0] for metadata in cursor.description]
+    description = cursor.description
+    if not description:
+        return DataFrame()
+    names = [metadata[0] for metadata in description]
     return DataFrame.from_records(
         cursor.fetchall(), columns=names, coerce_float=coerce_float
     )
 
 
-def to_sql_type_mappings(col):
+def to_sql_type_mappings(col: "Series") -> str:
     import pandas as pd
 
-    col_type = pd._lib.infer_dtype(col, skipna=True)
+    col_type = pd.api.types.infer_dtype(col, skipna=True)
     if col_type == "datetime64" or col_type == "datetime":
         return "TIMESTAMP"
     elif col_type == "timedelta":
@@ -97,15 +182,15 @@ def to_sql_type_mappings(col):
 
 
 def to_parquet(
-    df,
-    bucket_name,
-    prefix,
-    retry_config,
-    session_kwargs,
-    client_kwargs,
-    compression=None,
-    flavor="spark",
-):
+    df: "DataFrame",
+    bucket_name: str,
+    prefix: str,
+    retry_config: RetryConfig,
+    session_kwargs: Dict[str, Any],
+    client_kwargs: Dict[str, Any],
+    compression: str = None,
+    flavor: str = "spark",
+) -> str:
     import pyarrow as pa
     from pyarrow import parquet as pq
 
@@ -125,22 +210,24 @@ def to_parquet(
 
 
 def to_sql(
-    df,
-    name,
-    conn,
-    location,
-    schema="default",
-    index=False,
-    index_label=None,
-    partitions=None,
-    chunksize=None,
-    if_exists="fail",
-    compression=None,
-    flavor="spark",
-    type_mappings=to_sql_type_mappings,
-    executor_class=ThreadPoolExecutor,
-    max_workers=(cpu_count() or 1) * 5,
-):
+    df: "DataFrame",
+    name: str,
+    conn: "Connection",
+    location: str,
+    schema: str = "default",
+    index: bool = False,
+    index_label: Optional[str] = None,
+    partitions: List[str] = None,
+    chunksize: Optional[int] = None,
+    if_exists: str = "fail",
+    compression: str = None,
+    flavor: str = "spark",
+    type_mappings: Callable[["Series"], str] = to_sql_type_mappings,
+    executor_class: Type[
+        Union[ThreadPoolExecutor, ProcessPoolExecutor]
+    ] = ThreadPoolExecutor,
+    max_workers: int = (cpu_count() or 1) * 5,
+) -> None:
     # TODO Supports orc, avro, json, csv or tsv format
     if if_exists not in ("fail", "replace", "append"):
         raise ValueError("`{0}` is not valid for if_exists".format(if_exists))
@@ -157,11 +244,11 @@ def to_sql(
 
     table = cursor.execute(
         """
-    SELECT table_name
-    FROM information_schema.tables
-    WHERE table_schema = '{schema}'
-    AND table_name = '{table}'
-    """.format(
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = '{schema}'
+        AND table_name = '{table}'
+        """.format(
             schema=schema, table=name
         )
     ).fetchall()
@@ -174,8 +261,8 @@ def to_sql(
         if table:
             cursor.execute(
                 """
-            DROP TABLE {schema}.{table}
-            """.format(
+                DROP TABLE {schema}.{table}
+                """.format(
                     schema=schema, table=name
                 )
             )
@@ -248,7 +335,9 @@ def to_sql(
         cursor.execute(repair)
 
 
-def get_column_names_and_types(df, type_mappings):
+def get_column_names_and_types(
+    df: "DataFrame", type_mappings
+) -> "OrderedDict[str, str]":
     return OrderedDict(
         (
             (str(df.columns[i]), type_mappings(df.iloc[:, i]))
@@ -258,14 +347,14 @@ def get_column_names_and_types(df, type_mappings):
 
 
 def generate_ddl(
-    df,
-    name,
-    location,
-    schema="default",
-    partitions=None,
-    compression=None,
-    type_mappings=to_sql_type_mappings,
-):
+    df: "DataFrame",
+    name: str,
+    location: str,
+    schema: str = "default",
+    partitions: Optional[List[str]] = None,
+    compression: Optional[str] = None,
+    type_mappings: Callable[["Series"], str] = to_sql_type_mappings,
+) -> str:
     if partitions is None:
         partitions = []
     column_names_and_types = get_column_names_and_types(df, type_mappings)
@@ -289,53 +378,3 @@ def generate_ddl(
     if compression:
         ddl += "TBLPROPERTIES ('parquet.compress'='{0}')\n".format(compression.upper())
     return ddl
-
-
-def synchronized(wrapped):
-    """The missing @synchronized decorator
-
-    https://git.io/vydTA"""
-    _lock = threading.RLock()
-
-    @functools.wraps(wrapped)
-    def _wrapper(*args, **kwargs):
-        with _lock:
-            return wrapped(*args, **kwargs)
-
-    return _wrapper
-
-
-class RetryConfig(object):
-    def __init__(
-        self,
-        exceptions=("ThrottlingException", "TooManyRequestsException"),
-        attempt=5,
-        multiplier=1,
-        max_delay=100,
-        exponential_base=2,
-    ):
-        self.exceptions = exceptions
-        self.attempt = attempt
-        self.multiplier = multiplier
-        self.max_delay = max_delay
-        self.exponential_base = exponential_base
-
-
-def retry_api_call(func, config, logger=None, *args, **kwargs):
-    retry = tenacity.Retrying(
-        retry=retry_if_exception(
-            lambda e: getattr(e, "response", {}).get("Error", {}).get("Code", None)
-            in config.exceptions
-            if e
-            else False
-        ),
-        stop=stop_after_attempt(config.attempt),
-        wait=wait_exponential(
-            multiplier=config.multiplier,
-            max=config.max_delay,
-            exp_base=config.exponential_base,
-        ),
-        after=after_log(logger, logger.level) if logger else None,
-        reraise=True,
-    )
-    return retry(func, *args, **kwargs)

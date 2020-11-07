@@ -439,4 +439,4 @@ class AthenaDialect(DefaultDialect):
         return True  # pragma: no cover
 
     def _is_nan(self, column_default):
-        return isinstance(column_default, numbers.Number) and math.isnan(column_default)
+        return isinstance(column_default, numbers.Real) and math.isnan(column_default)
