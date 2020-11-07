@@ -6,7 +6,6 @@ import re
 import threading
 import uuid
 from collections import OrderedDict
-from concurrent.futures._base import Executor
 from concurrent.futures.process import ProcessPoolExecutor
 from concurrent.futures.thread import ThreadPoolExecutor
 from copy import deepcopy
