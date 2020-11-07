@@ -12,7 +12,7 @@ matrix:
     - python: 3.8
       env: TOXENV=py38
 install:
-  - pip install tox awscli
+  - pip install poetry tox awscli
 before_script:
   - ./scripts/test_data/upload_test_data.sh
 script:
