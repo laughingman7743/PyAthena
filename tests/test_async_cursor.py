@@ -1,13 +1,9 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import contextlib
 import time
 import unittest
 from datetime import datetime
 from random import randint
-
-from past.builtins.misc import xrange
 
 from pyathena.async_cursor import AsyncCursor
 from pyathena.error import NotSupportedError, ProgrammingError
@@ -36,7 +32,6 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         self.assertIsNotNone(result_set.submission_date_time)
         self.assertIsInstance(result_set.submission_date_time, datetime)
         self.assertIsNotNone(result_set.data_scanned_in_bytes)
-        self.assertIsNotNone(result_set.execution_time_in_millis)
         self.assertIsNotNone(result_set.engine_execution_time_in_millis)
         self.assertIsNotNone(result_set.query_queue_time_in_millis)
         self.assertIsNotNone(result_set.total_execution_time_in_millis)
@@ -59,7 +54,7 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         self.assertEqual(result_set.fetchall(), [(1,)])
         query_id, future = cursor.execute("SELECT a FROM many_rows ORDER BY a")
         result_set = future.result()
-        self.assertEqual(result_set.fetchall(), [(i,) for i in xrange(10000)])
+        self.assertEqual(result_set.fetchall(), [(i,) for i in range(10000)])
 
     @with_async_cursor()
     def test_iterator(self, cursor):
@@ -121,8 +116,12 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         self.assertIsNotNone(query_execution.submission_date_time)
         self.assertIsInstance(query_execution.submission_date_time, datetime)
         self.assertIsNotNone(query_execution.data_scanned_in_bytes)
-        self.assertIsNotNone(query_execution.execution_time_in_millis)
+        self.assertIsNotNone(query_execution.engine_execution_time_in_millis)
         self.assertIsNotNone(query_execution.query_queue_time_in_millis)
+        self.assertIsNotNone(query_execution.total_execution_time_in_millis)
+        # TODO flaky test
+        # self.assertIsNotNone(query_execution.query_planning_time_in_millis)
+        # self.assertIsNotNone(query_execution.service_processing_time_in_millis)
         self.assertIsNotNone(query_execution.output_location)
         self.assertIsNone(query_execution.encryption_option)
         self.assertIsNone(query_execution.kms_key)
@@ -144,10 +143,6 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         )
         self.assertEqual(
             result_set.data_scanned_in_bytes, query_execution.data_scanned_in_bytes
-        )
-        self.assertEqual(
-            result_set.execution_time_in_millis,
-            query_execution.execution_time_in_millis,
         )
         self.assertEqual(
             result_set.engine_execution_time_in_millis,

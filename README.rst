@@ -1,8 +1,8 @@
 .. image:: https://img.shields.io/pypi/pyversions/PyAthena.svg
     :target: https://pypi.org/project/PyAthena/
 
-.. image:: https://travis-ci.com/laughingman7743/PyAthena.svg?branch=master
-    :target: https://travis-ci.com/laughingman7743/PyAthena
+.. image:: https://github.com/laughingman7743/PyAthena/workflows/test/badge.svg
+    :target: https://github.com/laughingman7743/PyAthena/actions
 
 .. image:: https://codecov.io/gh/laughingman7743/PyAthena/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/laughingman7743/PyAthena
@@ -11,7 +11,7 @@
     :target: https://github.com/laughingman7743/PyAthena/blob/master/LICENSE
 
 .. image:: https://pepy.tech/badge/pyathena/month
-    :target: https://pepy.tech/project/pyathena/month
+    :target: https://pepy.tech/project/pyathena
 
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/psf/black
@@ -19,7 +19,7 @@
 PyAthena
 ========
 
-PyAthena is a Python `DB API 2.0 (PEP 249)`_ compliant client for `Amazon Athena`_.
+PyAthena is a Python `DB API 2.0 (PEP 249)`_ client for `Amazon Athena`_.
 
 .. _`DB API 2.0 (PEP 249)`: https://www.python.org/dev/peps/pep-0249/
 .. _`Amazon Athena`: https://docs.aws.amazon.com/athena/latest/APIReference/Welcome.html
@@ -29,7 +29,7 @@ Requirements
 
 * Python
 
-  - CPython 2,7, 3.5, 3.6, 3.7 3.8
+  - CPython 3.6, 3.7 3.8
 
 Installation
 ------------
@@ -43,7 +43,7 @@ Extra packages:
 +---------------+--------------------------------------+------------------+
 | Package       | Install command                      | Version          |
 +===============+======================================+==================+
-| Pandas        | ``pip install PyAthena[Pandas]``     | >=0.24.0         |
+| Pandas        | ``pip install PyAthena[Pandas]``     | >=1.0.0          |
 +---------------+--------------------------------------+------------------+
 | SQLAlchemy    | ``pip install PyAthena[SQLAlchemy]`` | >=1.0.0, <2.0.0  |
 +---------------+--------------------------------------+------------------+
@@ -295,7 +295,7 @@ AsynchronousCursor
 
 AsynchronousCursor is a simple implementation using the concurrent.futures package.
 Python 2.7 uses `backport of the concurrent.futures`_ package.
-This cursor is not `DB API 2.0 (PEP 249)`_ compliant.
+This cursor does not follow the `DB API 2.0 (PEP 249)`_.
 
 You can use the AsynchronousCursor by specifying the ``cursor_class``
 with the connect method or connection object.
@@ -381,7 +381,6 @@ It also has information on the result of query execution.
     print(result_set.completion_date_time)
     print(result_set.submission_date_time)
     print(result_set.data_scanned_in_bytes)
-    print(result_set.execution_time_in_millis)
     print(result_set.engine_execution_time_in_millis)
     print(result_set.query_queue_time_in_millis)
     print(result_set.total_time_in_millis)
@@ -437,7 +436,7 @@ with the connect method or connection object.
 .. code:: python
 
     from pyathena import connect
-    from pyathena.pandas_cursor import PandasCursor
+    from pyathena.pandas.cursor import PandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
@@ -446,7 +445,7 @@ with the connect method or connection object.
 .. code:: python
 
     from pyathena.connection import Connection
-    from pyathena.pandas_cursor import PandasCursor
+    from pyathena.pandas.cursor import PandasCursor
 
     cursor = Connection(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                         region_name="us-west-2",
@@ -457,7 +456,7 @@ It can also be used by specifying the cursor class when calling the connection o
 .. code:: python
 
     from pyathena import connect
-    from pyathena.pandas_cursor import PandasCursor
+    from pyathena.pandas.cursor import PandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor(PandasCursor)
@@ -465,7 +464,7 @@ It can also be used by specifying the cursor class when calling the connection o
 .. code:: python
 
     from pyathena.connection import Connection
-    from pyathena.pandas_cursor import PandasCursor
+    from pyathena.pandas.cursor import PandasCursor
 
     cursor = Connection(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                         region_name="us-west-2").cursor(PandasCursor)
@@ -475,7 +474,7 @@ The as_pandas method returns a `DataFrame object`_.
 .. code:: python
 
     from pyathena import connect
-    from pyathena.pandas_cursor import PandasCursor
+    from pyathena.pandas.cursor import PandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
@@ -490,7 +489,7 @@ Support fetch and iterate query results.
 .. code:: python
 
     from pyathena import connect
-    from pyathena.pandas_cursor import PandasCursor
+    from pyathena.pandas.cursor import PandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
@@ -504,7 +503,7 @@ Support fetch and iterate query results.
 .. code:: python
 
     from pyathena import connect
-    from pyathena.pandas_cursor import PandasCursor
+    from pyathena.pandas.cursor import PandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
@@ -519,7 +518,7 @@ The DATE and TIMESTAMP of Athena's data type are returned as `pandas.Timestamp`_
 .. code:: python
 
     from pyathena import connect
-    from pyathena.pandas_cursor import PandasCursor
+    from pyathena.pandas.cursor import PandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
@@ -533,7 +532,7 @@ Execution information of the query can also be retrieved.
 .. code:: python
 
     from pyathena import connect
-    from pyathena.pandas_cursor import PandasCursor
+    from pyathena.pandas.cursor import PandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
@@ -545,7 +544,6 @@ Execution information of the query can also be retrieved.
     print(cursor.completion_date_time)
     print(cursor.submission_date_time)
     print(cursor.data_scanned_in_bytes)
-    print(cursor.execution_time_in_millis)
     print(cursor.engine_execution_time_in_millis)
     print(cursor.query_queue_time_in_millis)
     print(cursor.total_time_in_millis)
@@ -595,7 +593,7 @@ Then you simply specify an instance of this class in the convertes argument when
 .. code:: python
 
     from pyathena import connect
-    from pyathena.pandas_cursor import PandasCursor
+    from pyathena.pandas.cursor import PandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor(PandasCursor, converter=CustomPandasTypeConverter())
@@ -603,7 +601,7 @@ Then you simply specify an instance of this class in the convertes argument when
 .. code:: python
 
     from pyathena import connect
-    from pyathena.pandas_cursor import PandasCursor
+    from pyathena.pandas.cursor import PandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
@@ -615,7 +613,7 @@ you can do so by using the ``keep_default_na``, ``na_values`` and ``quoting`` ar
 .. code:: python
 
     from pyathena import connect
-    from pyathena.pandas_cursor import PandasCursor
+    from pyathena.pandas.cursor import PandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
@@ -641,7 +639,7 @@ with the connect method or connection object.
 .. code:: python
 
     from pyathena import connect
-    from pyathena.async_pandas_cursor import AsyncPandasCursor
+    from pyathena.pandas.async_cursor import AsyncPandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
@@ -650,7 +648,7 @@ with the connect method or connection object.
 .. code:: python
 
     from pyathena.connection import Connection
-    from pyathena.async_pandas_cursor import AsyncPandasCursor
+    from pyathena.pandas.async_cursor import AsyncPandasCursor
 
     cursor = Connection(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                         region_name="us-west-2",
@@ -661,7 +659,7 @@ It can also be used by specifying the cursor class when calling the connection o
 .. code:: python
 
     from pyathena import connect
-    from pyathena.async_pandas_cursor import AsyncPandasCursor
+    from pyathena.pandas.async_cursor import AsyncPandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor(AsyncPandasCursor)
@@ -669,7 +667,7 @@ It can also be used by specifying the cursor class when calling the connection o
 .. code:: python
 
     from pyathena.connection import Connection
-    from pyathena.async_pandas_cursor import AsyncPandasCursor
+    from pyathena.pandas.async_cursor import AsyncPandasCursor
 
     cursor = Connection(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                         region_name="us-west-2").cursor(AsyncPandasCursor)
@@ -680,7 +678,7 @@ If you want to change the number of workers you can specify like the following.
 .. code:: python
 
     from pyathena import connect
-    from pyathena.async_pandas_cursor import AsyncPandasCursor
+    from pyathena.pandas.async_cursor import AsyncPandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
@@ -691,7 +689,7 @@ The execute method of the AsynchronousPandasCursor returns the tuple of the quer
 .. code:: python
 
     from pyathena import connect
-    from pyathena.async_pandas_cursor import AsyncPandasCursor
+    from pyathena.pandas.async_cursor import AsyncPandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
@@ -705,7 +703,7 @@ This object has an interface similar to ``AthenaResultSetObject``.
 .. code:: python
 
     from pyathena import connect
-    from pyathena.async_pandas_cursor import AsyncPandasCursor
+    from pyathena.pandas.async_cursor import AsyncPandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
@@ -718,7 +716,11 @@ This object has an interface similar to ``AthenaResultSetObject``.
     print(result_set.completion_date_time)
     print(result_set.submission_date_time)
     print(result_set.data_scanned_in_bytes)
-    print(result_set.execution_time_in_millis)
+    print(result_set.engine_execution_time_in_millis)
+    print(result_set.query_queue_time_in_millis)
+    print(result_set.total_time_in_millis)
+    print(result_set.query_planning_time_in_millis)
+    print(result_set.service_processing_time_in_millis)
     print(result_set.output_location)
     print(result_set.description)
     for row in result_set:
@@ -727,7 +729,7 @@ This object has an interface similar to ``AthenaResultSetObject``.
 .. code:: python
 
     from pyathena import connect
-    from pyathena.async_pandas_cursor import AsyncPandasCursor
+    from pyathena.pandas.async_cursor import AsyncPandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
@@ -742,7 +744,7 @@ This object also has an as_pandas method that returns a `DataFrame object`_ simi
 .. code:: python
 
     from pyathena import connect
-    from pyathena.async_pandas_cursor import AsyncPandasCursor
+    from pyathena.pandas.async_cursor import AsyncPandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
@@ -759,7 +761,7 @@ The DATE and TIMESTAMP of Athena's data type are returned as `pandas.Timestamp`_
 .. code:: python
 
     from pyathena import connect
-    from pyathena.async_pandas_cursor import AsyncPandasCursor
+    from pyathena.pandas.async_cursor import AsyncPandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
@@ -774,7 +776,7 @@ As with AsynchronousCursor, you need a query ID to cancel a query.
 .. code:: python
 
     from pyathena import connect
-    from pyathena.async_pandas_cursor import AsyncPandasCursor
+    from pyathena.pandas.async_cursor import AsyncPandasCursor
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
@@ -838,23 +840,23 @@ Run test
 
 .. code:: bash
 
-    $ pip install pipenv
-    $ pipenv install --dev
-    $ pipenv run scripts/test_data/upload_test_data.sh
-    $ pipenv run pytest
-    $ pipenv run scripts/test_data/delete_test_data.sh
+    $ pip install poetry
+    $ poetry install -v
+    $ poetry run scripts/test_data/upload_test_data.sh
+    $ poetry run pytest
+    $ poetry run scripts/test_data/delete_test_data.sh
 
 Run test multiple Python versions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
-    $ pip install pipenv
-    $ pipenv install --dev
-    $ pipenv run scripts/test_data/upload_test_data.sh
+    $ pip install poetry
+    $ poetry install -v
+    $ poetry run scripts/test_data/upload_test_data.sh
     $ pyenv local 3.8.2 3.7.2 3.6.8 3.5.7 2.7.16
-    $ pipenv run tox
-    $ pipenv run scripts/test_data/delete_test_data.sh
+    $ poetry run tox
+    $ poetry run scripts/test_data/delete_test_data.sh
 
 Code formatting
 ---------------

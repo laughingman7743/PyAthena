@@ -1,62 +1,54 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import datetime
+from typing import FrozenSet, Type
 
 from pyathena.error import *  # noqa
 
-try:
-    from multiprocessing import cpu_count
-except ImportError:
-
-    def cpu_count():
-        return None
-
-
-__version__ = "1.11.2"
+__version__: str = "2.0.0"
 
 # Globals https://www.python.org/dev/peps/pep-0249/#globals
-apilevel = "2.0"
-threadsafety = 3
-paramstyle = "pyformat"
+apilevel: str = "2.0"
+threadsafety: int = 3
+paramstyle: str = "pyformat"
 
 
-class DBAPITypeObject:
+class DBAPITypeObject(FrozenSet[str]):
     """Type Objects and Constructors
 
     https://www.python.org/dev/peps/pep-0249/#type-objects-and-constructors
     """
 
-    def __init__(self, *values):
-        self.values = values
-
-    def __cmp__(self, other):
-        if other in self.values:
-            return 0
-        if other < self.values:
-            return 1
+    def __eq__(self, other: object):
+        if isinstance(other, frozenset):
+            return frozenset.__eq__(self, other)
         else:
-            return -1
+            return other in self
 
-    def __eq__(self, other):
-        return other in self.values
+    def __ne__(self, other: object):
+        if isinstance(other, frozenset):
+            return frozenset.__ne__(self, other)
+        else:
+            return other not in self
+
+    def __hash__(self):
+        return frozenset.__hash__(self)
 
 
 # https://docs.aws.amazon.com/athena/latest/ug/data-types.html
-STRING = DBAPITypeObject("char", "varchar", "map", "array", "row")
-BINARY = DBAPITypeObject("varbinary")
-BOOLEAN = DBAPITypeObject("boolean")
-NUMBER = DBAPITypeObject(
-    "tinyint", "smallint", "bigint", "integer", "real", "double", "float", "decimal"
+STRING: DBAPITypeObject = DBAPITypeObject(("char", "varchar", "map", "array", "row"))
+BINARY: DBAPITypeObject = DBAPITypeObject(("varbinary",))
+BOOLEAN: DBAPITypeObject = DBAPITypeObject(("boolean",))
+NUMBER: DBAPITypeObject = DBAPITypeObject(
+    ("tinyint", "smallint", "bigint", "integer", "real", "double", "float", "decimal")
 )
-DATE = DBAPITypeObject("date")
-TIME = DBAPITypeObject("time", "time with time zone")
-DATETIME = DBAPITypeObject("timestamp", "timestamp with time zone")
-JSON = DBAPITypeObject("json")
+DATE: DBAPITypeObject = DBAPITypeObject(("date",))
+TIME: DBAPITypeObject = DBAPITypeObject(("time", "time with time zone"))
+DATETIME: DBAPITypeObject = DBAPITypeObject(("timestamp", "timestamp with time zone"))
+JSON: DBAPITypeObject = DBAPITypeObject(("json",))
 
-Date = datetime.date
-Time = datetime.time
-Timestamp = datetime.datetime
+Date: Type[datetime.date] = datetime.date
+Time: Type[datetime.time] = datetime.time
+Timestamp: Type[datetime.datetime] = datetime.datetime
 
 
 def connect(*args, **kwargs):

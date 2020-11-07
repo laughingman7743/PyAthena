@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import math
 import numbers
 import re
 
 import tenacity
-from future.utils import raise_from
 from sqlalchemy import exc, util
 from sqlalchemy.engine import Engine, reflection
 from sqlalchemy.engine.default import DefaultDialect
@@ -399,7 +396,7 @@ class AthenaDialect(DefaultDialect):
             ]
         except OperationalError as e:
             if not self._retry_if_data_catalog_exception(e, schema, table_name):
-                raise_from(NoSuchTableError(table_name), e)
+                raise NoSuchTableError(table_name) from e
             else:
                 raise e
 
@@ -442,4 +439,4 @@ class AthenaDialect(DefaultDialect):
         return True  # pragma: no cover
 
     def _is_nan(self, column_default):
-        return isinstance(column_default, numbers.Number) and math.isnan(column_default)
+        return isinstance(column_default, numbers.Real) and math.isnan(column_default)

@@ -1,82 +1,76 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import binascii
 import json
 import logging
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
-from datetime import datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 from distutils.util import strtobool
+from typing import Any, Callable, Dict, Optional, Type
 
-from future.utils import with_metaclass
-
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)  # type: ignore
 
 
-def _to_date(varchar_value):
+def _to_date(varchar_value: Optional[str]) -> Optional[date]:
     if varchar_value is None:
         return None
     return datetime.strptime(varchar_value, "%Y-%m-%d").date()
 
 
-def _to_datetime(varchar_value):
+def _to_datetime(varchar_value: Optional[str]) -> Optional[datetime]:
     if varchar_value is None:
         return None
     return datetime.strptime(varchar_value, "%Y-%m-%d %H:%M:%S.%f")
 
 
-def _to_time(varchar_value):
+def _to_time(varchar_value: Optional[str]) -> Optional[time]:
     if varchar_value is None:
         return None
     return datetime.strptime(varchar_value, "%H:%M:%S.%f").time()
 
 
-def _to_float(varchar_value):
+def _to_float(varchar_value: Optional[str]) -> Optional[float]:
     if varchar_value is None:
         return None
     return float(varchar_value)
 
 
-def _to_int(varchar_value):
+def _to_int(varchar_value: Optional[str]) -> Optional[int]:
     if varchar_value is None:
         return None
     return int(varchar_value)
 
 
-def _to_decimal(varchar_value):
+def _to_decimal(varchar_value: Optional[str]) -> Optional[Decimal]:
     if varchar_value is None or varchar_value == "":
         return None
     return Decimal(varchar_value)
 
 
-def _to_boolean(varchar_value):
+def _to_boolean(varchar_value: Optional[str]) -> Optional[bool]:
     if varchar_value is None or varchar_value == "":
         return None
     return bool(strtobool(varchar_value))
 
 
-def _to_binary(varchar_value):
+def _to_binary(varchar_value: Optional[str]) -> Optional[bytes]:
     if varchar_value is None:
         return None
     return binascii.a2b_hex("".join(varchar_value.split(" ")))
 
 
-def _to_json(varchar_value):
+def _to_json(varchar_value: Optional[str]) -> Optional[Any]:
     if varchar_value is None:
         return None
     return json.loads(varchar_value)
 
 
-def _to_default(varchar_value):
-    if varchar_value is None:
-        return None
-    else:
-        return varchar_value
+def _to_default(varchar_value: Optional[str]) -> Optional[str]:
+    return varchar_value
 
 
-_DEFAULT_CONVERTERS = {
+_DEFAULT_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {
     "boolean": _to_boolean,
     "tinyint": _to_int,
     "smallint": _to_int,
@@ -98,7 +92,7 @@ _DEFAULT_CONVERTERS = {
     "decimal": _to_decimal,
     "json": _to_json,
 }
-_DEFAULT_PANDAS_CONVERTERS = {
+_DEFAULT_PANDAS_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {
     "boolean": _to_boolean,
     "decimal": _to_decimal,
     "varbinary": _to_binary,
@@ -106,8 +100,13 @@ _DEFAULT_PANDAS_CONVERTERS = {
 }
 
 
-class Converter(with_metaclass(ABCMeta, object)):
-    def __init__(self, mappings, default=None, types=None):
+class Converter(object, metaclass=ABCMeta):
+    def __init__(
+        self,
+        mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]],
+        default: Callable[[Optional[str]], Optional[Any]] = None,
+        types: Dict[str, Type[Any]] = None,
+    ) -> None:
         if mappings:
             self._mappings = mappings
         else:
@@ -119,43 +118,49 @@ class Converter(with_metaclass(ABCMeta, object)):
             self._types = dict()
 
     @property
-    def mappings(self):
+    def mappings(self) -> Dict[str, Callable[[Optional[str]], Optional[Any]]]:
         return self._mappings
 
     @property
-    def types(self):
+    def types(self) -> Dict[str, Type[Any]]:
         return self._types
 
-    def get(self, type_):
+    def get(self, type_: str) -> Optional[Callable[[Optional[str]], Optional[Any]]]:
         return self.mappings.get(type_, self._default)
 
-    def set(self, type_, converter):
+    def set(
+        self, type_: str, converter: Callable[[Optional[str]], Optional[Any]]
+    ) -> None:
         self.mappings[type_] = converter
 
-    def remove(self, type_):
+    def remove(self, type_: str) -> None:
         self.mappings.pop(type_, None)
 
-    def update(self, mappings):
+    def update(
+        self, mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]]
+    ) -> None:
         self.mappings.update(mappings)
 
     @abstractmethod
-    def convert(self, type_, value):
+    def convert(self, type_: str, value: Optional[str]) -> Optional[Any]:
         raise NotImplementedError  # pragma: no cover
 
 
 class DefaultTypeConverter(Converter):
-    def __init__(self):
+    def __init__(self) -> None:
         super(DefaultTypeConverter, self).__init__(
             mappings=deepcopy(_DEFAULT_CONVERTERS), default=_to_default
         )
 
-    def convert(self, type_, value):
+    def convert(self, type_: str, value: Optional[str]) -> Optional[Any]:
         converter = self.get(type_)
-        return converter(value)
+        if converter:
+            return converter(value)
+        return value
 
 
 class DefaultPandasTypeConverter(Converter):
-    def __init__(self):
+    def __init__(self) -> None:
         super(DefaultPandasTypeConverter, self).__init__(
             mappings=deepcopy(_DEFAULT_PANDAS_CONVERTERS),
             default=_to_default,
@@ -163,7 +168,7 @@ class DefaultPandasTypeConverter(Converter):
         )
 
     @property
-    def _dtypes(self):
+    def _dtypes(self) -> Dict[str, Type[Any]]:
         if not hasattr(self, "__dtypes"):
             import pandas as pd
 
@@ -184,5 +189,5 @@ class DefaultPandasTypeConverter(Converter):
             }
         return self.__dtypes
 
-    def convert(self, type_, value):
+    def convert(self, type_: str, value: Optional[str]) -> Optional[Any]:
         pass

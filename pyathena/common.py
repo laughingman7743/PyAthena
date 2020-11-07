@@ -1,34 +1,36 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-
 import logging
 import time
 from abc import ABCMeta, abstractmethod
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from future.utils import raise_from, with_metaclass
-
+from pyathena.converter import Converter
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
+from pyathena.formatter import Formatter
 from pyathena.model import AthenaQueryExecution
-from pyathena.util import retry_api_call
+from pyathena.util import RetryConfig, retry_api_call
 
-_logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from pyathena.connection import Connection
+
+_logger = logging.getLogger(__name__)  # type: ignore
 
 
-class CursorIterator(with_metaclass(ABCMeta, object)):
+class CursorIterator(object, metaclass=ABCMeta):
 
-    DEFAULT_FETCH_SIZE = 1000
+    DEFAULT_FETCH_SIZE: int = 1000
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super(CursorIterator, self).__init__()
-        self.arraysize = kwargs.get("arraysize", self.DEFAULT_FETCH_SIZE)
-        self._rownumber = None
+        self.arraysize: int = kwargs.get("arraysize", self.DEFAULT_FETCH_SIZE)
+        self._rownumber: Optional[int] = None
 
     @property
-    def arraysize(self):
+    def arraysize(self) -> int:
         return self._arraysize
 
     @arraysize.setter
-    def arraysize(self, value):
+    def arraysize(self, value: int) -> None:
         if value <= 0 or value > self.DEFAULT_FETCH_SIZE:
             raise ProgrammingError(
                 "MaxResults is more than maximum allowed length {0}.".format(
@@ -38,11 +40,11 @@ class CursorIterator(with_metaclass(ABCMeta, object)):
         self._arraysize = value
 
     @property
-    def rownumber(self):
+    def rownumber(self) -> Optional[int]:
         return self._rownumber
 
     @property
-    def rowcount(self):
+    def rowcount(self) -> int:
         """By default, return -1 to indicate that this is not supported."""
         return -1
 
@@ -71,23 +73,23 @@ class CursorIterator(with_metaclass(ABCMeta, object)):
         return self
 
 
-class BaseCursor(with_metaclass(ABCMeta, object)):
+class BaseCursor(object, metaclass=ABCMeta):
     def __init__(
         self,
-        connection,
-        s3_staging_dir,
-        schema_name,
-        work_group,
-        poll_interval,
-        encryption_option,
-        kms_key,
-        converter,
-        formatter,
-        retry_config,
-        kill_on_interrupt,
+        connection: "Connection",
+        s3_staging_dir: Optional[str],
+        schema_name: str,
+        work_group: Optional[str],
+        poll_interval: float,
+        encryption_option: Optional[str],
+        kms_key: Optional[str],
+        converter: Converter,
+        formatter: Formatter,
+        retry_config: RetryConfig,
+        kill_on_interrupt: bool,
         **kwargs
-    ):
-        super(BaseCursor, self).__init__(**kwargs)
+    ) -> None:
+        super(BaseCursor, self).__init__()
         self._connection = connection
         self._s3_staging_dir = s3_staging_dir
         self._schema_name = schema_name
@@ -101,10 +103,10 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
         self._kill_on_interrupt = kill_on_interrupt
 
     @property
-    def connection(self):
+    def connection(self) -> "Connection":
         return self._connection
 
-    def _get_query_execution(self, query_id):
+    def _get_query_execution(self, query_id: str) -> AthenaQueryExecution:
         request = {"QueryExecutionId": query_id}
         try:
             response = retry_api_call(
@@ -115,11 +117,11 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
             )
         except Exception as e:
             _logger.exception("Failed to get query execution.")
-            raise_from(OperationalError(*e.args), e)
+            raise OperationalError(*e.args) from e
         else:
             return AthenaQueryExecution(response)
 
-    def __poll(self, query_id):
+    def __poll(self, query_id: str) -> AthenaQueryExecution:
         while True:
             query_execution = self._get_query_execution(query_id)
             if query_execution.state in [
@@ -131,7 +133,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
             else:
                 time.sleep(self._poll_interval)
 
-    def _poll(self, query_id):
+    def _poll(self, query_id: str) -> AthenaQueryExecution:
         try:
             query_execution = self.__poll(query_id)
         except KeyboardInterrupt as e:
@@ -144,9 +146,12 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
         return query_execution
 
     def _build_start_query_execution_request(
-        self, query, work_group=None, s3_staging_dir=None
-    ):
-        request = {
+        self,
+        query: str,
+        work_group: Optional[str] = None,
+        s3_staging_dir: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        request: Dict[str, Any] = {
             "QueryString": query,
             "QueryExecutionContext": {"Database": self._schema_name},
             "ResultConfiguration": {},
@@ -173,9 +178,12 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
         return request
 
     def _build_list_query_executions_request(
-        self, max_results, work_group, next_token=None
-    ):
-        request = {"MaxResults": max_results}
+        self,
+        max_results: int,
+        work_group: Optional[str],
+        next_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        request: Dict[str, Any] = {"MaxResults": max_results}
         if self._work_group or work_group:
             request.update(
                 {"WorkGroup": work_group if work_group else self._work_group}
@@ -184,7 +192,9 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
             request.update({"NextToken": next_token})
         return request
 
-    def _find_previous_query_id(self, query, work_group, cache_size):
+    def _find_previous_query_id(
+        self, query: str, work_group: Optional[str], cache_size: int
+    ) -> Optional[str]:
         query_id = None
         try:
             next_token = None
@@ -228,12 +238,12 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
 
     def _execute(
         self,
-        operation,
-        parameters=None,
-        work_group=None,
-        s3_staging_dir=None,
-        cache_size=0,
-    ):
+        operation: str,
+        parameters: Optional[Dict[str, Any]] = None,
+        work_group: Optional[str] = None,
+        s3_staging_dir: Optional[str] = None,
+        cache_size: int = 0,
+    ) -> str:
         query = self._formatter.format(operation, parameters)
         _logger.debug(query)
 
@@ -251,29 +261,31 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
                 ).get("QueryExecutionId", None)
             except Exception as e:
                 _logger.exception("Failed to execute query.")
-                raise_from(DatabaseError(*e.args), e)
+                raise DatabaseError(*e.args) from e
         return query_id
 
     @abstractmethod
     def execute(
         self,
-        operation,
-        parameters=None,
-        work_group=None,
-        s3_staging_dir=None,
-        cache_size=0,
+        operation: str,
+        parameters: Optional[Dict[str, Any]] = None,
+        work_group: Optional[str] = None,
+        s3_staging_dir: Optional[str] = None,
+        cache_size: int = 0,
     ):
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
-    def executemany(self, operation, seq_of_parameters):
+    def executemany(
+        self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]]
+    ):
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
-    def close(self):
+    def close(self) -> None:
         raise NotImplementedError  # pragma: no cover
 
-    def _cancel(self, query_id):
+    def _cancel(self, query_id: str) -> None:
         request = {"QueryExecutionId": query_id}
         try:
             retry_api_call(
@@ -284,7 +296,7 @@ class BaseCursor(with_metaclass(ABCMeta, object)):
             )
         except Exception as e:
             _logger.exception("Failed to cancel query.")
-            raise_from(OperationalError(*e.args), e)
+            raise OperationalError(*e.args) from e
 
     def setinputsizes(self, sizes):
         """Does nothing by default"""
