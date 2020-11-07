@@ -1,0 +1,66 @@
+[tool.poetry]
+name = "PyAthena"
+version = "1.11.2"
+description = "Python DB API 2.0 (PEP 249) client for Amazon Athena"
+license = "MIT"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Database :: Front-Ends",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8"
+]
+homepage = "https://github.com/laughingman7743/PyAthena/"
+authors = [
+    "laughingman7743 <laughingman7743@gmail.com>"
+]
+readme = "README.rst"
+packages = [
+    { include = "pyathena" },
+]
+include = [
+    { path = "pyathena/py.typed" },
+]
+
+[tool.poetry.dependencies]
+# https://github.com/pandas-dev/pandas/pull/29212#issuecomment-551370118
+python = "^3.6.1"
+boto3 = ">=1.4.4"
+botocore = ">=1.5.52"
+pandas = {version = ">=1.0.0", optional = true}
+pyarrow = {version = ">=1.0.0", optional = true}
+sqlalchemy = {version = "<2.0.0,>=1.0.0", optional = true}
+tenacity = ">=4.1.0"
+
+[tool.poetry.dev-dependencies]
+colorama = "0.4.1"
+awscli = "*"
+tox = "*"
+wheel = "*"
+pandas = ">=1.0.0"
+pyarrow = ">=1.0.0"
+SQLAlchemy = ">=1.0.0, <2.0.0"
+mypy = "*"
+pytest = ">=3.5"
+pytest-cov = "*"
+pytest-flake8 = ">=1.0.1"
+pytest-black = "*"
+pytest-isort = "*"
+pytest-xdist = "*"
+pytest-mypy = "*"
+codecov = "*"
+
+[tool.poetry.extras]
+Pandas = ["pandas", "pyarrow"]
+SQLAlchemy = ["sqlalchemy"]
+
+[tool.poetry.plugins."sqlalchemy.dialects"]
+"awsathena.rest" = "pyathena.sqlalchemy_athena:AthenaDialect"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

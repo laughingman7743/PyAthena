@@ -1,9 +1,9 @@
 .PHONY: fmt
 fmt:
-	pipenv run isort .
-	pipenv run black .
+	poetry run isort .
+	poetry run black .
 
 .PHONY: chk
 chk:
-	pipenv run isort -c .
-	pipenv run black --check --diff .
+	poetry run isort -c .
+	poetry run black --check --diff .
