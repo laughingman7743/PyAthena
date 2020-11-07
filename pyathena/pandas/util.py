@@ -23,7 +23,7 @@ from boto3 import Session
 
 from pyathena import OperationalError
 from pyathena.model import AthenaCompression
-from pyathena.util import RetryConfig, retry_api_call
+from pyathena.util import RetryConfig, parse_output_location, retry_api_call
 
 if TYPE_CHECKING:
     from pandas import DataFrame, Series
