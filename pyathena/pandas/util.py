@@ -104,14 +104,14 @@ def to_sql_type_mappings(col: "Series") -> str:
 
 
 def to_parquet(
-        df: "DataFrame",
-        bucket_name: str,
-        prefix: str,
-        retry_config: RetryConfig,
-        session_kwargs: Dict[str, Any],
-        client_kwargs: Dict[str, Any],
-        compression: str = None,
-        flavor: str = "spark",
+    df: "DataFrame",
+    bucket_name: str,
+    prefix: str,
+    retry_config: RetryConfig,
+    session_kwargs: Dict[str, Any],
+    client_kwargs: Dict[str, Any],
+    compression: str = None,
+    flavor: str = "spark",
 ) -> str:
     import pyarrow as pa
     from pyarrow import parquet as pq
@@ -132,23 +132,23 @@ def to_parquet(
 
 
 def to_sql(
-        df: "DataFrame",
-        name: str,
-        conn: "Connection",
-        location: str,
-        schema: str = "default",
-        index: bool = False,
-        index_label: Optional[str] = None,
-        partitions: List[str] = None,
-        chunksize: Optional[int] = None,
-        if_exists: str = "fail",
-        compression: str = None,
-        flavor: str = "spark",
-        type_mappings: Callable[["Series"], str] = to_sql_type_mappings,
-        executor_class: Type[
-            Union[ThreadPoolExecutor, ProcessPoolExecutor]
-        ] = ThreadPoolExecutor,
-        max_workers: int = (cpu_count() or 1) * 5,
+    df: "DataFrame",
+    name: str,
+    conn: "Connection",
+    location: str,
+    schema: str = "default",
+    index: bool = False,
+    index_label: Optional[str] = None,
+    partitions: List[str] = None,
+    chunksize: Optional[int] = None,
+    if_exists: str = "fail",
+    compression: str = None,
+    flavor: str = "spark",
+    type_mappings: Callable[["Series"], str] = to_sql_type_mappings,
+    executor_class: Type[
+        Union[ThreadPoolExecutor, ProcessPoolExecutor]
+    ] = ThreadPoolExecutor,
+    max_workers: int = (cpu_count() or 1) * 5,
 ) -> None:
     # TODO Supports orc, avro, json, csv or tsv format
     if if_exists not in ("fail", "replace", "append"):
@@ -258,7 +258,7 @@ def to_sql(
 
 
 def get_column_names_and_types(
-        df: "DataFrame", type_mappings
+    df: "DataFrame", type_mappings
 ) -> "OrderedDict[str, str]":
     return OrderedDict(
         (
@@ -269,13 +269,13 @@ def get_column_names_and_types(
 
 
 def generate_ddl(
-        df: "DataFrame",
-        name: str,
-        location: str,
-        schema: str = "default",
-        partitions: Optional[List[str]] = None,
-        compression: Optional[str] = None,
-        type_mappings: Callable[["Series"], str] = to_sql_type_mappings,
+    df: "DataFrame",
+    name: str,
+    location: str,
+    schema: str = "default",
+    partitions: Optional[List[str]] = None,
+    compression: Optional[str] = None,
+    type_mappings: Callable[["Series"], str] = to_sql_type_mappings,
 ) -> str:
     if partitions is None:
         partitions = []

@@ -1,14 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Type,
-)
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type
 
 from pyathena.converter import Converter
 from pyathena.error import OperationalError, ProgrammingError
@@ -35,15 +27,15 @@ class AthenaPandasResultSet(AthenaResultSet):
     ]
 
     def __init__(
-            self,
-            connection: "Connection",
-            converter: Converter,
-            query_execution: AthenaQueryExecution,
-            arraysize: int,
-            retry_config: RetryConfig,
-            keep_default_na: bool = False,
-            na_values: Optional[List[str]] = None,
-            quoting: int = 1,
+        self,
+        connection: "Connection",
+        converter: Converter,
+        query_execution: AthenaQueryExecution,
+        arraysize: int,
+        retry_config: RetryConfig,
+        keep_default_na: bool = False,
+        na_values: Optional[List[str]] = None,
+        quoting: int = 1,
     ) -> None:
         super(AthenaPandasResultSet, self).__init__(
             connection=connection,
@@ -60,9 +52,9 @@ class AthenaPandasResultSet(AthenaResultSet):
             "s3", region_name=connection.region_name, **connection._client_kwargs
         )
         if (
-                self.state == AthenaQueryExecution.STATE_SUCCEEDED
-                and self.output_location
-                and self.output_location.endswith((".csv", ".txt"))
+            self.state == AthenaQueryExecution.STATE_SUCCEEDED
+            and self.output_location
+            and self.output_location.endswith((".csv", ".txt"))
         ):
             self._df = self._as_pandas()
         else:
@@ -82,7 +74,7 @@ class AthenaPandasResultSet(AthenaResultSet):
 
     @property
     def converters(
-            self,
+        self,
     ) -> Dict[Optional[Any], Callable[[Optional[str]], Optional[Any]]]:
         description = self.description if self.description else []
         return {

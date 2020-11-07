@@ -528,7 +528,7 @@ class TestPandasUtil(unittest.TestCase, WithConnect):
             sorted(cursor.fetchall()),
             [("col_int={0}/col_string=a".format(i),) for i in range(5)]
             + [("col_int={0}/col_string=b".format(i),) for i in range(5, 10)],
-            )
+        )
         cursor.execute("SELECT COUNT(*) FROM {0}".format(table_name))
         self.assertEqual(cursor.fetchall(), [(10,)])
 

@@ -3,16 +3,7 @@ import collections
 import logging
 from abc import abstractmethod
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Deque,
-    Dict,
-    List,
-    Optional,
-    Tuple,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Deque, Dict, List, Optional, Tuple, cast
 
 from pyathena.common import CursorIterator
 from pyathena.converter import Converter
