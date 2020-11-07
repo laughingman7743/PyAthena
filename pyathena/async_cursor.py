@@ -16,7 +16,7 @@ from pyathena.util import RetryConfig
 
 if TYPE_CHECKING:
     from pyathena.connection import Connection
-    from pyathena.result_set import AthenaPandasResultSet
+    from pyathena.pandas.result_set import AthenaPandasResultSet
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
