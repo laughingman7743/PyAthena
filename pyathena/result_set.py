@@ -1,245 +1,189 @@
 # -*- coding: utf-8 -*-
 import collections
 import logging
+from abc import abstractmethod
+from datetime import datetime
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Deque,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    cast,
+)
 
 from pyathena.common import CursorIterator
+from pyathena.converter import Converter
 from pyathena.error import DataError, OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
-from pyathena.util import parse_output_location, retry_api_call
+from pyathena.util import RetryConfig, parse_output_location, retry_api_call
 
-_logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from pandas import DataFrame
 
+    from pyathena.connection import Connection
 
-class WithResultSet(object):
-    def __init__(self):
-        super(WithResultSet, self).__init__()
-        self._query_id = None
-        self._result_set = None
-
-    def _reset_state(self):
-        self._query_id = None
-        if self._result_set and not self._result_set.is_closed:
-            self._result_set.close()
-        self._result_set = None
-
-    @property
-    def has_result_set(self):
-        return self._result_set is not None
-
-    @property
-    def description(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.description
-
-    @property
-    def database(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.database
-
-    @property
-    def query_id(self):
-        return self._query_id
-
-    @property
-    def query(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.query
-
-    @property
-    def statement_type(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.statement_type
-
-    @property
-    def state(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.state
-
-    @property
-    def state_change_reason(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.state_change_reason
-
-    @property
-    def completion_date_time(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.completion_date_time
-
-    @property
-    def submission_date_time(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.submission_date_time
-
-    @property
-    def data_scanned_in_bytes(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.data_scanned_in_bytes
-
-    @property
-    def engine_execution_time_in_millis(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.engine_execution_time_in_millis
-
-    @property
-    def query_queue_time_in_millis(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.query_queue_time_in_millis
-
-    @property
-    def total_execution_time_in_millis(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.total_execution_time_in_millis
-
-    @property
-    def query_planning_time_in_millis(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.query_planning_time_in_millis
-
-    @property
-    def service_processing_time_in_millis(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.service_processing_time_in_millis
-
-    @property
-    def output_location(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.output_location
-
-    @property
-    def data_manifest_location(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.data_manifest_location
-
-    @property
-    def encryption_option(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.encryption_option
-
-    @property
-    def kms_key(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.kms_key
-
-    @property
-    def work_group(self):
-        if not self.has_result_set:
-            return None
-        return self._result_set.work_group
+_logger = logging.getLogger(__name__)  # type: ignore
 
 
 class AthenaResultSet(CursorIterator):
-    def __init__(self, connection, converter, query_execution, arraysize, retry_config):
+    def __init__(
+        self,
+        connection: "Connection",
+        converter: Converter,
+        query_execution: AthenaQueryExecution,
+        arraysize: int,
+        retry_config: RetryConfig,
+    ) -> None:
         super(AthenaResultSet, self).__init__(arraysize=arraysize)
-        self._connection = connection
+        self._connection: Optional["Connection"] = connection
         self._converter = converter
-        self._query_execution = query_execution
+        self._query_execution: Optional[AthenaQueryExecution] = query_execution
         assert self._query_execution, "Required argument `query_execution` not found."
         self._retry_config = retry_config
 
-        self._meta_data = None
-        self._rows = collections.deque()
-        self._next_token = None
+        self._meta_data: Optional[Tuple[Any, ...]] = None
+        self._rows: Deque[Tuple[Optional[Any], ...]] = collections.deque()
+        self._next_token: Optional[str] = None
 
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED:
             self._rownumber = 0
             self._pre_fetch()
 
     @property
-    def database(self):
+    def database(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.database
 
     @property
-    def query_id(self):
+    def query_id(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.query_id
 
     @property
-    def query(self):
+    def query(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.query
 
     @property
-    def statement_type(self):
+    def statement_type(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.statement_type
 
     @property
-    def state(self):
+    def state(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.state
 
     @property
-    def state_change_reason(self):
+    def state_change_reason(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.state_change_reason
 
     @property
-    def completion_date_time(self):
+    def completion_date_time(self) -> Optional[datetime]:
+        if not self._query_execution:
+            return None
         return self._query_execution.completion_date_time
 
     @property
-    def submission_date_time(self):
+    def submission_date_time(self) -> Optional[datetime]:
+        if not self._query_execution:
+            return None
         return self._query_execution.submission_date_time
 
     @property
-    def data_scanned_in_bytes(self):
+    def data_scanned_in_bytes(self) -> Optional[int]:
+        if not self._query_execution:
+            return None
         return self._query_execution.data_scanned_in_bytes
 
     @property
-    def engine_execution_time_in_millis(self):
+    def engine_execution_time_in_millis(self) -> Optional[int]:
+        if not self._query_execution:
+            return None
         return self._query_execution.engine_execution_time_in_millis
 
     @property
-    def query_queue_time_in_millis(self):
+    def query_queue_time_in_millis(self) -> Optional[int]:
+        if not self._query_execution:
+            return None
         return self._query_execution.query_queue_time_in_millis
 
     @property
-    def total_execution_time_in_millis(self):
+    def total_execution_time_in_millis(self) -> Optional[int]:
+        if not self._query_execution:
+            return None
         return self._query_execution.total_execution_time_in_millis
 
     @property
-    def query_planning_time_in_millis(self):
+    def query_planning_time_in_millis(self) -> Optional[int]:
+        if not self._query_execution:
+            return None
         return self._query_execution.query_planning_time_in_millis
 
     @property
-    def service_processing_time_in_millis(self):
+    def service_processing_time_in_millis(self) -> Optional[int]:
+        if not self._query_execution:
+            return None
         return self._query_execution.service_processing_time_in_millis
 
     @property
-    def output_location(self):
+    def output_location(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.output_location
 
     @property
-    def data_manifest_location(self):
+    def data_manifest_location(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.data_manifest_location
 
     @property
-    def encryption_option(self):
+    def encryption_option(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.encryption_option
 
     @property
-    def kms_key(self):
+    def kms_key(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.kms_key
 
     @property
-    def work_group(self):
+    def work_group(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
         return self._query_execution.work_group
 
     @property
-    def description(self):
+    def description(
+        self,
+    ) -> Optional[
+        List[
+            Tuple[
+                Optional[Any],
+                Optional[Any],
+                None,
+                None,
+                Optional[Any],
+                Optional[Any],
+                Optional[Any],
+            ]
+        ]
+    ]:
         if self._meta_data is None:
             return None
         return [
@@ -255,11 +199,13 @@ class AthenaResultSet(CursorIterator):
             for m in self._meta_data
         ]
 
-    def __fetch(self, next_token=None):
+    def __fetch(self, next_token: Optional[str] = None):
         if not self.query_id:
             raise ProgrammingError("QueryExecutionId is none or empty.")
         if self.state != AthenaQueryExecution.STATE_SUCCEEDED:
             raise ProgrammingError("QueryExecutionState is not SUCCEEDED.")
+        if self.is_closed:
+            raise ProgrammingError("AthenaResultSet is closed.")
         request = {
             "QueryExecutionId": self.query_id,
             "MaxResults": self._arraysize,
@@ -267,8 +213,9 @@ class AthenaResultSet(CursorIterator):
         if next_token:
             request.update({"NextToken": next_token})
         try:
+            connection = cast("Connection", self._connection)
             response = retry_api_call(
-                self._connection.client.get_query_results,
+                connection.client.get_query_results,
                 config=self._retry_config,
                 logger=_logger,
                 **request
@@ -296,10 +243,12 @@ class AthenaResultSet(CursorIterator):
         if not self._rows:
             return None
         else:
+            if self._rownumber is None:
+                self._rownumber = 0
             self._rownumber += 1
             return self._rows.popleft()
 
-    def fetchmany(self, size=None):
+    def fetchmany(self, size: Optional[int] = None):
         if not size or size <= 0:
             size = self._arraysize
         rows = []
@@ -321,7 +270,7 @@ class AthenaResultSet(CursorIterator):
                 break
         return rows
 
-    def _process_meta_data(self, response):
+    def _process_meta_data(self, response: Dict[str, Any]) -> None:
         result_set = response.get("ResultSet", None)
         if not result_set:
             raise DataError("KeyError `ResultSet`")
@@ -333,7 +282,7 @@ class AthenaResultSet(CursorIterator):
             raise DataError("KeyError `ColumnInfo`")
         self._meta_data = tuple(column_info)
 
-    def _process_rows(self, response):
+    def _process_rows(self, response: Dict[str, Any]) -> None:
         result_set = response.get("ResultSet", None)
         if not result_set:
             raise DataError("KeyError `ResultSet`")
@@ -347,13 +296,14 @@ class AthenaResultSet(CursorIterator):
                 if not self._next_token and self._is_first_row_column_labels(rows)
                 else 0
             )
+            meta_data = cast(Tuple[Any, ...], self._meta_data)
             processed_rows = [
                 tuple(
                     [
                         self._converter.convert(
                             meta.get("Type", None), row.get("VarCharValue", None)
                         )
-                        for meta, row in zip(self._meta_data, rows[i].get("Data", []))
+                        for meta, row in zip(meta_data, rows[i].get("Data", []))
                     ]
                 )
                 for i in range(offset, len(rows))
@@ -361,22 +311,23 @@ class AthenaResultSet(CursorIterator):
         self._rows.extend(processed_rows)
         self._next_token = response.get("NextToken", None)
 
-    def _is_first_row_column_labels(self, rows):
+    def _is_first_row_column_labels(self, rows: List[Dict[str, Any]]) -> bool:
         first_row_data = rows[0].get("Data", [])
-        for meta, data in zip(self._meta_data, first_row_data):
+        meta_data = cast(Tuple[Any, Any], self._meta_data)
+        for meta, data in zip(meta_data, first_row_data):
             if meta.get("Name", None) != data.get("VarCharValue", None):
                 return False
         return True
 
     @property
-    def is_closed(self):
+    def is_closed(self) -> bool:
         return self._connection is None
 
-    def close(self):
+    def close(self) -> None:
         self._connection = None
         self._query_execution = None
         self._meta_data = None
-        self._rows = None
+        self._rows.clear()
         self._next_token = None
         self._rownumber = None
 
@@ -389,7 +340,7 @@ class AthenaResultSet(CursorIterator):
 
 class AthenaPandasResultSet(AthenaResultSet):
 
-    _parse_dates = [
+    _parse_dates: List[str] = [
         "date",
         "time",
         "time with time zone",
@@ -399,15 +350,15 @@ class AthenaPandasResultSet(AthenaResultSet):
 
     def __init__(
         self,
-        connection,
-        converter,
-        query_execution,
-        arraysize,
-        retry_config,
-        keep_default_na=False,
-        na_values=None,
-        quoting=1,
-    ):
+        connection: "Connection",
+        converter: Converter,
+        query_execution: AthenaQueryExecution,
+        arraysize: int,
+        retry_config: RetryConfig,
+        keep_default_na: bool = False,
+        na_values: Optional[List[str]] = None,
+        quoting: int = 1,
+    ) -> None:
         super(AthenaPandasResultSet, self).__init__(
             connection=connection,
             converter=converter,
@@ -419,13 +370,12 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._keep_default_na = keep_default_na
         self._na_values = na_values
         self._quoting = quoting
-        self._client = self._connection.session.client(
-            "s3",
-            region_name=self._connection.region_name,
-            **self._connection._client_kwargs
+        self._client = connection.session.client(
+            "s3", region_name=connection.region_name, **connection._client_kwargs
         )
         if (
             self.state == AthenaQueryExecution.STATE_SUCCEEDED
+            and self.output_location
             and self.output_location.endswith((".csv", ".txt"))
         ):
             self._df = self._as_pandas()
@@ -436,29 +386,33 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._iterrows = self._df.iterrows()
 
     @property
-    def dtypes(self):
+    def dtypes(self) -> Dict[Optional[Any], Type[Any]]:
+        description = self.description if self.description else []
         return {
             d[0]: self._converter.types[d[1]]
-            for d in self.description
+            for d in description
             if d[1] in self._converter.types
         }
 
     @property
-    def converters(self):
+    def converters(
+        self,
+    ) -> Dict[Optional[Any], Callable[[Optional[str]], Optional[Any]]]:
+        description = self.description if self.description else []
         return {
             d[0]: self._converter.mappings[d[1]]
-            for d in self.description
+            for d in description
             if d[1] in self._converter.mappings
         }
 
     @property
-    def parse_dates(self):
-        return [d[0] for d in self.description if d[1] in self._parse_dates]
+    def parse_dates(self) -> List[Optional[Any]]:
+        description = self.description if self.description else []
+        return [d[0] for d in description if d[1] in self._parse_dates]
 
-    def _trunc_date(self, df):
-        times = [
-            d[0] for d in self.description if d[1] in ("time", "time with time zone")
-        ]
+    def _trunc_date(self, df: "DataFrame") -> "DataFrame":
+        description = self.description if self.description else []
+        times = [d[0] for d in description if d[1] in ("time", "time with time zone")]
         if times:
             df.loc[:, times] = df.loc[:, times].apply(lambda r: r.dt.time)
         return df
@@ -470,12 +424,13 @@ class AthenaPandasResultSet(AthenaResultSet):
             return None
         else:
             self._rownumber = row[0] + 1
-            return tuple([row[1][d[0]] for d in self.description])
+            description = self.description if self.description else []
+            return tuple([row[1][d[0]] for d in description])
 
     def fetchone(self):
         return self._fetch()
 
-    def fetchmany(self, size=None):
+    def fetchmany(self, size: Optional[int] = None):
         if not size or size <= 0:
             size = self._arraysize
         rows = []
@@ -497,7 +452,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                 break
         return rows
 
-    def _as_pandas(self):
+    def _as_pandas(self) -> "DataFrame":
         import pandas as pd
 
         if not self.output_location:
@@ -520,7 +475,8 @@ class AthenaPandasResultSet(AthenaResultSet):
                 if self.output_location.endswith(".txt"):
                     sep = "\t"
                     header = None
-                    names = [d[0] for d in self.description]
+                    description = self.description if self.description else []
+                    names: Optional[Any] = [d[0] for d in description]
                 else:  # csv format
                     sep = ","
                     header = 0
@@ -544,10 +500,194 @@ class AthenaPandasResultSet(AthenaResultSet):
                 df = pd.DataFrame()
             return df
 
-    def as_pandas(self):
+    def as_pandas(self) -> "DataFrame":
         return self._df
 
-    def close(self):
+    def close(self) -> None:
+        import pandas as pd
+
         super(AthenaPandasResultSet, self).close()
-        self._df = None
+        self._df = pd.DataFrame()
         self._iterrows = None
+
+
+class WithResultSet(object):
+    def __init__(self):
+        super(WithResultSet, self).__init__()
+
+    def _reset_state(self) -> None:
+        self.query_id = None  # type: ignore
+        if self.result_set and not self.result_set.is_closed:
+            self.result_set.close()
+        self.result_set = None  # type: ignore
+
+    @property  # type: ignore
+    @abstractmethod
+    def result_set(self) -> Optional[AthenaResultSet]:
+        raise NotImplementedError  # pragma: no cover
+
+    @result_set.setter  # type: ignore
+    @abstractmethod
+    def result_set(self, val: Optional[AthenaResultSet]) -> None:
+        raise NotImplementedError  # pragma: no cover
+
+    @property
+    def has_result_set(self) -> bool:
+        return self.result_set is not None
+
+    @property
+    def description(
+        self,
+    ) -> Optional[
+        List[
+            Tuple[
+                Optional[Any],
+                Optional[Any],
+                None,
+                None,
+                Optional[Any],
+                Optional[Any],
+                Optional[Any],
+            ]
+        ]
+    ]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.description
+
+    @property
+    def database(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.database
+
+    @property  # type: ignore
+    @abstractmethod
+    def query_id(self) -> Optional[str]:
+        raise NotImplementedError  # pragma: no cover
+
+    @query_id.setter  # type: ignore
+    @abstractmethod
+    def query_id(self, val: Optional[str]) -> None:
+        raise NotImplementedError  # pragma: no cover
+
+    @property
+    def query(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.query
+
+    @property
+    def statement_type(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.statement_type
+
+    @property
+    def state(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.state
+
+    @property
+    def state_change_reason(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.state_change_reason
+
+    @property
+    def completion_date_time(self) -> Optional[datetime]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.completion_date_time
+
+    @property
+    def submission_date_time(self) -> Optional[datetime]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.submission_date_time
+
+    @property
+    def data_scanned_in_bytes(self) -> Optional[int]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.data_scanned_in_bytes
+
+    @property
+    def engine_execution_time_in_millis(self) -> Optional[int]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.engine_execution_time_in_millis
+
+    @property
+    def query_queue_time_in_millis(self) -> Optional[int]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.query_queue_time_in_millis
+
+    @property
+    def total_execution_time_in_millis(self) -> Optional[int]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.total_execution_time_in_millis
+
+    @property
+    def query_planning_time_in_millis(self) -> Optional[int]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.query_planning_time_in_millis
+
+    @property
+    def service_processing_time_in_millis(self) -> Optional[int]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.service_processing_time_in_millis
+
+    @property
+    def output_location(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.output_location
+
+    @property
+    def data_manifest_location(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.data_manifest_location
+
+    @property
+    def encryption_option(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.encryption_option
+
+    @property
+    def kms_key(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.kms_key
+
+    @property
+    def work_group(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.work_group

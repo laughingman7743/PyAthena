@@ -1,31 +1,40 @@
 # -*- coding: utf-8 -*-
 import logging
+from concurrent.futures import Future
 from multiprocessing import cpu_count
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from pyathena.async_cursor import AsyncCursor
 from pyathena.common import CursorIterator
+from pyathena.converter import Converter
+from pyathena.formatter import Formatter
 from pyathena.result_set import AthenaPandasResultSet
+from pyathena.util import RetryConfig
 
-_logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from pyathena.connection import Connection
+    from pyathena.result_set import AthenaResultSet
+
+_logger = logging.getLogger(__name__)  # type: ignore
 
 
 class AsyncPandasCursor(AsyncCursor):
     def __init__(
         self,
-        connection,
-        s3_staging_dir,
-        schema_name,
-        work_group,
-        poll_interval,
-        encryption_option,
-        kms_key,
-        converter,
-        formatter,
-        retry_config,
-        max_workers=(cpu_count() or 1) * 5,
-        arraysize=CursorIterator.DEFAULT_FETCH_SIZE,
-        kill_on_interrupt=True,
-    ):
+        connection: "Connection",
+        s3_staging_dir: str,
+        schema_name: str,
+        work_group: str,
+        poll_interval: float,
+        encryption_option: str,
+        kms_key: str,
+        converter: Converter,
+        formatter: Formatter,
+        retry_config: RetryConfig,
+        max_workers: int = (cpu_count() or 1) * 5,
+        arraysize: int = CursorIterator.DEFAULT_FETCH_SIZE,
+        kill_on_interrupt: bool = True,
+    ) -> None:
         super(AsyncPandasCursor, self).__init__(
             connection=connection,
             s3_staging_dir=s3_staging_dir,
@@ -44,11 +53,11 @@ class AsyncPandasCursor(AsyncCursor):
 
     def _collect_result_set(
         self,
-        query_id,
-        keep_default_na=False,
-        na_values=None,
-        quoting=1,
-    ):
+        query_id: str,
+        keep_default_na: bool = False,
+        na_values: List[str] = None,
+        quoting: int = 1,
+    ) -> AthenaPandasResultSet:
         query_execution = self._poll(query_id)
         return AthenaPandasResultSet(
             connection=self._connection,
@@ -63,15 +72,15 @@ class AsyncPandasCursor(AsyncCursor):
 
     def execute(
         self,
-        operation,
-        parameters=None,
-        work_group=None,
-        s3_staging_dir=None,
-        cache_size=0,
-        keep_default_na=False,
-        na_values=None,
-        quoting=1,
-    ):
+        operation: str,
+        parameters: Optional[Dict[str, Any]] = None,
+        work_group: Optional[str] = None,
+        s3_staging_dir: Optional[str] = None,
+        cache_size: int = 0,
+        keep_default_na: bool = False,
+        na_values: List[str] = None,
+        quoting: int = 1,
+    ) -> Tuple[str, "Future[Union[AthenaResultSet, AthenaPandasResultSet]]"]:
         query_id = self._execute(
             operation,
             parameters=parameters,

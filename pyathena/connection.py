@@ -2,25 +2,32 @@
 import logging
 import os
 import time
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 from boto3.session import Session
 
-from pyathena.async_pandas_cursor import AsyncPandasCursor
-from pyathena.converter import DefaultPandasTypeConverter, DefaultTypeConverter
+from pyathena.common import BaseCursor
+from pyathena.converter import (
+    Converter,
+    DefaultPandasTypeConverter,
+    DefaultTypeConverter,
+)
 from pyathena.cursor import Cursor
 from pyathena.error import NotSupportedError
-from pyathena.formatter import DefaultParameterFormatter
-from pyathena.pandas_cursor import PandasCursor
+from pyathena.formatter import DefaultParameterFormatter, Formatter
 from pyathena.util import RetryConfig
 
-_logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from botocore.client import BaseClient
+
+_logger = logging.getLogger(__name__)  # type: ignore
 
 
 class Connection(object):
 
-    _ENV_S3_STAGING_DIR = "AWS_ATHENA_S3_STAGING_DIR"
-    _ENV_WORK_GROUP = "AWS_ATHENA_WORK_GROUP"
-    _SESSION_PASSING_ARGS = [
+    _ENV_S3_STAGING_DIR: str = "AWS_ATHENA_S3_STAGING_DIR"
+    _ENV_WORK_GROUP: str = "AWS_ATHENA_WORK_GROUP"
+    _SESSION_PASSING_ARGS: List[str] = [
         "aws_access_key_id",
         "aws_secret_access_key",
         "aws_session_token",
@@ -28,7 +35,7 @@ class Connection(object):
         "botocore_session",
         "profile_name",
     ]
-    _CLIENT_PASSING_ARGS = [
+    _CLIENT_PASSING_ARGS: List[str] = [
         "aws_access_key_id",
         "aws_secret_access_key",
         "aws_session_token",
@@ -41,33 +48,33 @@ class Connection(object):
 
     def __init__(
         self,
-        s3_staging_dir=None,
-        region_name=None,
-        schema_name="default",
-        work_group=None,
-        poll_interval=1,
-        encryption_option=None,
-        kms_key=None,
-        profile_name=None,
-        role_arn=None,
-        role_session_name="PyAthena-session-{0}".format(int(time.time())),
-        duration_seconds=3600,
-        converter=None,
-        formatter=None,
-        retry_config=None,
-        cursor_class=Cursor,
-        kill_on_interrupt=True,
+        s3_staging_dir: Optional[str] = None,
+        region_name: Optional[str] = None,
+        schema_name: str = "default",
+        work_group: Optional[str] = None,
+        poll_interval: int = 1,
+        encryption_option: Optional[str] = None,
+        kms_key: Optional[str] = None,
+        profile_name: Optional[str] = None,
+        role_arn: Optional[str] = None,
+        role_session_name: str = "PyAthena-session-{0}".format(int(time.time())),
+        duration_seconds: int = 3600,
+        converter: Optional[Converter] = None,
+        formatter: Optional[Formatter] = None,
+        retry_config: Optional[RetryConfig] = None,
+        cursor_class: Type[BaseCursor] = Cursor,
+        kill_on_interrupt: bool = True,
         **kwargs
-    ):
+    ) -> None:
         self._kwargs = kwargs
         if s3_staging_dir:
-            self.s3_staging_dir = s3_staging_dir
+            self.s3_staging_dir: Optional[str] = s3_staging_dir
         else:
             self.s3_staging_dir = os.getenv(self._ENV_S3_STAGING_DIR, None)
         self.region_name = region_name
         self.schema_name = schema_name
         if work_group:
-            self.work_group = work_group
+            self.work_group: Optional[str] = work_group
         else:
             self.work_group = os.getenv(self._ENV_WORK_GROUP, None)
         self.poll_interval = poll_interval
@@ -107,8 +114,13 @@ class Connection(object):
         self.kill_on_interrupt = kill_on_interrupt
 
     def _assume_role(
-        self, profile_name, region_name, role_arn, role_session_name, duration_seconds
-    ):
+        self,
+        profile_name: Optional[str],
+        region_name: Optional[str],
+        role_arn: Optional[str],
+        role_session_name: str,
+        duration_seconds: int,
+    ) -> Dict[str, Any]:
         # MFA is not supported. If you want to use MFA, create a configuration file.
         # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#assume-role-provider
         session = Session(profile_name=profile_name, **self._session_kwargs)
@@ -118,28 +130,29 @@ class Connection(object):
             RoleSessionName=role_session_name,
             DurationSeconds=duration_seconds,
         )
-        return response["Credentials"]
+        creds: Dict[str, Any] = response["Credentials"]
+        return creds
 
     @property
-    def _session_kwargs(self):
+    def _session_kwargs(self) -> Dict[str, Any]:
         return {
             k: v for k, v in self._kwargs.items() if k in self._SESSION_PASSING_ARGS
         }
 
     @property
-    def _client_kwargs(self):
+    def _client_kwargs(self) -> Dict[str, Any]:
         return {k: v for k, v in self._kwargs.items() if k in self._CLIENT_PASSING_ARGS}
 
     @property
-    def session(self):
+    def session(self) -> Session:
         return self._session
 
     @property
-    def client(self):
+    def client(self) -> "BaseClient":
         return self._client
 
     @property
-    def retry_config(self):
+    def retry_config(self) -> RetryConfig:
         return self._retry_config
 
     def __enter__(self):
@@ -148,11 +161,14 @@ class Connection(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-    def cursor(self, cursor=None, **kwargs):
+    def cursor(self, cursor: Optional[Type[BaseCursor]] = None, **kwargs) -> BaseCursor:
         if not cursor:
             cursor = self.cursor_class
         converter = kwargs.pop("converter", self._converter)
         if not converter:
+            from pyathena.async_pandas_cursor import AsyncPandasCursor
+            from pyathena.pandas_cursor import PandasCursor
+
             if cursor is PandasCursor or cursor is AsyncPandasCursor:
                 converter = DefaultPandasTypeConverter()
             else:
@@ -172,11 +188,11 @@ class Connection(object):
             **kwargs
         )
 
-    def close(self):
+    def close(self) -> None:
         pass
 
-    def commit(self):
+    def commit(self) -> None:
         pass
 
-    def rollback(self):
+    def rollback(self) -> None:
         raise NotSupportedError
