@@ -166,8 +166,8 @@ class Connection(object):
             cursor = self.cursor_class
         converter = kwargs.pop("converter", self._converter)
         if not converter:
-            from pyathena.async_pandas_cursor import AsyncPandasCursor
-            from pyathena.pandas_cursor import PandasCursor
+            from pyathena.pandas.async_cursor import AsyncPandasCursor
+            from pyathena.pandas.cursor import PandasCursor
 
             if cursor is PandasCursor or cursor is AsyncPandasCursor:
                 converter = DefaultPandasTypeConverter()

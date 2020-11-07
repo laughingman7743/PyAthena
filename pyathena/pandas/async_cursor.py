@@ -8,7 +8,7 @@ from pyathena.async_cursor import AsyncCursor
 from pyathena.common import CursorIterator
 from pyathena.converter import Converter
 from pyathena.formatter import Formatter
-from pyathena.result_set import AthenaPandasResultSet
+from pyathena.pandas.result_set import AthenaPandasResultSet
 from pyathena.util import RetryConfig
 
 if TYPE_CHECKING:
