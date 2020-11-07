@@ -34,7 +34,7 @@ def with_async_cursor():
 
 def with_pandas_cursor():
     def _with_pandas_cursor(fn):
-        from pyathena.pandas_cursor import PandasCursor
+        from pyathena.pandas.cursor import PandasCursor
 
         @functools.wraps(fn)
         def wrapped_fn(self, *args, **kwargs):
@@ -49,7 +49,7 @@ def with_pandas_cursor():
 
 def with_async_pandas_cursor():
     def _with_async_pandas_cursor(fn):
-        from pyathena.async_pandas_cursor import AsyncPandasCursor
+        from pyathena.pandas.async_cursor import AsyncPandasCursor
 
         @functools.wraps(fn)
         def wrapped_fn(self, *args, **kwargs):

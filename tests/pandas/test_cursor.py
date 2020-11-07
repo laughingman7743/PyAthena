@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import contextlib
 import random
@@ -15,8 +14,8 @@ import pandas as pd
 
 from pyathena.error import DatabaseError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
-from pyathena.pandas_cursor import PandasCursor
-from pyathena.result_set import AthenaPandasResultSet
+from pyathena.pandas.cursor import PandasCursor
+from pyathena.pandas.result_set import AthenaPandasResultSet
 from tests import ENV, S3_PREFIX, SCHEMA, WithConnect
 from tests.util import with_pandas_cursor
 
