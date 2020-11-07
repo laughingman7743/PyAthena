@@ -223,13 +223,13 @@ If ``s3_dir`` is not specified, ``s3_staging_dir`` parameter will be used. The f
 
 The data format only supports Parquet. The compression format is specified by the ``compression`` parameter in the connection string.
 
-The ``pyathena.util`` package also has helper methods.
+The ``pyathena.pandas.util`` package also has helper methods.
 
 .. code:: python
 
     import pandas as pd
     from pyathena import connect
-    from pyathena.util import to_sql
+    from pyathena.pandas.util import to_sql
 
     conn = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
                    aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
@@ -246,7 +246,7 @@ This helper method supports partitioning.
     import pandas as pd
     from datetime import date
     from pyathena import connect
-    from pyathena.util import to_sql
+    from pyathena.pandas.util import to_sql
 
     conn = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
                    aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
@@ -275,7 +275,7 @@ It is also possible to use `ProcessPoolExecutor`_.
     import pandas as pd
     from concurrent.futures.process import ProcessPoolExecutor
     from pyathena import connect
-    from pyathena.util import to_sql
+    from pyathena.pandas.util import to_sql
 
     conn = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
                    aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
