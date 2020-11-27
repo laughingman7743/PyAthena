@@ -175,7 +175,7 @@ The ``pyathena.util`` package also has helper methods.
 .. code:: python
 
     from pyathena import connect
-    from pyathena.util import as_pandas
+    from pyathena.pandas.util import as_pandas
 
     cursor = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
                      aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
