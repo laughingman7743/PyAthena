@@ -58,8 +58,7 @@ Basic usage
 
     from pyathena import connect
 
-    cursor = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
-                     aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+    cursor = connect(profile_name='aws-profile-name',
                      s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor()
     cursor.execute("SELECT * FROM one_row")
@@ -73,8 +72,7 @@ Cursor iteration
 
     from pyathena import connect
 
-    cursor = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
-                     aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+    cursor = connect(profile_name='aws-profile-name',
                      s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor()
     cursor.execute("SELECT * FROM many_rows LIMIT 10")
@@ -91,8 +89,7 @@ Supported `DB API paramstyle`_ is only ``PyFormat``.
 
     from pyathena import connect
 
-    cursor = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
-                     aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+    cursor = connect(profile_name='aws-profile-name',
                      s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor()
     cursor.execute("""
@@ -163,8 +160,7 @@ You can use the `pandas.read_sql`_ to handle the query results as a `DataFrame o
     from pyathena import connect
     import pandas as pd
 
-    conn = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
-                   aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+    conn = connect(profile_name='aws-profile-name',
                    s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                    region_name="us-west-2")
     df = pd.read_sql("SELECT * FROM many_rows", conn)
@@ -177,8 +173,7 @@ The ``pyathena.util`` package also has helper methods.
     from pyathena import connect
     from pyathena.pandas.util import as_pandas
 
-    cursor = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
-                     aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+    cursor = connect(profile_name='aws-profile-name',
                      s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor()
     cursor.execute("SELECT * FROM many_rows")
@@ -231,8 +226,7 @@ The ``pyathena.pandas.util`` package also has helper methods.
     from pyathena import connect
     from pyathena.pandas.util import to_sql
 
-    conn = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
-                   aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+    conn = connect(profile_name='aws-profile-name',
                    s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                    region_name="us-west-2")
     df = pd.DataFrame({"a": [1, 2, 3, 4, 5]})
@@ -248,8 +242,7 @@ This helper method supports partitioning.
     from pyathena import connect
     from pyathena.pandas.util import to_sql
 
-    conn = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
-                   aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+    conn = connect(profile_name='aws-profile-name',
                    s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                    region_name="us-west-2")
     df = pd.DataFrame({
@@ -277,8 +270,7 @@ It is also possible to use `ProcessPoolExecutor`_.
     from pyathena import connect
     from pyathena.pandas.util import to_sql
 
-    conn = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
-                   aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+    conn = connect(profile_name='aws-profile-name',
                    s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                    region_name="us-west-2")
     df = pd.DataFrame({"a": [1, 2, 3, 4, 5]})
