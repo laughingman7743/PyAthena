@@ -170,7 +170,7 @@ You can use the `pandas.read_sql`_ to handle the query results as a `DataFrame o
     df = pd.read_sql("SELECT * FROM many_rows", conn)
     print(df.head())
 
-The ``pyathena.util`` package also has helper methods.
+The ``pyathena.pandas.util`` package also has helper methods.
 
 .. code:: python
 
