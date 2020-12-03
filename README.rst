@@ -58,9 +58,7 @@ Basic usage
 
     from pyathena import connect
 
-    cursor = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
-                     aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
-                     s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor()
     cursor.execute("SELECT * FROM one_row")
     print(cursor.description)
@@ -73,9 +71,7 @@ Cursor iteration
 
     from pyathena import connect
 
-    cursor = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
-                     aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
-                     s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor()
     cursor.execute("SELECT * FROM many_rows LIMIT 10")
     for row in cursor:
@@ -91,9 +87,7 @@ Supported `DB API paramstyle`_ is only ``PyFormat``.
 
     from pyathena import connect
 
-    cursor = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
-                     aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
-                     s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor()
     cursor.execute("""
                    SELECT col_string FROM one_row_complex
@@ -163,9 +157,7 @@ You can use the `pandas.read_sql`_ to handle the query results as a `DataFrame o
     from pyathena import connect
     import pandas as pd
 
-    conn = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
-                   aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
-                   s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+    conn = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                    region_name="us-west-2")
     df = pd.read_sql("SELECT * FROM many_rows", conn)
     print(df.head())
@@ -177,9 +169,7 @@ The ``pyathena.pandas.util`` package also has helper methods.
     from pyathena import connect
     from pyathena.pandas.util import as_pandas
 
-    cursor = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
-                     aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
-                     s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor()
     cursor.execute("SELECT * FROM many_rows")
     df = as_pandas(cursor)
@@ -231,9 +221,7 @@ The ``pyathena.pandas.util`` package also has helper methods.
     from pyathena import connect
     from pyathena.pandas.util import to_sql
 
-    conn = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
-                   aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
-                   s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+    conn = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                    region_name="us-west-2")
     df = pd.DataFrame({"a": [1, 2, 3, 4, 5]})
     to_sql(df, "YOUR_TABLE", conn, "s3://YOUR_S3_BUCKET/path/to/",
@@ -248,9 +236,7 @@ This helper method supports partitioning.
     from pyathena import connect
     from pyathena.pandas.util import to_sql
 
-    conn = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
-                   aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
-                   s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+    conn = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                    region_name="us-west-2")
     df = pd.DataFrame({
         "a": [1, 2, 3, 4, 5],
@@ -277,9 +263,7 @@ It is also possible to use `ProcessPoolExecutor`_.
     from pyathena import connect
     from pyathena.pandas.util import to_sql
 
-    conn = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
-                   aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
-                   s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+    conn = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                    region_name="us-west-2")
     df = pd.DataFrame({"a": [1, 2, 3, 4, 5]})
     to_sql(df, "YOUR_TABLE", conn, "s3://YOUR_S3_BUCKET/path/to/",
@@ -794,9 +778,7 @@ You can attempt to re-use the results from a previously run query to help save t
 
     from pyathena import connect
 
-    cursor = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
-                     aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
-                     s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor()
     cursor.execute("SELECT * FROM one_row")  # run once
     print(cursor.query_id)
@@ -820,6 +802,80 @@ Additional environment variable:
 
     $ export AWS_ATHENA_S3_STAGING_DIR=s3://YOUR_S3_BUCKET/path/to/
     $ export AWS_ATHENA_WORK_GROUP=YOUR_WORK_GROUP
+
+Examples
+~~~~~~~~
+
+Passing credentials as parameters
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code:: python
+
+    from pyathena import connect
+
+    cursor = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
+                     aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+                     s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor()
+
+.. code:: python
+
+    from pyathena import connect
+
+    cursor = connect(aws_access_key_id="YOUR_ACCESS_KEY_ID",
+                     aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
+                     aws_session_token="YOUR_SESSION_TOKEN",
+                     s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor()
+
+Shared credentials file
+^^^^^^^^^^^^^^^^^^^^^^^
+
+The shared credentials file has a default location of ~/.aws/credentials.
+
+If you use the default profile, there is no need to specify credential information.
+
+.. code:: python
+
+    from pyathena import connect
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor()
+
+You can also specify a profile other than the default.
+
+.. code:: python
+
+    from pyathena import connect
+
+    cursor = connect(profile_name="YOUR_PROFILE_NAME",
+                     s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor()
+
+Assume role provider
+^^^^^^^^^^^^^^^^^^^^
+
+.. code:: python
+
+    from pyathena import connect
+
+    cursor = connect(role_arn="YOUR_ASSUME_ROLE_ARN",
+                     role_session_name="PyAthena-session",
+                     duration_seconds=3600,
+                     s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor()
+
+Instance profiles
+^^^^^^^^^^^^^^^^^
+
+No need to specify credential information.
+
+.. code:: python
+
+    from pyathena import connect
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor()
 
 Testing
 -------
