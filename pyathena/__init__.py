@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 import datetime
-from typing import FrozenSet, Type
+from typing import TYPE_CHECKING, FrozenSet, Type
 
 from pyathena.error import *  # noqa
+
+if TYPE_CHECKING:
+    from pyathena.connection import Connection
 
 __version__: str = "2.0.0"
 
@@ -51,7 +54,7 @@ Time: Type[datetime.time] = datetime.time
 Timestamp: Type[datetime.datetime] = datetime.datetime
 
 
-def connect(*args, **kwargs):
+def connect(*args, **kwargs) -> "Connection":
     from pyathena.connection import Connection
 
     return Connection(*args, **kwargs)

@@ -25,7 +25,7 @@ def parse_output_location(output_location: str) -> Tuple[str, str]:
         raise DataError("Unknown `output_location` format.")
 
 
-def synchronized(wrapped: Callable[..., Any]):
+def synchronized(wrapped: Callable[..., Any]) -> Any:
     """The missing @synchronized decorator
 
     https://git.io/vydTA"""
