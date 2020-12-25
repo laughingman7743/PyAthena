@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "PyAthena"
-version = "2.0.0"  # https://github.com/laughingman7743/PyAthena/blob/master/pyathena/__init__.py#L7
+version = "2.0.1"  # https://github.com/laughingman7743/PyAthena/blob/master/pyathena/__init__.py#L7
 description = "Python DB API 2.0 (PEP 249) client for Amazon Athena"
 license = "MIT"
 classifiers = [
@@ -44,7 +44,7 @@ wheel = "*"
 twine = "*"
 pandas = ">=1.0.0"
 pyarrow = ">=1.0.0"
-SQLAlchemy = ">=1.0.0, <2.0.0"
+sqlalchemy = ">=1.0.0, <2.0.0"
 mypy = "*"
 pytest = ">=3.5"
 pytest-cov = "*"
@@ -56,8 +56,8 @@ pytest-mypy = "*"
 codecov = "*"
 
 [tool.poetry.extras]
-Pandas = ["pandas", "pyarrow"]
-SQLAlchemy = ["sqlalchemy"]
+pandas = ["pandas", "pyarrow"]
+sqlalchemy = ["sqlalchemy"]
 
 [tool.poetry.plugins."sqlalchemy.dialects"]
 "awsathena.rest" = "pyathena.sqlalchemy_athena:AthenaDialect"
