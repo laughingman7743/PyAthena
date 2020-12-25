@@ -4,6 +4,7 @@ from __future__ import absolute_import, unicode_literals
 import math
 import numbers
 import re
+from distutils.util import strtobool
 
 import tenacity
 from future.utils import raise_from
@@ -314,6 +315,14 @@ class AthenaDialect(DefaultDialect):
             ),
             "schema_name": url.database if url.database else "default",
         }
+        if "verify" in url.query:
+            verify = url.query["verify"]
+            try:
+                verify = bool(strtobool(verify))
+            except ValueError:
+                # Probably a file name of the CA cert bundle to use
+                pass
+            url.query.update({"verify": verify})
         opts.update(url.query)
         return [[], opts]
 
