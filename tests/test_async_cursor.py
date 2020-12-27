@@ -5,17 +5,17 @@ import unittest
 from datetime import datetime
 from random import randint
 
-from pyathena.async_cursor import AsyncCursor
+from pyathena.async_cursor import AsyncCursor, AsyncDictCursor
 from pyathena.error import NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
 from tests import WithConnect
 from tests.conftest import SCHEMA
-from tests.util import with_async_cursor
+from tests.util import with_cursor
 
 
 class TestAsyncCursor(unittest.TestCase, WithConnect):
-    @with_async_cursor()
+    @with_cursor(cursor_class=AsyncCursor)
     def test_fetchone(self, cursor):
         query_id, future = cursor.execute("SELECT * FROM one_row")
         result_set = future.result()
@@ -40,14 +40,18 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         self.assertIsNotNone(result_set.output_location)
         self.assertIsNone(result_set.data_manifest_location)
 
-    @with_async_cursor()
+    @with_cursor(cursor_class=AsyncCursor)
     def test_fetchmany(self, cursor):
         query_id, future = cursor.execute("SELECT * FROM many_rows LIMIT 15")
         result_set = future.result()
-        self.assertEqual(len(result_set.fetchmany(10)), 10)
-        self.assertEqual(len(result_set.fetchmany(10)), 5)
+        actual1 = result_set.fetchmany(10)
+        self.assertEqual(len(actual1), 10)
+        self.assertEqual(actual1, [(i,) for i in range(10)])
+        actual2 = result_set.fetchmany(10)
+        self.assertEqual(len(actual2), 5)
+        self.assertEqual(actual1, [(i,) for i in range(5)])
 
-    @with_async_cursor()
+    @with_cursor(cursor_class=AsyncCursor)
     def test_fetchall(self, cursor):
         query_id, future = cursor.execute("SELECT * FROM one_row")
         result_set = future.result()
@@ -56,32 +60,32 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         result_set = future.result()
         self.assertEqual(result_set.fetchall(), [(i,) for i in range(10000)])
 
-    @with_async_cursor()
+    @with_cursor(cursor_class=AsyncCursor)
     def test_iterator(self, cursor):
         query_id, future = cursor.execute("SELECT * FROM one_row")
         result_set = future.result()
         self.assertEqual(list(result_set), [(1,)])
         self.assertRaises(StopIteration, result_set.__next__)
 
-    @with_async_cursor()
+    @with_cursor(cursor_class=AsyncCursor)
     def test_arraysize(self, cursor):
         cursor.arraysize = 5
         query_id, future = cursor.execute("SELECT * FROM many_rows LIMIT 20")
         result_set = future.result()
         self.assertEqual(len(result_set.fetchmany()), 5)
 
-    @with_async_cursor()
+    @with_cursor(cursor_class=AsyncCursor)
     def test_arraysize_default(self, cursor):
         self.assertEqual(cursor.arraysize, AthenaResultSet.DEFAULT_FETCH_SIZE)
 
-    @with_async_cursor()
+    @with_cursor(cursor_class=AsyncCursor)
     def test_invalid_arraysize(self, cursor):
         with self.assertRaises(ProgrammingError):
             cursor.arraysize = 10000
         with self.assertRaises(ProgrammingError):
             cursor.arraysize = -1
 
-    @with_async_cursor()
+    @with_cursor(cursor_class=AsyncCursor)
     def test_description(self, cursor):
         query_id, future = cursor.execute("SELECT 1 AS foobar FROM one_row")
         result_set = future.result()
@@ -94,7 +98,7 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         description = future.result()
         self.assertEqual(result_set.description, description)
 
-    @with_async_cursor()
+    @with_cursor(cursor_class=AsyncCursor)
     def test_query_execution(self, cursor):
         query = "SELECT * FROM one_row"
         query_id, future = cursor.execute(query)
@@ -174,7 +178,7 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         self.assertEqual(result_set.kms_key, query_execution.kms_key)
         self.assertEqual(result_set.work_group, query_execution.work_group)
 
-    @with_async_cursor()
+    @with_cursor(cursor_class=AsyncCursor)
     def test_poll(self, cursor):
         query_id, _ = cursor.execute("SELECT * FROM one_row")
         future = cursor.poll(query_id)
@@ -190,7 +194,7 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
             ],
         )
 
-    @with_async_cursor()
+    @with_cursor(cursor_class=AsyncCursor)
     def test_bad_query(self, cursor):
         query_id, future = cursor.execute(
             "SELECT does_not_exist FROM this_really_does_not_exist"
@@ -199,7 +203,7 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         self.assertEqual(result_set.state, AthenaQueryExecution.STATE_FAILED)
         self.assertIsNotNone(result_set.state_change_reason)
 
-    @with_async_cursor()
+    @with_cursor(cursor_class=AsyncCursor)
     def test_cancel(self, cursor):
         query_id, future = cursor.execute(
             """
@@ -231,3 +235,31 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         )
         cursor.close()
         conn.close()
+
+
+class TestAsyncDictCursor(unittest.TestCase, WithConnect):
+    @with_cursor(cursor_class=AsyncDictCursor)
+    def test_fetchone(self, cursor):
+        query_id, future = cursor.execute("SELECT * FROM one_row")
+        result_set = future.result()
+        self.assertEqual(result_set.fetchone(), {"number_of_rows": 1})
+
+    @with_cursor(cursor_class=AsyncDictCursor)
+    def test_fetchmany(self, cursor):
+        query_id, future = cursor.execute("SELECT * FROM many_rows LIMIT 15")
+        result_set = future.result()
+        actual1 = result_set.fetchmany(10)
+        self.assertEqual(len(actual1), 10)
+        self.assertEqual(actual1, [{"a": i} for i in range(10)])
+        actual2 = result_set.fetchmany(10)
+        self.assertEqual(len(actual2), 5)
+        self.assertEqual(actual1, [{"a": i} for i in range(5)])
+
+    @with_cursor(cursor_class=AsyncDictCursor)
+    def test_fetchall(self, cursor):
+        query_id, future = cursor.execute("SELECT * FROM one_row")
+        result_set = future.result()
+        self.assertEqual(result_set.fetchall(), [{"number_of_rows": 1}])
+        query_id, future = cursor.execute("SELECT a FROM many_rows ORDER BY a")
+        result_set = future.result()
+        self.assertEqual(result_set.fetchall(), [{"a": i} for i in range(10000)])

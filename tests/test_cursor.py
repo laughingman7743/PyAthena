@@ -20,7 +20,7 @@ from pyathena import (
     TIME,
     connect,
 )
-from pyathena.cursor import Cursor
+from pyathena.cursor import Cursor, DictCursor
 from pyathena.error import DatabaseError, NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from tests import ENV, S3_PREFIX, SCHEMA, WORK_GROUP, WithConnect
@@ -67,8 +67,12 @@ class TestCursor(unittest.TestCase, WithConnect):
     @with_cursor()
     def test_fetchmany(self, cursor):
         cursor.execute("SELECT * FROM many_rows LIMIT 15")
-        self.assertEqual(len(cursor.fetchmany(10)), 10)
-        self.assertEqual(len(cursor.fetchmany(10)), 5)
+        actual1 = cursor.fetchmany(10)
+        self.assertEqual(len(actual1), 10)
+        self.assertEqual(actual1, [(i,) for i in range(10)])
+        actual2 = cursor.fetchmany(10)
+        self.assertEqual(len(actual2), 5)
+        self.assertEqual(actual2, [(i,) for i in range(5)])
 
     @with_cursor()
     def test_fetchall(self, cursor):
@@ -541,3 +545,27 @@ class TestCursor(unittest.TestCase, WithConnect):
         self.assertRaises(ProgrammingError, cursor.fetchall)
         self.assertRaises(ProgrammingError, cursor.fetchmany)
         self.assertRaises(ProgrammingError, cursor.fetchone)
+
+
+class TestDictCursor(unittest.TestCase, WithConnect):
+    @with_cursor(cursor_class=DictCursor)
+    def test_fetchone(self, cursor):
+        cursor.execute("SELECT * FROM one_row")
+        self.assertEqual(cursor.fetchone(), {"number_of_rows": 1})
+
+    @with_cursor(cursor_class=DictCursor)
+    def test_fetchmany(self, cursor):
+        cursor.execute("SELECT * FROM many_rows LIMIT 15")
+        actual1 = cursor.fetchmany(10)
+        self.assertEqual(len(actual1), 10)
+        self.assertEqual(actual1, [{"a": i} for i in range(10)])
+        actual2 = cursor.fetchmany(10)
+        self.assertEqual(len(actual2), 5)
+        self.assertEqual(actual2, [{"a": i} for i in range(5)])
+
+    @with_cursor(cursor_class=DictCursor)
+    def test_fetchall(self, cursor):
+        cursor.execute("SELECT * FROM one_row")
+        self.assertEqual(cursor.fetchall(), [{"number_of_rows": 1}])
+        cursor.execute("SELECT a FROM many_rows ORDER BY a")
+        self.assertEqual(cursor.fetchall(), [{"a": i} for i in range(10000)])
