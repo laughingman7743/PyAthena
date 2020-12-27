@@ -49,7 +49,7 @@ class TestAsyncCursor(unittest.TestCase, WithConnect):
         self.assertEqual(actual1, [(i,) for i in range(10)])
         actual2 = result_set.fetchmany(10)
         self.assertEqual(len(actual2), 5)
-        self.assertEqual(actual1, [(i,) for i in range(5)])
+        self.assertEqual(actual2, [(i,) for i in range(10, 15)])
 
     @with_cursor(cursor_class=AsyncCursor)
     def test_fetchall(self, cursor):
@@ -253,7 +253,7 @@ class TestAsyncDictCursor(unittest.TestCase, WithConnect):
         self.assertEqual(actual1, [{"a": i} for i in range(10)])
         actual2 = result_set.fetchmany(10)
         self.assertEqual(len(actual2), 5)
-        self.assertEqual(actual1, [{"a": i} for i in range(5)])
+        self.assertEqual(actual2, [{"a": i} for i in range(10, 15)])
 
     @with_cursor(cursor_class=AsyncDictCursor)
     def test_fetchall(self, cursor):
