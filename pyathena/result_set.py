@@ -352,7 +352,7 @@ class AthenaDictResultSet(AthenaResultSet):
         self, offset: int, meta_data: Tuple[Any, ...], rows: List[Dict[str, Any]]
     ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         return [
-            AthenaDictResultSet.dict_type(
+            self.dict_type(
                 [
                     (
                         meta.get("Name"),
