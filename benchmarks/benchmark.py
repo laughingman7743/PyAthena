@@ -4,10 +4,9 @@ import logging
 import sys
 import time
 
-from pyathenajdbc import connect as jdbc_connect
-
 from pyathena import connect
 from pyathena.pandas_cursor import PandasCursor
+from pyathenajdbc import connect as jdbc_connect
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.addHandler(logging.StreamHandler(sys.stdout))
