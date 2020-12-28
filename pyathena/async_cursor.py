@@ -11,7 +11,7 @@ from pyathena.cursor import BaseCursor
 from pyathena.error import NotSupportedError, ProgrammingError
 from pyathena.formatter import Formatter
 from pyathena.model import AthenaQueryExecution
-from pyathena.result_set import AthenaResultSet
+from pyathena.result_set import AthenaDictResultSet, AthenaResultSet
 from pyathena.util import RetryConfig
 
 if TYPE_CHECKING:
@@ -53,6 +53,7 @@ class AsyncCursor(BaseCursor):
         )
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._arraysize = arraysize
+        self._result_set_class = AthenaResultSet
 
     @property
     def arraysize(self) -> int:
@@ -116,7 +117,7 @@ class AsyncCursor(BaseCursor):
 
     def _collect_result_set(self, query_id: str) -> AthenaResultSet:
         query_execution = self._poll(query_id)
-        return AthenaResultSet(
+        return self._result_set_class(
             connection=self._connection,
             converter=self._converter,
             query_execution=query_execution,
@@ -148,3 +149,11 @@ class AsyncCursor(BaseCursor):
 
     def cancel(self, query_id: str) -> "Future[None]":
         return self._executor.submit(self._cancel, query_id)
+
+
+class AsyncDictCursor(AsyncCursor):
+    def __init__(self, **kwargs) -> None:
+        super(AsyncDictCursor, self).__init__(**kwargs)
+        self._result_set_class = AthenaDictResultSet
+        if "dict_type" in kwargs:
+            AthenaDictResultSet.dict_type = kwargs["dict_type"]

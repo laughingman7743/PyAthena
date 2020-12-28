@@ -274,11 +274,88 @@ It is also possible to use `ProcessPoolExecutor`_.
 .. _`ThreadPoolExecutor`: https://docs.python.org/3/library/concurrent.futures.html#threadpoolexecutor
 .. _`ProcessPoolExecutor`: https://docs.python.org/3/library/concurrent.futures.html#processpoolexecutor
 
+DictCursor
+~~~~~~~~~~
+
+DictCursor retrieve the query execution result as a dictionary type with column names and values.
+
+You can use the DictCursor by specifying the ``cursor_class``
+with the connect method or connection object.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.cursor import DictCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=DictCursor).cursor()
+
+.. code:: python
+
+    from pyathena.connection import Connection
+    from pyathena.cursor import DictCursor
+
+    cursor = Connection(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                        region_name="us-west-2",
+                        cursor_class=DictCursor).cursor()
+
+It can also be used by specifying the cursor class when calling the connection object's cursor method.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.cursor import DictCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor(DictCursor)
+
+.. code:: python
+
+    from pyathena.connection import Connection
+    from pyathena.cursor import DictCursor
+
+    cursor = Connection(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                        region_name="us-west-2").cursor(DictCursor)
+
+The basic usage is the same as the Cursor.
+
+.. code:: python
+
+    from pyathena.connection import Connection
+    from pyathena.cursor import DictCursor
+
+    cursor = Connection(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                        region_name="us-west-2").cursor(DictCursor)
+    cursor.execute("SELECT * FROM many_rows LIMIT 10")
+    for row in cursor:
+        print(row["a"])
+
+If you want to change the dictionary type (e.g., use OrderedDict), you can specify like the following.
+
+.. code:: python
+
+    from collections import OrderedDict
+    from pyathena import connect
+    from pyathena.cursor import DictCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=DictCursor).cursor(dict_type=OrderedDict)
+
+.. code:: python
+
+    from collections import OrderedDict
+    from pyathena import connect
+    from pyathena.cursor import DictCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor(cursor=DictCursor, dict_type=OrderedDict)
+
 AsynchronousCursor
 ~~~~~~~~~~~~~~~~~~
 
 AsynchronousCursor is a simple implementation using the concurrent.futures package.
-Python 2.7 uses `backport of the concurrent.futures`_ package.
 This cursor does not follow the `DB API 2.0 (PEP 249)`_.
 
 You can use the AsynchronousCursor by specifying the ``cursor_class``
@@ -357,7 +434,6 @@ It also has information on the result of query execution.
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
                      cursor_class=AsyncCursor).cursor()
-
     query_id, future = cursor.execute("SELECT * FROM many_rows")
     result_set = future.result()
     print(result_set.state)
@@ -383,7 +459,6 @@ It also has information on the result of query execution.
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
                      cursor_class=AsyncCursor).cursor()
-
     query_id, future = cursor.execute("SELECT * FROM many_rows")
     result_set = future.result()
     print(result_set.fetchall())
@@ -398,21 +473,99 @@ A query ID is required to cancel a query with the AsynchronousCursor.
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
                      cursor_class=AsyncCursor).cursor()
-
     query_id, future = cursor.execute("SELECT * FROM many_rows")
     cursor.cancel(query_id)
 
 NOTE: The cancel method of the `future object`_ does not cancel the query.
 
-.. _`backport of the concurrent.futures`: https://pypi.python.org/pypi/futures
 .. _`future object`: https://docs.python.org/3/library/concurrent.futures.html#future-objects
+
+AsynchronousDictCursor
+~~~~~~~~~~~~~~~~~~~~~~
+
+AsyncDIctCursor is an AsyncCursor that can retrieve the query execution result
+as a dictionary type with column names and values.
+
+You can use the DictCursor by specifying the ``cursor_class``
+with the connect method or connection object.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_cursor import AsyncDictCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=AsyncDictCursor).cursor()
+
+.. code:: python
+
+    from pyathena.connection import Connection
+    from pyathena.async_cursor import AsyncDictCursor
+
+    cursor = Connection(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                        region_name="us-west-2",
+                        cursor_class=AsyncDictCursor).cursor()
+
+It can also be used by specifying the cursor class when calling the connection object's cursor method.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.async_cursor import AsyncDictCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor(AsyncDictCursor)
+
+.. code:: python
+
+    from pyathena.connection import Connection
+    from pyathena.async_cursor import AsyncDictCursor
+
+    cursor = Connection(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                        region_name="us-west-2").cursor(AsyncDictCursor)
+
+The basic usage is the same as the AsyncCursor.
+
+.. code:: python
+
+    from pyathena.connection import Connection
+    from pyathena.cursor import DictCursor
+
+    cursor = Connection(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                        region_name="us-west-2").cursor(AsyncDictCursor)
+    query_id, future = cursor.execute("SELECT * FROM many_rows LIMIT 10")
+    result_set = future.result()
+    for row in result_set:
+        print(row["a"])
+
+If you want to change the dictionary type (e.g., use OrderedDict), you can specify like the following.
+
+.. code:: python
+
+    from collections import OrderedDict
+    from pyathena import connect
+    from pyathena.async_cursor import AsyncDictCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=AsyncDictCursor).cursor(dict_type=OrderedDict)
+
+.. code:: python
+
+    from collections import OrderedDict
+    from pyathena import connect
+    from pyathena.async_cursor import AsyncDictCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor(cursor=AsyncDictCursor, dict_type=OrderedDict)
 
 PandasCursor
 ~~~~~~~~~~~~
 
 PandasCursor directly handles the CSV file of the query execution result output to S3.
 This cursor is to download the CSV file after executing the query, and then loaded into `DataFrame object`_.
-Performance is better than fetching data with a cursor.
+Performance is better than fetching data with Cursor.
 
 You can use the PandasCursor by specifying the ``cursor_class``
 with the connect method or connection object.
@@ -910,7 +1063,7 @@ Run test multiple Python versions
     $ pip install poetry
     $ poetry install -v
     $ poetry run scripts/test_data/upload_test_data.sh
-    $ pyenv local 3.8.2 3.7.2 3.6.8 3.5.7 2.7.16
+    $ pyenv local 3.8.2 3.7.2 3.6.8
     $ poetry run tox
     $ poetry run scripts/test_data/delete_test_data.sh
 

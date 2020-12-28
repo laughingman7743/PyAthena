@@ -7,7 +7,7 @@ from pyathena.converter import Converter
 from pyathena.error import OperationalError, ProgrammingError
 from pyathena.formatter import Formatter
 from pyathena.model import AthenaQueryExecution
-from pyathena.result_set import AthenaResultSet, WithResultSet
+from pyathena.result_set import AthenaDictResultSet, AthenaResultSet, WithResultSet
 from pyathena.util import RetryConfig, synchronized
 
 if TYPE_CHECKING:
@@ -48,6 +48,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         )
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaResultSet] = None
+        self._result_set_class = AthenaResultSet
 
     @property
     def result_set(self) -> Optional[AthenaResultSet]:
@@ -92,7 +93,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         )
         query_execution = self._poll(self.query_id)
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
-            self.result_set = AthenaResultSet(
+            self.result_set = self._result_set_class(
                 self._connection,
                 self._converter,
                 query_execution,
@@ -137,3 +138,11 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaResultSet, self.result_set)
         return result_set.fetchall()
+
+
+class DictCursor(Cursor):
+    def __init__(self, **kwargs) -> None:
+        super(DictCursor, self).__init__(**kwargs)
+        self._result_set_class = AthenaDictResultSet
+        if "dict_type" in kwargs:
+            AthenaDictResultSet.dict_type = kwargs["dict_type"]

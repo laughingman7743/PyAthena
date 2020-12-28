@@ -10,14 +10,15 @@ from random import randint
 from pyathena.async_cursor import AsyncCursor
 from pyathena.error import NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
+from pyathena.pandas.async_cursor import AsyncPandasCursor
 from pyathena.result_set import AthenaResultSet
 from tests import WithConnect
 from tests.conftest import ENV, S3_PREFIX, SCHEMA
-from tests.util import with_async_pandas_cursor
+from tests.util import with_cursor
 
 
 class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
-    @with_async_pandas_cursor()
+    @with_cursor(cursor_class=AsyncPandasCursor)
     def test_fetchone(self, cursor):
         query_id, future = cursor.execute("SELECT * FROM one_row")
         result_set = future.result()
@@ -44,14 +45,14 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
         self.assertIsNone(result_set.encryption_option)
         self.assertIsNone(result_set.kms_key)
 
-    @with_async_pandas_cursor()
+    @with_cursor(cursor_class=AsyncPandasCursor)
     def test_fetchmany(self, cursor):
         query_id, future = cursor.execute("SELECT * FROM many_rows LIMIT 15")
         result_set = future.result()
         self.assertEqual(len(result_set.fetchmany(10)), 10)
         self.assertEqual(len(result_set.fetchmany(10)), 5)
 
-    @with_async_pandas_cursor()
+    @with_cursor(cursor_class=AsyncPandasCursor)
     def test_fetchall(self, cursor):
         query_id, future = cursor.execute("SELECT * FROM one_row")
         result_set = future.result()
@@ -60,32 +61,32 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
         result_set = future.result()
         self.assertEqual(result_set.fetchall(), [(i,) for i in range(10000)])
 
-    @with_async_pandas_cursor()
+    @with_cursor(cursor_class=AsyncPandasCursor)
     def test_iterator(self, cursor):
         query_id, future = cursor.execute("SELECT * FROM one_row")
         result_set = future.result()
         self.assertEqual(list(result_set), [(1,)])
         self.assertRaises(StopIteration, result_set.__next__)
 
-    @with_async_pandas_cursor()
+    @with_cursor(cursor_class=AsyncPandasCursor)
     def test_arraysize(self, cursor):
         cursor.arraysize = 5
         query_id, future = cursor.execute("SELECT * FROM many_rows LIMIT 20")
         result_set = future.result()
         self.assertEqual(len(result_set.fetchmany()), 5)
 
-    @with_async_pandas_cursor()
+    @with_cursor(cursor_class=AsyncPandasCursor)
     def test_arraysize_default(self, cursor):
         self.assertEqual(cursor.arraysize, AthenaResultSet.DEFAULT_FETCH_SIZE)
 
-    @with_async_pandas_cursor()
+    @with_cursor(cursor_class=AsyncPandasCursor)
     def test_invalid_arraysize(self, cursor):
         with self.assertRaises(ProgrammingError):
             cursor.arraysize = 10000
         with self.assertRaises(ProgrammingError):
             cursor.arraysize = -1
 
-    @with_async_pandas_cursor()
+    @with_cursor(cursor_class=AsyncPandasCursor)
     def test_description(self, cursor):
         query_id, future = cursor.execute("SELECT 1 AS foobar FROM one_row")
         result_set = future.result()
@@ -98,7 +99,7 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
         description = future.result()
         self.assertEqual(result_set.description, description)
 
-    @with_async_pandas_cursor()
+    @with_cursor(cursor_class=AsyncPandasCursor)
     def test_query_execution(self, cursor):
         query = "SELECT * FROM one_row"
         query_id, future = cursor.execute(query)
@@ -164,7 +165,7 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
             result_set.data_manifest_location, query_execution.data_manifest_location
         )
 
-    @with_async_pandas_cursor()
+    @with_cursor(cursor_class=AsyncPandasCursor)
     def test_poll(self, cursor):
         query_id, _ = cursor.execute("SELECT * FROM one_row")
         future = cursor.poll(query_id)
@@ -180,7 +181,7 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
             ],
         )
 
-    @with_async_pandas_cursor()
+    @with_cursor(cursor_class=AsyncPandasCursor)
     def test_bad_query(self, cursor):
         query_id, future = cursor.execute(
             "SELECT does_not_exist FROM this_really_does_not_exist"
@@ -189,7 +190,7 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
         self.assertEqual(result_set.state, AthenaQueryExecution.STATE_FAILED)
         self.assertIsNotNone(result_set.state_change_reason)
 
-    @with_async_pandas_cursor()
+    @with_cursor(cursor_class=AsyncPandasCursor)
     def test_as_pandas(self, cursor):
         query_id, future = cursor.execute("SELECT * FROM one_row")
         df = future.result().as_pandas()
@@ -197,7 +198,7 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
         self.assertEqual(df.shape[1], 1)
         self.assertEqual([(row["number_of_rows"],) for _, row in df.iterrows()], [(1,)])
 
-    @with_async_pandas_cursor()
+    @with_cursor(cursor_class=AsyncPandasCursor)
     def test_many_as_pandas(self, cursor):
         query_id, future = cursor.execute("SELECT * FROM many_rows")
         df = future.result().as_pandas()
@@ -207,7 +208,7 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
             [(row["a"],) for _, row in df.iterrows()], [(i,) for i in range(10000)]
         )
 
-    @with_async_pandas_cursor()
+    @with_cursor(cursor_class=AsyncPandasCursor)
     def test_cancel(self, cursor):
         query_id, future = cursor.execute(
             """
@@ -240,7 +241,7 @@ class TestAsyncPandasCursor(unittest.TestCase, WithConnect):
         cursor.close()
         conn.close()
 
-    @with_async_pandas_cursor()
+    @with_cursor(cursor_class=AsyncPandasCursor)
     def test_empty_result(self, cursor):
         table = "test_pandas_cursor_empty_result_" + "".join(
             [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]

@@ -3,7 +3,18 @@ import collections
 import logging
 from abc import abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Deque, Dict, List, Optional, Tuple, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Deque,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 from pyathena.common import CursorIterator
 from pyathena.converter import Converter
@@ -34,7 +45,9 @@ class AthenaResultSet(CursorIterator):
         self._retry_config = retry_config
 
         self._meta_data: Optional[Tuple[Any, ...]] = None
-        self._rows: Deque[Tuple[Optional[Any], ...]] = collections.deque()
+        self._rows: Deque[
+            Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]
+        ] = collections.deque()
         self._next_token: Optional[str] = None
 
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED:
@@ -269,6 +282,21 @@ class AthenaResultSet(CursorIterator):
             raise DataError("KeyError `ColumnInfo`")
         self._meta_data = tuple(column_info)
 
+    def _get_rows(
+        self, offset: int, meta_data: Tuple[Any, ...], rows: List[Dict[str, Any]]
+    ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
+        return [
+            tuple(
+                [
+                    self._converter.convert(
+                        meta.get("Type", None), row.get("VarCharValue", None)
+                    )
+                    for meta, row in zip(meta_data, rows[i].get("Data", []))
+                ]
+            )
+            for i in range(offset, len(rows))
+        ]
+
     def _process_rows(self, response: Dict[str, Any]) -> None:
         result_set = response.get("ResultSet", None)
         if not result_set:
@@ -284,17 +312,7 @@ class AthenaResultSet(CursorIterator):
                 else 0
             )
             meta_data = cast(Tuple[Any, ...], self._meta_data)
-            processed_rows = [
-                tuple(
-                    [
-                        self._converter.convert(
-                            meta.get("Type", None), row.get("VarCharValue", None)
-                        )
-                        for meta, row in zip(meta_data, rows[i].get("Data", []))
-                    ]
-                )
-                for i in range(offset, len(rows))
-            ]
+            processed_rows = self._get_rows(offset, meta_data, rows)
         self._rows.extend(processed_rows)
         self._next_token = response.get("NextToken", None)
 
@@ -323,6 +341,30 @@ class AthenaResultSet(CursorIterator):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+
+class AthenaDictResultSet(AthenaResultSet):
+
+    # You can override this to use OrderedDict or other dict-like types.
+    dict_type: Type[Any] = dict
+
+    def _get_rows(
+        self, offset: int, meta_data: Tuple[Any, ...], rows: List[Dict[str, Any]]
+    ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
+        return [
+            self.dict_type(
+                [
+                    (
+                        meta.get("Name"),
+                        self._converter.convert(
+                            meta.get("Type", None), row.get("VarCharValue", None)
+                        ),
+                    )
+                    for meta, row in zip(meta_data, rows[i].get("Data", []))
+                ]
+            )
+            for i in range(offset, len(rows))
+        ]
 
 
 class WithResultSet(object):
