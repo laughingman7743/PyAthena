@@ -11,7 +11,7 @@
     :target: https://github.com/laughingman7743/PyAthena/blob/master/LICENSE
 
 .. image:: https://pepy.tech/badge/pyathena/month
-    :target: https://pepy.tech/project/pyathena/month
+    :target: https://pepy.tech/project/pyathena
 
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/psf/black
@@ -19,7 +19,7 @@
 PyAthena
 ========
 
-PyAthena is a Python `DB API 2.0 (PEP 249)`_ compliant client for `Amazon Athena`_.
+PyAthena is a Python `DB API 2.0 (PEP 249)`_ client for `Amazon Athena`_.
 
 .. _`DB API 2.0 (PEP 249)`: https://www.python.org/dev/peps/pep-0249/
 .. _`Amazon Athena`: https://docs.aws.amazon.com/athena/latest/APIReference/Welcome.html
@@ -295,7 +295,7 @@ AsynchronousCursor
 
 AsynchronousCursor is a simple implementation using the concurrent.futures package.
 Python 2.7 uses `backport of the concurrent.futures`_ package.
-This cursor is not `DB API 2.0 (PEP 249)`_ compliant.
+This cursor does not follow the `DB API 2.0 (PEP 249)`_.
 
 You can use the AsynchronousCursor by specifying the ``cursor_class``
 with the connect method or connection object.
@@ -719,6 +719,11 @@ This object has an interface similar to ``AthenaResultSetObject``.
     print(result_set.submission_date_time)
     print(result_set.data_scanned_in_bytes)
     print(result_set.execution_time_in_millis)
+    print(result_set.engine_execution_time_in_millis)
+    print(result_set.query_queue_time_in_millis)
+    print(result_set.total_time_in_millis)
+    print(result_set.query_planning_time_in_millis)
+    print(result_set.service_processing_time_in_millis)
     print(result_set.output_location)
     print(result_set.description)
     for row in result_set:
@@ -838,23 +843,23 @@ Run test
 
 .. code:: bash
 
-    $ pip install pipenv
-    $ pipenv install --dev
-    $ pipenv run scripts/test_data/upload_test_data.sh
-    $ pipenv run pytest
-    $ pipenv run scripts/test_data/delete_test_data.sh
+    $ pip install poetry
+    $ poetry install -v
+    $ poetry run scripts/test_data/upload_test_data.sh
+    $ poetry run pytest
+    $ poetry run scripts/test_data/delete_test_data.sh
 
 Run test multiple Python versions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
-    $ pip install pipenv
-    $ pipenv install --dev
-    $ pipenv run scripts/test_data/upload_test_data.sh
+    $ pip install poetry
+    $ poetry install -v
+    $ poetry run scripts/test_data/upload_test_data.sh
     $ pyenv local 3.8.2 3.7.2 3.6.8 3.5.7 2.7.16
-    $ pipenv run tox
-    $ pipenv run scripts/test_data/delete_test_data.sh
+    $ poetry run tox
+    $ poetry run scripts/test_data/delete_test_data.sh
 
 Code formatting
 ---------------
