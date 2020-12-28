@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "PyAthena"
-version = "1.11.2"  # https://github.com/laughingman7743/PyAthena/blob/master/pyathena/__init__.py#L16
+version = "1.11.2"  # https://github.com/laughingman7743/PyAthena/blob/1.11.x/pyathena/__init__.py#L16
 description = "Python DB API 2.0 (PEP 249) client for Amazon Athena"
 license = "MIT"
 classifiers = [
