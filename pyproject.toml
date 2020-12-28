@@ -37,7 +37,6 @@ sqlalchemy = {version = "<2.0.0,>=1.0.0", optional = true}
 tenacity = ">=4.1.0"
 
 [tool.poetry.dev-dependencies]
-colorama = "0.4.1"
 awscli = "*"
 tox = "*"
 wheel = "*"
