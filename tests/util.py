@@ -64,11 +64,11 @@ def with_async_pandas_cursor():
     return _with_async_pandas_cursor
 
 
-def with_engine():
+def with_engine(**opts):
     def _with_engine(fn):
         @functools.wraps(fn)
         def wrapped_fn(self, *args, **kwargs):
-            engine = self.create_engine()
+            engine = self.create_engine(**opts)
             try:
                 with contextlib.closing(engine.connect()) as conn:
                     fn(self, engine, conn, *args, **kwargs)

@@ -44,18 +44,21 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     https://github.com/dropbox/PyHive/blob/master/pyhive/tests/test_sqlalchemy_presto.py
     """
 
-    def create_engine(self):
+    def create_engine(self, **kwargs):
         conn_str = (
             "awsathena+rest://athena.{region_name}.amazonaws.com:443/"
             + "{schema_name}?s3_staging_dir={s3_staging_dir}&s3_dir={s3_dir}"
             + "&compression=snappy"
         )
+        if "verify" in kwargs:
+            conn_str += "&verify={verify}"
         return create_engine(
             conn_str.format(
                 region_name=ENV.region_name,
                 schema_name=SCHEMA,
                 s3_staging_dir=quote_plus(ENV.s3_staging_dir),
                 s3_dir=quote_plus(ENV.s3_staging_dir),
+                **kwargs
             )
         )
 
@@ -495,3 +498,9 @@ class TestSQLAlchemyAthena(unittest.TestCase):
                 )
             ],
         )
+
+    @with_engine(verify="false")
+    def test_conn_str_verify(self, engine, conn):
+        kwargs = conn.connection._kwargs
+        self.assertTrue("verify" in kwargs)
+        self.assertFalse(kwargs["verify"])
