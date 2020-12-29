@@ -264,8 +264,9 @@ class BaseCursor(object, metaclass=ABCMeta):
                         and execution["Status"]["CompletionDateTime"].astimezone(utc)
                         < expiration_time
                     ):
+                        next_token = None
                         break
-                    elif execution["Query"] == query:
+                    if execution["Query"] == query:
                         query_id = execution["QueryExecutionId"]
                         break
                 if query_id or next_token is None:
