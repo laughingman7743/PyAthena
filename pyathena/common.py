@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 import logging
+import sys
 import time
 from abc import ABCMeta, abstractmethod
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from pyathena.converter import Converter
@@ -193,9 +195,21 @@ class BaseCursor(object, metaclass=ABCMeta):
         return request
 
     def _find_previous_query_id(
-        self, query: str, work_group: Optional[str], cache_size: int
+        self,
+        query: str,
+        work_group: Optional[str],
+        cache_size: int = 0,
+        cache_expiration_time: int = 0,
     ) -> Optional[str]:
         query_id = None
+        if cache_size == 0 and cache_expiration_time > 0:
+            cache_size = sys.maxsize
+        if cache_expiration_time > 0:
+            expiration_time = datetime.utcnow() - timedelta(
+                seconds=cache_expiration_time
+            )
+        else:
+            expiration_time = datetime.utcnow()
         try:
             next_token = None
             while cache_size > 0:
@@ -222,6 +236,11 @@ class BaseCursor(object, metaclass=ABCMeta):
                 ).get("QueryExecutions", [])
                 for execution in query_executions:
                     if (
+                        cache_expiration_time > 0
+                        and execution["Status"]["CompletionDateTime"] < expiration_time
+                    ):
+                        break
+                    elif (
                         execution["Query"] == query
                         and execution["Status"]["State"]
                         == AthenaQueryExecution.STATE_SUCCEEDED
@@ -243,6 +262,7 @@ class BaseCursor(object, metaclass=ABCMeta):
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
+        cache_expiration_time: int = 0,
     ) -> str:
         query = self._formatter.format(operation, parameters)
         _logger.debug(query)
@@ -250,7 +270,12 @@ class BaseCursor(object, metaclass=ABCMeta):
         request = self._build_start_query_execution_request(
             query, work_group, s3_staging_dir
         )
-        query_id = self._find_previous_query_id(query, work_group, cache_size)
+        query_id = self._find_previous_query_id(
+            query,
+            work_group,
+            cache_size=cache_size,
+            cache_expiration_time=cache_expiration_time,
+        )
         if query_id is None:
             try:
                 query_id = retry_api_call(
