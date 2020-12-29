@@ -77,6 +77,7 @@ class AsyncPandasCursor(AsyncCursor):
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
+        cache_expiration_time: int = 0,
         keep_default_na: bool = False,
         na_values: List[str] = None,
         quoting: int = 1,
@@ -87,6 +88,7 @@ class AsyncPandasCursor(AsyncCursor):
             work_group=work_group,
             s3_staging_dir=s3_staging_dir,
             cache_size=cache_size,
+            cache_expiration_time=cache_expiration_time,
         )
         return (
             query_id,

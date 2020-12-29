@@ -316,6 +316,7 @@ class BaseCursor(object, metaclass=ABCMeta):
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
+        cache_expiration_time: int = 0,
     ):
         raise NotImplementedError  # pragma: no cover
 
