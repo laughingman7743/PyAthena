@@ -234,11 +234,11 @@ class BaseCursor(object, metaclass=ABCMeta):
         if cache_size == 0 and cache_expiration_time > 0:
             cache_size = sys.maxsize
         if cache_expiration_time > 0:
-            expiration_time = datetime.utcnow() - timedelta(
+            expiration_time = datetime.now(utc) - timedelta(
                 seconds=cache_expiration_time
             )
         else:
-            expiration_time = datetime.utcnow()
+            expiration_time = datetime.now(utc)
         try:
             next_token = None
             while cache_size > 0:
