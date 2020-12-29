@@ -255,7 +255,8 @@ class BaseCursor(object, metaclass=ABCMeta):
                         and e["StatementType"]
                         == AthenaQueryExecution.STATEMENT_TYPE_DML
                     ),
-                    key=lambda e: e["Status"]["CompletionDateTime"],
+                    # https://github.com/python/mypy/issues/9656
+                    key=lambda e: e["Status"]["CompletionDateTime"],  # type: ignore
                     reverse=True,
                 ):
                     if (
