@@ -11,6 +11,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       AWS_ATHENA_S3_STAGING_DIR: ${{ secrets.AWS_ATHENA_S3_STAGING_DIR }}
+      CACHE_VERSION: v1
     strategy:
       max-parallel: 5
       matrix:
@@ -25,9 +26,9 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
-            ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-pip-${{ matrix.python-version }}-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -35,9 +36,9 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: ~/.poetry
-          key: ${{ runner.os }}-poetry-${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-poetry-${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
           restore-keys: |
-            ${{ runner.os }}-poetry-${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-poetry-${{ matrix.python-version }}-
       - name: Upload test data
         run: |
           ./scripts/test_data/upload_test_data.sh
