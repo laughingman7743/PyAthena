@@ -32,19 +32,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r ${{ github.workspace }}/.github/workflows/requirements.txt
-      - name: Set up cache
-        uses: actions/cache@v1
-        id: cache
+      - uses: actions/cache@v2
         with:
           path: ~/.poetry
           key: poetry-${{ runner.os }}-${{ steps.full-python-version.outputs.version }}-${{ hashFiles('poetry.lock') }}
           restore-keys: |
             poetry-${{ runner.os }}-${{ steps.full-python-version.outputs.version }}-${{ hashFiles('poetry.lock') }}
-      - name: Set Poetry config
-        run: |
-          poetry config virtualenvs.in-project false
-          poetry config virtualenvs.path ~/.poetry
-          poetry config experimental.new-installer false
       - name: Upload test data
         run: |
           ./scripts/test_data/upload_test_data.sh
