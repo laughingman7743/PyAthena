@@ -27,7 +27,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         s3_staging_dir: str,
         schema_name: str,
         work_group: str,
-        poll_interval: int,
+        poll_interval: float,
         encryption_option: str,
         kms_key: str,
         converter: Converter,

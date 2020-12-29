@@ -52,7 +52,7 @@ class Connection(object):
         region_name: Optional[str] = None,
         schema_name: str = "default",
         work_group: Optional[str] = None,
-        poll_interval: int = 1,
+        poll_interval: float = 1,
         encryption_option: Optional[str] = None,
         kms_key: Optional[str] = None,
         profile_name: Optional[str] = None,
