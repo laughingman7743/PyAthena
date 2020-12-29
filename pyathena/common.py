@@ -242,10 +242,10 @@ class BaseCursor(object, metaclass=ABCMeta):
         try:
             next_token = None
             while cache_size > 0:
-                n = min(cache_size, 50)  # 50 is max allowed by AWS API
-                cache_size -= n
+                max_results = min(cache_size, 50)  # 50 is max allowed by AWS API
+                cache_size -= max_results
                 next_token, query_executions = self._list_query_executions(
-                    n, work_group, next_token=next_token
+                    max_results, work_group, next_token=next_token
                 )
                 for execution in sorted(
                     (
