@@ -6,6 +6,8 @@ from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
+from pytz import utc
+
 from pyathena.converter import Converter
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
 from pyathena.formatter import Formatter
@@ -258,7 +260,7 @@ class BaseCursor(object, metaclass=ABCMeta):
                 ):
                     if (
                         cache_expiration_time > 0
-                        and execution["Status"]["CompletionDateTime"]
+                        and execution["Status"]["CompletionDateTime"].astimezone(utc)
                         < expiration_time
                     ):
                         break
