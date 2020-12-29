@@ -4,7 +4,7 @@ import sys
 import time
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from pyathena.converter import Converter
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
@@ -123,6 +123,33 @@ class BaseCursor(object, metaclass=ABCMeta):
         else:
             return AthenaQueryExecution(response)
 
+    def _list_query_executions(
+        self,
+        max_results: int,
+        work_group: Optional[str],
+        next_token: Optional[str] = None,
+    ) -> Tuple[str, List[Dict[str, Any]]]:
+        request = self._build_list_query_executions_request(
+            max_results, work_group, next_token
+        )
+        response = retry_api_call(
+            self.connection._client.list_query_executions,
+            config=self._retry_config,
+            logger=_logger,
+            **request
+        )
+        next_token = response.get("NextToken", None)
+        query_ids = response.get("QueryExecutionIds", None)
+        if not query_ids:
+            return next_token, []
+        response = retry_api_call(
+            self.connection._client.batch_get_query_execution,
+            config=self._retry_config,
+            logger=_logger,
+            QueryExecutionIds=query_ids,
+        )
+        return next_token, response.get("QueryExecutions", [])
+
     def __poll(self, query_id: str) -> AthenaQueryExecution:
         while True:
             query_execution = self._get_query_execution(query_id)
@@ -215,38 +242,27 @@ class BaseCursor(object, metaclass=ABCMeta):
             while cache_size > 0:
                 n = min(cache_size, 50)  # 50 is max allowed by AWS API
                 cache_size -= n
-                request = self._build_list_query_executions_request(
-                    n, work_group, next_token
+                next_token, query_executions = self._list_query_executions(
+                    n, work_group, next_token=next_token
                 )
-                response = retry_api_call(
-                    self.connection._client.list_query_executions,
-                    config=self._retry_config,
-                    logger=_logger,
-                    **request
-                )
-                query_ids = response.get("QueryExecutionIds", None)
-                if not query_ids:
-                    break  # no queries left to check
-                next_token = response.get("NextToken", None)
-                query_executions = retry_api_call(
-                    self.connection._client.batch_get_query_execution,
-                    config=self._retry_config,
-                    logger=_logger,
-                    QueryExecutionIds=query_ids,
-                ).get("QueryExecutions", [])
-                for execution in query_executions:
+                for execution in sorted(
+                    (
+                        e
+                        for e in query_executions
+                        if e["Status"]["State"] == AthenaQueryExecution.STATE_SUCCEEDED
+                        and e["StatementType"]
+                        == AthenaQueryExecution.STATEMENT_TYPE_DML
+                    ),
+                    key=lambda e: e["Status"]["CompletionDateTime"],
+                    reverse=True,
+                ):
                     if (
                         cache_expiration_time > 0
-                        and execution["Status"]["CompletionDateTime"] < expiration_time
+                        and execution["Status"]["CompletionDateTime"]
+                        < expiration_time
                     ):
                         break
-                    elif (
-                        execution["Query"] == query
-                        and execution["Status"]["State"]
-                        == AthenaQueryExecution.STATE_SUCCEEDED
-                        and execution["StatementType"]
-                        == AthenaQueryExecution.STATEMENT_TYPE_DML
-                    ):
+                    elif execution["Query"] == query:
                         query_id = execution["QueryExecutionId"]
                         break
                 if query_id or next_token is None:
