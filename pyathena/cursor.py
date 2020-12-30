@@ -82,6 +82,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
+        cache_expiration_time: int = 0,
     ):
         self._reset_state()
         self.query_id = self._execute(
@@ -90,6 +91,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
             work_group=work_group,
             s3_staging_dir=s3_staging_dir,
             cache_size=cache_size,
+            cache_expiration_time=cache_expiration_time,
         )
         query_execution = self._poll(self.query_id)
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:

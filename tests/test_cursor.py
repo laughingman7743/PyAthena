@@ -124,6 +124,78 @@ class TestCursor(unittest.TestCase, WithConnect):
         self.assertIn(third_query_id, [first_query_id, second_query_id])
 
     @with_cursor()
+    def test_cache_expiration_time(self, cursor):
+        query = "SELECT * FROM one_row -- {0}".format(str(datetime.utcnow()))
+
+        cursor.execute(query)
+        query_id_1 = cursor.query_id
+
+        cursor.execute(query)
+        query_id_2 = cursor.query_id
+
+        cursor.execute(query, cache_expiration_time=3600)  # 1 hours
+        query_id_3 = cursor.query_id
+
+        self.assertNotEqual(query_id_1, query_id_2)
+        self.assertIn(query_id_3, [query_id_1, query_id_2])
+
+    @with_cursor()
+    def test_cache_expiration_time_with_cache_size(self, cursor):
+        # Cache miss
+        query = "SELECT * FROM one_row -- {0}".format(str(datetime.utcnow()))
+
+        cursor.execute(query)
+        query_id_1 = cursor.query_id
+
+        cursor.execute(query)
+        query_id_2 = cursor.query_id
+
+        time.sleep(2)
+
+        cursor.execute(query, cache_size=100, cache_expiration_time=1)  # 1 seconds
+        query_id_3 = cursor.query_id
+
+        self.assertNotEqual(query_id_1, query_id_2)
+        self.assertNotIn(query_id_3, [query_id_1, query_id_2])
+
+        # Cache miss
+        query = "SELECT * FROM one_row -- {0}".format(str(datetime.utcnow()))
+
+        cursor.execute(query)
+        query_id_4 = cursor.query_id
+
+        cursor.execute(query)
+        query_id_5 = cursor.query_id
+
+        for _ in range(5):
+            cursor.execute("SELECT %(now)s as date", {"now": datetime.utcnow()})
+
+        cursor.execute(query, cache_size=1, cache_expiration_time=3600)  # 1 hours
+        query_id_6 = cursor.query_id
+
+        self.assertNotEqual(query_id_4, query_id_5)
+        self.assertNotIn(query_id_6, [query_id_4, query_id_5])
+
+        # Cache hit
+        query = "SELECT * FROM one_row -- {0}".format(str(datetime.utcnow()))
+
+        cursor.execute(query)
+        query_id_7 = cursor.query_id
+
+        cursor.execute(query)
+        query_id_8 = cursor.query_id
+
+        time.sleep(2)
+        for _ in range(5):
+            cursor.execute("SELECT %(now)s as date", {"now": datetime.utcnow()})
+
+        cursor.execute(query, cache_size=100, cache_expiration_time=3600)  # 1 hours
+        query_id_9 = cursor.query_id
+
+        self.assertNotEqual(query_id_7, query_id_8)
+        self.assertIn(query_id_9, [query_id_7, query_id_8])
+
+    @with_cursor()
     def test_arraysize(self, cursor):
         cursor.arraysize = 5
         cursor.execute("SELECT * FROM many_rows LIMIT 20")
