@@ -259,7 +259,9 @@ class BaseCursor(object, metaclass=ABCMeta):
                 ):
                     if (
                         cache_expiration_time > 0
-                        and execution["Status"]["CompletionDateTime"].astimezone(timezone.utc)
+                        and execution["Status"]["CompletionDateTime"].astimezone(
+                            timezone.utc
+                        )
                         < expiration_time
                     ):
                         next_token = None
