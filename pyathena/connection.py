@@ -58,6 +58,7 @@ class Connection(object):
         profile_name: Optional[str] = None,
         role_arn: Optional[str] = None,
         role_session_name: str = "PyAthena-session-{0}".format(int(time.time())),
+        serial_number: Optional[str] = None,
         duration_seconds: int = 3600,
         converter: Optional[Converter] = None,
         formatter: Optional[Formatter] = None,
@@ -89,11 +90,27 @@ class Connection(object):
 
         if role_arn:
             creds = self._assume_role(
-                self.profile_name,
-                self.region_name,
-                role_arn,
-                role_session_name,
-                duration_seconds,
+                profile_name=self.profile_name,
+                region_name=self.region_name,
+                role_arn=role_arn,
+                role_session_name=role_session_name,
+                serial_number=serial_number,
+                duration_seconds=duration_seconds,
+            )
+            self.profile_name = None
+            self._kwargs.update(
+                {
+                    "aws_access_key_id": creds["AccessKeyId"],
+                    "aws_secret_access_key": creds["SecretAccessKey"],
+                    "aws_session_token": creds["SessionToken"],
+                }
+            )
+        elif serial_number:
+            creds = self._get_session_token(
+                profile_name=self.profile_name,
+                region_name=self.region_name,
+                serial_number=serial_number,
+                duration_seconds=duration_seconds,
             )
             self.profile_name = None
             self._kwargs.update(
@@ -119,17 +136,44 @@ class Connection(object):
         region_name: Optional[str],
         role_arn: Optional[str],
         role_session_name: str,
+        serial_number: Optional[str],
         duration_seconds: int,
     ) -> Dict[str, Any]:
-        # MFA is not supported. If you want to use MFA, create a configuration file.
-        # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#assume-role-provider
         session = Session(profile_name=profile_name, **self._session_kwargs)
         client = session.client("sts", region_name=region_name, **self._client_kwargs)
-        response = client.assume_role(
-            RoleArn=role_arn,
-            RoleSessionName=role_session_name,
-            DurationSeconds=duration_seconds,
-        )
+        request = {
+            "RoleArn": role_arn,
+            "RoleSessionName": role_session_name,
+            "DurationSeconds": duration_seconds,
+        }
+        if serial_number:
+            token_code = input("Enter the MFA code: ")
+            request.update(
+                {
+                    "SerialNumber": serial_number,
+                    "TokenCode": token_code,
+                }
+            )
+        response = client.assume_role(**request)
+        creds: Dict[str, Any] = response["Credentials"]
+        return creds
+
+    def _get_session_token(
+        self,
+        profile_name: Optional[str],
+        region_name: Optional[str],
+        serial_number: Optional[str],
+        duration_seconds: int,
+    ) -> Dict[str, Any]:
+        session = Session(profile_name=profile_name, **self._session_kwargs)
+        client = session.client("sts", region_name=region_name, **self._client_kwargs)
+        token_code = input("Enter the MFA code: ")
+        request = {
+            "DurationSeconds": duration_seconds,
+            "SerialNumber": serial_number,
+            "TokenCode": token_code,
+        }
+        response = client.get_session_token(**request)
         creds: Dict[str, Any] = response["Credentials"]
         return creds
 
