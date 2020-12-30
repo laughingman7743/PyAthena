@@ -148,10 +148,12 @@ class Connection(object):
         }
         if serial_number:
             token_code = input("Enter the MFA code: ")
-            request.update({
-                "SerialNumber": serial_number,
-                "TokenCode": token_code,
-            })
+            request.update(
+                {
+                    "SerialNumber": serial_number,
+                    "TokenCode": token_code,
+                }
+            )
         response = client.assume_role(**request)
         creds: Dict[str, Any] = response["Credentials"]
         return creds
