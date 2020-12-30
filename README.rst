@@ -981,6 +981,21 @@ Passing credentials as parameters
                      s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor()
 
+Multi-factor authentication
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You will be prompted to enter the MFA code.
+The program execution will be blocked until the MFA code is entered.
+
+.. code:: python
+
+    from pyathena import connect
+
+    cursor = connect(duration_seconds=3600,
+                     serial_number="arn:aws:iam::ACCOUNT_NUMBER_WITHOUT_HYPHENS:mfa/MFA_DEVICE_ID",
+                     s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor()
+
 Shared credentials file
 ^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1015,6 +1030,23 @@ Assume role provider
     cursor = connect(role_arn="YOUR_ASSUME_ROLE_ARN",
                      role_session_name="PyAthena-session",
                      duration_seconds=3600,
+                     s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor()
+
+Assume role provider with MFA
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You will be prompted to enter the MFA code.
+The program execution will be blocked until the MFA code is entered.
+
+.. code:: python
+
+    from pyathena import connect
+
+    cursor = connect(role_arn="YOUR_ASSUME_ROLE_ARN",
+                     role_session_name="PyAthena-session",
+                     duration_seconds=3600,
+                     serial_number="arn:aws:iam::ACCOUNT_NUMBER_WITHOUT_HYPHENS:mfa/MFA_DEVICE_ID",
                      s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor()
 
