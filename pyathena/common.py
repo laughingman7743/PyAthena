@@ -3,10 +3,8 @@ import logging
 import sys
 import time
 from abc import ABCMeta, abstractmethod
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
-
-from pytz import utc
 
 from pyathena.converter import Converter
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
@@ -234,11 +232,11 @@ class BaseCursor(object, metaclass=ABCMeta):
         if cache_size == 0 and cache_expiration_time > 0:
             cache_size = sys.maxsize
         if cache_expiration_time > 0:
-            expiration_time = datetime.now(utc) - timedelta(
+            expiration_time = datetime.now(timezone.utc) - timedelta(
                 seconds=cache_expiration_time
             )
         else:
-            expiration_time = datetime.now(utc)
+            expiration_time = datetime.now(timezone.utc)
         try:
             next_token = None
             while cache_size > 0:
@@ -261,7 +259,7 @@ class BaseCursor(object, metaclass=ABCMeta):
                 ):
                     if (
                         cache_expiration_time > 0
-                        and execution["Status"]["CompletionDateTime"].astimezone(utc)
+                        and execution["Status"]["CompletionDateTime"].astimezone(timezone.utc)
                         < expiration_time
                     ):
                         next_token = None
