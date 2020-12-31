@@ -14,10 +14,10 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 class Converter(object, metaclass=ABCMeta):
     def __init__(
-            self,
-            mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]],
-            default: Callable[[Optional[str]], Optional[Any]] = None,
-            types: Dict[str, Type[Any]] = None,
+        self,
+        mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]],
+        default: Callable[[Optional[str]], Optional[Any]] = None,
+        types: Dict[str, Type[Any]] = None,
     ) -> None:
         if mappings:
             self._mappings = mappings
@@ -41,7 +41,7 @@ class Converter(object, metaclass=ABCMeta):
         return self.mappings.get(type_, self._default)
 
     def set(
-            self, type_: str, converter: Callable[[Optional[str]], Optional[Any]]
+        self, type_: str, converter: Callable[[Optional[str]], Optional[Any]]
     ) -> None:
         self.mappings[type_] = converter
 
@@ -49,7 +49,7 @@ class Converter(object, metaclass=ABCMeta):
         self.mappings.pop(type_, None)
 
     def update(
-            self, mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]]
+        self, mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]]
     ) -> None:
         self.mappings.update(mappings)
 
