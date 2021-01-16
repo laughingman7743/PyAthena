@@ -61,7 +61,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         s3_staging_dir=None,
         cache_size=0,
         keep_default_na=False,
-        na_values=None,
+        na_values=("",),
         quoting=1,
     ):
         self._reset_state()
