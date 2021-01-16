@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Type
 
 from pyathena.converter import Converter
 from pyathena.error import OperationalError, ProgrammingError
@@ -34,7 +34,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         arraysize: int,
         retry_config: RetryConfig,
         keep_default_na: bool = False,
-        na_values: Optional[List[str]] = None,
+        na_values: Optional[Iterable[str]] = ("",),
         quoting: int = 1,
     ) -> None:
         super(AthenaPandasResultSet, self).__init__(
