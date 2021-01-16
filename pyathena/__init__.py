@@ -13,7 +13,7 @@ except ImportError:
         return None
 
 
-__version__ = "1.11.3"
+__version__ = "1.11.4"
 
 # Globals https://www.python.org/dev/peps/pep-0249/#globals
 apilevel = "2.0"
