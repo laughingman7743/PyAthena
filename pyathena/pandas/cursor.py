@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, cast
 
 from pyathena.common import CursorIterator
 from pyathena.converter import Converter
@@ -87,7 +87,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         cache_size: int = 0,
         cache_expiration_time: int = 0,
         keep_default_na: bool = False,
-        na_values: List[str] = None,
+        na_values: Optional[Iterable[str]] = ("",),
         quoting: int = 1,
     ):
         self._reset_state()
