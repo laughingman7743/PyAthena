@@ -383,7 +383,7 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
             """
         ).as_pandas()
         rows = [tuple([row[0]]) for _, row in df.iterrows()]
-        self.assertEqual(rows, [(0.33,), (np.nan,)])
+        np.testing.assert_equal(rows, [(0.33,), (np.nan,)])
 
     @with_cursor(cursor_class=PandasCursor)
     def test_boolean_na_values(self, cursor):
@@ -429,7 +429,7 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
         SELECT * FROM (VALUES ('', 'a'), ('N/A', 'a'), ('NULL', 'a'), (NULL, 'a'))
         """
         cursor.execute(query)
-        self.assertEqual(
+        np.testing.assert_equal(
             cursor.fetchall(),
             [(np.nan, "a"), ("N/A", "a"), ("NULL", "a"), (np.nan, "a")],
         )
