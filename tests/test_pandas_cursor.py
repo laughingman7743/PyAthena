@@ -386,6 +386,16 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
             self.assertEqual(rows, [(1, 2), (1, np.nan), (np.nan, np.nan)])
 
     @with_pandas_cursor()
+    def test_float_na_values(self, cursor):
+        df = cursor.execute(
+            """
+            SELECT * FROM (VALUES (0.33), (NULL))
+            """
+        ).as_pandas()
+        rows = [tuple([row[0]]) for _, row in df.iterrows()]
+        np.testing.assert_equal(rows, [(0.33,), (np.nan,)])
+
+    @with_pandas_cursor()
     def test_boolean_na_values(self, cursor):
         df = cursor.execute(
             """
@@ -417,7 +427,7 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
     def test_not_skip_blank_lines(self, cursor):
         cursor.execute(
             """
-            select * from (values (1), (NULL))
+            SELECT * FROM (VALUES (1), (NULL))
             """
         )
         self.assertEqual(len(cursor.fetchall()), 2)
@@ -426,16 +436,17 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
     def test_empty_and_null_string(self, cursor):
         # TODO https://github.com/laughingman7743/PyAthena/issues/118
         query = """
-        select * from (values ('', 'a'), ('N/A', 'a'), ('NULL', 'a'), (NULL, 'a'))
+        SELECT * FROM (VALUES ('', 'a'), ('N/A', 'a'), ('NULL', 'a'), (NULL, 'a'))
         """
         cursor.execute(query)
-        self.assertEqual(
-            cursor.fetchall(), [("", "a"), ("N/A", "a"), ("NULL", "a"), ("", "a")]
-        )
-        cursor.execute(query, na_values=[""])
-        self.assertEqual(
+        np.testing.assert_equal(
             cursor.fetchall(),
             [(np.nan, "a"), ("N/A", "a"), ("NULL", "a"), (np.nan, "a")],
+        )
+        cursor.execute(query, na_values=None)
+        self.assertEqual(
+            cursor.fetchall(),
+            [("", "a"), ("N/A", "a"), ("NULL", "a"), ("", "a")],
         )
 
     @with_pandas_cursor()

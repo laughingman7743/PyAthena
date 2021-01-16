@@ -420,7 +420,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         arraysize,
         retry_config,
         keep_default_na=False,
-        na_values=None,
+        na_values=("",),
         quoting=1,
     ):
         super(AthenaPandasResultSet, self).__init__(
