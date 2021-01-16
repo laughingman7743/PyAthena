@@ -374,11 +374,17 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
             """
         ).as_pandas()
         rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
-        version = float(re.search(r"^([\d]+\.[\d]+)\..+", pd.__version__).group(1))
-        if version >= 1.0:
-            self.assertEqual(rows, [(1, 2), (1, pd.NA), (pd.NA, pd.NA)])
-        else:
-            self.assertEqual(rows, [(1, 2), (1, np.nan), (np.nan, np.nan)])
+        self.assertEqual(rows, [(1, 2), (1, pd.NA), (pd.NA, pd.NA)])
+
+    @with_cursor(cursor_class=PandasCursor)
+    def test_float_na_values(self, cursor):
+        df = cursor.execute(
+            """
+            SELECT * FROM (values (0.33), (NULL))
+            """
+        ).as_pandas()
+        rows = [tuple([row[0]]) for _, row in df.iterrows()]
+        self.assertEqual(rows, [(0.33,), (pd.NA,)])
 
     @with_cursor(cursor_class=PandasCursor)
     def test_boolean_na_values(self, cursor):
