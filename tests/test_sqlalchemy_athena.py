@@ -45,6 +45,12 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         if "verify" in kwargs:
             conn_str += "&verify={verify}"
+        if "duration_seconds" in kwargs:
+            conn_str += "&duration_seconds={duration_seconds}"
+        if "poll_interval" in kwargs:
+            conn_str += "&poll_interval={poll_interval}"
+        if "kill_on_interrupt" in kwargs:
+            conn_str += "&kill_on_interrupt={kill_on_interrupt}"
         return create_engine(
             conn_str.format(
                 region_name=ENV.region_name,
@@ -501,5 +507,17 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     @with_engine(verify="false")
     def test_conn_str_verify(self, engine, conn):
         kwargs = conn.connection._kwargs
-        self.assertTrue("verify" in kwargs)
         self.assertFalse(kwargs["verify"])
+
+    @with_engine(duration_seconds="1800")
+    def test_conn_str_duration_seconds(self, engine, conn):
+        kwargs = conn.connection._kwargs
+        self.assertEqual(kwargs["duration_seconds"], 1800)
+
+    @with_engine(poll_interval="5")
+    def test_conn_str_poll_interval(self, engine, conn):
+        self.assertEqual(conn.connection.poll_interval, 5)
+
+    @with_engine(kill_on_interrupt="false")
+    def test_conn_str_kill_on_interrupt(self, engine, conn):
+        self.assertFalse(conn.connection.kill_on_interrupt)
