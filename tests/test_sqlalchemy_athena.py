@@ -509,9 +509,9 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertEqual(kwargs["duration_seconds"], 1800)
 
     @with_engine(poll_interval="5")
-    def test_conn_str_duration_seconds(self, engine, conn):
+    def test_conn_str_poll_interval(self, engine, conn):
         self.assertEqual(conn.connection.poll_interval, 5)
 
     @with_engine(kill_on_interrupt="false")
-    def test_conn_str_duration_seconds(self, engine, conn):
+    def test_conn_str_kill_on_interrupt(self, engine, conn):
         self.assertFalse(conn.connection.kill_on_interrupt)
