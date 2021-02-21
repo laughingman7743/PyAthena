@@ -323,6 +323,14 @@ class AthenaDialect(DefaultDialect):
                 # Probably a file name of the CA cert bundle to use
                 pass
             url.query.update({"verify": verify})
+        if "duration_seconds" in url.query:
+            url.query.update({"duration_seconds": int(url.query["duration_seconds"])})
+        if "poll_interval" in url.query:
+            url.query.update({"poll_interval": float(url.query["poll_interval"])})
+        if "kill_on_interrupt" in url.query:
+            url.query.update(
+                {"kill_on_interrupt": bool(strtobool(url.query["kill_on_interrupt"]))}
+            )
         opts.update(url.query)
         return [[], opts]
 
