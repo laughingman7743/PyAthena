@@ -45,6 +45,12 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         if "verify" in kwargs:
             conn_str += "&verify={verify}"
+        if "duration_seconds" in kwargs:
+            conn_str += "&duration_seconds={duration_seconds}"
+        if "poll_interval" in kwargs:
+            conn_str += "&poll_interval={poll_interval}"
+        if "kill_on_interrupt" in kwargs:
+            conn_str += "&kill_on_interrupt={kill_on_interrupt}"
         return create_engine(
             conn_str.format(
                 region_name=ENV.region_name,
