@@ -36,6 +36,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         keep_default_na: bool = False,
         na_values: Optional[Iterable[str]] = ("",),
         quoting: int = 1,
+        **kwargs,
     ) -> None:
         super(AthenaPandasResultSet, self).__init__(
             connection=connection,
@@ -48,6 +49,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._keep_default_na = keep_default_na
         self._na_values = na_values
         self._quoting = quoting
+        self._kwargs = kwargs
         self._client = connection.session.client(
             "s3", region_name=connection.region_name, **connection._client_kwargs
         )
@@ -172,6 +174,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                     keep_default_na=self._keep_default_na,
                     na_values=self._na_values,
                     quoting=self._quoting,
+                    **self._kwargs,
                 )
                 df = self._trunc_date(df)
             else:  # Allow empty response
