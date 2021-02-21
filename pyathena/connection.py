@@ -62,7 +62,14 @@ class Connection(object):
         kill_on_interrupt=True,
         **kwargs
     ):
-        self._kwargs = kwargs
+        self._kwargs = dict(
+            kwargs,
+            **{
+                "role_arn": role_arn,
+                "role_session_name": role_session_name,
+                "duration_seconds": duration_seconds,
+            }
+        )
         if s3_staging_dir:
             self.s3_staging_dir = s3_staging_dir
         else:
