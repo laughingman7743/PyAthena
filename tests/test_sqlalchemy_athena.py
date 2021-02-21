@@ -501,5 +501,17 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     @with_engine(verify="false")
     def test_conn_str_verify(self, engine, conn):
         kwargs = conn.connection._kwargs
-        self.assertTrue("verify" in kwargs)
         self.assertFalse(kwargs["verify"])
+
+    @with_engine(duration_seconds="1800")
+    def test_conn_str_duration_seconds(self, engine, conn):
+        kwargs = conn.connection._kwargs
+        self.assertEqual(kwargs["duration_seconds"], 1800)
+
+    @with_engine(poll_interval="5")
+    def test_conn_str_duration_seconds(self, engine, conn):
+        self.assertEqual(conn.connection.poll_interval, 5)
+
+    @with_engine(kill_on_interrupt="false")
+    def test_conn_str_duration_seconds(self, engine, conn):
+        self.assertFalse(conn.connection.kill_on_interrupt)
