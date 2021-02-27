@@ -34,7 +34,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         formatter: Formatter,
         retry_config: RetryConfig,
         kill_on_interrupt: bool = True,
-        **kwargs
+        **kwargs,
     ) -> None:
         super(PandasCursor, self).__init__(
             connection=connection,
@@ -48,7 +48,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
             formatter=formatter,
             retry_config=retry_config,
             kill_on_interrupt=kill_on_interrupt,
-            **kwargs
+            **kwargs,
         )
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaPandasResultSet] = None
@@ -89,6 +89,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         keep_default_na: bool = False,
         na_values: Optional[Iterable[str]] = ("",),
         quoting: int = 1,
+        **kwargs,
     ):
         self._reset_state()
         self.query_id = self._execute(
@@ -110,6 +111,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
                 keep_default_na=keep_default_na,
                 na_values=na_values,
                 quoting=quoting,
+                **kwargs,
             )
         else:
             raise OperationalError(query_execution.state_change_reason)
