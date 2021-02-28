@@ -27,7 +27,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         formatter,
         retry_config,
         kill_on_interrupt=True,
-        **kwargs,
+        **kwargs
     ):
         super(PandasCursor, self).__init__(
             connection=connection,
@@ -41,7 +41,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
             formatter=formatter,
             retry_config=retry_config,
             kill_on_interrupt=kill_on_interrupt,
-            **kwargs,
+            **kwargs
         )
 
     @property
@@ -63,7 +63,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         keep_default_na=False,
         na_values=("",),
         quoting=1,
-        **kwargs,
+        **kwargs
     ):
         self._reset_state()
         self._query_id = self._execute(
@@ -84,7 +84,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
                 keep_default_na=keep_default_na,
                 na_values=na_values,
                 quoting=quoting,
-                **kwargs,
+                **kwargs
             )
         else:
             raise OperationalError(query_execution.state_change_reason)

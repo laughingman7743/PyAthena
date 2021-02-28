@@ -50,7 +50,7 @@ class AsyncPandasCursor(AsyncCursor):
         keep_default_na=False,
         na_values=None,
         quoting=1,
-        kwargs=None,
+        kwargs=None
     ):
         if kwargs is None:
             kwargs = dict()
@@ -64,7 +64,7 @@ class AsyncPandasCursor(AsyncCursor):
             keep_default_na=keep_default_na,
             na_values=na_values,
             quoting=quoting,
-            **kwargs,
+            **kwargs
         )
 
     def execute(
@@ -77,7 +77,7 @@ class AsyncPandasCursor(AsyncCursor):
         keep_default_na=False,
         na_values=None,
         quoting=1,
-        **kwargs,
+        **kwargs
     ):
         query_id = self._execute(
             operation,
@@ -94,6 +94,6 @@ class AsyncPandasCursor(AsyncCursor):
                 keep_default_na,
                 na_values,
                 quoting,
-                kwargs,
+                kwargs
             ),
         )
