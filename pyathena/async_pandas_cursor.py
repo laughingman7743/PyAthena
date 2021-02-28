@@ -45,12 +45,7 @@ class AsyncPandasCursor(AsyncCursor):
         )
 
     def _collect_result_set(
-        self,
-        query_id,
-        keep_default_na=False,
-        na_values=None,
-        quoting=1,
-        kwargs=None
+        self, query_id, keep_default_na=False, na_values=None, quoting=1, kwargs=None
     ):
         if kwargs is None:
             kwargs = dict()
@@ -94,6 +89,6 @@ class AsyncPandasCursor(AsyncCursor):
                 keep_default_na,
                 na_values,
                 quoting,
-                kwargs
+                kwargs,
             ),
         )
