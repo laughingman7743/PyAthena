@@ -50,7 +50,10 @@ class AsyncPandasCursor(AsyncCursor):
         keep_default_na=False,
         na_values=None,
         quoting=1,
+        kwargs=None,
     ):
+        if kwargs is None:
+            kwargs = dict()
         query_execution = self._poll(query_id)
         return AthenaPandasResultSet(
             connection=self._connection,
@@ -61,6 +64,7 @@ class AsyncPandasCursor(AsyncCursor):
             keep_default_na=keep_default_na,
             na_values=na_values,
             quoting=quoting,
+            **kwargs,
         )
 
     def execute(
@@ -73,6 +77,7 @@ class AsyncPandasCursor(AsyncCursor):
         keep_default_na=False,
         na_values=None,
         quoting=1,
+        **kwargs,
     ):
         query_id = self._execute(
             operation,
@@ -84,6 +89,11 @@ class AsyncPandasCursor(AsyncCursor):
         return (
             query_id,
             self._executor.submit(
-                self._collect_result_set, query_id, keep_default_na, na_values, quoting
+                self._collect_result_set,
+                query_id,
+                keep_default_na,
+                na_values,
+                quoting,
+                kwargs,
             ),
         )

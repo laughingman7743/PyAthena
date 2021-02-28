@@ -286,7 +286,7 @@ class AthenaResultSet(CursorIterator):
                 self._connection.client.get_query_results,
                 config=self._retry_config,
                 logger=_logger,
-                **request
+                **request,
             )
         except Exception as e:
             _logger.exception("Failed to fetch result set.")
@@ -422,6 +422,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         keep_default_na=False,
         na_values=("",),
         quoting=1,
+        **kwargs,
     ):
         super(AthenaPandasResultSet, self).__init__(
             connection=connection,
@@ -434,10 +435,11 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._keep_default_na = keep_default_na
         self._na_values = na_values
         self._quoting = quoting
+        self._kwargs = kwargs
         self._client = self._connection.session.client(
             "s3",
             region_name=self._connection.region_name,
-            **self._connection._client_kwargs
+            **self._connection._client_kwargs,
         )
         if (
             self.state == AthenaQueryExecution.STATE_SUCCEEDED
@@ -553,6 +555,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                     keep_default_na=self._keep_default_na,
                     na_values=self._na_values,
                     quoting=self._quoting,
+                    **self._kwargs,
                 )
                 df = self._trunc_date(df)
             else:  # Allow empty response
