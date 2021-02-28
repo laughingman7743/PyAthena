@@ -63,6 +63,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         keep_default_na=False,
         na_values=("",),
         quoting=1,
+        **kwargs
     ):
         self._reset_state()
         self._query_id = self._execute(
@@ -83,6 +84,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
                 keep_default_na=keep_default_na,
                 na_values=na_values,
                 quoting=quoting,
+                **kwargs
             )
         else:
             raise OperationalError(query_execution.state_change_reason)
