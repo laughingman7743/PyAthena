@@ -27,9 +27,9 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         converter: Converter,
         formatter: Formatter,
         retry_config: RetryConfig,
-        schema_name: Optional[str],
-        catalog_name: Optional[str],
-        work_group: Optional[str],
+        schema_name: Optional[str] = None,
+        catalog_name: Optional[str] = None,
+        work_group: Optional[str] = None,
         kill_on_interrupt: bool = True,
         **kwargs
     ) -> None:
