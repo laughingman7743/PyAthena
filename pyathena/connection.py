@@ -50,7 +50,8 @@ class Connection(object):
         self,
         s3_staging_dir: Optional[str] = None,
         region_name: Optional[str] = None,
-        schema_name: str = "default",
+        schema_name: Optional[str] = "default",
+        catalog_name: Optional[str] = None,
         work_group: Optional[str] = None,
         poll_interval: float = 1,
         encryption_option: Optional[str] = None,
@@ -80,6 +81,7 @@ class Connection(object):
             self.s3_staging_dir = os.getenv(self._ENV_S3_STAGING_DIR, None)
         self.region_name = region_name
         self.schema_name = schema_name
+        self.catalog_name = catalog_name
         if work_group:
             self.work_group: Optional[str] = work_group
         else:
@@ -89,7 +91,6 @@ class Connection(object):
         self.kms_key = kms_key
         self.profile_name = profile_name
 
-        assert self.schema_name, "Required argument `schema_name` not found."
         assert (
             self.s3_staging_dir or self.work_group
         ), "Required argument `s3_staging_dir` or `work_group` not found."
@@ -226,14 +227,15 @@ class Connection(object):
         return cursor(
             connection=self,
             s3_staging_dir=kwargs.pop("s3_staging_dir", self.s3_staging_dir),
-            schema_name=kwargs.pop("schema_name", self.schema_name),
-            work_group=kwargs.pop("work_group", self.work_group),
             poll_interval=kwargs.pop("poll_interval", self.poll_interval),
             encryption_option=kwargs.pop("encryption_option", self.encryption_option),
             kms_key=kwargs.pop("kms_key", self.kms_key),
             converter=converter,
             formatter=kwargs.pop("formatter", self._formatter),
             retry_config=kwargs.pop("retry_config", self._retry_config),
+            schema_name=kwargs.pop("schema_name", self.schema_name),
+            catalog_name=kwargs.pop("catalog_name", self.catalog_name),
+            work_group=kwargs.pop("work_group", self.work_group),
             kill_on_interrupt=kwargs.pop("kill_on_interrupt", self.kill_on_interrupt),
             **kwargs
         )

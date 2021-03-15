@@ -80,7 +80,8 @@ class BaseCursor(object, metaclass=ABCMeta):
         self,
         connection: "Connection",
         s3_staging_dir: Optional[str],
-        schema_name: str,
+        schema_name: Optional[str],
+        catalog_name: Optional[str],
         work_group: Optional[str],
         poll_interval: float,
         encryption_option: Optional[str],
@@ -95,6 +96,7 @@ class BaseCursor(object, metaclass=ABCMeta):
         self._connection = connection
         self._s3_staging_dir = s3_staging_dir
         self._schema_name = schema_name
+        self._catalog_name = catalog_name
         self._work_group = work_group
         self._poll_interval = poll_interval
         self._encryption_option = encryption_option
@@ -182,9 +184,13 @@ class BaseCursor(object, metaclass=ABCMeta):
     ) -> Dict[str, Any]:
         request: Dict[str, Any] = {
             "QueryString": query,
-            "QueryExecutionContext": {"Database": self._schema_name},
+            "QueryExecutionContext": {},
             "ResultConfiguration": {},
         }
+        if self._schema_name:
+            request["QueryExecutionContext"].update({"Database": self._schema_name})
+        if self._catalog_name:
+            request["QueryExecutionContext"].update({"Catalog": self._catalog_name})
         if self._s3_staging_dir or s3_staging_dir:
             request["ResultConfiguration"].update(
                 {
