@@ -150,7 +150,7 @@ Pandas
 As DataFrame
 ^^^^^^^^^^^^
 
-You can use the `pandas.read_sql`_ to handle the query results as a `DataFrame object`_.
+You can use the `pandas.read_sql_query`_ to handle the query results as a `DataFrame object`_.
 
 .. code:: python
 
@@ -159,8 +159,10 @@ You can use the `pandas.read_sql`_ to handle the query results as a `DataFrame o
 
     conn = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                    region_name="us-west-2")
-    df = pd.read_sql("SELECT * FROM many_rows", conn)
+    df = pd.read_sql_query("SELECT * FROM many_rows", conn)
     print(df.head())
+
+NOTE: `Poor performance when using pandas.read_sql #222 <https://github.com/laughingman7743/PyAthena/issues/222>`_
 
 The ``pyathena.pandas.util`` package also has helper methods.
 
@@ -178,7 +180,7 @@ The ``pyathena.pandas.util`` package also has helper methods.
 If you want to use the query results output to S3 directly, you can use `PandasCursor`_.
 This cursor fetches query results faster than the default cursor. (See `benchmark results`_.)
 
-.. _`pandas.read_sql`: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_sql.html
+.. _`pandas.read_sql_query`: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_sql_query.html
 .. _`benchmark results`: benchmarks/README.rst
 
 To SQL
