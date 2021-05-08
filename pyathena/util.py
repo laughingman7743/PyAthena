@@ -3,7 +3,7 @@ import functools
 import logging
 import re
 import threading
-from typing import Any, Callable, Pattern, Tuple
+from typing import Any, Callable, Iterable, Pattern, Tuple
 
 import tenacity
 from tenacity import after_log, retry_if_exception, stop_after_attempt, wait_exponential
@@ -42,7 +42,7 @@ def synchronized(wrapped: Callable[..., Any]) -> Any:
 class RetryConfig(object):
     def __init__(
         self,
-        exceptions: Tuple[str, str] = (
+        exceptions: Iterable[str] = (
             "ThrottlingException",
             "TooManyRequestsException",
         ),
