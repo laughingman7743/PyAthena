@@ -53,7 +53,6 @@ pytest-flake8 = ">=1.0.1"
 pytest-black = "*"
 pytest-isort = "*"
 pytest-xdist = "*"
-codecov = "*"
 
 [tool.poetry.extras]
 pandas = ["pandas", "pyarrow"]
