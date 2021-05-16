@@ -106,11 +106,23 @@ class TestSQLAlchemyAthena(unittest.TestCase):
             engine.dialect.reflecttable(
                 conn, one_row_complex, include_columns=["col_int"], exclude_columns=[]
             )
-        else:
-            # https://docs.sqlalchemy.org/en/13/changelog/changelog_13.html#
-            # change-64ac776996da1a5c3e3460b4c0f0b257
+        elif version == 1.3:
+            # https://docs.sqlalchemy.org/en/13/changelog/changelog_13.html
+            #   #change-64ac776996da1a5c3e3460b4c0f0b257
             engine.dialect.reflecttable(
                 conn,
+                one_row_complex,
+                include_columns=["col_int"],
+                exclude_columns=[],
+                resolve_fks=True,
+            )
+        else:  # version >= 1.4
+            # https://docs.sqlalchemy.org/en/14/changelog/changelog_14.html
+            #   #change-0215fae622c01f9409eb1ba2754f4792
+            # https://docs.sqlalchemy.org/en/14/core/reflection.html
+            #   #sqlalchemy.engine.reflection.Inspector.reflect_table
+            insp = sqlalchemy.inspect(engine)
+            insp.reflect_table(
                 one_row_complex,
                 include_columns=["col_int"],
                 exclude_columns=[],
