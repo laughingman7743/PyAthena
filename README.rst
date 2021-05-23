@@ -117,7 +117,7 @@ Supported SQLAlchemy is 1.0.0 or higher and less than 2.0.0.
     from sqlalchemy.sql.schema import Table, MetaData
 
     conn_str = "awsathena+rest://{aws_access_key_id}:{aws_secret_access_key}@athena.{region_name}.amazonaws.com:443/"\
-               "{schema_name}?s3_staging_dir={s3_staging_dir}""
+               "{schema_name}?s3_staging_dir={s3_staging_dir}"
     engine = create_engine(conn_str.format(
         aws_access_key_id=quote_plus("YOUR_ACCESS_KEY_ID"),
         aws_secret_access_key=quote_plus("YOUR_SECRET_ACCESS_KEY"),
