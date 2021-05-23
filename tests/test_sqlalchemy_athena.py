@@ -9,6 +9,7 @@ from urllib.parse import quote_plus
 import numpy as np
 import pandas as pd
 import sqlalchemy
+from sqlalchemy import String
 from sqlalchemy.engine import create_engine
 from sqlalchemy.exc import NoSuchTableError, OperationalError, ProgrammingError
 from sqlalchemy.sql import expression
@@ -137,7 +138,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         unicode_str = "密林"
         one_row = Table("one_row", MetaData(bind=engine))
         returned_str = sqlalchemy.select(
-            [expression.bindparam("あまぞん", unicode_str)],
+            [expression.bindparam("あまぞん", unicode_str, type_=String())],
             from_obj=one_row,
         ).scalar()
         self.assertEqual(returned_str, unicode_str)
