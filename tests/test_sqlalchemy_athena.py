@@ -9,6 +9,7 @@ from urllib.parse import quote_plus
 import numpy as np
 import pandas as pd
 import sqlalchemy
+from sqlalchemy import String
 from sqlalchemy.engine import create_engine
 from sqlalchemy.exc import NoSuchTableError, OperationalError, ProgrammingError
 from sqlalchemy.sql import expression
@@ -106,11 +107,23 @@ class TestSQLAlchemyAthena(unittest.TestCase):
             engine.dialect.reflecttable(
                 conn, one_row_complex, include_columns=["col_int"], exclude_columns=[]
             )
-        else:
-            # https://docs.sqlalchemy.org/en/13/changelog/changelog_13.html#
-            # change-64ac776996da1a5c3e3460b4c0f0b257
+        elif version == 1.3:
+            # https://docs.sqlalchemy.org/en/13/changelog/changelog_13.html
+            #   #change-64ac776996da1a5c3e3460b4c0f0b257
             engine.dialect.reflecttable(
                 conn,
+                one_row_complex,
+                include_columns=["col_int"],
+                exclude_columns=[],
+                resolve_fks=True,
+            )
+        else:  # version >= 1.4
+            # https://docs.sqlalchemy.org/en/14/changelog/changelog_14.html
+            #   #change-0215fae622c01f9409eb1ba2754f4792
+            # https://docs.sqlalchemy.org/en/14/core/reflection.html
+            #   #sqlalchemy.engine.reflection.Inspector.reflect_table
+            insp = sqlalchemy.inspect(engine)
+            insp.reflect_table(
                 one_row_complex,
                 include_columns=["col_int"],
                 exclude_columns=[],
@@ -125,7 +138,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         unicode_str = "密林"
         one_row = Table("one_row", MetaData(bind=engine))
         returned_str = sqlalchemy.select(
-            [expression.bindparam("あまぞん", unicode_str)],
+            [expression.bindparam("あまぞん", unicode_str, type_=String())],
             from_obj=one_row,
         ).scalar()
         self.assertEqual(returned_str, unicode_str)
@@ -153,10 +166,9 @@ class TestSQLAlchemyAthena(unittest.TestCase):
 
     @with_engine()
     def test_has_table(self, engine, conn):
-        self.assertTrue(Table("one_row", MetaData(bind=engine)).exists())
-        self.assertFalse(
-            Table("this_table_does_not_exist", MetaData(bind=engine)).exists()
-        )
+        insp = sqlalchemy.inspect(engine)
+        self.assertTrue(insp.has_table("one_row", schema=SCHEMA))
+        self.assertFalse(insp.has_table("this_table_does_not_exist", schema=SCHEMA))
 
     @with_engine()
     def test_get_columns(self, engine, conn):

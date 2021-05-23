@@ -167,7 +167,6 @@ class AthenaDDLCompiler(DDLCompiler):
         self,
         dialect,
         statement,
-        bind=None,
         schema_translate_map=None,
         compile_kwargs=util.immutabledict(),
     ):
@@ -175,7 +174,6 @@ class AthenaDDLCompiler(DDLCompiler):
         super(AthenaDDLCompiler, self).__init__(
             dialect=dialect,
             statement=statement,
-            bind=bind,
             schema_translate_map=schema_translate_map,
             compile_kwargs=compile_kwargs,
         )
@@ -278,6 +276,8 @@ class AthenaDialect(DefaultDialect):
     supports_default_values = False
     supports_empty_insert = False
     supports_multivalues_insert = True
+    supports_native_decimal = True
+    supports_native_boolean = True
     supports_unicode_statements = True
     supports_unicode_binds = True
     returns_unicode_strings = True
@@ -312,23 +312,23 @@ class AthenaDialect(DefaultDialect):
             ),
             "schema_name": url.database if url.database else "default",
         }
-        if "verify" in url.query:
-            verify = url.query["verify"]
+        opts.update(url.query)
+        if "verify" in opts:
+            verify = opts["verify"]
             try:
                 verify = bool(strtobool(verify))
             except ValueError:
                 # Probably a file name of the CA cert bundle to use
                 pass
-            url.query.update({"verify": verify})
-        if "duration_seconds" in url.query:
-            url.query.update({"duration_seconds": int(url.query["duration_seconds"])})
-        if "poll_interval" in url.query:
-            url.query.update({"poll_interval": float(url.query["poll_interval"])})
-        if "kill_on_interrupt" in url.query:
-            url.query.update(
+            opts.update({"verify": verify})
+        if "duration_seconds" in opts:
+            opts.update({"duration_seconds": int(url.query["duration_seconds"])})
+        if "poll_interval" in opts:
+            opts.update({"poll_interval": float(url.query["poll_interval"])})
+        if "kill_on_interrupt" in opts:
+            opts.update(
                 {"kill_on_interrupt": bool(strtobool(url.query["kill_on_interrupt"]))}
             )
-        opts.update(url.query)
         return [[], opts]
 
     @reflection.cache
