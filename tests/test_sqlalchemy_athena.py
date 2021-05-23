@@ -166,10 +166,9 @@ class TestSQLAlchemyAthena(unittest.TestCase):
 
     @with_engine()
     def test_has_table(self, engine, conn):
-        self.assertTrue(Table("one_row", MetaData(bind=engine)).exists())
-        self.assertFalse(
-            Table("this_table_does_not_exist", MetaData(bind=engine)).exists()
-        )
+        insp = sqlalchemy.inspect(engine)
+        self.assertTrue(insp.has_table("one_row", schema=SCHEMA))
+        self.assertFalse(insp.has_table("this_table_does_not_exist", schema=SCHEMA))
 
     @with_engine()
     def test_get_columns(self, engine, conn):
