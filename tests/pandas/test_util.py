@@ -402,7 +402,7 @@ class TestPandasUtil(unittest.TestCase, WithConnect):
             [
                 ("col_int", "integer"),
                 ("col_bigint", "bigint"),
-                ("col_float", "float"),
+                ("col_float", "real"),
                 ("col_double", "double"),
                 ("col_string", "varchar"),
                 ("col_boolean", "boolean"),
