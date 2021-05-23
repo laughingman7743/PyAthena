@@ -276,6 +276,8 @@ class AthenaDialect(DefaultDialect):
     supports_default_values = False
     supports_empty_insert = False
     supports_multivalues_insert = True
+    supports_native_decimal = True
+    supports_native_boolean = True
     supports_unicode_statements = True
     supports_unicode_binds = True
     returns_unicode_strings = True
