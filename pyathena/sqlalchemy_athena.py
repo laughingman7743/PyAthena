@@ -2,6 +2,7 @@
 import math
 import numbers
 import re
+import operator
 from distutils.util import strtobool
 from typing import Tuple, Dict
 
@@ -187,6 +188,10 @@ class AthenaTypeCompiler(GenericTypeCompiler):
 
     def visit_BOOLEAN(self, type_, **kw):
         return "BOOLEAN"
+
+    def visit_ARRAY(self, type_, **kw):
+        # TODO: Handle visit of item type
+        return f"ARRAY<{type_.item_type}>"
 
 
 class AthenaDDLCompiler(DDLCompiler):
