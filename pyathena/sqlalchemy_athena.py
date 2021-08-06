@@ -286,7 +286,6 @@ class AthenaDDLCompiler(DDLCompiler):
         schema = table.schema if table.schema else raw_connection.schema_name
         text += "LOCATION '{0}{1}/{2}/'\n".format(location, schema, table.name)
 
-
         tblproperties = table.kwargs.get('athena_tblproperties')
         if tblproperties:
             text += _format_tblproperties(tblproperties) + '\n'
@@ -298,6 +297,27 @@ class AthenaDDLCompiler(DDLCompiler):
                 )
 
         return text
+
+    def get_column_specification(self, column, **kwargs):
+        colspec = (
+            self.preparer.format_column(column)
+            + " "
+            + self.dialect.type_compiler.process(
+                column.type, type_expression=column
+            )
+        )
+        # Athena does not support column default
+        # default = self.get_column_default_string(column)
+        # if default is not None:
+        #     colspec += " DEFAULT " + default
+
+        if column.computed is not None:
+            colspec += " " + self.process(column.computed)
+
+        # Athena does not support column nullable constraint default
+        # if not column.nullable:
+        #     colspec += " NOT NULL"
+        return colspec
 
 
 _TYPE_MAPPINGS = {
