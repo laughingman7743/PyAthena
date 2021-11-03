@@ -199,13 +199,12 @@ class AthenaDDLCompiler(DDLCompiler):
             comment += self._escape_comment(column.comment, self.dialect)
         return f"{colspec}{comment}"
 
-    def visit_create_table(self, create):
+    def visit_create_table(self, create, **kwargs):
         table = create.element
         preparer = self.preparer
 
         text = "\nCREATE EXTERNAL "
-        text += "TABLE " + preparer.format_table(table) + " "
-        text += "("
+        text += "TABLE " + preparer.format_table(table) + " ("
 
         separator = "\n"
         for create_column in create.columns:
@@ -242,8 +241,15 @@ class AthenaDDLCompiler(DDLCompiler):
             if hasattr(table, "bind") and table.bind
             else None
         )
+        text = ""
+
+        if table.comment:
+            text += (
+                "COMMENT " + self._escape_comment(table.comment, self.dialect) + "\n"
+            )
+
         # TODO Supports orc, avro, json, csv or tsv format
-        text = "STORED AS PARQUET\n"
+        text += "STORED AS PARQUET\n"
 
         if dialect_opts["location"]:
             location = dialect_opts["location"]

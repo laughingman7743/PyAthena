@@ -86,14 +86,14 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         one_row = Table("one_row", MetaData(bind=engine), autoload_with=conn)
         self.assertEqual(len(one_row.c), 1)
         self.assertIsNotNone(one_row.c.number_of_rows)
-        self.assertEqual(table.comment, "table comment")
+        self.assertEqual(one_row.comment, "table comment")
 
     @with_engine()
     def test_reflect_table_with_schema(self, engine, conn):
         one_row = Table("one_row", MetaData(), schema=SCHEMA, autoload_with=conn)
         self.assertEqual(len(one_row.c), 1)
         self.assertIsNotNone(one_row.c.number_of_rows)
-        self.assertEqual(table.comment, "table comment")
+        self.assertEqual(one_row.comment, "table comment")
 
     @with_engine()
     def test_reflect_table_include_columns(self, engine, conn):
@@ -587,23 +587,72 @@ class TestSQLAlchemyAthena(unittest.TestCase):
             ),
         )
 
-    @with_engine()
-    def test_create_table_with_comment(self, engine, conn):
-        table_name = "table_name_000"
+    def test_create_table_with_comments_compilation(self):
+        dialect = AthenaDialect()
+        table_name = "test_create_table_with_comments_compilation"
         column_name = "c"
         table = Table(
             table_name,
             MetaData(),
             Column(column_name, String(10), comment="some descriptive comment"),
             schema=SCHEMA,
+            awsathena_location="s3://path/to/schema/test_create_table_with_comments_compilation/",
+            comment=textwrap.dedent(
+                """
+                Some table comment
+
+                a multiline one that should stay as is.
+                """
+            ),
+        )
+        actual = CreateTable(table).compile(dialect=dialect)
+        self.assertEqual(
+            str(actual),
+            textwrap.dedent(
+                f"""
+                CREATE EXTERNAL TABLE {SCHEMA}.{table_name} (
+                \tc VARCHAR(10) COMMENT 'some descriptive comment'
+                )
+                COMMENT '
+                Some table comment
+
+                a multiline one that should stay as is.
+                '
+                STORED AS PARQUET
+                LOCATION 's3://path/to/schema/test_create_table_with_comments_compilation/'\n\n
+                """
+            ),
+        )
+
+    @with_engine()
+    def test_create_table_with_comments(self, engine, conn):
+        table_name = "test_create_table_with_comments"
+        column_name = "c"
+        comment = textwrap.dedent(
+            """
+            Some table comment
+
+            a multiline one that should stay as is.
+            """
+        )
+        table = Table(
+            table_name,
+            MetaData(),
+            Column(column_name, String(10), comment="some descriptive comment"),
+            schema=SCHEMA,
             awsathena_location=f"{ENV.s3_staging_dir}/{SCHEMA}/{table_name}",
+            comment=comment,
         )
         table.create(bind=conn)
-        check_table = Table(table_name, MetaData(), autoload=True, autoload_with=conn)
-        self.assertIsNot(check_table, table)
-        self.assertIsNot(check_table.metadata, table.metadata)
+        actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
+        self.assertIsNot(actual, table)
+        self.assertIsNot(actual.metadata, table.metadata)
+        self.assertEqual(actual.c[column_name].comment, table.c[column_name].comment)
+        # The AWS API seems to return comments with squashed whitespace and line breaks.
+        # self.assertEqual(actual.comment, table.comment)
+        self.assertIsNot(actual.comment, None)
         self.assertEqual(
-            check_table.c[column_name].comment, table.c[column_name].comment
+            actual.comment, "\n{}\n".format(re.sub(r"\s+", " ", comment[1:-1]))
         )
 
     @with_engine()
