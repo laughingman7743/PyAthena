@@ -178,6 +178,26 @@ class AthenaDDLCompiler(DDLCompiler):
             compile_kwargs=compile_kwargs,
         )
 
+    def _escape_comment(self, value, dialect):
+        value = value.replace("\\", "\\\\").replace("'", r"\'")
+        # DDL statements raise a KeyError if the placeholders aren't escaped
+        if dialect.identifier_preparer._double_percents:
+            value = value.replace("%", "%%")
+
+        return f"'{value}'"
+
+    def get_column_specification(self, column, **kwargs):
+        colspec = (
+            self.preparer.format_column(column)
+            + " "
+            + self.dialect.type_compiler.process(column.type, type_expression=column)
+        )
+        comment = ""
+        if column.comment:
+            comment += " COMMENT "
+            comment += self._escape_comment(column.comment, self.dialect)
+        return f"{colspec}{comment}"
+
     def visit_create_table(self, create):
         table = create.element
         preparer = self.preparer

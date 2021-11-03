@@ -1,5 +1,5 @@
 DROP TABLE IF EXISTS {schema}.one_row;
-CREATE EXTERNAL TABLE IF NOT EXISTS {schema}.one_row (number_of_rows INT)
+CREATE EXTERNAL TABLE IF NOT EXISTS {schema}.one_row (number_of_rows INT COMMENT 'some comment')
 ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
 LOCATION '{location_one_row}';
 
