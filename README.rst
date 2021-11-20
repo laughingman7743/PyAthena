@@ -26,7 +26,7 @@ Requirements
 
 * Python
 
-  - CPython 3.6, 3.7 3.8 3.9
+  - CPython 3.6, 3.7 3.8 3.9 3.10
 
 Installation
 ------------
@@ -1117,7 +1117,7 @@ Run test multiple Python versions
     $ pip install poetry
     $ poetry install -v
     $ poetry run scripts/test_data/upload_test_data.sh
-    $ pyenv local 3.9.1 3.8.2 3.7.2 3.6.8
+    $ pyenv local 3.10.0 3.9.1 3.8.2 3.7.2 3.6.8
     $ poetry run tox
     $ poetry run scripts/test_data/delete_test_data.sh
 

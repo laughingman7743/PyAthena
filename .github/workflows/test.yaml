@@ -16,9 +16,9 @@ jobs:
       AWS_ATHENA_S3_STAGING_DIR: ${{ secrets.AWS_ATHENA_S3_STAGING_DIR }}
       CACHE_VERSION: v1
     strategy:
-      max-parallel: 4
+      max-parallel: 5
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: [3.6, 3.7, 3.8, 3.9, "3.10"]
 
     steps:
       - uses: actions/checkout@v2
