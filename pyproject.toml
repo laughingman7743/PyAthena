@@ -45,7 +45,7 @@ twine = "*"
 pandas = ">=1.0.0"
 pyarrow = ">=1.0.0"
 sqlalchemy = ">=1.0.0, <2.0.0"
-mypy = "*"
+mypy = ">=0.900"
 pytest = ">=3.5"
 pytest-cov = "*"
 pytest-flake8 = ">=1.0.1"
@@ -60,6 +60,31 @@ sqlalchemy = ["sqlalchemy"]
 
 [tool.poetry.plugins."sqlalchemy.dialects"]
 "awsathena.rest" = "pyathena.sqlalchemy_athena:AthenaDialect"
+
+[tool.pytest.ini_options]
+flake8-max-line-length = 100
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+
+[tool.mypy]
+python_version = 3.6
+follow_imports = "silent"
+disallow_any_generics = true
+strict_optional = true
+check_untyped_defs = true
+allow_redefinition = true
+ignore_missing_imports = true
+warn_redundant_casts = true
+warn_no_return = true
+warn_return_any = true
+warn_unreachable = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = ["benchmarks.*", "tests.*"]
+ignore_errors = true
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
