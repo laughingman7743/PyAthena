@@ -383,7 +383,7 @@ class AthenaDialect(DefaultDialect):
         retry_config = raw_connection.retry_config
         retry = tenacity.Retrying(
             retry=retry_if_exception(
-                lambda exc: self._retry_if_data_catalog_exception(
+                lambda exc: self._retry_if_data_catalog_exception(  # type: ignore
                     exc, schema, table_name
                 )
             ),
