@@ -66,7 +66,7 @@ class Connection(object):
         retry_config: Optional[RetryConfig] = None,
         cursor_class: Type[BaseCursor] = Cursor,
         kill_on_interrupt: bool = True,
-        session: Any = None,
+        session: Optional[Session] = None,
         **kwargs
     ) -> None:
         self._kwargs = {
