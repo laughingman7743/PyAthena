@@ -66,6 +66,7 @@ class Connection(object):
         retry_config: Optional[RetryConfig] = None,
         cursor_class: Type[BaseCursor] = Cursor,
         kill_on_interrupt: bool = True,
+        session: Optional[Session] = None,
         **kwargs
     ) -> None:
         self._kwargs = {
@@ -95,39 +96,44 @@ class Connection(object):
             self.s3_staging_dir or self.work_group
         ), "Required argument `s3_staging_dir` or `work_group` not found."
 
-        if role_arn:
-            creds = self._assume_role(
-                profile_name=self.profile_name,
-                region_name=self.region_name,
-                role_arn=role_arn,
-                role_session_name=role_session_name,
-                serial_number=serial_number,
-                duration_seconds=duration_seconds,
+        if session:
+            self._session = session
+        else:
+            if role_arn:
+                creds = self._assume_role(
+                    profile_name=self.profile_name,
+                    region_name=self.region_name,
+                    role_arn=role_arn,
+                    role_session_name=role_session_name,
+                    serial_number=serial_number,
+                    duration_seconds=duration_seconds,
+                )
+                self.profile_name = None
+                self._kwargs.update(
+                    {
+                        "aws_access_key_id": creds["AccessKeyId"],
+                        "aws_secret_access_key": creds["SecretAccessKey"],
+                        "aws_session_token": creds["SessionToken"],
+                    }
+                )
+            elif serial_number:
+                creds = self._get_session_token(
+                    profile_name=self.profile_name,
+                    region_name=self.region_name,
+                    serial_number=serial_number,
+                    duration_seconds=duration_seconds,
+                )
+                self.profile_name = None
+                self._kwargs.update(
+                    {
+                        "aws_access_key_id": creds["AccessKeyId"],
+                        "aws_secret_access_key": creds["SecretAccessKey"],
+                        "aws_session_token": creds["SessionToken"],
+                    }
+                )
+            self._session = Session(
+                profile_name=self.profile_name, **self._session_kwargs
             )
-            self.profile_name = None
-            self._kwargs.update(
-                {
-                    "aws_access_key_id": creds["AccessKeyId"],
-                    "aws_secret_access_key": creds["SecretAccessKey"],
-                    "aws_session_token": creds["SessionToken"],
-                }
-            )
-        elif serial_number:
-            creds = self._get_session_token(
-                profile_name=self.profile_name,
-                region_name=self.region_name,
-                serial_number=serial_number,
-                duration_seconds=duration_seconds,
-            )
-            self.profile_name = None
-            self._kwargs.update(
-                {
-                    "aws_access_key_id": creds["AccessKeyId"],
-                    "aws_secret_access_key": creds["SecretAccessKey"],
-                    "aws_session_token": creds["SessionToken"],
-                }
-            )
-        self._session = Session(profile_name=self.profile_name, **self._session_kwargs)
         self._client = self._session.client(
             "athena", region_name=self.region_name, **self._client_kwargs
         )
