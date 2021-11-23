@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    env:
+      CACHE_VERSION: v1
+      PYTHON_VERSION: 3.9
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Restore cache
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-pip-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ env.CACHE_VERSION }}-${{ runner.os }}-pip-${{ env.PYTHON_VERSION }}-
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ${{ github.workspace }}/.github/workflows/requirements.txt
+      - name: Build
+        run: |
+          poetry build -vvv
+      - name: Upload
+        run: |
+          twine upload dist/*
+        env:
+          TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,3 +2,4 @@ poetry
 tox
 tox-gh-actions
 awscli
+twine
