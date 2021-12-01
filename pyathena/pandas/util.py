@@ -252,7 +252,7 @@ def to_sql(
     _logger.info(ddl)
     cursor.execute(ddl)
     if partitions:
-        repair = "MSCK REPAIR TABLE {0}.{1}".format(schema, name)
+        repair = "MSCK REPAIR TABLE `{0}`.`{1}`".format(schema, name)
         _logger.info(repair)
         cursor.execute(repair)
 
