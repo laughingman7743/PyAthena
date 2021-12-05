@@ -1,8 +1,8 @@
 .. image:: https://img.shields.io/pypi/pyversions/PyAthena.svg
     :target: https://pypi.org/project/PyAthena/
 
-.. image:: https://github.com/laughingman7743/PyAthena/workflows/test/badge.svg
-    :target: https://github.com/laughingman7743/PyAthena/actions
+.. image:: https://github.com/laughingman7743/PyAthena/actions/workflows/test.yaml/badge.svg
+    :target: https://github.com/laughingman7743/PyAthena/actions/workflows/test.yaml
 
 .. image:: https://img.shields.io/pypi/l/PyAthena.svg
     :target: https://github.com/laughingman7743/PyAthena/blob/master/LICENSE
