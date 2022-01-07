@@ -533,3 +533,24 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     @with_engine(kill_on_interrupt="false")
     def test_conn_str_kill_on_interrupt(self, engine, conn):
         self.assertFalse(conn.connection.kill_on_interrupt)
+
+    @with_engine()
+    def test_create_table(self, engine, conn):
+        # Given
+        table_name = 'manually_defined_table'
+        table = Table(table_name,
+                      MetaData(),
+                      Column('c', String(10)),
+                      schema=SCHEMA,
+                      awsathena_location=f'{ENV.s3_staging_dir}/{SCHEMA}/{table_name}',
+                      )
+        insp = sqlalchemy.inspect(engine)
+
+        # When
+        table.create(bind=conn)
+
+        # Then
+        self.assertTrue(insp.has_table(table_name, schema=SCHEMA))
+
+        # Teardown
+        conn.execute('DROP TABLE IF EXISTS {}'.format(table.name))

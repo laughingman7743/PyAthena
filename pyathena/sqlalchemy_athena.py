@@ -5,7 +5,7 @@ import re
 from distutils.util import strtobool
 
 import tenacity
-from sqlalchemy import exc, util
+from sqlalchemy import exc, schema, util
 from sqlalchemy.engine import Engine, reflection
 from sqlalchemy.engine.default import DefaultDialect
 from sqlalchemy.exc import NoSuchTableError, OperationalError
@@ -214,29 +214,47 @@ class AthenaDDLCompiler(DDLCompiler):
         text += "\n)\n%s\n\n" % self.post_create_table(table)
         return text
 
-    def post_create_table(self, table):
-        raw_connection = table.bind.raw_connection()
+    def post_create_table_with_bind(self, table, raw_connection):
+        dialect_opts = table.dialect_options["awsathena"]
+        raw_connection = (
+            table.bind.raw_connection()
+            if hasattr(table, "bind") and table.bind
+            else None
+        )
         # TODO Supports orc, avro, json, csv or tsv format
         text = "STORED AS PARQUET\n"
 
-        location = (
-            raw_connection._kwargs["s3_dir"]
-            if "s3_dir" in raw_connection._kwargs
-            else raw_connection.s3_staging_dir
-        )
-        if not location:
-            raise exc.CompileError(
-                "`s3_dir` or `s3_staging_dir` parameter is required"
-                " in the connection string."
+        if dialect_opts["location"]:
+            location = dialect_opts["location"]
+            location += '/' if location[-1] != '/' else ''
+        elif raw_connection:
+            base_location = (
+                raw_connection._kwargs["s3_dir"]
+                if "s3_dir" in raw_connection._kwargs
+                else raw_connection.s3_staging_dir
             )
-        schema = table.schema if table.schema else raw_connection.schema_name
-        text += "LOCATION '{0}{1}/{2}/'\n".format(location, schema, table.name)
+            schema = (table.schema if table.schema else raw_connection.schema_name)
+            location = f'{base_location}{schema}/{table.name}/'
+        else:
+            if raw_connection:
+                raise exc.CompileError(
+                    "`s3_dir` or `s3_staging_dir` parameter is required"
+                    " in the connection string."
+                )
+            else:
+                raise exc.CompileError(
+                    "You need to specify the storage location for the table "
+                    "using the `awsathena_location` dialect keyword argument"
+                )
+        text += f"LOCATION '{location}'\n"
 
-        compression = raw_connection._kwargs.get("compression")
-        if compression:
-            text += "TBLPROPERTIES ('parquet.compress'='{0}')\n".format(
-                compression.upper()
-            )
+        if raw_connection:
+            compression = raw_connection._kwargs.get("compression")
+            if compression:
+                text += "TBLPROPERTIES ('parquet.compress'='{0}')\n".format(
+                    compression.upper()
+                )
+        # Compression for connectionless tables will be handled later on with table properties
 
         return text
 
@@ -284,6 +302,14 @@ class AthenaDialect(DefaultDialect):
     description_encoding = None
     supports_native_boolean = True
     postfetch_lastrowid = False
+    construct_arguments = [
+        (
+            schema.Table,
+            {
+                "location": None,
+            },
+        ),
+    ]
 
     _pattern_data_catlog_exception = re.compile(
         r"(((Database|Namespace)\ (?P<schema>.+))|(Table\ (?P<table>.+)))\ not\ found\."
