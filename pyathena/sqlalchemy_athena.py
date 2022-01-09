@@ -214,7 +214,7 @@ class AthenaDDLCompiler(DDLCompiler):
         text += "\n)\n%s\n\n" % self.post_create_table(table)
         return text
 
-    def post_create_table_with_bind(self, table, raw_connection):
+    def post_create_table(self, table):
         dialect_opts = table.dialect_options["awsathena"]
         raw_connection = (
             table.bind.raw_connection()
@@ -226,16 +226,18 @@ class AthenaDDLCompiler(DDLCompiler):
 
         if dialect_opts["location"]:
             location = dialect_opts["location"]
-            location += '/' if location[-1] != '/' else ''
+            location += "/" if location[-1] != "/" else ""
         elif raw_connection:
             base_location = (
                 raw_connection._kwargs["s3_dir"]
                 if "s3_dir" in raw_connection._kwargs
                 else raw_connection.s3_staging_dir
             )
-            schema = (table.schema if table.schema else raw_connection.schema_name)
-            location = f'{base_location}{schema}/{table.name}/'
+            schema = table.schema if table.schema else raw_connection.schema_name
+            location = f"{base_location}{schema}/{table.name}/"
         else:
+            location = None
+        if not location:
             if raw_connection:
                 raise exc.CompileError(
                     "`s3_dir` or `s3_staging_dir` parameter is required"
@@ -248,13 +250,17 @@ class AthenaDDLCompiler(DDLCompiler):
                 )
         text += f"LOCATION '{location}'\n"
 
-        if raw_connection:
+        if dialect_opts["compression"]:
+            compression = dialect_opts["compression"]
+        elif raw_connection:
+            raw_connection = table.bind.raw_connection()
             compression = raw_connection._kwargs.get("compression")
-            if compression:
-                text += "TBLPROPERTIES ('parquet.compress'='{0}')\n".format(
-                    compression.upper()
-                )
-        # Compression for connectionless tables will be handled later on with table properties
+        else:
+            compression = None
+        if compression:
+            text += "TBLPROPERTIES ('parquet.compress'='{0}')\n".format(
+                compression.upper()
+            )
 
         return text
 
@@ -283,7 +289,6 @@ _TYPE_MAPPINGS = {
 class AthenaDialect(DefaultDialect):
 
     name = "awsathena"
-    driver = "rest"
     preparer = AthenaDMLIdentifierPreparer
     statement_compiler = AthenaStatementCompiler
     ddl_compiler = AthenaDDLCompiler
@@ -307,6 +312,7 @@ class AthenaDialect(DefaultDialect):
             schema.Table,
             {
                 "location": None,
+                "compression": None,
             },
         ),
     ]
@@ -483,3 +489,7 @@ class AthenaDialect(DefaultDialect):
 
     def _is_nan(self, column_default):
         return isinstance(column_default, numbers.Real) and math.isnan(column_default)
+
+
+class AthenaRestDialect(AthenaDialect):
+    driver = "rest"

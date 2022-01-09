@@ -59,7 +59,8 @@ pandas = ["pandas", "pyarrow"]
 sqlalchemy = ["sqlalchemy"]
 
 [tool.poetry.plugins."sqlalchemy.dialects"]
-"awsathena.rest" = "pyathena.sqlalchemy_athena:AthenaDialect"
+"awsathena" = "pyathena.sqlalchemy_athena:AthenaDialect"
+"awsathena.rest" = "pyathena.sqlalchemy_athena:AthenaRestDialect"
 
 [tool.pytest.ini_options]
 flake8-max-line-length = 100
