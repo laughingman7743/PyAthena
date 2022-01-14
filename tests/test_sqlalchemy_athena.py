@@ -83,15 +83,17 @@ class TestSQLAlchemyAthena(unittest.TestCase):
 
     @with_engine()
     def test_reflect_table(self, engine, conn):
-        one_row = Table("one_row", MetaData(bind=engine), autoload=True)
+        one_row = Table("one_row", MetaData(bind=engine), autoload_with=conn)
         self.assertEqual(len(one_row.c), 1)
         self.assertIsNotNone(one_row.c.number_of_rows)
+        self.assertEqual(table.comment, "table comment")
 
     @with_engine()
     def test_reflect_table_with_schema(self, engine, conn):
-        one_row = Table("one_row", MetaData(bind=engine), schema=SCHEMA, autoload=True)
+        one_row = Table("one_row", MetaData(), schema=SCHEMA, autoload_with=conn)
         self.assertEqual(len(one_row.c), 1)
         self.assertIsNotNone(one_row.c.number_of_rows)
+        self.assertEqual(table.comment, "table comment")
 
     @with_engine()
     def test_reflect_table_include_columns(self, engine, conn):
