@@ -546,6 +546,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
             Column("c", String(10)),
             schema=SCHEMA,
             awsathena_location=f"{ENV.s3_staging_dir}/{SCHEMA}/{table_name}",
+            awsathena_compression=None,
         )
         insp = sqlalchemy.inspect(engine)
         table.create(bind=conn)
