@@ -38,13 +38,14 @@ sqlalchemy = {version = "<2.0.0,>=1.0.0", optional = true}
 tenacity = ">=4.1.0"
 
 [tool.poetry.dev-dependencies]
-awscli = "*"
+awscli = "^1.22.37"
 tox = "*"
 wheel = "*"
 twine = "*"
 pandas = ">=1.0.0"
 pyarrow = ">=1.0.0"
 sqlalchemy = ">=1.0.0, <2.0.0"
+black = "^21.12b0"
 mypy = ">=0.900"
 pytest = ">=3.5"
 pytest-cov = "*"
