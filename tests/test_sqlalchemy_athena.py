@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import re
+import textwrap
 import unittest
 import uuid
 from datetime import date, datetime
@@ -13,6 +14,7 @@ from sqlalchemy import String
 from sqlalchemy.engine import create_engine
 from sqlalchemy.exc import NoSuchTableError, OperationalError, ProgrammingError
 from sqlalchemy.sql import expression
+from sqlalchemy.sql.ddl import CreateTable
 from sqlalchemy.sql.schema import Column, MetaData, Table
 from sqlalchemy.sql.sqltypes import (
     BIGINT,
@@ -26,6 +28,7 @@ from sqlalchemy.sql.sqltypes import (
     TIMESTAMP,
 )
 
+from pyathena.sqlalchemy_athena import AthenaDialect
 from tests.conftest import ENV, SCHEMA
 from tests.util import with_engine
 
@@ -58,7 +61,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
                 schema_name=SCHEMA,
                 s3_staging_dir=quote_plus(ENV.s3_staging_dir),
                 s3_dir=quote_plus(ENV.s3_staging_dir),
-                **kwargs
+                **kwargs,
             )
         )
 
@@ -533,3 +536,47 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     @with_engine(kill_on_interrupt="false")
     def test_conn_str_kill_on_interrupt(self, engine, conn):
         self.assertFalse(conn.connection.kill_on_interrupt)
+
+    @with_engine()
+    def test_create_table(self, engine, conn):
+        table_name = "manually_defined_table"
+        table = Table(
+            table_name,
+            MetaData(),
+            Column("c", String(10)),
+            schema=SCHEMA,
+            awsathena_location=f"{ENV.s3_staging_dir}/{SCHEMA}/{table_name}",
+            awsathena_compression=None,
+        )
+        insp = sqlalchemy.inspect(engine)
+        table.create(bind=conn)
+        self.assertTrue(insp.has_table(table_name, schema=SCHEMA))
+
+    def test_create_table_location(self):
+        """Ensure the location is properly inserted when the `awsathena_location` is used
+        and that a trailing slash is appended if missing.
+        """
+        dialect = AthenaDialect()
+        table = Table(
+            "test_create_table",
+            MetaData(),
+            Column("column_name", String),
+            schema="test_schema",
+            awsathena_location="s3://path/to/test_schema/test_create_table",
+            awsathena_compression="SNAPPY",
+        )
+        actual = CreateTable(table).compile(dialect=dialect)
+        # If there is no `/` at the end of the `awsathena_location`, it will be appended.
+        self.assertEqual(
+            str(actual),
+            textwrap.dedent(
+                """
+                CREATE EXTERNAL TABLE test_schema.test_create_table (
+                \tcolumn_name VARCHAR
+                )
+                STORED AS PARQUET
+                LOCATION 's3://path/to/test_schema/test_create_table/'
+                TBLPROPERTIES ('parquet.compress'='SNAPPY')\n\n
+                """
+            ),
+        )

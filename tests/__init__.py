@@ -3,10 +3,6 @@ import os
 import random
 import string
 
-from sqlalchemy.dialects import registry
-
-registry.register("awsathena.rest", "pyathena.sqlalchemy_athena", "AthenaDialect")
-
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 S3_PREFIX = "test_pyathena"
 WORK_GROUP = "test-pyathena"
