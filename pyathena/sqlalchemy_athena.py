@@ -372,6 +372,7 @@ class AthenaDialect(DefaultDialect):
                 """
         return [row.schema_name for row in connection.execute(query).fetchall()]
 
+    @reflection.cache
     def _get_tables(self, connection, schema=None, **kw):
         raw_connection = self._raw_connection(connection)
         schema = schema if schema else raw_connection.schema_name
@@ -387,14 +388,12 @@ class AthenaDialect(DefaultDialect):
                     break
         return tables
 
-    @reflection.cache
     def get_table_names(self, connection, schema=None, **kw):
         tables = self._get_tables(connection, schema, **kw)
         # In Athena, only EXTERNAL_TABLE is supported.
         # https://docs.aws.amazon.com/athena/latest/APIReference/API_TableMetadata.html
         return [t.name for t in tables if t.table_type == "EXTERNAL_TABLE"]
 
-    @reflection.cache
     def get_view_names(self, connection, schema=None, **kw):
         tables = self._get_tables(connection, schema, **kw)
         return [t.name for t in tables if t.table_type == "VIRTUAL_VIEW"]
