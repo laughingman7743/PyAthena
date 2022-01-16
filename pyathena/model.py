@@ -251,6 +251,26 @@ class AthenaTableMetadata(object):
     def parameters(self) -> Dict[str, str]:
         return self._parameters
 
+    @property
+    def comment(self) -> Optional[str]:
+        return self._parameters.get("comment", None)
+
+    @property
+    def location(self) -> Optional[str]:
+        return self._parameters.get("location", None)
+
+    @property
+    def input_format(self) -> Optional[str]:
+        return self._parameters.get("inputformat", None)
+
+    @property
+    def output_format(self) -> Optional[str]:
+        return self._parameters.get("outputformat", None)
+
+    @property
+    def serde_serialization_lib(self) -> Optional[str]:
+        return self._parameters.get("'serde.serialization.lib", None)
+
 
 class AthenaRowFormat(object):
 
