@@ -4,7 +4,7 @@ import sys
 import time
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, cast
 
 from pyathena.converter import Converter
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
@@ -157,7 +157,9 @@ class BaseCursor(object, metaclass=ABCMeta):
         else:
             return AthenaTableMetadata(response)
 
-    def _batch_get_query_execution(self, query_ids: List[str]):
+    def _batch_get_query_execution(
+        self, query_ids: List[str]
+    ) -> List[AthenaQueryExecution]:
         try:
             response = retry_api_call(
                 self.connection._client.batch_get_query_execution,
@@ -179,7 +181,7 @@ class BaseCursor(object, metaclass=ABCMeta):
         max_results: Optional[int] = None,
         work_group: Optional[str] = None,
         next_token: Optional[str] = None,
-    ) -> Tuple[str, List[AthenaQueryExecution]]:
+    ) -> Tuple[Optional[str], List[AthenaQueryExecution]]:
         request = self._build_list_query_executions_request(
             max_results=max_results, work_group=work_group, next_token=next_token
         )
@@ -366,9 +368,12 @@ class BaseCursor(object, metaclass=ABCMeta):
                     key=lambda e: e.completion_date_time,  # type: ignore
                     reverse=True,
                 ):
+                    completion_date_time = cast(
+                        datetime, execution.completion_date_time
+                    )
                     if (
                         cache_expiration_time > 0
-                        and execution.completion_date_time.astimezone(timezone.utc)
+                        and completion_date_time.astimezone(timezone.utc)
                         < expiration_time
                     ):
                         next_token = None
@@ -379,7 +384,9 @@ class BaseCursor(object, metaclass=ABCMeta):
                 if query_id or next_token is None:
                     break
         except Exception:
-            _logger.warning("Failed to check the cache. Moving on without cache.", exc_info=True)
+            _logger.warning(
+                "Failed to check the cache. Moving on without cache.", exc_info=True
+            )
         return query_id
 
     def _execute(

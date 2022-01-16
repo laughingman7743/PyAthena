@@ -181,9 +181,9 @@ class AthenaTableMetadataColumn(object):
 
 class AthenaTableMetadataPartitionKey(object):
     def __init__(self, response):
-        self._name = response.get("Name", None)
-        self._type = response.get("Type", None)
-        self._comment = response.get("Comment", None)
+        self._name: Optional[str] = response.get("Name", None)
+        self._type: Optional[str] = response.get("Type", None)
+        self._comment: Optional[str] = response.get("Comment", None)
 
     @property
     def name(self) -> Optional[str]:
