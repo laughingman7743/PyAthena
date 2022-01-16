@@ -10,7 +10,7 @@ from urllib.parse import quote_plus
 import numpy as np
 import pandas as pd
 import sqlalchemy
-from sqlalchemy import String
+from sqlalchemy import Date, String
 from sqlalchemy.engine import create_engine
 from sqlalchemy.exc import NoSuchTableError, OperationalError, ProgrammingError
 from sqlalchemy.sql import expression
@@ -586,6 +586,78 @@ class TestSQLAlchemyAthena(unittest.TestCase):
                 """
             ),
         )
+
+    def test_create_table_with_partition(self):
+        """Ensure the location is properly inserted when the `awsathena_location` is used
+        and that a trailing slash is appended if missing.
+        """
+        dialect = AthenaDialect()
+        table = Table(
+            "test_create_table_with_partition",
+            MetaData(),
+            Column("column_name", String),
+            Column(
+                "dt",
+                Date,
+                comment="Daily partitioning of the table",
+                awsathena_partition=True,
+            ),
+            schema="test_schema",
+            awsathena_location="s3://path/to/test_schema/test_create_table_with_partition",
+            awsathena_compression="SNAPPY",
+        )
+        actual = CreateTable(table).compile(dialect=dialect)
+        # If there is no `/` at the end of the `awsathena_location`, it will be appended.
+        self.assertEqual(
+            str(actual),
+            textwrap.dedent(
+                """
+                CREATE EXTERNAL TABLE test_schema.test_create_table_with_partition (
+                \tcolumn_name VARCHAR
+                )
+                PARTITIONED BY (
+                \tdt DATE COMMENT 'Daily partitioning of the table'
+                )
+                STORED AS PARQUET
+                LOCATION 's3://path/to/test_schema/test_create_table_with_partition/'
+                TBLPROPERTIES ('parquet.compress'='SNAPPY')\n\n
+                """
+            ),
+        )
+
+    @with_engine()
+    def test_partitioned_table_introspection(self, engine, conn):
+        """Ensure the location is properly inserted when the `awsathena_location` is used
+        and that a trailing slash is appended if missing.
+        """
+        table_name = "test_partitioned_table"
+        table = Table(
+            table_name,
+            MetaData(),
+            Column("column_name", String(10)),
+            Column(
+                "dt",
+                Date,
+                comment="Daily partitioning of the table",
+                awsathena_partition=True,
+            ),
+            schema=SCHEMA,
+            awsathena_location=f"{ENV.s3_staging_dir}{SCHEMA}/{table_name}/",
+            awsathena_compression="SNAPPY",
+        )
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
+        self.assertEqual(
+            len(
+                [c for c in actual.c if not c.dialect_options["awsathena"]["partition"]]
+            ),
+            1,
+        )
+        self.assertEqual(
+            len([c for c in actual.c if c.dialect_options["awsathena"]["partition"]]),
+            1,
+        )
+        self.assertEqual(len(actual.c), 2)
 
     def test_create_table_with_comments_compilation(self):
         dialect = AthenaDialect()

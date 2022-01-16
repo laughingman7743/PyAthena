@@ -187,6 +187,29 @@ class AthenaDDLCompiler(DDLCompiler):
 
         return f"'{value}'"
 
+    def _get_columns_specs(self, create, partitions=False):
+        text = ""
+        separator = "\n"
+        for create_column in create.columns:
+            column = create_column.element
+            if column.dialect_options["awsathena"]["partition"] is not partitions:
+                continue
+            try:
+                processed = self.process(create_column)
+                if processed is not None:
+                    text += separator
+                    separator = ", \n"
+                    text += "\t" + processed
+            except exc.CompileError as ce:
+                util.raise_from_cause(
+                    exc.CompileError(
+                        util.u("(in table '{0}', column '{1}'): {2}").format(
+                            create.element.description, column.name, ce.args[0]
+                        )
+                    )
+                )
+        return text
+
     def get_column_specification(self, column, **kwargs):
         colspec = (
             self.preparer.format_column(column)
@@ -207,22 +230,7 @@ class AthenaDDLCompiler(DDLCompiler):
         text += "TABLE " + preparer.format_table(table) + " ("
 
         separator = "\n"
-        for create_column in create.columns:
-            column = create_column.element
-            try:
-                processed = self.process(create_column)
-                if processed is not None:
-                    text += separator
-                    separator = ", \n"
-                    text += "\t" + processed
-            except exc.CompileError as ce:
-                util.raise_from_cause(
-                    exc.CompileError(
-                        util.u("(in table '{0}', column '{1}'): {2}").format(
-                            table.description, column.name, ce.args[0]
-                        )
-                    )
-                )
+        text += self._get_columns_specs(create)
 
         const = self.create_table_constraints(
             table,
@@ -231,10 +239,11 @@ class AthenaDDLCompiler(DDLCompiler):
         if const:
             text += separator + "\t" + const
 
-        text += "\n)\n%s\n\n" % self.post_create_table(table)
+        text += "\n)\n%s\n\n" % self.post_create_table(create)
         return text
 
-    def post_create_table(self, table):
+    def post_create_table(self, create):
+        table = create.element
         dialect_opts = table.dialect_options["awsathena"]
         raw_connection = (
             table.bind.raw_connection()
@@ -247,6 +256,10 @@ class AthenaDDLCompiler(DDLCompiler):
             text += (
                 "COMMENT " + self._escape_comment(table.comment, self.dialect) + "\n"
             )
+
+        partition_columns_specs = self._get_columns_specs(create, partitions=True)
+        if partition_columns_specs:
+            text += "PARTITIONED BY (" + partition_columns_specs + "\n)\n"
 
         # TODO Supports orc, avro, json, csv or tsv format
         text += "STORED AS PARQUET\n"
@@ -335,6 +348,12 @@ class AthenaDialect(DefaultDialect):
     supports_native_boolean = True
     postfetch_lastrowid = False
     construct_arguments = [
+        (
+            schema.Column,
+            {
+                "partition": False,
+            },
+        ),
         (
             schema.Table,
             {
@@ -479,7 +498,8 @@ class AthenaDialect(DefaultDialect):
                   is_nullable,
                   column_default,
                   ordinal_position,
-                  comment
+                  comment,
+                  extra_info
                 FROM information_schema.columns
                 WHERE table_schema = '{schema}'
                 AND table_name = '{table}'
@@ -502,8 +522,9 @@ class AthenaDialect(DefaultDialect):
             reraise=True,
         )
         try:
-            return [
-                {
+            columns_specs = []
+            for row in retry(connection.execute, query).fetchall():
+                column_specs = {
                     "name": row.column_name,
                     "type": _TYPE_MAPPINGS.get(
                         self._get_column_type(row.data_type), NULLTYPE
@@ -515,8 +536,10 @@ class AthenaDialect(DefaultDialect):
                     "ordinal_position": row.ordinal_position,
                     "comment": row.comment,
                 }
-                for row in retry(connection.execute, query).fetchall()
-            ]
+                if row.extra_info and "partition key" in row.extra_info:
+                    column_specs["dialect_options"] = {"awsathena_partition": True}
+                columns_specs.append(column_specs)
+            return columns_specs
         except OperationalError as e:
             if not self._retry_if_data_catalog_exception(e, schema, table_name):
                 raise NoSuchTableError(table_name) from e
