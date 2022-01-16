@@ -166,10 +166,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertIn("view_one_row", meta.tables)
 
         insp = sqlalchemy.inspect(engine)
-        self.assertIn(
-            "view_one_row",
-            insp.get_view_names(schema=SCHEMA)
-        )
+        self.assertIn("view_one_row", insp.get_view_names(schema=SCHEMA))
 
     @with_engine()
     def test_has_table(self, engine, conn):
