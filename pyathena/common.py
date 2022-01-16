@@ -4,7 +4,7 @@ import sys
 import time
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from pyathena.converter import Converter
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
@@ -368,12 +368,10 @@ class BaseCursor(object, metaclass=ABCMeta):
                     key=lambda e: e.completion_date_time,  # type: ignore
                     reverse=True,
                 ):
-                    completion_date_time = cast(
-                        datetime, execution.completion_date_time
-                    )
                     if (
                         cache_expiration_time > 0
-                        and completion_date_time.astimezone(timezone.utc)
+                        and execution.completion_date_time
+                        and execution.completion_date_time.astimezone(timezone.utc)
                         < expiration_time
                     ):
                         next_token = None
