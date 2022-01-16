@@ -584,3 +584,15 @@ class TestSQLAlchemyAthena(unittest.TestCase):
                 """
             ),
         )
+
+    @with_engine()
+    def test_create_table_length_less_varchar(self, engine, conn):
+        table_name = "manually_defined_table_with_length_less_varchar"
+        table = Table(
+            table_name,
+            MetaData(),
+            Column("c", String),
+            schema=SCHEMA,
+            awsathena_location=f"{ENV.s3_staging_dir}{SCHEMA}/{table_name}",
+        )
+        table.create(bind=conn)
