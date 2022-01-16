@@ -5,7 +5,7 @@ import re
 from distutils.util import strtobool
 
 import tenacity
-from sqlalchemy import exc, schema, util
+from sqlalchemy import Column, exc, schema, util
 from sqlalchemy.engine import Engine, reflection
 from sqlalchemy.engine.default import DefaultDialect
 from sqlalchemy.exc import NoSuchTableError, OperationalError
@@ -133,6 +133,12 @@ class AthenaTypeCompiler(GenericTypeCompiler):
         return self._render_string_type(type_, "CHAR")
 
     def visit_VARCHAR(self, type_, **kw):
+        if isinstance(kw.get("type_expression", None), Column) and not type_.length:
+            raise exc.CompileError(
+                'Column "{column}" is of type "String" but has no length. '
+                'Athena does not support "String" (SQL type VARCHAR) without length. '
+                'You must either provide one or use the type "Text" (SQL type STRING)'
+            )
         return self._render_string_type(type_, "VARCHAR")
 
     def visit_NVARCHAR(self, type_, **kw):

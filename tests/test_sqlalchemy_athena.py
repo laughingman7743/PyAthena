@@ -10,9 +10,14 @@ from urllib.parse import quote_plus
 import numpy as np
 import pandas as pd
 import sqlalchemy
-from sqlalchemy import String
+from sqlalchemy import String, Text
 from sqlalchemy.engine import create_engine
-from sqlalchemy.exc import NoSuchTableError, OperationalError, ProgrammingError
+from sqlalchemy.exc import (
+    NoSuchTableError,
+    OperationalError,
+    ProgrammingError,
+    CompileError,
+)
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.ddl import CreateTable
 from sqlalchemy.sql.schema import Column, MetaData, Table
@@ -552,7 +557,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
             MetaData(),
             Column("c", String(10)),
             schema=SCHEMA,
-            awsathena_location=f"{ENV.s3_staging_dir}/{SCHEMA}/{table_name}",
+            awsathena_location=f"{ENV.s3_staging_dir}{SCHEMA}/{table_name}",
             awsathena_compression=None,
         )
         insp = sqlalchemy.inspect(engine)
@@ -585,8 +590,8 @@ class TestSQLAlchemyAthena(unittest.TestCase):
             ),
         )
 
-    @with_engine()
-    def test_create_table_length_less_varchar(self, engine, conn):
+    def test_create_table_length_less_varchar(self):
+        dialect = AthenaDialect()
         table_name = "manually_defined_table_with_length_less_varchar"
         table = Table(
             table_name,
@@ -595,4 +600,19 @@ class TestSQLAlchemyAthena(unittest.TestCase):
             schema=SCHEMA,
             awsathena_location=f"{ENV.s3_staging_dir}{SCHEMA}/{table_name}",
         )
+        with self.assertRaisesRegex(CompileError, '.*"String".*"Text".*'):
+            CreateTable(table).compile(dialect=dialect)
+
+    @with_engine()
+    def test_create_table_text(self, engine, conn):
+        dialect = AthenaDialect()
+        table_name = "manually_defined_table_with_text"
+        table = Table(
+            table_name,
+            MetaData(),
+            Column("c", Text),
+            schema=SCHEMA,
+            awsathena_location=f"{ENV.s3_staging_dir}{SCHEMA}/{table_name}",
+        )
         table.create(bind=conn)
+        self.assertTrue(dialect.has_table(conn, table_name, schema=SCHEMA))
