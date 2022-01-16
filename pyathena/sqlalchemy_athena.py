@@ -482,8 +482,9 @@ class AthenaDialect(DefaultDialect):
 
     def has_table(self, connection, table_name, schema=None, **kw):
         try:
-            columns = self.get_columns(connection, table_name, schema)
-            return True if columns else False
+            return (
+                self._get_table(connection, table_name, schema=None, **kw) is not None
+            )
         except NoSuchTableError:
             return False
 
