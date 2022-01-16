@@ -164,12 +164,15 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     def test_get_view_names(self, engine, conn):
         meta = MetaData()
         meta.reflect(bind=engine, views=True)
-        self.assertNotIn("one_row", meta.tables)
-        self.assertNotIn("one_row_complex", meta.tables)
+        self.assertIn("one_row", meta.tables)
+        self.assertIn("one_row_complex", meta.tables)
         self.assertIn("view_one_row", meta.tables)
 
         insp = sqlalchemy.inspect(engine)
-        self.assertIn("view_one_row", insp.get_view_names(schema=SCHEMA))
+        actual = insp.get_view_names(schema=SCHEMA)
+        self.assertNotIn("one_row", actual)
+        self.assertNotIn("one_row_complex", actual)
+        self.assertIn("view_one_row", actual)
 
     @with_engine()
     def test_has_table(self, engine, conn):
