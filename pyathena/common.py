@@ -379,7 +379,7 @@ class BaseCursor(object, metaclass=ABCMeta):
                 if query_id or next_token is None:
                     break
         except Exception:
-            _logger.warning("Failed to check the cache. Moving on without cache.")
+            _logger.warning("Failed to check the cache. Moving on without cache.", exc_info=True)
         return query_id
 
     def _execute(
