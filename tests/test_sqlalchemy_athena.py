@@ -192,7 +192,6 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertTrue(isinstance(actual["type"], INTEGER))
         self.assertTrue(actual["nullable"])
         self.assertIsNone(actual["default"])
-        self.assertEqual(actual["ordinal_position"], 1)
         self.assertEqual(actual["comment"], "some comment")
 
     @with_engine()

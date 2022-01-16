@@ -5,7 +5,6 @@ import re
 from distutils.util import strtobool
 
 import botocore
-import tenacity
 from sqlalchemy import exc, schema, util
 from sqlalchemy.engine import Engine, reflection
 from sqlalchemy.engine.default import DefaultDialect
@@ -28,7 +27,6 @@ from sqlalchemy.sql.sqltypes import (
     STRINGTYPE,
     TIMESTAMP,
 )
-from tenacity import retry_if_exception, stop_after_attempt, wait_exponential
 
 import pyathena
 
@@ -312,6 +310,7 @@ _TYPE_MAPPINGS = {
     "double": FLOAT,
     "tinyint": INTEGER,
     "smallint": INTEGER,
+    "int": INTEGER,
     "integer": INTEGER,
     "bigint": BIGINT,
     "decimal": DECIMAL,
@@ -319,10 +318,13 @@ _TYPE_MAPPINGS = {
     "varchar": STRINGTYPE,
     "array": STRINGTYPE,
     "row": STRINGTYPE,  # StructType
+    "struct": STRINGTYPE,  # StructType
     "varbinary": BINARY,
+    "binary": BINARY,
     "map": STRINGTYPE,
     "date": DATE,
     "timestamp": TIMESTAMP,
+    "string": STRINGTYPE,
 }
 
 
@@ -366,7 +368,7 @@ class AthenaDialect(DefaultDialect):
     _pattern_data_catlog_exception = re.compile(
         r"(((Database|Namespace)\ (?P<schema>.+))|(Table\ (?P<table>.+)))\ not\ found\."
     )
-    _pattern_column_type = re.compile(r"^([a-zA-Z]+)($|\(.+\)$)")
+    _pattern_column_type = re.compile(r"^([a-zA-Z]+)($|[(<].+[)>]$)")
 
     @classmethod
     def dbapi(cls):
@@ -485,66 +487,35 @@ class AthenaDialect(DefaultDialect):
         except NoSuchTableError:
             return False
 
-    @reflection.cache
     def get_columns(self, connection, table_name, schema=None, **kw):
-        raw_connection = self._raw_connection(connection)
-        schema = schema if schema else raw_connection.schema_name
-        query = """
-                SELECT
-                  table_schema,
-                  table_name,
-                  column_name,
-                  data_type,
-                  is_nullable,
-                  column_default,
-                  ordinal_position,
-                  comment,
-                  extra_info
-                FROM information_schema.columns
-                WHERE table_schema = '{schema}'
-                AND table_name = '{table}'
-                """.format(
-            schema=schema, table=table_name
-        )
-        retry_config = raw_connection.retry_config
-        retry = tenacity.Retrying(
-            retry=retry_if_exception(
-                lambda exc: self._retry_if_data_catalog_exception(  # type: ignore
-                    exc, schema, table_name
-                )
-            ),
-            stop=stop_after_attempt(retry_config.attempt),
-            wait=wait_exponential(
-                multiplier=retry_config.multiplier,
-                max=retry_config.max_delay,
-                exp_base=retry_config.exponential_base,
-            ),
-            reraise=True,
-        )
-        try:
-            columns_specs = []
-            for row in retry(connection.execute, query).fetchall():
-                column_specs = {
-                    "name": row.column_name,
+        metadata = self._get_table(connection, table_name, schema=schema, **kw)
+        columns_specs = []
+        for column in metadata.columns:
+            columns_specs.append(
+                {
+                    "name": column.name,
                     "type": _TYPE_MAPPINGS.get(
-                        self._get_column_type(row.data_type), NULLTYPE
+                        self._get_column_type(column.type), NULLTYPE
                     ),
-                    "nullable": True if row.is_nullable == "YES" else False,
-                    "default": row.column_default
-                    if not self._is_nan(row.column_default)
-                    else None,
-                    "ordinal_position": row.ordinal_position,
-                    "comment": row.comment,
+                    "nullable": True,
+                    "default": None,
+                    "comment": column.comment,
                 }
-                if row.extra_info and "partition key" in row.extra_info:
-                    column_specs["dialect_options"] = {"awsathena_partition": True}
-                columns_specs.append(column_specs)
-            return columns_specs
-        except OperationalError as e:
-            if not self._retry_if_data_catalog_exception(e, schema, table_name):
-                raise NoSuchTableError(table_name) from e
-            else:
-                raise e
+            )
+        for column in metadata.partition_keys:
+            columns_specs.append(
+                {
+                    "name": column.name,
+                    "type": _TYPE_MAPPINGS.get(
+                        self._get_column_type(column.type), NULLTYPE
+                    ),
+                    "nullable": True,
+                    "default": None,
+                    "comment": column.comment,
+                    "dialect_options": {"awsathena_partition": True},
+                }
+            )
+        return columns_specs
 
     def _retry_if_data_catalog_exception(self, exc, schema, table_name):
         if not isinstance(exc, OperationalError):
