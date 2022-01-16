@@ -373,8 +373,8 @@ class BaseCursor(object, metaclass=ABCMeta):
                     ):
                         next_token = None
                         break
-                    if execution["Query"] == query:
-                        query_id = execution["QueryExecutionId"]
+                    if execution.query == query:
+                        query_id = execution.query_id
                         break
                 if query_id or next_token is None:
                     break
