@@ -28,13 +28,6 @@ from tests.util import with_cursor
 
 
 class TestCursor(unittest.TestCase, WithConnect):
-    """Reference test case is following:
-
-    https://github.com/dropbox/PyHive/blob/master/pyhive/tests/dbapi_test_case.py
-    https://github.com/dropbox/PyHive/blob/master/pyhive/tests/test_hive.py
-    https://github.com/dropbox/PyHive/blob/master/pyhive/tests/test_presto.py
-    """
-
     @with_cursor()
     def test_fetchone(self, cursor):
         cursor.execute("SELECT * FROM one_row")

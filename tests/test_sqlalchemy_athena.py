@@ -34,13 +34,6 @@ from tests.util import with_engine
 
 
 class TestSQLAlchemyAthena(unittest.TestCase):
-    """Reference test case is following:
-
-    https://github.com/dropbox/PyHive/blob/master/pyhive/tests/sqlalchemy_test_case.py
-    https://github.com/dropbox/PyHive/blob/master/pyhive/tests/test_sqlalchemy_hive.py
-    https://github.com/dropbox/PyHive/blob/master/pyhive/tests/test_sqlalchemy_presto.py
-    """
-
     def create_engine(self, **kwargs):
         conn_str = (
             "awsathena+rest://athena.{region_name}.amazonaws.com:443/"
@@ -553,9 +546,6 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertTrue(insp.has_table(table_name, schema=SCHEMA))
 
     def test_create_table_location(self):
-        """Ensure the location is properly inserted when the `awsathena_location` is used
-        and that a trailing slash is appended if missing.
-        """
         dialect = AthenaDialect()
         table = Table(
             "test_create_table",
