@@ -51,7 +51,7 @@ class Connection(object):
         s3_staging_dir: Optional[str] = None,
         region_name: Optional[str] = None,
         schema_name: Optional[str] = "default",
-        catalog_name: Optional[str] = None,
+        catalog_name: Optional[str] = "awsdatacatalog",
         work_group: Optional[str] = None,
         poll_interval: float = 1,
         encryption_option: Optional[str] = None,

@@ -1142,3 +1142,13 @@ Check format
 
 .. _`black`: https://github.com/psf/black
 .. _`isort`: https://github.com/timothycrosley/isort
+
+License
+-------
+
+`MIT license`_
+
+Many of the implementations in this library are based on `PyHive`_, thanks for `PyHive`_.
+
+.. _`MIT license`: LICENSE
+.. _`PyHive`: https://github.com/dropbox/PyHive

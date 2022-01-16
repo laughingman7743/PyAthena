@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from pyathena.error import DataError
 
@@ -158,6 +158,118 @@ class AthenaQueryExecution(object):
     @property
     def work_group(self) -> Optional[str]:
         return self._work_group
+
+
+class AthenaTableMetadataColumn(object):
+    def __init__(self, response):
+        self._name: Optional[str] = response.get("Name", None)
+        self._type: Optional[str] = response.get("Type", None)
+        self._comment: Optional[str] = response.get("Comment", None)
+
+    @property
+    def name(self) -> Optional[str]:
+        return self._name
+
+    @property
+    def type(self) -> Optional[str]:
+        return self._type
+
+    @property
+    def comment(self) -> Optional[str]:
+        return self._comment
+
+
+class AthenaTableMetadataPartitionKey(object):
+    def __init__(self, response):
+        self._name: Optional[str] = response.get("Name", None)
+        self._type: Optional[str] = response.get("Type", None)
+        self._comment: Optional[str] = response.get("Comment", None)
+
+    @property
+    def name(self) -> Optional[str]:
+        return self._name
+
+    @property
+    def type(self) -> Optional[str]:
+        return self._type
+
+    @property
+    def comment(self) -> Optional[str]:
+        return self._comment
+
+
+class AthenaTableMetadata(object):
+    def __init__(self, response):
+        table_metadata = response.get("TableMetadata", None)
+        if not table_metadata:
+            raise DataError("KeyError `TableMetadata`")
+
+        self._name: Optional[str] = table_metadata.get("Name", None)
+        self._create_time: Optional[datetime] = table_metadata.get("CreateTime", None)
+        self._last_access_time: Optional[datetime] = table_metadata.get(
+            "LastAccessTime", None
+        )
+        self._table_type: Optional[str] = table_metadata.get("TableType", None)
+
+        columns = table_metadata.get("Columns", [])
+        self._columns: List[AthenaTableMetadataColumn] = []
+        for column in columns:
+            self._columns.append(AthenaTableMetadataColumn(column))
+
+        partition_keys = table_metadata.get("PartitionKeys", [])
+        self._partition_keys: List[AthenaTableMetadataPartitionKey] = []
+        for key in partition_keys:
+            self._partition_keys.append(AthenaTableMetadataPartitionKey(key))
+
+        self._parameters: Dict[str, str] = table_metadata.get("Parameters", {})
+
+    @property
+    def name(self) -> Optional[str]:
+        return self._name
+
+    @property
+    def create_time(self) -> Optional[datetime]:
+        return self._create_time
+
+    @property
+    def last_access_time(self) -> Optional[datetime]:
+        return self._last_access_time
+
+    @property
+    def table_type(self) -> Optional[str]:
+        return self._table_type
+
+    @property
+    def columns(self) -> List[AthenaTableMetadataColumn]:
+        return self._columns
+
+    @property
+    def partition_keys(self) -> List[AthenaTableMetadataPartitionKey]:
+        return self._partition_keys
+
+    @property
+    def parameters(self) -> Dict[str, str]:
+        return self._parameters
+
+    @property
+    def comment(self) -> Optional[str]:
+        return self._parameters.get("comment", None)
+
+    @property
+    def location(self) -> Optional[str]:
+        return self._parameters.get("location", None)
+
+    @property
+    def input_format(self) -> Optional[str]:
+        return self._parameters.get("inputformat", None)
+
+    @property
+    def output_format(self) -> Optional[str]:
+        return self._parameters.get("outputformat", None)
+
+    @property
+    def serde_serialization_lib(self) -> Optional[str]:
+        return self._parameters.get("'serde.serialization.lib", None)
 
 
 class AthenaRowFormat(object):

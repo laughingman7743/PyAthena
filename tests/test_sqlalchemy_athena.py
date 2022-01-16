@@ -34,13 +34,6 @@ from tests.util import with_engine
 
 
 class TestSQLAlchemyAthena(unittest.TestCase):
-    """Reference test case is following:
-
-    https://github.com/dropbox/PyHive/blob/master/pyhive/tests/sqlalchemy_test_case.py
-    https://github.com/dropbox/PyHive/blob/master/pyhive/tests/test_sqlalchemy_hive.py
-    https://github.com/dropbox/PyHive/blob/master/pyhive/tests/test_sqlalchemy_presto.py
-    """
-
     def create_engine(self, **kwargs):
         conn_str = (
             "awsathena+rest://athena.{region_name}.amazonaws.com:443/"
@@ -157,15 +150,29 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     def test_get_table_names(self, engine, conn):
         meta = MetaData()
         meta.reflect(bind=engine)
-        print(meta.tables)
         self.assertIn("one_row", meta.tables)
         self.assertIn("one_row_complex", meta.tables)
+        self.assertNotIn("view_one_row", meta.tables)
 
         insp = sqlalchemy.inspect(engine)
         self.assertIn(
             "many_rows",
             insp.get_table_names(schema=SCHEMA),
         )
+
+    @with_engine()
+    def test_get_view_names(self, engine, conn):
+        meta = MetaData()
+        meta.reflect(bind=engine, views=True)
+        self.assertIn("one_row", meta.tables)
+        self.assertIn("one_row_complex", meta.tables)
+        self.assertIn("view_one_row", meta.tables)
+
+        insp = sqlalchemy.inspect(engine)
+        actual = insp.get_view_names(schema=SCHEMA)
+        self.assertNotIn("one_row", actual)
+        self.assertNotIn("one_row_complex", actual)
+        self.assertIn("view_one_row", actual)
 
     @with_engine()
     def test_has_table(self, engine, conn):
@@ -553,9 +560,6 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertTrue(insp.has_table(table_name, schema=SCHEMA))
 
     def test_create_table_location(self):
-        """Ensure the location is properly inserted when the `awsathena_location` is used
-        and that a trailing slash is appended if missing.
-        """
         dialect = AthenaDialect()
         table = Table(
             "test_create_table",

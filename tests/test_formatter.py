@@ -9,9 +9,6 @@ from pyathena.formatter import DefaultParameterFormatter
 
 
 class TestDefaultParameterFormatter(unittest.TestCase):
-
-    # TODO More DDL statement test case & Complex parameter format test case
-
     def setUp(self):
         self.formatter = DefaultParameterFormatter()
 
