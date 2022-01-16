@@ -150,7 +150,6 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     def test_get_table_names(self, engine, conn):
         meta = MetaData()
         meta.reflect(bind=engine)
-        print(meta.tables)
         self.assertIn("one_row", meta.tables)
         self.assertIn("one_row_complex", meta.tables)
 
@@ -158,6 +157,18 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertIn(
             "many_rows",
             insp.get_table_names(schema=SCHEMA),
+        )
+
+    @with_engine()
+    def test_get_view_names(self, engine, conn):
+        meta = MetaData()
+        meta.reflect(bind=engine, views=True)
+        self.assertIn("view_one_row", meta.tables)
+
+        insp = sqlalchemy.inspect(engine)
+        self.assertIn(
+            "view_one_row",
+            insp.get_view_names(schema=SCHEMA)
         )
 
     @with_engine()

@@ -3,6 +3,8 @@ CREATE EXTERNAL TABLE IF NOT EXISTS {schema}.one_row (number_of_rows INT)
 ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
 LOCATION '{location_one_row}';
 
+CREATE OR REPLACE VIEW view_one_row;
+
 DROP TABLE IF EXISTS {schema}.many_rows;
 CREATE EXTERNAL TABLE IF NOT EXISTS {schema}.many_rows (
     a INT
