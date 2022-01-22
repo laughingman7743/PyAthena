@@ -124,8 +124,10 @@ Supported SQLAlchemy is 1.0.0 or higher and less than 2.0.0.
         region_name="us-west-2",
         schema_name="default",
         s3_staging_dir=quote_plus("s3://YOUR_S3_BUCKET/path/to/")))
-    many_rows = Table("many_rows", MetaData(bind=engine), autoload=True)
-    print(select([func.count("*")], from_obj=many_rows).scalar())
+    with engine.connect() as connection:
+        many_rows = Table("many_rows", MetaData(), autoload_with=connection)
+        result = connection.execute(select([func.count("*")], from_obj=many_rows))
+        print(result.scalar())
 
 The connection string has the following format:
 

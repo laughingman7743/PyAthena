@@ -69,21 +69,21 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     def test_reflect_no_such_table(self, engine, conn):
         self.assertRaises(
             NoSuchTableError,
-            lambda: Table("this_does_not_exist", MetaData(bind=engine), autoload=True),
+            lambda: Table("this_does_not_exist", MetaData(), autoload_with=conn),
         )
         self.assertRaises(
             NoSuchTableError,
             lambda: Table(
                 "this_does_not_exist",
-                MetaData(bind=engine),
+                MetaData(),
                 schema="also_does_not_exist",
-                autoload=True,
+                autoload_with=conn,
             ),
         )
 
     @with_engine()
     def test_reflect_table(self, engine, conn):
-        one_row = Table("one_row", MetaData(bind=engine), autoload_with=conn)
+        one_row = Table("one_row", MetaData(), autoload_with=conn)
         self.assertEqual(len(one_row.c), 1)
         self.assertIsNotNone(one_row.c.number_of_rows)
         self.assertEqual(one_row.comment, "table comment")
@@ -97,7 +97,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
 
     @with_engine()
     def test_reflect_table_include_columns(self, engine, conn):
-        one_row_complex = Table("one_row_complex", MetaData(bind=engine))
+        one_row_complex = Table("one_row_complex", MetaData())
         version = float(
             re.search(r"^([\d]+\.[\d]+)\..+", sqlalchemy.__version__).group(1)
         )
@@ -134,10 +134,12 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     @with_engine()
     def test_unicode(self, engine, conn):
         unicode_str = "密林"
-        one_row = Table("one_row", MetaData(bind=engine))
-        returned_str = sqlalchemy.select(
-            [expression.bindparam("あまぞん", unicode_str, type_=String())],
-            from_obj=one_row,
+        one_row = Table("one_row", MetaData())
+        returned_str = conn.execute(
+            sqlalchemy.select(
+                [expression.bindparam("あまぞん", unicode_str, type_=String())],
+                from_obj=one_row,
+            )
         ).scalar()
         self.assertEqual(returned_str, unicode_str)
 
@@ -195,22 +197,20 @@ class TestSQLAlchemyAthena(unittest.TestCase):
 
     @with_engine()
     def test_char_length(self, engine, conn):
-        one_row_complex = Table("one_row_complex", MetaData(bind=engine), autoload=True)
-        result = (
+        one_row_complex = Table("one_row_complex", MetaData(), autoload_with=conn)
+        result = conn.execute(
             sqlalchemy.select(
                 [sqlalchemy.func.char_length(one_row_complex.c.col_string)]
             )
-            .execute()
-            .scalar()
-        )
+        ).scalar()
         self.assertEqual(result, len("a string"))
 
     @with_engine()
     def test_reflect_select(self, engine, conn):
-        one_row_complex = Table("one_row_complex", MetaData(bind=engine), autoload=True)
+        one_row_complex = Table("one_row_complex", MetaData(), autoload_with=conn)
         self.assertEqual(len(one_row_complex.c), 15)
         self.assertIsInstance(one_row_complex.c.col_string, Column)
-        rows = one_row_complex.select().execute().fetchall()
+        rows = conn.execute(one_row_complex.select()).fetchall()
         self.assertEqual(len(rows), 1)
         self.assertEqual(
             list(rows[0]),
@@ -252,7 +252,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     def test_reserved_words(self, engine, conn):
         """Presto uses double quotes, not backticks"""
         fake_table = Table(
-            "select", MetaData(bind=engine), Column("current_timestamp", STRINGTYPE)
+            "select", MetaData(), Column("current_timestamp", STRINGTYPE)
         )
         query = str(fake_table.select(fake_table.c.current_timestamp == "a"))
         self.assertIn('"select"', query)
@@ -510,9 +510,9 @@ class TestSQLAlchemyAthena(unittest.TestCase):
             method="multi",
         )
 
-        table = Table(table_name, MetaData(bind=engine), autoload=True)
+        table = Table(table_name, MetaData(), autoload_with=conn)
         self.assertEqual(
-            table.select().execute().fetchall(),
+            conn.execute(table.select()).fetchall(),
             [
                 (
                     1,
