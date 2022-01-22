@@ -4,6 +4,7 @@ import numbers
 import re
 from distutils.util import strtobool
 
+import botocore
 import tenacity
 from sqlalchemy import exc, schema, util
 from sqlalchemy.engine import Engine, reflection
@@ -178,13 +179,32 @@ class AthenaDDLCompiler(DDLCompiler):
             compile_kwargs=compile_kwargs,
         )
 
-    def visit_create_table(self, create):
+    def _escape_comment(self, value, dialect):
+        value = value.replace("\\", "\\\\").replace("'", r"\'")
+        # DDL statements raise a KeyError if the placeholders aren't escaped
+        if dialect.identifier_preparer._double_percents:
+            value = value.replace("%", "%%")
+
+        return f"'{value}'"
+
+    def get_column_specification(self, column, **kwargs):
+        colspec = (
+            self.preparer.format_column(column)
+            + " "
+            + self.dialect.type_compiler.process(column.type, type_expression=column)
+        )
+        comment = ""
+        if column.comment:
+            comment += " COMMENT "
+            comment += self._escape_comment(column.comment, self.dialect)
+        return f"{colspec}{comment}"
+
+    def visit_create_table(self, create, **kwargs):
         table = create.element
         preparer = self.preparer
 
         text = "\nCREATE EXTERNAL "
-        text += "TABLE " + preparer.format_table(table) + " "
-        text += "("
+        text += "TABLE " + preparer.format_table(table) + " ("
 
         separator = "\n"
         for create_column in create.columns:
@@ -221,8 +241,15 @@ class AthenaDDLCompiler(DDLCompiler):
             if hasattr(table, "bind") and table.bind
             else None
         )
+        text = ""
+
+        if table.comment:
+            text += (
+                "COMMENT " + self._escape_comment(table.comment, self.dialect) + "\n"
+            )
+
         # TODO Supports orc, avro, json, csv or tsv format
-        text = "STORED AS PARQUET\n"
+        text += "STORED AS PARQUET\n"
 
         if dialect_opts["location"]:
             location = dialect_opts["location"]
@@ -373,6 +400,22 @@ class AthenaDialect(DefaultDialect):
         return [row.schema_name for row in connection.execute(query).fetchall()]
 
     @reflection.cache
+    def _get_table(self, connection, table_name, schema=None, **kw):
+        raw_connection = self._raw_connection(connection)
+        schema = schema if schema else raw_connection.schema_name
+        with raw_connection.connection.cursor() as cursor:
+            try:
+                return cursor._get_table_metadata(table_name, schema_name=schema)
+            except pyathena.error.OperationalError as exc:
+                cause = exc.__cause__
+                if (
+                    isinstance(cause, botocore.exceptions.ClientError)
+                    and cause.response["Error"]["Code"] == "MetadataException"
+                ):
+                    raise NoSuchTableError(table_name) from exc
+                raise
+
+    @reflection.cache
     def _get_tables(self, connection, schema=None, **kw):
         raw_connection = self._raw_connection(connection)
         schema = schema if schema else raw_connection.schema_name
@@ -397,6 +440,24 @@ class AthenaDialect(DefaultDialect):
     def get_view_names(self, connection, schema=None, **kw):
         tables = self._get_tables(connection, schema, **kw)
         return [t.name for t in tables if t.table_type == "VIRTUAL_VIEW"]
+
+    def get_table_comment(self, connection, table_name, schema=None, **kw):
+        metadata = self._get_table(connection, table_name, schema=schema, **kw)
+        return {"text": metadata.comment}
+
+    def get_table_options(self, connection, table_name, schema=None, **kw):
+        metadata = self._get_table(connection, table_name, schema=schema, **kw)
+
+        if "compressionType" in metadata.parameters:
+            compression = metadata.parameters["compressionType"]
+        elif "parquet.compression" in metadata.parameters:
+            compression = metadata._parameters["parquet.compression"]
+        else:
+            return None
+        return {
+            "awsathena_location": metadata.location,
+            "awsathena_compression": compression,
+        }
 
     def has_table(self, connection, table_name, schema=None, **kw):
         try:
