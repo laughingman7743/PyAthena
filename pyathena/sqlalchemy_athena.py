@@ -184,7 +184,6 @@ class AthenaDDLCompiler(DDLCompiler):
         # DDL statements raise a KeyError if the placeholders aren't escaped
         if dialect.identifier_preparer._double_percents:
             value = value.replace("%", "%%")
-
         return f"'{value}'"
 
     def get_column_specification(self, column, **kwargs):
@@ -447,16 +446,9 @@ class AthenaDialect(DefaultDialect):
 
     def get_table_options(self, connection, table_name, schema=None, **kw):
         metadata = self._get_table(connection, table_name, schema=schema, **kw)
-
-        if "compressionType" in metadata.parameters:
-            compression = metadata.parameters["compressionType"]
-        elif "parquet.compression" in metadata.parameters:
-            compression = metadata._parameters["parquet.compression"]
-        else:
-            return None
         return {
             "awsathena_location": metadata.location,
-            "awsathena_compression": compression,
+            "awsathena_compression": metadata.compression,
         }
 
     def has_table(self, connection, table_name, schema=None, **kw):
