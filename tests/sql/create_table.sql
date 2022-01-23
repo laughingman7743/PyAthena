@@ -71,3 +71,11 @@ CREATE EXTERNAL TABLE IF NOT EXISTS {schema}.execute_many_pandas (
 )
 ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
 LOCATION '{location_execute_many_pandas}';
+
+DROP TABLE IF EXISTS {schema}.parquet_with_compression;
+CREATE EXTERNAL TABLE IF NOT EXISTS {schema}.parquet_with_compression (
+    a INT
+)
+STORED AS PARQUET
+LOCATION '{location_parquet_with_compression}'
+TBLPROPERTIES ('parquet.compress'='SNAPPY');
