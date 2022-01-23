@@ -89,7 +89,9 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertEqual(one_row.comment, "table comment")
         self.assertIn("location", one_row.dialect_options["awsathena"])
         self.assertIn("compression", one_row.dialect_options["awsathena"])
-        self.assertIsNotNone("location", one_row.dialect_options["awsathena"]["location"])
+        self.assertIsNotNone(
+            "location", one_row.dialect_options["awsathena"]["location"]
+        )
 
     @with_engine()
     def test_reflect_table_with_schema(self, engine, conn):
