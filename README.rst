@@ -110,7 +110,7 @@ Supported SQLAlchemy is 1.0.0 or higher and less than 2.0.0.
 
 .. code:: python
 
-    from urllib.parse import quote_plus  # PY2: from urllib import quote_plus
+    from urllib.parse import quote_plus
     from sqlalchemy.engine import create_engine
     from sqlalchemy.sql.expression import select
     from sqlalchemy.sql.functions import func
@@ -142,6 +142,23 @@ If you do not specify ``aws_access_key_id`` and ``aws_secret_access_key`` using 
     awsathena+rest://:@athena.{region_name}.amazonaws.com:443/{schema_name}?s3_staging_dir={s3_staging_dir}&...
 
 NOTE: ``s3_staging_dir`` requires quote. If ``aws_access_key_id``, ``aws_secret_access_key`` and other parameter contain special characters, quote is also required.
+
+Dialect & driver
+^^^^^^^^^^^^^^^^
+
++-----------+--------+------------------+-----------------+
+| Dialect   | Driver | Schema           | Cursor          |
++===========+========+==================+=================+
+| awsathena |        | awsathena        | DefaultCursor   |
++-----------+--------+------------------+-----------------+
+| awsathena | rest   | awsathena+rest   | DefaultCursor   |
++-----------+--------+------------------+-----------------+
+| awsathena | pandas | awsathena+pandas | `PandasCursor`_ |
++-----------+--------+------------------+-----------------+
+| awsathena | jdbc   | awsathena+jdbc   | `PyAthenaJDBC`_ |
++-----------+--------+------------------+-----------------+
+
+.. _`PyAthenaJDBC`: https://github.com/laughingman7743/PyAthenaJDBC
 
 Pandas
 ~~~~~~
