@@ -276,8 +276,8 @@ class AthenaTableMetadata(object):
         # TODO Supports compression of orc, avro, csv, and tsv formats
         if "compressionType" in self._parameters:  # json
             return self._parameters["compressionType"]
-        elif "parquet.compression" in self._parameters:  # parquet
-            return self._parameters["parquet.compression"]
+        elif "parquet.compress" in self._parameters:  # parquet
+            return self._parameters["parquet.compress"]
         else:
             return None
 
