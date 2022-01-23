@@ -51,7 +51,9 @@ def _create_table(cursor):
                 location_integer_na_values=f"{ENV.s3_staging_dir}{S3_PREFIX}/integer_na_values/",
                 location_boolean_na_values=f"{ENV.s3_staging_dir}{S3_PREFIX}/boolean_na_values/",
                 location_execute_many=f"{ENV.s3_staging_dir}{S3_PREFIX}/{table_execute_many}/",
-                location_execute_many_pandas=f"{ENV.s3_staging_dir}{S3_PREFIX}/{table_execute_many_pandas}/",
-                location_parquet_with_compression=f"{ENV.s3_staging_dir}{S3_PREFIX}/parquet_with_compression/",
+                location_execute_many_pandas=f"{ENV.s3_staging_dir}{S3_PREFIX}/"
+                f"{table_execute_many_pandas}/",
+                location_parquet_with_compression=f"{ENV.s3_staging_dir}{S3_PREFIX}/"
+                f"parquet_with_compression/",
             )
         )
