@@ -29,7 +29,7 @@ from sqlalchemy.sql.sqltypes import (
 )
 
 from pyathena.sqlalchemy_athena import AthenaDialect
-from tests.conftest import ENV, SCHEMA
+from tests.conftest import ENV, S3_PREFIX, SCHEMA
 from tests.util import with_engine
 
 
@@ -87,6 +87,11 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertEqual(len(one_row.c), 1)
         self.assertIsNotNone(one_row.c.number_of_rows)
         self.assertEqual(one_row.comment, "table comment")
+        self.assertIn("location", one_row.dialect_options["awsathena"])
+        self.assertIn("compression", one_row.dialect_options["awsathena"])
+        self.assertIsNotNone(
+            "location", one_row.dialect_options["awsathena"]["location"]
+        )
 
     @with_engine()
     def test_reflect_table_with_schema(self, engine, conn):
@@ -94,6 +99,9 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertEqual(len(one_row.c), 1)
         self.assertIsNotNone(one_row.c.number_of_rows)
         self.assertEqual(one_row.comment, "table comment")
+        self.assertIn("location", one_row.dialect_options["awsathena"])
+        self.assertIn("compression", one_row.dialect_options["awsathena"])
+        self.assertIsNotNone(one_row.dialect_options["awsathena"]["location"])
 
     @with_engine()
     def test_reflect_table_include_columns(self, engine, conn):
@@ -177,6 +185,24 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertNotIn("one_row", actual)
         self.assertNotIn("one_row_complex", actual)
         self.assertIn("view_one_row", actual)
+
+    @with_engine()
+    def test_get_table_comment(self, engine, conn):
+        insp = sqlalchemy.inspect(engine)
+        actual = insp.get_table_comment("one_row", schema=SCHEMA)
+        self.assertEqual(actual, {"text": "table comment"})
+
+    @with_engine()
+    def test_get_table_options(self, engine, conn):
+        insp = sqlalchemy.inspect(engine)
+        actual = insp.get_table_options("parquet_with_compression", schema=SCHEMA)
+        self.assertEqual(
+            actual,
+            {
+                "awsathena_location": f"{ENV.s3_staging_dir}{S3_PREFIX}/parquet_with_compression",
+                "awsathena_compression": "SNAPPY",
+            },
+        )
 
     @with_engine()
     def test_has_table(self, engine, conn):
@@ -548,7 +574,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
 
     @with_engine()
     def test_create_table(self, engine, conn):
-        table_name = "manually_defined_table"
+        table_name = "test_create_table"
         table = Table(
             table_name,
             MetaData(),
@@ -564,11 +590,11 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     def test_create_table_location(self):
         dialect = AthenaDialect()
         table = Table(
-            "test_create_table",
+            "test_create_table_location",
             MetaData(),
             Column("column_name", String),
             schema="test_schema",
-            awsathena_location="s3://path/to/test_schema/test_create_table",
+            awsathena_location="s3://path/to/test_schema/test_create_table_location",
             awsathena_compression="SNAPPY",
         )
         actual = CreateTable(table).compile(dialect=dialect)
@@ -577,11 +603,11 @@ class TestSQLAlchemyAthena(unittest.TestCase):
             str(actual),
             textwrap.dedent(
                 """
-                CREATE EXTERNAL TABLE test_schema.test_create_table (
+                CREATE EXTERNAL TABLE test_schema.test_create_table_location (
                 \tcolumn_name VARCHAR
                 )
                 STORED AS PARQUET
-                LOCATION 's3://path/to/test_schema/test_create_table/'
+                LOCATION 's3://path/to/test_schema/test_create_table_location/'
                 TBLPROPERTIES ('parquet.compress'='SNAPPY')\n\n
                 """
             ),
