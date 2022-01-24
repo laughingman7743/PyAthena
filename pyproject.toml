@@ -47,7 +47,7 @@ pyarrow = ">=1.0.0"
 sqlalchemy = ">=1.0.0, <2.0.0"
 black = "^21.12b0"
 mypy = ">=0.900"
-flake8 = "<4" # https://github.com/tholo/pytest-flake8/issues/81
+flake8 = "<4"  # https://github.com/tholo/pytest-flake8/issues/81
 pytest = ">=3.5"
 pytest-cov = "*"
 pytest-flake8 = ">=1.0.1"
@@ -63,6 +63,7 @@ sqlalchemy = ["sqlalchemy"]
 [tool.poetry.plugins."sqlalchemy.dialects"]
 "awsathena" = "pyathena.sqlalchemy_athena:AthenaDialect"
 "awsathena.rest" = "pyathena.sqlalchemy_athena:AthenaRestDialect"
+"awsathena.pandas" = "pyathena.sqlalchemy_athena:AthenaPandasDialect"
 
 [tool.pytest.ini_options]
 flake8-max-line-length = 100

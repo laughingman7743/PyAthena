@@ -362,6 +362,10 @@ class AthenaDialect(DefaultDialect):
         #   awsathena+rest://
         #   {aws_access_key_id}:{aws_secret_access_key}@athena.{region_name}.amazonaws.com:443/
         #   {schema_name}?s3_staging_dir={s3_staging_dir}&...
+        opts = self._create_connect_args(url)
+        return [[], opts]
+
+    def _create_connect_args(self, url):
         opts = {
             "aws_access_key_id": url.username if url.username else None,
             "aws_secret_access_key": url.password if url.password else None,
@@ -387,7 +391,7 @@ class AthenaDialect(DefaultDialect):
             opts.update(
                 {"kill_on_interrupt": bool(strtobool(url.query["kill_on_interrupt"]))}
             )
-        return [[], opts]
+        return opts
 
     @reflection.cache
     def get_schema_names(self, connection, **kw):
@@ -559,3 +563,14 @@ class AthenaDialect(DefaultDialect):
 
 class AthenaRestDialect(AthenaDialect):
     driver = "rest"
+
+
+class AthenaPandasDialect(AthenaDialect):
+    driver = "pandas"
+
+    def create_connect_args(self, url):
+        from pyathena.pandas.cursor import PandasCursor
+
+        opts = super()._create_connect_args(url)
+        opts.update({"cursor_class": PandasCursor})
+        return [[], opts]
