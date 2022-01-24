@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import concurrent
 import logging
+import textwrap
 import uuid
 from collections import OrderedDict
 from concurrent.futures.process import ProcessPoolExecutor
@@ -57,7 +58,7 @@ def reset_index(df: "DataFrame", index_label: Optional[str] = None) -> None:
     try:
         df.reset_index(inplace=True)
     except ValueError as e:
-        raise ValueError("Duplicate name in index/columns: {0}".format(e))
+        raise ValueError(f"Duplicate name in index/columns: {e}")
 
 
 def as_pandas(cursor: "Cursor", coerce_float: bool = False) -> "DataFrame":
@@ -99,7 +100,7 @@ def to_sql_type_mappings(col: "Series") -> str:
     elif col_type == "bytes":
         return "BINARY"
     elif col_type in ["complex", "time"]:
-        raise ValueError("Data type `{0}` is not supported".format(col_type))
+        raise ValueError(f"Data type `{col_type}` is not supported")
     return "STRING"
 
 
@@ -128,7 +129,7 @@ def to_parquet(
         Body=buf.getvalue().to_pybytes(),
         Key=prefix + str(uuid.uuid4()),
     )
-    return "s3://{0}/{1}".format(response.bucket_name, response.key)
+    return f"s3://{response.bucket_name}/{response.key}"
 
 
 def to_sql(
@@ -149,14 +150,17 @@ def to_sql(
         Union[ThreadPoolExecutor, ProcessPoolExecutor]
     ] = ThreadPoolExecutor,
     max_workers: int = (cpu_count() or 1) * 5,
+    repair_table=True,
 ) -> None:
     # TODO Supports orc, avro, json, csv or tsv format
     if if_exists not in ("fail", "replace", "append"):
-        raise ValueError("`{0}` is not valid for if_exists".format(if_exists))
+        raise ValueError(f"`{if_exists}` is not valid for if_exists")
     if compression is not None and not AthenaCompression.is_valid(compression):
-        raise ValueError("`{0}` is not valid for compression".format(compression))
+        raise ValueError(f"`{compression}` is not valid for compression")
     if partitions is None:
         partitions = []
+    if not location.endswith("/"):
+        location += "/"
 
     bucket_name, key_prefix = parse_output_location(location)
     bucket = conn.session.resource(
@@ -165,27 +169,25 @@ def to_sql(
     cursor = conn.cursor()
 
     table = cursor.execute(
-        """
-        SELECT table_name
-        FROM information_schema.tables
-        WHERE table_schema = '{schema}'
-        AND table_name = '{table}'
-        """.format(
-            schema=schema, table=name
+        textwrap.dedent(
+            f"""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = '{schema}'
+            AND table_name = '{name}'
+            """
         )
     ).fetchall()
     if if_exists == "fail":
         if table:
-            raise OperationalError(
-                "Table `{0}.{1}` already exists.".format(schema, name)
-            )
+            raise OperationalError(f"Table `{schema}.{name}` already exists.")
     elif if_exists == "replace":
         if table:
             cursor.execute(
-                """
-                DROP TABLE {schema}.{table}
-                """.format(
-                    schema=schema, table=name
+                textwrap.dedent(
+                    f"""
+                    DROP TABLE {schema}.{name}
+                    """
                 )
             )
             objects = bucket.objects.filter(Prefix=key_prefix)
@@ -200,12 +202,21 @@ def to_sql(
         session_kwargs.update({"profile_name": conn.profile_name})
         client_kwargs = deepcopy(conn._client_kwargs)
         client_kwargs.update({"region_name": conn.region_name})
+        partition_prefixes = []
         if partitions:
             for keys, group in df.groupby(by=partitions, observed=True):
                 keys = keys if isinstance(keys, tuple) else (keys,)
                 group = group.drop(partitions, axis=1)
                 partition_prefix = "/".join(
-                    ["{0}={1}".format(key, val) for key, val in zip(partitions, keys)]
+                    [f"{key}={val}" for key, val in zip(partitions, keys)]
+                )
+                partition_prefixes.append(
+                    (
+                        ", ".join(
+                            [f"`{key}` = '{val}'" for key, val in zip(partitions, keys)]
+                        ),
+                        f"{location}{partition_prefix}/",
+                    )
                 )
                 for chunk in get_chunks(group, chunksize):
                     futures.append(
@@ -213,7 +224,7 @@ def to_sql(
                             to_parquet,
                             chunk,
                             bucket_name,
-                            "{0}{1}/".format(key_prefix, partition_prefix),
+                            f"{key_prefix}{partition_prefix}/",
                             conn._retry_config,
                             session_kwargs,
                             client_kwargs,
@@ -238,7 +249,7 @@ def to_sql(
                 )
         for future in concurrent.futures.as_completed(futures):
             result = future.result()
-            _logger.info("to_parquet: {0}".format(result))
+            _logger.info(f"to_parquet: {result}")
 
     ddl = generate_ddl(
         df=df,
@@ -251,10 +262,16 @@ def to_sql(
     )
     _logger.info(ddl)
     cursor.execute(ddl)
-    if partitions:
-        repair = "MSCK REPAIR TABLE `{0}`.`{1}`".format(schema, name)
-        _logger.info(repair)
-        cursor.execute(repair)
+    if partitions and repair_table:
+        for partition in partition_prefixes:
+            add_partition = textwrap.dedent(
+                f"""
+                ALTER TABLE `{schema}`.`{name}`
+                ADD PARTITION ({partition[0]}) LOCATION '{partition[1]}'
+                """
+            )
+            _logger.info(add_partition)
+            cursor.execute(add_partition)
 
 
 def get_column_names_and_types(
@@ -280,10 +297,10 @@ def generate_ddl(
     if partitions is None:
         partitions = []
     column_names_and_types = get_column_names_and_types(df, type_mappings)
-    ddl = "CREATE EXTERNAL TABLE IF NOT EXISTS `{0}`.`{1}` (\n".format(schema, name)
+    ddl = f"CREATE EXTERNAL TABLE IF NOT EXISTS `{schema}`.`{name}` (\n"
     ddl += ",\n".join(
         [
-            "`{0}` {1}".format(col, type_)
+            f"`{col}` {type_}"
             for col, type_ in column_names_and_types.items()
             if col not in partitions
         ]
@@ -291,12 +308,10 @@ def generate_ddl(
     ddl += "\n)\n"
     if partitions:
         ddl += "PARTITIONED BY (\n"
-        ddl += ",\n".join(
-            ["`{0}` {1}".format(p, column_names_and_types[p]) for p in partitions]
-        )
+        ddl += ",\n".join([f"`{p}` {column_names_and_types[p]}" for p in partitions])
         ddl += "\n)\n"
     ddl += "STORED AS PARQUET\n"
-    ddl += "LOCATION '{0}'\n".format(location)
+    ddl += f"LOCATION '{location}'\n"
     if compression:
-        ddl += "TBLPROPERTIES ('parquet.compress'='{0}')\n".format(compression.upper())
+        ddl += f"TBLPROPERTIES ('parquet.compress'='{compression.upper()}')\n"
     return ddl
