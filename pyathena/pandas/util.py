@@ -267,7 +267,7 @@ def to_sql(
             add_partition = textwrap.dedent(
                 f"""
                 ALTER TABLE `{schema}`.`{name}`
-                ADD PARTITION ({partition[0]}) LOCATION '{partition[1]}' 
+                ADD PARTITION ({partition[0]}) LOCATION '{partition[1]}'
                 """
             )
             _logger.info(add_partition)
