@@ -219,8 +219,10 @@ class AthenaDDLCompiler(DDLCompiler):
         table = create.element
         preparer = self.preparer
 
-        text = "\nCREATE EXTERNAL "
-        text += "TABLE " + preparer.format_table(table) + " ("
+        text = "\nCREATE EXTERNAL TABLE "
+        if create.if_not_exists:
+            text += "IF NOT EXISTS "
+        text += preparer.format_table(table) + " ("
 
         separator = "\n"
         for create_column in create.columns:
