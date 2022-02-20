@@ -234,12 +234,13 @@ class AthenaDDLCompiler(DDLCompiler):
                     separator = ", \n"
                     text += "\t" + processed
             except exc.CompileError as ce:
-                util.raise_from_cause(
+                util.raise_(
                     exc.CompileError(
-                        util.u("(in table '{0}', column '{1}'): {2}").format(
-                            table.description, column.name, ce.args[0]
+                        util.u(
+                            f"(in table '{table.description}', column '{column.name}'): {ce.args[0]}"
                         )
-                    )
+                    ),
+                    from_=ce
                 )
 
         text += f"\n)\n{self.post_create_table(table)}\n\n"
