@@ -674,12 +674,10 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
-        self.assertIsNot(actual, table)
-        self.assertIsNot(actual.metadata, table.metadata)
         self.assertEqual(actual.c[column_name].comment, table.c[column_name].comment)
         # The AWS API seems to return comments with squashed whitespace and line breaks.
         # self.assertEqual(actual.comment, table.comment)
-        self.assertIsNot(actual.comment, None)
+        self.assertIsNotNone(actual.comment)
         self.assertEqual(
             actual.comment, "\n{}\n".format(re.sub(r"\s+", " ", comment[1:-1]))
         )
@@ -698,8 +696,6 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         conn.execute(CreateTable(table), parameter="some value")
         actual = Table(table_name, MetaData(), autoload_with=conn)
-        self.assertIsNot(actual, table)
-        self.assertIsNot(actual.metadata, table.metadata)
         self.assertEqual(actual.c[column_name].comment, comment)
 
     @with_engine()
@@ -716,6 +712,4 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         conn.execute(CreateTable(table), parameter="some value")
         actual = Table(table_name, MetaData(), autoload_with=conn)
-        self.assertIsNot(actual, table)
-        self.assertIsNot(actual.metadata, table.metadata)
         self.assertEqual(actual.c[column_name].comment, comment)
