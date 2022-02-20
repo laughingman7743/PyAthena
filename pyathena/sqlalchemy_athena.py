@@ -265,7 +265,7 @@ class AthenaDDLCompiler(DDLCompiler):
 
         if dialect_opts["location"]:
             location = dialect_opts["location"]
-            location += "/" if location[-1] != "/" else ""
+            location += "/" if not location.endswith("/") else ""
         elif raw_connection:
             base_location = (
                 raw_connection._kwargs["s3_dir"]
