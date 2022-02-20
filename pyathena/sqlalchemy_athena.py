@@ -231,14 +231,7 @@ class AthenaDDLCompiler(DDLCompiler):
                     )
                 )
 
-        const = self.create_table_constraints(
-            table,
-            _include_foreign_key_constraints=create.include_foreign_key_constraints,
-        )
-        if const:
-            text += separator + "\t" + const
-
-        text += "\n)\n%s\n\n" % self.post_create_table(table)
+        text += f"\n)\n{self.post_create_table(table)}\n\n"
         return text
 
     def post_create_table(self, table):
