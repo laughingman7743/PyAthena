@@ -78,6 +78,14 @@ class AthenaStatementCompiler(SQLCompiler):
     def visit_char_length_func(self, fn, **kw):
         return "length{0}".format(self.function_argspec(fn, **kw))
 
+    def limit_clause(self, select, **kw):
+        text = ""
+        if select._offset_clause is not None:
+            text += " OFFSET " + self.process(select._offset_clause, **kw)
+        if select._limit_clause is not None:
+            text += "\n LIMIT " + self.process(select._limit_clause, **kw)
+        return text
+
 
 class AthenaTypeCompiler(GenericTypeCompiler):
     def visit_FLOAT(self, type_, **kw):
