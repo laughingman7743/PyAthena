@@ -76,7 +76,7 @@ class AthenaStatementCompiler(SQLCompiler):
     https://github.com/dropbox/PyHive/blob/master/pyhive/sqlalchemy_presto.py"""
 
     def visit_char_length_func(self, fn, **kw):
-        return "length{0}".format(self.function_argspec(fn, **kw))
+        return f"length{self.function_argspec(fn, **kw)}"
 
     def limit_clause(self, select, **kw):
         text = ""
@@ -297,9 +297,7 @@ class AthenaDDLCompiler(DDLCompiler):
         else:
             compression = None
         if compression:
-            text += "TBLPROPERTIES ('parquet.compress'='{0}')\n".format(
-                compression.upper()
-            )
+            text += f"TBLPROPERTIES ('parquet.compress'='{compression.upper()}')\n"
 
         return text
 
@@ -479,7 +477,7 @@ class AthenaDialect(DefaultDialect):
     def get_columns(self, connection, table_name, schema=None, **kw):
         raw_connection = self._raw_connection(connection)
         schema = schema if schema else raw_connection.schema_name
-        query = """
+        query = f"""
                 SELECT
                   table_schema,
                   table_name,
@@ -491,10 +489,8 @@ class AthenaDialect(DefaultDialect):
                   comment
                 FROM information_schema.columns
                 WHERE table_schema = '{schema}'
-                AND table_name = '{table}'
-                """.format(
-            schema=schema, table=table_name
-        )
+                AND table_name = '{table_name}'
+                """
         retry_config = raw_connection.retry_config
         retry = tenacity.Retrying(
             retry=retry_if_exception(
