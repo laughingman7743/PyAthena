@@ -235,7 +235,8 @@ class AthenaDDLCompiler(DDLCompiler):
                 util.raise_(
                     exc.CompileError(
                         util.u(
-                            f"(in table '{table.description}', column '{column.name}'): {ce.args[0]}"
+                            f"(in table '{table.description}', column '{column.name}'): "
+                            f"{ce.args[0]}"
                         )
                     ),
                     from_=ce,
