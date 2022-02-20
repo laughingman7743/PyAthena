@@ -6,7 +6,7 @@ from distutils.util import strtobool
 
 import botocore
 import tenacity
-from sqlalchemy import exc, schema, util, Integer
+from sqlalchemy import Integer, exc, schema, util
 from sqlalchemy.engine import Engine, reflection
 from sqlalchemy.engine.default import DefaultDialect
 from sqlalchemy.exc import NoSuchTableError, OperationalError
@@ -201,12 +201,10 @@ class AthenaDDLCompiler(DDLCompiler):
             # use the int keyword to represent an integer
             type_ = "INT"
         else:
-            type_ = self.dialect.type_compiler.process(column.type, type_expression=column)
-        colspec = (
-            self.preparer.format_column(column)
-            + " "
-            + type_
-        )
+            type_ = self.dialect.type_compiler.process(
+                column.type, type_expression=column
+            )
+        colspec = self.preparer.format_column(column) + " " + type_
 
         comment = ""
         if column.comment:
@@ -240,7 +238,7 @@ class AthenaDDLCompiler(DDLCompiler):
                             f"(in table '{table.description}', column '{column.name}'): {ce.args[0]}"
                         )
                     ),
-                    from_=ce
+                    from_=ce,
                 )
 
         text += f"\n)\n{self.post_create_table(table)}\n\n"
