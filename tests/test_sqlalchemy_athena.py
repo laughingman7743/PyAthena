@@ -10,7 +10,7 @@ from urllib.parse import quote_plus
 import numpy as np
 import pandas as pd
 import sqlalchemy
-from sqlalchemy import String
+from sqlalchemy import Integer, String, types
 from sqlalchemy.engine import create_engine
 from sqlalchemy.exc import NoSuchTableError, OperationalError, ProgrammingError
 from sqlalchemy.sql import expression
@@ -713,3 +713,31 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         conn.execute(CreateTable(table), parameter="some value")
         actual = Table(table_name, MetaData(), autoload_with=conn)
         self.assertEqual(actual.c[column_name].comment, comment)
+
+    @with_engine()
+    def test_create_table_with_primary_key(self, engine, conn):
+        dialect = AthenaDialect()
+        table_name = "test_create_table_with_primary_key"
+        table = Table(
+            table_name,
+            MetaData(schema=SCHEMA),
+            Column("pk", types.Integer, primary_key=True),
+            awsathena_location=f"{ENV.s3_staging_dir}{SCHEMA}/{table_name}",
+        )
+        # The table will be created, but Athena does not support primary keys.
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
+        ddl = CreateTable(actual).compile(dialect=dialect)
+        self.assertEqual(
+            str(ddl),
+            textwrap.dedent(
+                f"""
+                CREATE EXTERNAL TABLE {SCHEMA}.{table_name} (
+                \tpk INT
+                )
+                STORED AS PARQUET
+                LOCATION '{ENV.s3_staging_dir}{SCHEMA}/{table_name}/'\n\n
+                """
+            ),
+        )
+        self.assertEqual(len(actual.primary_key.columns), 0)
