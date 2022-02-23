@@ -63,7 +63,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             import pandas as pd
 
             self._df = pd.DataFrame()
-        self._iterrows = self._df.iterrows()
+        self._iterrows = enumerate(self._df.to_dict("records"))
 
     @property
     def dtypes(self) -> Dict[Optional[Any], Type[Any]]:
