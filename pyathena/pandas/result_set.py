@@ -189,4 +189,4 @@ class AthenaPandasResultSet(AthenaResultSet):
 
         super(AthenaPandasResultSet, self).close()
         self._df = pd.DataFrame()
-        self._iterrows = None
+        self._iterrows = enumerate([])
