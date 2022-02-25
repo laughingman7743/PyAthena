@@ -272,6 +272,12 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertIsInstance(one_row_complex.c.col_decimal.type, DECIMAL)
 
     @with_engine()
+    def test_select_offset_limit(self, engine, conn):
+        many_rows = Table("many_rows", MetaData(), autoload_with=conn)
+        rows = conn.execute(many_rows.select().offset(10).limit(5)).fetchall()
+        self.assertEqual(rows, [(i,) for i in range(10, 15)])
+
+    @with_engine()
     def test_reserved_words(self, engine, conn):
         """Presto uses double quotes, not backticks"""
         fake_table = Table(
