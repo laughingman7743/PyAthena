@@ -610,7 +610,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
             awsathena_location=f"{ENV.s3_staging_dir}{SCHEMA}/{table_name}",
         )
         conn.execute(CreateTable(table), parameter="some value")
-        actual = Table(table_name, MetaData(), autoload_with=conn)
+        actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
         self.assertEqual(actual.c[column_name].comment, comment)
 
     @with_engine()
