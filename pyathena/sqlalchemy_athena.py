@@ -212,7 +212,7 @@ class AthenaDDLCompiler(DDLCompiler):
                 processed = self.process(create_column)
                 if processed is not None:
                     text += separator
-                    separator = ", \n"
+                    separator = ",\n"
                     text += "\t" + processed
             except exc.CompileError as ce:
                 util.raise_from_cause(
