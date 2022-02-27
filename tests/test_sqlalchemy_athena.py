@@ -10,23 +10,12 @@ from urllib.parse import quote_plus
 import numpy as np
 import pandas as pd
 import sqlalchemy
-from sqlalchemy import String
+from sqlalchemy import String, types
 from sqlalchemy.engine import create_engine
-from sqlalchemy.exc import NoSuchTableError, OperationalError, ProgrammingError
+from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.ddl import CreateTable
 from sqlalchemy.sql.schema import Column, MetaData, Table
-from sqlalchemy.sql.sqltypes import (
-    BIGINT,
-    BINARY,
-    BOOLEAN,
-    DATE,
-    DECIMAL,
-    FLOAT,
-    INTEGER,
-    STRINGTYPE,
-    TIMESTAMP,
-)
 
 from pyathena.sqlalchemy_athena import AthenaDialect
 from tests.conftest import ENV, S3_PREFIX, SCHEMA
@@ -212,10 +201,10 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         insp = sqlalchemy.inspect(engine)
         actual = insp.get_columns(table_name="one_row", schema=SCHEMA)[0]
         self.assertEqual(actual["name"], "number_of_rows")
-        self.assertTrue(isinstance(actual["type"], INTEGER))
+        self.assertTrue(isinstance(actual["type"], types.INTEGER))
         self.assertTrue(actual["nullable"])
         self.assertIsNone(actual["default"])
-        self.assertEqual(actual["ordinal_position"], 1)
+        self.assertFalse(actual["autoincrement"])
         self.assertEqual(actual["comment"], "some comment")
 
     @with_engine()
@@ -231,7 +220,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     @with_engine()
     def test_reflect_select(self, engine, conn):
         one_row_complex = Table("one_row_complex", MetaData(), autoload_with=conn)
-        self.assertEqual(len(one_row_complex.c), 15)
+        self.assertEqual(len(one_row_complex.c), 16)
         self.assertIsInstance(one_row_complex.c.col_string, Column)
         rows = conn.execute(one_row_complex.select()).fetchall()
         self.assertEqual(len(rows), 1)
@@ -246,6 +235,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
                 0.5,
                 0.25,
                 "a string",
+                "varchar",
                 datetime(2017, 1, 1, 0, 0, 0),
                 date(2017, 1, 2),
                 b"123",
@@ -255,21 +245,28 @@ class TestSQLAlchemyAthena(unittest.TestCase):
                 Decimal("0.1"),
             ],
         )
-        self.assertIsInstance(one_row_complex.c.col_boolean.type, BOOLEAN)
-        self.assertIsInstance(one_row_complex.c.col_tinyint.type, INTEGER)
-        self.assertIsInstance(one_row_complex.c.col_smallint.type, INTEGER)
-        self.assertIsInstance(one_row_complex.c.col_int.type, INTEGER)
-        self.assertIsInstance(one_row_complex.c.col_bigint.type, BIGINT)
-        self.assertIsInstance(one_row_complex.c.col_float.type, FLOAT)
-        self.assertIsInstance(one_row_complex.c.col_double.type, FLOAT)
-        self.assertIsInstance(one_row_complex.c.col_string.type, type(STRINGTYPE))
-        self.assertIsInstance(one_row_complex.c.col_timestamp.type, TIMESTAMP)
-        self.assertIsInstance(one_row_complex.c.col_date.type, DATE)
-        self.assertIsInstance(one_row_complex.c.col_binary.type, BINARY)
-        self.assertIsInstance(one_row_complex.c.col_array.type, type(STRINGTYPE))
-        self.assertIsInstance(one_row_complex.c.col_map.type, type(STRINGTYPE))
-        self.assertIsInstance(one_row_complex.c.col_struct.type, type(STRINGTYPE))
-        self.assertIsInstance(one_row_complex.c.col_decimal.type, DECIMAL)
+        self.assertIsInstance(one_row_complex.c.col_boolean.type, types.BOOLEAN)
+        self.assertIsInstance(one_row_complex.c.col_tinyint.type, types.INTEGER)
+        self.assertIsInstance(one_row_complex.c.col_smallint.type, types.INTEGER)
+        self.assertIsInstance(one_row_complex.c.col_int.type, types.INTEGER)
+        self.assertIsInstance(one_row_complex.c.col_bigint.type, types.BIGINT)
+        self.assertIsInstance(one_row_complex.c.col_float.type, types.FLOAT)
+        self.assertIsInstance(one_row_complex.c.col_double.type, types.FLOAT)
+        self.assertIsInstance(one_row_complex.c.col_string.type, types.String)
+        self.assertIsInstance(one_row_complex.c.col_varchar.type, types.VARCHAR)
+        self.assertEqual(one_row_complex.c.col_varchar.type.length, 10)
+        self.assertIsInstance(one_row_complex.c.col_timestamp.type, types.TIMESTAMP)
+        self.assertIsInstance(one_row_complex.c.col_date.type, types.DATE)
+        self.assertIsInstance(one_row_complex.c.col_binary.type, types.BINARY)
+        self.assertIsInstance(one_row_complex.c.col_array.type, types.String)
+        self.assertIsInstance(one_row_complex.c.col_map.type, types.String)
+        self.assertIsInstance(one_row_complex.c.col_struct.type, types.String)
+        self.assertIsInstance(
+            one_row_complex.c.col_decimal.type,
+            types.DECIMAL,
+        )
+        self.assertEqual(one_row_complex.c.col_decimal.type.precision, 10)
+        self.assertEqual(one_row_complex.c.col_decimal.type.scale, 1)
 
     @with_engine()
     def test_select_offset_limit(self, engine, conn):
@@ -281,7 +278,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
     def test_reserved_words(self, engine, conn):
         """Presto uses double quotes, not backticks"""
         fake_table = Table(
-            "select", MetaData(), Column("current_timestamp", STRINGTYPE)
+            "select", MetaData(), Column("current_timestamp", types.STRINGTYPE)
         )
         query = str(fake_table.select(fake_table.c.current_timestamp == "a"))
         self.assertIn('"select"', query)
@@ -290,127 +287,34 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertNotIn("`current_timestamp`", query)
 
     @with_engine()
-    def test_retry_if_data_catalog_exception(self, engine, conn):
-        dialect = engine.dialect
-        exc = OperationalError(
-            "", None, "Database does_not_exist not found. Please check your query."
-        )
-        self.assertFalse(
-            dialect._retry_if_data_catalog_exception(
-                exc, "does_not_exist", "does_not_exist"
-            )
-        )
-        self.assertFalse(
-            dialect._retry_if_data_catalog_exception(
-                exc, "does_not_exist", "this_does_not_exist"
-            )
-        )
-        self.assertTrue(
-            dialect._retry_if_data_catalog_exception(
-                exc, "this_does_not_exist", "does_not_exist"
-            )
-        )
-        self.assertTrue(
-            dialect._retry_if_data_catalog_exception(
-                exc, "this_does_not_exist", "this_does_not_exist"
-            )
-        )
-
-        exc = OperationalError(
-            "", None, "Namespace does_not_exist not found. Please check your query."
-        )
-        self.assertFalse(
-            dialect._retry_if_data_catalog_exception(
-                exc, "does_not_exist", "does_not_exist"
-            )
-        )
-        self.assertFalse(
-            dialect._retry_if_data_catalog_exception(
-                exc, "does_not_exist", "this_does_not_exist"
-            )
-        )
-        self.assertTrue(
-            dialect._retry_if_data_catalog_exception(
-                exc, "this_does_not_exist", "does_not_exist"
-            )
-        )
-        self.assertTrue(
-            dialect._retry_if_data_catalog_exception(
-                exc, "this_does_not_exist", "this_does_not_exist"
-            )
-        )
-
-        exc = OperationalError(
-            "", None, "Table does_not_exist not found. Please check your query."
-        )
-        self.assertFalse(
-            dialect._retry_if_data_catalog_exception(
-                exc, "does_not_exist", "does_not_exist"
-            )
-        )
-        self.assertTrue(
-            dialect._retry_if_data_catalog_exception(
-                exc, "does_not_exist", "this_does_not_exist"
-            )
-        )
-        self.assertFalse(
-            dialect._retry_if_data_catalog_exception(
-                exc, "this_does_not_exist", "does_not_exist"
-            )
-        )
-        self.assertTrue(
-            dialect._retry_if_data_catalog_exception(
-                exc, "this_does_not_exist", "this_does_not_exist"
-            )
-        )
-
-        exc = OperationalError("", None, "foobar.")
-        self.assertTrue(
-            dialect._retry_if_data_catalog_exception(exc, "foobar", "foobar")
-        )
-
-        exc = ProgrammingError(
-            "", None, "Database does_not_exist not found. Please check your query."
-        )
-        self.assertFalse(
-            dialect._retry_if_data_catalog_exception(
-                exc, "does_not_exist", "does_not_exist"
-            )
-        )
-        self.assertFalse(
-            dialect._retry_if_data_catalog_exception(
-                exc, "does_not_exist", "this_does_not_exist"
-            )
-        )
-        self.assertFalse(
-            dialect._retry_if_data_catalog_exception(
-                exc, "this_does_not_exist", "does_not_exist"
-            )
-        )
-        self.assertFalse(
-            dialect._retry_if_data_catalog_exception(
-                exc, "this_does_not_exist", "this_does_not_exist"
-            )
-        )
-
-    @with_engine()
     def test_get_column_type(self, engine, conn):
         dialect = engine.dialect
-        self.assertEqual(dialect._get_column_type("boolean"), "boolean")
-        self.assertEqual(dialect._get_column_type("tinyint"), "tinyint")
-        self.assertEqual(dialect._get_column_type("smallint"), "smallint")
-        self.assertEqual(dialect._get_column_type("integer"), "integer")
-        self.assertEqual(dialect._get_column_type("bigint"), "bigint")
-        self.assertEqual(dialect._get_column_type("real"), "real")
-        self.assertEqual(dialect._get_column_type("double"), "double")
-        self.assertEqual(dialect._get_column_type("varchar"), "varchar")
-        self.assertEqual(dialect._get_column_type("timestamp"), "timestamp")
-        self.assertEqual(dialect._get_column_type("date"), "date")
-        self.assertEqual(dialect._get_column_type("varbinary"), "varbinary")
-        self.assertEqual(dialect._get_column_type("array(integer)"), "array")
-        self.assertEqual(dialect._get_column_type("map(integer, integer)"), "map")
-        self.assertEqual(dialect._get_column_type("row(a integer, b integer)"), "row")
-        self.assertEqual(dialect._get_column_type("decimal(10,1)"), "decimal")
+        self.assertIsInstance(dialect._get_column_type("boolean"), types.BOOLEAN)
+        self.assertIsInstance(dialect._get_column_type("tinyint"), types.INTEGER)
+        self.assertIsInstance(dialect._get_column_type("smallint"), types.INTEGER)
+        self.assertIsInstance(dialect._get_column_type("integer"), types.INTEGER)
+        self.assertIsInstance(dialect._get_column_type("int"), types.INTEGER)
+        self.assertIsInstance(dialect._get_column_type("bigint"), types.BIGINT)
+        self.assertIsInstance(dialect._get_column_type("float"), types.FLOAT)
+        self.assertIsInstance(dialect._get_column_type("double"), types.FLOAT)
+        self.assertIsInstance(dialect._get_column_type("real"), types.FLOAT)
+        self.assertIsInstance(dialect._get_column_type("string"), types.String)
+        self.assertIsInstance(dialect._get_column_type("varchar"), types.VARCHAR)
+        varchar_with_args = dialect._get_column_type("varchar(10)")
+        self.assertIsInstance(varchar_with_args, types.VARCHAR)
+        self.assertEqual(varchar_with_args.length, 10)
+        self.assertIsInstance(dialect._get_column_type("timestamp"), types.TIMESTAMP)
+        self.assertIsInstance(dialect._get_column_type("date"), types.DATE)
+        self.assertIsInstance(dialect._get_column_type("binary"), types.BINARY)
+        self.assertIsInstance(dialect._get_column_type("array<integer>"), types.String)
+        self.assertIsInstance(dialect._get_column_type("map<int, int>"), types.String)
+        self.assertIsInstance(
+            dialect._get_column_type("struct<a: int, b: int>"), types.String
+        )
+        decimal_with_args = dialect._get_column_type("decimal(10,1)")
+        self.assertIsInstance(decimal_with_args, types.DECIMAL)
+        self.assertEqual(decimal_with_args.precision, 10)
+        self.assertEqual(decimal_with_args.scale, 1)
 
     @with_engine()
     def test_contain_percents_character_query(self, engine, conn):
@@ -488,13 +392,6 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         result_with_limit2 = engine.execute(query_with_limit2, param="b%")
         self.assertEqual(result_with_limit2.fetchall(), [("a string", "b%")])
-
-    @with_engine()
-    def test_nan_checks(self, engine, conn):
-        dialect = engine.dialect
-        self.assertFalse(dialect._is_nan("string"))
-        self.assertFalse(dialect._is_nan(1))
-        self.assertTrue(dialect._is_nan(float("nan")))
 
     @with_engine()
     def test_to_sql(self, engine, conn):
@@ -595,7 +492,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         table = Table(
             "test_create_table_location",
             MetaData(),
-            Column("column_name", String),
+            Column("column_name", String(10)),
             schema="test_schema",
             awsathena_location="s3://path/to/test_schema/test_create_table_location",
             awsathena_compression="SNAPPY",
@@ -607,7 +504,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
             textwrap.dedent(
                 """
                 CREATE EXTERNAL TABLE test_schema.test_create_table_location (
-                \tcolumn_name VARCHAR
+                \tcolumn_name VARCHAR(10)
                 )
                 STORED AS PARQUET
                 LOCATION 's3://path/to/test_schema/test_create_table_location/'
