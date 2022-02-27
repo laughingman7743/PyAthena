@@ -23,6 +23,7 @@ CREATE EXTERNAL TABLE IF NOT EXISTS {schema}.one_row_complex (
     col_float FLOAT,
     col_double DOUBLE,
     col_string STRING,
+    col_varchar VARCHAR(10),
     col_timestamp TIMESTAMP,
     col_date DATE,
     col_binary BINARY,
