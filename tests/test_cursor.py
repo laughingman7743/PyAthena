@@ -431,6 +431,7 @@ class TestCursor(unittest.TestCase, WithConnect):
               ,col_float
               ,col_double
               ,col_string
+              ,col_varchar
               ,col_timestamp
               ,CAST(col_timestamp AS time) AS col_time
               ,col_date
@@ -455,6 +456,7 @@ class TestCursor(unittest.TestCase, WithConnect):
                 ("col_float", "float", None, None, 17, 0, "UNKNOWN"),
                 ("col_double", "double", None, None, 17, 0, "UNKNOWN"),
                 ("col_string", "varchar", None, None, 2147483647, 0, "UNKNOWN"),
+                ("col_varchar", "varchar", None, None, 10, 0, "UNKNOWN"),
                 ("col_timestamp", "timestamp", None, None, 3, 0, "UNKNOWN"),
                 ("col_time", "time", None, None, 3, 0, "UNKNOWN"),
                 ("col_date", "date", None, None, 0, 0, "UNKNOWN"),
@@ -478,6 +480,7 @@ class TestCursor(unittest.TestCase, WithConnect):
                 0.5,
                 0.25,
                 "a string",
+                "varchar",
                 datetime(2017, 1, 1, 0, 0, 0),
                 datetime(2017, 1, 1, 0, 0, 0).time(),
                 date(2017, 1, 2),
@@ -504,6 +507,7 @@ class TestCursor(unittest.TestCase, WithConnect):
                 NUMBER,
                 NUMBER,
                 NUMBER,
+                STRING,
                 STRING,
                 DATETIME,
                 TIME,

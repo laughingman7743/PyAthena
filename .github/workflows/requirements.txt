@@ -1,5 +1,5 @@
+awscli>=1.22.41
 poetry
 tox
 tox-gh-actions
-awscli
 twine
