@@ -1,34 +1,18 @@
 # -*- coding: utf-8 -*-
-import math
-import numbers
 import re
 from distutils.util import strtobool
 
 import botocore
-import tenacity
-from sqlalchemy import Integer, exc, schema, types, util
+from sqlalchemy import exc, schema, types, util
 from sqlalchemy.engine import Engine, reflection
 from sqlalchemy.engine.default import DefaultDialect
-from sqlalchemy.exc import NoSuchTableError, OperationalError
+from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.sql.compiler import (
     DDLCompiler,
     GenericTypeCompiler,
     IdentifierPreparer,
     SQLCompiler,
 )
-from sqlalchemy.sql.sqltypes import (
-    BIGINT,
-    BINARY,
-    BOOLEAN,
-    DATE,
-    DECIMAL,
-    FLOAT,
-    INTEGER,
-    NULLTYPE,
-    STRINGTYPE,
-    TIMESTAMP,
-)
-from tenacity import retry_if_exception, stop_after_attempt, wait_exponential
 
 import pyathena
 
@@ -136,16 +120,24 @@ class AthenaTypeCompiler(GenericTypeCompiler):
         return self.visit_BINARY(type_, **kw)
 
     def visit_CHAR(self, type_, **kw):
-        return self._render_string_type(type_, "CHAR")
+        if type_.length:
+            return self._render_string_type(type_, "CHAR")
+        return "STRING"
 
     def visit_NCHAR(self, type_, **kw):
-        return self._render_string_type(type_, "CHAR")
+        if type_.length:
+            return self._render_string_type(type_, "CHAR")
+        return "STRING"
 
     def visit_VARCHAR(self, type_, **kw):
-        return self._render_string_type(type_, "VARCHAR")
+        if type_.length:
+            return self._render_string_type(type_, "VARCHAR")
+        return "STRING"
 
     def visit_NVARCHAR(self, type_, **kw):
-        return self._render_string_type(type_, "VARCHAR")
+        if type_.length:
+            return self._render_string_type(type_, "VARCHAR")
+        return "STRING"
 
     def visit_TEXT(self, type_, **kw):
         return "STRING"
@@ -244,7 +236,7 @@ class AthenaDDLCompiler(DDLCompiler):
                 processed = self.process(create_column)
                 if processed is not None:
                     text += separator
-                    separator = ", \n"
+                    separator = ",\n"
                     text += "\t" + processed
             except exc.CompileError as ce:
                 util.raise_(
@@ -293,13 +285,13 @@ class AthenaDDLCompiler(DDLCompiler):
         if not location:
             if raw_connection:
                 raise exc.CompileError(
-                    "`s3_dir` or `s3_staging_dir` parameter is required"
-                    " in the connection string."
+                    "`s3_dir` or `s3_staging_dir` parameter is required "
+                    "in the connection string"
                 )
             else:
                 raise exc.CompileError(
-                    "You need to specify the storage location for the table "
-                    "using the `awsathena_location` dialect keyword argument"
+                    "The location of the table should be specified "
+                    "by the dialect keyword argument `awsathena_location`"
                 )
         text += f"LOCATION '{location}'\n"
 
@@ -314,27 +306,6 @@ class AthenaDDLCompiler(DDLCompiler):
             text += f"TBLPROPERTIES ('parquet.compress'='{compression.upper()}')\n"
 
         return text
-
-
-_TYPE_MAPPINGS = {
-    "boolean": BOOLEAN,
-    "real": FLOAT,
-    "float": FLOAT,
-    "double": FLOAT,
-    "tinyint": INTEGER,
-    "smallint": INTEGER,
-    "integer": INTEGER,
-    "bigint": BIGINT,
-    "decimal": DECIMAL,
-    "char": STRINGTYPE,
-    "varchar": STRINGTYPE,
-    "array": STRINGTYPE,
-    "row": STRINGTYPE,  # StructType
-    "varbinary": BINARY,
-    "map": STRINGTYPE,
-    "date": DATE,
-    "timestamp": TIMESTAMP,
-}
 
 
 class AthenaDialect(DefaultDialect):
@@ -356,7 +327,6 @@ class AthenaDialect(DefaultDialect):
     supports_unicode_binds = True
     returns_unicode_strings = True
     description_encoding = None
-    supports_native_boolean = True
     postfetch_lastrowid = False
     construct_arguments = [
         (
@@ -368,10 +338,7 @@ class AthenaDialect(DefaultDialect):
         ),
     ]
 
-    _pattern_data_catlog_exception = re.compile(
-        r"(((Database|Namespace)\ (?P<schema>.+))|(Table\ (?P<table>.+)))\ not\ found\."
-    )
-    _pattern_column_type = re.compile(r"^([a-zA-Z]+)($|\(.+\)$)")
+    _pattern_column_type = re.compile(r"^([a-zA-Z]+)(?:$|[\(|<](.+)[\)|>]$)")
 
     @classmethod
     def dbapi(cls):
@@ -489,72 +456,60 @@ class AthenaDialect(DefaultDialect):
 
     @reflection.cache
     def get_columns(self, connection, table_name, schema=None, **kw):
-        raw_connection = self._raw_connection(connection)
-        schema = schema if schema else raw_connection.schema_name
-        query = f"""
-                SELECT
-                  table_schema,
-                  table_name,
-                  column_name,
-                  data_type,
-                  is_nullable,
-                  column_default,
-                  ordinal_position,
-                  comment
-                FROM information_schema.columns
-                WHERE table_schema = '{schema}'
-                AND table_name = '{table_name}'
-                """
-        retry_config = raw_connection.retry_config
-        retry = tenacity.Retrying(
-            retry=retry_if_exception(
-                lambda exc: self._retry_if_data_catalog_exception(  # type: ignore
-                    exc, schema, table_name
-                )
-            ),
-            stop=stop_after_attempt(retry_config.attempt),
-            wait=wait_exponential(
-                multiplier=retry_config.multiplier,
-                max=retry_config.max_delay,
-                exp_base=retry_config.exponential_base,
-            ),
-            reraise=True,
-        )
-        try:
-            return [
-                {
-                    "name": row.column_name,
-                    "type": _TYPE_MAPPINGS.get(
-                        self._get_column_type(row.data_type), NULLTYPE
-                    ),
-                    "nullable": True if row.is_nullable == "YES" else False,
-                    "default": row.column_default
-                    if not self._is_nan(row.column_default)
-                    else None,
-                    "ordinal_position": row.ordinal_position,
-                    "comment": row.comment,
-                }
-                for row in retry(connection.execute, query).fetchall()
-            ]
-        except OperationalError as e:
-            if not self._retry_if_data_catalog_exception(e, schema, table_name):
-                raise NoSuchTableError(table_name) from e
-            else:
-                raise e
-
-    def _retry_if_data_catalog_exception(self, exc, schema, table_name):
-        if not isinstance(exc, OperationalError):
-            return False
-
-        match = self._pattern_data_catlog_exception.search(str(exc))
-        if match and (
-            match.group("schema") == schema or match.group("table") == table_name
-        ):
-            return False
-        return True
+        metadata = self._get_table(connection, table_name, schema=schema, **kw)
+        return [
+            {
+                "name": c.name,
+                "type": self._get_column_type(c.type),
+                "nullable": True,
+                "default": None,
+                "autoincrement": False,
+                "comment": c.comment,
+            }
+            for c in metadata.columns
+        ]
 
     def _get_column_type(self, type_):
-        return self._pattern_column_type.sub(r"\1", type_)
+        match = self._pattern_column_type.match(type_)
+        if match:
+            name = match.group(1).lower()
+            length = match.group(2)
+        else:
+            name = type_.lower()
+            length = None
+
+        args = []
+        if name in ["boolean"]:
+            col_type = types.BOOLEAN
+        elif name in ["float", "double", "real"]:
+            col_type = types.FLOAT
+        elif name in ["tinyint", "smallint", "integer", "int"]:
+            col_type = types.INTEGER
+        elif name in ["bigint"]:
+            col_type = types.BIGINT
+        elif name in ["decimal"]:
+            col_type = types.DECIMAL
+            if length:
+                precision, scale = length.split(",")
+                args = [int(precision), int(scale)]
+        elif name in ["char", "varchar"]:
+            col_type = types.VARCHAR
+            if length:
+                args = [int(length)]
+        elif name in ["string"]:
+            col_type = types.String
+        elif name in ["date"]:
+            col_type = types.DATE
+        elif name in ["timestamp"]:
+            col_type = types.TIMESTAMP
+        elif name in ["binary", "varbinary"]:
+            col_type = types.BINARY
+        elif name in ["array", "map", "struct", "row", "json"]:
+            col_type = types.String
+        else:
+            util.warn(f"Did not recognize type '{type_}'")
+            col_type = types.NullType
+        return col_type(*args)
 
     def get_foreign_keys(self, connection, table_name, schema=None, **kw):
         # Athena has no support for foreign keys.
@@ -579,9 +534,6 @@ class AthenaDialect(DefaultDialect):
     def _check_unicode_description(self, connection):
         # Requests gives back Unicode strings
         return True  # pragma: no cover
-
-    def _is_nan(self, column_default):
-        return isinstance(column_default, numbers.Real) and math.isnan(column_default)
 
 
 class AthenaRestDialect(AthenaDialect):

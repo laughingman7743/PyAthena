@@ -77,6 +77,7 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
               ,col_float
               ,col_double
               ,col_string
+              ,col_varchar
               ,col_timestamp
               ,CAST(col_timestamp AS time) AS col_time
               ,col_date
@@ -101,6 +102,7 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
                 ("col_float", "float", None, None, 17, 0, "UNKNOWN"),
                 ("col_double", "double", None, None, 17, 0, "UNKNOWN"),
                 ("col_string", "varchar", None, None, 2147483647, 0, "UNKNOWN"),
+                ("col_varchar", "varchar", None, None, 10, 0, "UNKNOWN"),
                 ("col_timestamp", "timestamp", None, None, 3, 0, "UNKNOWN"),
                 ("col_time", "time", None, None, 3, 0, "UNKNOWN"),
                 ("col_date", "date", None, None, 0, 0, "UNKNOWN"),
@@ -124,6 +126,7 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
                 0.5,
                 0.25,
                 "a string",
+                "varchar",
                 pd.Timestamp(2017, 1, 1, 0, 0, 0),
                 datetime(2017, 1, 1, 0, 0, 0).time(),
                 pd.Timestamp(2017, 1, 2),
@@ -192,6 +195,7 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
               ,col_float
               ,col_double
               ,col_string
+              ,col_varchar
               ,col_timestamp
               ,CAST(col_timestamp AS time) AS col_time
               ,col_date
@@ -206,7 +210,7 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
             """
         ).as_pandas()
         self.assertEqual(df.shape[0], 1)
-        self.assertEqual(df.shape[1], 18)
+        self.assertEqual(df.shape[1], 19)
         dtypes = tuple(
             [
                 df["col_boolean"].dtype.type,
@@ -217,6 +221,7 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
                 df["col_float"].dtype.type,
                 df["col_double"].dtype.type,
                 df["col_string"].dtype.type,
+                df["col_varchar"].dtype.type,
                 df["col_timestamp"].dtype.type,
                 df["col_time"].dtype.type,
                 df["col_date"].dtype.type,
@@ -240,6 +245,7 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
                     np.int64,
                     np.float64,
                     np.float64,
+                    np.object_,
                     np.object_,
                     np.datetime64,
                     np.object_,
@@ -265,6 +271,7 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
                     row["col_float"],
                     row["col_double"],
                     row["col_string"],
+                    row["col_varchar"],
                     row["col_timestamp"],
                     row["col_time"],
                     row["col_date"],
@@ -291,6 +298,7 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
                     0.5,
                     0.25,
                     "a string",
+                    "varchar",
                     pd.Timestamp(2017, 1, 1, 0, 0, 0),
                     datetime(2017, 1, 1, 0, 0, 0).time(),
                     pd.Timestamp(2017, 1, 2),
