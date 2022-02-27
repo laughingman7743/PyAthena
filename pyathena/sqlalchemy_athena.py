@@ -194,6 +194,21 @@ class AthenaDDLCompiler(DDLCompiler):
             value = value.replace("%", "%%")
         return f"'{value}'"
 
+    def visit_check_constraint(self, constraint, **kw):
+        return None
+
+    def visit_column_check_constraint(self, constraint, **kw):
+        return None
+
+    def visit_foreign_key_constraint(self, constraint, **kw):
+        return None
+
+    def visit_primary_key_constraint(self, constraint, **kw):
+        return None
+
+    def visit_unique_constraint(self, constraint, **kw):
+        return None
+
     def get_column_specification(self, column, **kwargs):
         if isinstance(column.type, Integer):
             # https://docs.aws.amazon.com/athena/latest/ug/create-table.html
