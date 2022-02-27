@@ -6,7 +6,7 @@ from distutils.util import strtobool
 
 import botocore
 import tenacity
-from sqlalchemy import Integer, exc, schema, util
+from sqlalchemy import Integer, exc, schema, types, util
 from sqlalchemy.engine import Engine, reflection
 from sqlalchemy.engine.default import DefaultDialect
 from sqlalchemy.exc import NoSuchTableError, OperationalError
@@ -210,7 +210,7 @@ class AthenaDDLCompiler(DDLCompiler):
         return None
 
     def get_column_specification(self, column, **kwargs):
-        if isinstance(column.type, Integer):
+        if isinstance(column.type, (types.Integer, types.INTEGER, types.INT)):
             # https://docs.aws.amazon.com/athena/latest/ug/create-table.html
             # In Data Definition Language (DDL) queries like CREATE TABLE,
             # use the int keyword to represent an integer
