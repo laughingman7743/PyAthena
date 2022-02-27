@@ -138,7 +138,7 @@ class BaseCursor(object, metaclass=ABCMeta):
         table_name: str,
         catalog_name: Optional[str] = None,
         schema_name: Optional[str] = None,
-    ):
+    ) -> AthenaTableMetadata:
         request = {
             "CatalogName": catalog_name if catalog_name else self._catalog_name,
             "DatabaseName": schema_name if schema_name else self._schema_name,
@@ -209,7 +209,7 @@ class BaseCursor(object, metaclass=ABCMeta):
         schema_name: Optional[str] = None,
         expression: Optional[str] = None,
         next_token: Optional[str] = None,
-    ):
+    ) -> Tuple[Optional[str], List[AthenaTableMetadata]]:
         request = self._build_list_table_metadata_request(
             max_results=max_results,
             catalog_name=catalog_name,
