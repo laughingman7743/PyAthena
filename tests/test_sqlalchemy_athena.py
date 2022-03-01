@@ -575,12 +575,10 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
-        self.assertIsNot(actual, table)
-        self.assertIsNot(actual.metadata, table.metadata)
         self.assertEqual(actual.c[column_name].comment, table.c[column_name].comment)
         # The AWS API seems to return comments with squashed whitespace and line breaks.
         # self.assertEqual(actual.comment, table.comment)
-        self.assertIsNot(actual.comment, None)
+        self.assertIsNotNone(actual.comment)
         self.assertEqual(
             actual.comment, "\n{}\n".format(re.sub(r"\s+", " ", comment[1:-1]))
         )
@@ -598,8 +596,6 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         conn.execute(CreateTable(table), parameter="some value")
         actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
-        self.assertIsNot(actual, table)
-        self.assertIsNot(actual.metadata, table.metadata)
         self.assertEqual(actual.c[column_name].comment, comment)
 
     @with_engine()
@@ -615,9 +611,35 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         conn.execute(CreateTable(table), parameter="some value")
         actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
-        self.assertIsNot(actual, table)
-        self.assertIsNot(actual.metadata, table.metadata)
         self.assertEqual(actual.c[column_name].comment, comment)
+
+    @with_engine()
+    def test_create_table_with_primary_key(self, engine, conn):
+        dialect = AthenaDialect()
+        table_name = "test_create_table_with_primary_key"
+        table = Table(
+            table_name,
+            MetaData(schema=SCHEMA),
+            Column("pk", types.Integer, primary_key=True),
+            awsathena_location=f"{ENV.s3_staging_dir}{SCHEMA}/{table_name}",
+        )
+        # The table will be created, but Athena does not support primary keys.
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
+        ddl = CreateTable(actual).compile(dialect=dialect)
+        self.assertEqual(
+            str(ddl),
+            textwrap.dedent(
+                f"""
+                CREATE EXTERNAL TABLE {SCHEMA}.{table_name} (
+                \tpk INT
+                )
+                STORED AS PARQUET
+                LOCATION '{ENV.s3_staging_dir}{SCHEMA}/{table_name}/'\n\n
+                """
+            ),
+        )
+        self.assertEqual(len(actual.primary_key.columns), 0)
 
     @with_engine()
     def test_create_table_with_varchar_text_column(self, engine, conn):

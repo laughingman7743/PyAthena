@@ -60,7 +60,7 @@ class AthenaStatementCompiler(SQLCompiler):
     https://github.com/dropbox/PyHive/blob/master/pyhive/sqlalchemy_presto.py"""
 
     def visit_char_length_func(self, fn, **kw):
-        return "length{0}".format(self.function_argspec(fn, **kw))
+        return f"length{self.function_argspec(fn, **kw)}"
 
     def limit_clause(self, select, **kw):
         text = ""
@@ -186,24 +186,48 @@ class AthenaDDLCompiler(DDLCompiler):
             value = value.replace("%", "%%")
         return f"'{value}'"
 
+    def visit_check_constraint(self, constraint, **kw):
+        return None
+
+    def visit_column_check_constraint(self, constraint, **kw):
+        return None
+
+    def visit_foreign_key_constraint(self, constraint, **kw):
+        return None
+
+    def visit_primary_key_constraint(self, constraint, **kw):
+        return None
+
+    def visit_unique_constraint(self, constraint, **kw):
+        return None
+
     def get_column_specification(self, column, **kwargs):
-        colspec = (
-            self.preparer.format_column(column)
-            + " "
-            + self.dialect.type_compiler.process(column.type, type_expression=column)
-        )
+        if isinstance(column.type, (types.Integer, types.INTEGER, types.INT)):
+            # https://docs.aws.amazon.com/athena/latest/ug/create-table.html
+            # In Data Definition Language (DDL) queries like CREATE TABLE,
+            # use the int keyword to represent an integer
+            type_ = "INT"
+        else:
+            type_ = self.dialect.type_compiler.process(
+                column.type, type_expression=column
+            )
+        colspec = self.preparer.format_column(column) + " " + type_
+
         comment = ""
         if column.comment:
             comment += " COMMENT "
             comment += self._escape_comment(column.comment, self.dialect)
+
         return f"{colspec}{comment}"
 
     def visit_create_table(self, create, **kwargs):
         table = create.element
         preparer = self.preparer
 
-        text = "\nCREATE EXTERNAL "
-        text += "TABLE " + preparer.format_table(table) + " ("
+        text = "\nCREATE EXTERNAL TABLE "
+        if create.if_not_exists:
+            text += "IF NOT EXISTS "
+        text += preparer.format_table(table) + " ("
 
         separator = "\n"
         for create_column in create.columns:
@@ -215,22 +239,17 @@ class AthenaDDLCompiler(DDLCompiler):
                     separator = ",\n"
                     text += "\t" + processed
             except exc.CompileError as ce:
-                util.raise_from_cause(
+                util.raise_(
                     exc.CompileError(
-                        util.u("(in table '{0}', column '{1}'): {2}").format(
-                            table.description, column.name, ce.args[0]
+                        util.u(
+                            f"(in table '{table.description}', column '{column.name}'): "
+                            f"{ce.args[0]}"
                         )
-                    )
+                    ),
+                    from_=ce,
                 )
 
-        const = self.create_table_constraints(
-            table,
-            _include_foreign_key_constraints=create.include_foreign_key_constraints,
-        )
-        if const:
-            text += separator + "\t" + const
-
-        text += "\n)\n%s\n\n" % self.post_create_table(table)
+        text += f"\n)\n{self.post_create_table(table)}\n\n"
         return text
 
     def post_create_table(self, table):
@@ -252,7 +271,7 @@ class AthenaDDLCompiler(DDLCompiler):
 
         if dialect_opts["location"]:
             location = dialect_opts["location"]
-            location += "/" if location[-1] != "/" else ""
+            location += "/" if not location.endswith("/") else ""
         elif raw_connection:
             base_location = (
                 raw_connection._kwargs["s3_dir"]
@@ -284,9 +303,7 @@ class AthenaDDLCompiler(DDLCompiler):
         else:
             compression = None
         if compression:
-            text += "TBLPROPERTIES ('parquet.compress'='{0}')\n".format(
-                compression.upper()
-            )
+            text += f"TBLPROPERTIES ('parquet.compress'='{compression.upper()}')\n"
 
         return text
 
