@@ -62,6 +62,17 @@ class AthenaStatementCompiler(SQLCompiler):
     def visit_char_length_func(self, fn, **kw):
         return f"length{self.function_argspec(fn, **kw)}"
 
+    def visit_cast(self, cast, **kwargs):
+        if isinstance(cast.type, types.VARCHAR) and cast.type.length is None:
+            type_clause = "VARCHAR"
+        elif isinstance(cast.type, types.CHAR) and cast.type.length is None:
+            type_clause = "CHAR"
+        else:
+            type_clause = cast.typeclause._compiler_dispatch(self, **kwargs)
+        return (
+            f"CAST({cast.clause._compiler_dispatch(self, **kwargs)} AS {type_clause})"
+        )
+
     def limit_clause(self, select, **kw):
         text = ""
         if select._offset_clause is not None:
@@ -85,12 +96,9 @@ class AthenaTypeCompiler(GenericTypeCompiler):
         if type_.precision is None:
             return "DECIMAL"
         elif type_.scale is None:
-            return "DECIMAL(%(precision)s)" % {"precision": type_.precision}
+            return f"DECIMAL({type_.precision})"
         else:
-            return "DECIMAL(%(precision)s, %(scale)s)" % {
-                "precision": type_.precision,
-                "scale": type_.scale,
-            }
+            return f"DECIMAL({type_.precision}, {type_.scale})"
 
     def visit_INTEGER(self, type_, **kw):
         return "INTEGER"
@@ -111,7 +119,7 @@ class AthenaTypeCompiler(GenericTypeCompiler):
         return "DATE"
 
     def visit_TIME(self, type_, **kw):
-        raise exc.CompileError("Data type `{0}` is not supported".format(type_))
+        raise exc.CompileError(f"Data type `{type_}` is not supported")
 
     def visit_CLOB(self, type_, **kw):
         return self.visit_BINARY(type_, **kw)
@@ -125,9 +133,7 @@ class AthenaTypeCompiler(GenericTypeCompiler):
         return "STRING"
 
     def visit_NCHAR(self, type_, **kw):
-        if type_.length:
-            return self._render_string_type(type_, "CHAR")
-        return "STRING"
+        return self.visit_CHAR(type_, **kw)
 
     def visit_VARCHAR(self, type_, **kw):
         if type_.length:
@@ -135,9 +141,7 @@ class AthenaTypeCompiler(GenericTypeCompiler):
         return "STRING"
 
     def visit_NVARCHAR(self, type_, **kw):
-        if type_.length:
-            return self._render_string_type(type_, "VARCHAR")
-        return "STRING"
+        return self.visit_VARCHAR(type_, **kw)
 
     def visit_TEXT(self, type_, **kw):
         return "STRING"
@@ -492,7 +496,11 @@ class AthenaDialect(DefaultDialect):
             if length:
                 precision, scale = length.split(",")
                 args = [int(precision), int(scale)]
-        elif name in ["char", "varchar"]:
+        elif name in ["char"]:
+            col_type = types.CHAR
+            if length:
+                args = [int(length)]
+        elif name in ["varchar"]:
             col_type = types.VARCHAR
             if length:
                 args = [int(length)]

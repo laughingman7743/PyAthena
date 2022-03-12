@@ -691,3 +691,24 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertIsInstance(actual.c.col_text.type, types.String)
         self.assertNotIsInstance(actual.c.col_text.type, types.VARCHAR)
         self.assertIsNone(actual.c.col_text.type.length)
+
+    @with_engine()
+    def test_cast_as_varchar(self, engine, conn):
+        # varchar without length
+        one_row = Table("one_row", MetaData(schema=SCHEMA), autoload_with=conn)
+        actual = conn.execute(
+            sqlalchemy.select(
+                [expression.cast(one_row.c.number_of_rows, types.VARCHAR)],
+                from_obj=one_row,
+            )
+        ).scalar()
+        self.assertEqual(actual, "1")
+
+        # varchar with length
+        actual = conn.execute(
+            sqlalchemy.select(
+                [expression.cast(one_row.c.number_of_rows, types.VARCHAR(10))],
+                from_obj=one_row,
+            )
+        ).scalar()
+        self.assertEqual(actual, "1")
