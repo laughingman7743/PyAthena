@@ -69,9 +69,8 @@ class AthenaStatementCompiler(SQLCompiler):
             type_clause = "CHAR"
         else:
             type_clause = cast.typeclause._compiler_dispatch(self, **kwargs)
-        return "CAST(%s AS %s)" % (
-            cast.clause._compiler_dispatch(self, **kwargs),
-            type_clause,
+        return (
+            f"CAST({cast.clause._compiler_dispatch(self, **kwargs)} AS {type_clause})"
         )
 
     def limit_clause(self, select, **kw):
@@ -97,12 +96,9 @@ class AthenaTypeCompiler(GenericTypeCompiler):
         if type_.precision is None:
             return "DECIMAL"
         elif type_.scale is None:
-            return "DECIMAL(%(precision)s)" % {"precision": type_.precision}
+            return f"DECIMAL({type_.precision})"
         else:
-            return "DECIMAL(%(precision)s, %(scale)s)" % {
-                "precision": type_.precision,
-                "scale": type_.scale,
-            }
+            return f"DECIMAL({type_.precision}, {type_.scale})"
 
     def visit_INTEGER(self, type_, **kw):
         return "INTEGER"
@@ -123,7 +119,7 @@ class AthenaTypeCompiler(GenericTypeCompiler):
         return "DATE"
 
     def visit_TIME(self, type_, **kw):
-        raise exc.CompileError("Data type `{0}` is not supported".format(type_))
+        raise exc.CompileError(f"Data type `{type_}` is not supported")
 
     def visit_CLOB(self, type_, **kw):
         return self.visit_BINARY(type_, **kw)
