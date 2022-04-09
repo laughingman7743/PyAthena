@@ -1,17 +1,15 @@
 # -*- coding: utf-8 -*-
 import re
 import textwrap
-import unittest
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
-from urllib.parse import quote_plus
 
 import numpy as np
 import pandas as pd
+import pytest
 import sqlalchemy
 from sqlalchemy import types
-from sqlalchemy.engine import create_engine
 from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.ddl import CreateTable
@@ -20,48 +18,23 @@ from sqlalchemy.sql.selectable import TextualSelect
 
 from pyathena.sqlalchemy_athena import AthenaDialect
 from tests.conftest import ENV, S3_PREFIX, SCHEMA
-from tests.util import with_engine
 
 
-class TestSQLAlchemyAthena(unittest.TestCase):
-    def create_engine(self, **kwargs):
-        conn_str = (
-            "awsathena+rest://athena.{region_name}.amazonaws.com:443/"
-            + "{schema_name}?s3_staging_dir={s3_staging_dir}&s3_dir={s3_dir}"
-            + "&compression=snappy"
-        )
-        if "verify" in kwargs:
-            conn_str += "&verify={verify}"
-        if "duration_seconds" in kwargs:
-            conn_str += "&duration_seconds={duration_seconds}"
-        if "poll_interval" in kwargs:
-            conn_str += "&poll_interval={poll_interval}"
-        if "kill_on_interrupt" in kwargs:
-            conn_str += "&kill_on_interrupt={kill_on_interrupt}"
-        return create_engine(
-            conn_str.format(
-                region_name=ENV.region_name,
-                schema_name=SCHEMA,
-                s3_staging_dir=quote_plus(ENV.s3_staging_dir),
-                s3_dir=quote_plus(ENV.s3_staging_dir),
-                **kwargs,
-            )
-        )
-
-    @with_engine()
-    def test_basic_query(self, engine, conn):
+class TestSQLAlchemyAthena:
+    def test_basic_query(self, engine):
+        engine, conn = engine
         rows = conn.execute("SELECT * FROM one_row").fetchall()
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0].number_of_rows, 1)
-        self.assertEqual(len(rows[0]), 1)
+        assert len(rows) == 1
+        assert rows[0].number_of_rows == 1
+        assert len(rows[0]) == 1
 
-    @with_engine()
-    def test_reflect_no_such_table(self, engine, conn):
-        self.assertRaises(
+    def test_reflect_no_such_table(self, engine):
+        engine, conn = engine
+        pytest.raises(
             NoSuchTableError,
             lambda: Table("this_does_not_exist", MetaData(), autoload_with=conn),
         )
-        self.assertRaises(
+        pytest.raises(
             NoSuchTableError,
             lambda: Table(
                 "this_does_not_exist",
@@ -70,30 +43,28 @@ class TestSQLAlchemyAthena(unittest.TestCase):
             ),
         )
 
-    @with_engine()
-    def test_reflect_table(self, engine, conn):
+    def test_reflect_table(self, engine):
+        engine, conn = engine
         one_row = Table("one_row", MetaData(), autoload_with=conn)
-        self.assertEqual(len(one_row.c), 1)
-        self.assertIsNotNone(one_row.c.number_of_rows)
-        self.assertEqual(one_row.comment, "table comment")
-        self.assertIn("location", one_row.dialect_options["awsathena"])
-        self.assertIn("compression", one_row.dialect_options["awsathena"])
-        self.assertIsNotNone(
-            "location", one_row.dialect_options["awsathena"]["location"]
-        )
+        assert len(one_row.c) == 1
+        assert one_row.c.number_of_rows is not None
+        assert one_row.comment == "table comment"
+        assert "location" in one_row.dialect_options["awsathena"]
+        assert "compression" in one_row.dialect_options["awsathena"]
+        assert one_row.dialect_options["awsathena"]["location"] is not None
 
-    @with_engine()
-    def test_reflect_table_with_schema(self, engine, conn):
+    def test_reflect_table_with_schema(self, engine):
+        engine, conn = engine
         one_row = Table("one_row", MetaData(schema=SCHEMA), autoload_with=conn)
-        self.assertEqual(len(one_row.c), 1)
-        self.assertIsNotNone(one_row.c.number_of_rows)
-        self.assertEqual(one_row.comment, "table comment")
-        self.assertIn("location", one_row.dialect_options["awsathena"])
-        self.assertIn("compression", one_row.dialect_options["awsathena"])
-        self.assertIsNotNone(one_row.dialect_options["awsathena"]["location"])
+        assert len(one_row.c) == 1
+        assert one_row.c.number_of_rows is not None
+        assert one_row.comment == "table comment"
+        assert "location" in one_row.dialect_options["awsathena"]
+        assert "compression" in one_row.dialect_options["awsathena"]
+        assert one_row.dialect_options["awsathena"]["location"] is not None
 
-    @with_engine()
-    def test_reflect_table_include_columns(self, engine, conn):
+    def test_reflect_table_include_columns(self, engine):
+        engine, conn = engine
         one_row_complex = Table("one_row_complex", MetaData())
         version = float(
             re.search(r"^([\d]+\.[\d]+)\..+", sqlalchemy.__version__).group(1)
@@ -121,19 +92,19 @@ class TestSQLAlchemyAthena(unittest.TestCase):
                 exclude_columns=[],
                 resolve_fks=True,
             )
-        self.assertEqual(len(one_row_complex.c), 1)
-        self.assertIsNotNone(one_row_complex.c.col_int)
-        self.assertRaises(AttributeError, lambda: one_row_complex.c.col_tinyint)
+        assert len(one_row_complex.c) == 1
+        assert one_row_complex.c.col_int is not None
+        pytest.raises(AttributeError, lambda: one_row_complex.c.col_tinyint)
 
-    @with_engine()
-    def test_partition_table_columns(self, engine, conn):
+    def test_partition_table_columns(self, engine):
+        engine, conn = engine
         partition_table = Table("partition_table", MetaData(), autoload_with=conn)
-        self.assertEqual(len(partition_table.columns), 2)
-        self.assertTrue("a" in partition_table.columns)
-        self.assertTrue("b" in partition_table.columns)
+        assert len(partition_table.columns) == 2
+        assert "a" in partition_table.columns
+        assert "b" in partition_table.columns
 
-    @with_engine()
-    def test_unicode(self, engine, conn):
+    def test_unicode(self, engine):
+        engine, conn = engine
         unicode_str = "密林"
         one_row = Table("one_row", MetaData(schema=SCHEMA))
         returned_str = conn.execute(
@@ -142,80 +113,74 @@ class TestSQLAlchemyAthena(unittest.TestCase):
                 from_obj=one_row,
             )
         ).scalar()
-        self.assertEqual(returned_str, unicode_str)
+        assert returned_str == unicode_str
 
-    @with_engine()
-    def test_reflect_schemas(self, engine, conn):
+    def test_reflect_schemas(self, engine):
+        engine, conn = engine
         insp = sqlalchemy.inspect(engine)
         schemas = insp.get_schema_names()
-        self.assertIn(SCHEMA, schemas)
-        self.assertIn("default", schemas)
+        assert SCHEMA in schemas
+        assert "default" in schemas
 
-    @with_engine()
-    def test_get_table_names(self, engine, conn):
+    def test_get_table_names(self, engine):
+        engine, conn = engine
         meta = MetaData()
         meta.reflect(bind=engine)
-        self.assertIn("one_row", meta.tables)
-        self.assertIn("one_row_complex", meta.tables)
-        self.assertNotIn("view_one_row", meta.tables)
+        assert "one_row" in meta.tables
+        assert "one_row_complex" in meta.tables
+        assert "view_one_row" not in meta.tables
 
         insp = sqlalchemy.inspect(engine)
-        self.assertIn(
-            "many_rows",
-            insp.get_table_names(schema=SCHEMA),
-        )
+        assert "many_rows" in insp.get_table_names(schema=SCHEMA)
 
-    @with_engine()
-    def test_get_view_names(self, engine, conn):
+    def test_get_view_names(self, engine):
+        engine, conn = engine
         meta = MetaData()
         meta.reflect(bind=engine, views=True)
-        self.assertIn("one_row", meta.tables)
-        self.assertIn("one_row_complex", meta.tables)
-        self.assertIn("view_one_row", meta.tables)
+        assert "one_row" in meta.tables
+        assert "one_row_complex" in meta.tables
+        assert "view_one_row" in meta.tables
 
         insp = sqlalchemy.inspect(engine)
         actual = insp.get_view_names(schema=SCHEMA)
-        self.assertNotIn("one_row", actual)
-        self.assertNotIn("one_row_complex", actual)
-        self.assertIn("view_one_row", actual)
+        assert "one_row" not in actual
+        assert "one_row_complex" not in actual
+        assert "view_one_row" in actual
 
-    @with_engine()
-    def test_get_table_comment(self, engine, conn):
+    def test_get_table_comment(self, engine):
+        engine, conn = engine
         insp = sqlalchemy.inspect(engine)
         actual = insp.get_table_comment("one_row", schema=SCHEMA)
-        self.assertEqual(actual, {"text": "table comment"})
+        assert actual == {"text": "table comment"}
 
-    @with_engine()
-    def test_get_table_options(self, engine, conn):
+    def test_get_table_options(self, engine):
+        engine, conn = engine
         insp = sqlalchemy.inspect(engine)
         actual = insp.get_table_options("parquet_with_compression", schema=SCHEMA)
-        self.assertEqual(
-            actual,
-            {
-                "awsathena_location": f"{ENV.s3_staging_dir}{S3_PREFIX}/parquet_with_compression",
-                "awsathena_compression": "SNAPPY",
-            },
-        )
+        assert actual == {
+            "awsathena_location": f"{ENV.s3_staging_dir}{S3_PREFIX}/parquet_with_compression",
+            "awsathena_compression": "SNAPPY",
+        }
 
-    @with_engine()
-    def test_has_table(self, engine, conn):
+    def test_has_table(self, engine):
+        engine, conn = engine
         insp = sqlalchemy.inspect(engine)
-        self.assertTrue(insp.has_table("one_row", schema=SCHEMA))
-        self.assertFalse(insp.has_table("this_table_does_not_exist", schema=SCHEMA))
+        assert insp.has_table("one_row", schema=SCHEMA)
+        assert not insp.has_table("this_table_does_not_exist", schema=SCHEMA)
 
-    @with_engine()
-    def test_get_columns(self, engine, conn):
+    def test_get_columns(self, engine):
+        engine, conn = engine
         insp = sqlalchemy.inspect(engine)
         actual = insp.get_columns(table_name="one_row", schema=SCHEMA)[0]
-        self.assertEqual(actual["name"], "number_of_rows")
-        self.assertTrue(isinstance(actual["type"], types.INTEGER))
-        self.assertTrue(actual["nullable"])
-        self.assertIsNone(actual["default"])
-        self.assertFalse(actual["autoincrement"])
-        self.assertEqual(actual["comment"], "some comment")
+        assert actual["name"] == "number_of_rows"
+        assert isinstance(actual["type"], types.INTEGER)
+        assert actual["nullable"]
+        assert actual["default"] is None
+        assert not actual["autoincrement"]
+        assert actual["comment"] == "some comment"
 
-    @with_engine()
-    def test_char_length(self, engine, conn):
+    def test_char_length(self, engine):
+        engine, conn = engine
         one_row_complex = Table(
             "one_row_complex", MetaData(schema=SCHEMA), autoload_with=conn
         )
@@ -224,111 +189,107 @@ class TestSQLAlchemyAthena(unittest.TestCase):
                 [sqlalchemy.func.char_length(one_row_complex.c.col_string)]
             )
         ).scalar()
-        self.assertEqual(result, len("a string"))
+        assert result == len("a string")
 
-    @with_engine()
-    def test_reflect_select(self, engine, conn):
+    def test_reflect_select(self, engine):
+        engine, conn = engine
         one_row_complex = Table(
             "one_row_complex", MetaData(schema=SCHEMA), autoload_with=conn
         )
-        self.assertEqual(len(one_row_complex.c), 16)
-        self.assertIsInstance(one_row_complex.c.col_string, Column)
+        assert len(one_row_complex.c) == 16
+        assert isinstance(one_row_complex.c.col_string, Column)
         rows = conn.execute(one_row_complex.select()).fetchall()
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(
-            list(rows[0]),
-            [
-                True,
-                127,
-                32767,
-                2147483647,
-                9223372036854775807,
-                0.5,
-                0.25,
-                "a string",
-                "varchar",
-                datetime(2017, 1, 1, 0, 0, 0),
-                date(2017, 1, 2),
-                b"123",
-                "[1, 2]",
-                "{1=2, 3=4}",
-                "{a=1, b=2}",
-                Decimal("0.1"),
-            ],
-        )
-        self.assertIsInstance(one_row_complex.c.col_boolean.type, types.BOOLEAN)
-        self.assertIsInstance(one_row_complex.c.col_tinyint.type, types.INTEGER)
-        self.assertIsInstance(one_row_complex.c.col_smallint.type, types.INTEGER)
-        self.assertIsInstance(one_row_complex.c.col_int.type, types.INTEGER)
-        self.assertIsInstance(one_row_complex.c.col_bigint.type, types.BIGINT)
-        self.assertIsInstance(one_row_complex.c.col_float.type, types.FLOAT)
-        self.assertIsInstance(one_row_complex.c.col_double.type, types.FLOAT)
-        self.assertIsInstance(one_row_complex.c.col_string.type, types.String)
-        self.assertIsInstance(one_row_complex.c.col_varchar.type, types.VARCHAR)
-        self.assertEqual(one_row_complex.c.col_varchar.type.length, 10)
-        self.assertIsInstance(one_row_complex.c.col_timestamp.type, types.TIMESTAMP)
-        self.assertIsInstance(one_row_complex.c.col_date.type, types.DATE)
-        self.assertIsInstance(one_row_complex.c.col_binary.type, types.BINARY)
-        self.assertIsInstance(one_row_complex.c.col_array.type, types.String)
-        self.assertIsInstance(one_row_complex.c.col_map.type, types.String)
-        self.assertIsInstance(one_row_complex.c.col_struct.type, types.String)
-        self.assertIsInstance(
+        assert len(rows) == 1
+        assert list(rows[0]) == [
+            True,
+            127,
+            32767,
+            2147483647,
+            9223372036854775807,
+            0.5,
+            0.25,
+            "a string",
+            "varchar",
+            datetime(2017, 1, 1, 0, 0, 0),
+            date(2017, 1, 2),
+            b"123",
+            "[1, 2]",
+            "{1=2, 3=4}",
+            "{a=1, b=2}",
+            Decimal("0.1"),
+        ]
+        assert isinstance(one_row_complex.c.col_boolean.type, types.BOOLEAN)
+        assert isinstance(one_row_complex.c.col_tinyint.type, types.INTEGER)
+        assert isinstance(one_row_complex.c.col_smallint.type, types.INTEGER)
+        assert isinstance(one_row_complex.c.col_int.type, types.INTEGER)
+        assert isinstance(one_row_complex.c.col_bigint.type, types.BIGINT)
+        assert isinstance(one_row_complex.c.col_float.type, types.FLOAT)
+        assert isinstance(one_row_complex.c.col_double.type, types.FLOAT)
+        assert isinstance(one_row_complex.c.col_string.type, types.String)
+        assert isinstance(one_row_complex.c.col_varchar.type, types.VARCHAR)
+        assert one_row_complex.c.col_varchar.type.length == 10
+        assert isinstance(one_row_complex.c.col_timestamp.type, types.TIMESTAMP)
+        assert isinstance(one_row_complex.c.col_date.type, types.DATE)
+        assert isinstance(one_row_complex.c.col_binary.type, types.BINARY)
+        assert isinstance(one_row_complex.c.col_array.type, types.String)
+        assert isinstance(one_row_complex.c.col_map.type, types.String)
+        assert isinstance(one_row_complex.c.col_struct.type, types.String)
+        assert isinstance(
             one_row_complex.c.col_decimal.type,
             types.DECIMAL,
         )
-        self.assertEqual(one_row_complex.c.col_decimal.type.precision, 10)
-        self.assertEqual(one_row_complex.c.col_decimal.type.scale, 1)
+        assert one_row_complex.c.col_decimal.type.precision == 10
+        assert one_row_complex.c.col_decimal.type.scale == 1
 
-    @with_engine()
-    def test_select_offset_limit(self, engine, conn):
+    def test_select_offset_limit(self, engine):
+        engine, conn = engine
         many_rows = Table("many_rows", MetaData(schema=SCHEMA), autoload_with=conn)
         rows = conn.execute(many_rows.select().offset(10).limit(5)).fetchall()
-        self.assertEqual(rows, [(i,) for i in range(10, 15)])
+        assert rows == [(i,) for i in range(10, 15)]
 
-    @with_engine()
-    def test_reserved_words(self, engine, conn):
+    def test_reserved_words(self):
         """Presto uses double quotes, not backticks"""
         fake_table = Table(
             "select", MetaData(), Column("current_timestamp", types.String())
         )
         query = str(fake_table.select(fake_table.c.current_timestamp == "a"))
-        self.assertIn('"select"', query)
-        self.assertIn('"current_timestamp"', query)
-        self.assertNotIn("`select`", query)
-        self.assertNotIn("`current_timestamp`", query)
+        assert '"select"' in query
+        assert '"current_timestamp"' in query
+        assert "`select`" not in query
+        assert "`current_timestamp`" not in query
 
-    @with_engine()
-    def test_get_column_type(self, engine, conn):
+    def test_get_column_type(self, engine):
+        engine, conn = engine
         dialect = engine.dialect
-        self.assertIsInstance(dialect._get_column_type("boolean"), types.BOOLEAN)
-        self.assertIsInstance(dialect._get_column_type("tinyint"), types.INTEGER)
-        self.assertIsInstance(dialect._get_column_type("smallint"), types.INTEGER)
-        self.assertIsInstance(dialect._get_column_type("integer"), types.INTEGER)
-        self.assertIsInstance(dialect._get_column_type("int"), types.INTEGER)
-        self.assertIsInstance(dialect._get_column_type("bigint"), types.BIGINT)
-        self.assertIsInstance(dialect._get_column_type("float"), types.FLOAT)
-        self.assertIsInstance(dialect._get_column_type("double"), types.FLOAT)
-        self.assertIsInstance(dialect._get_column_type("real"), types.FLOAT)
-        self.assertIsInstance(dialect._get_column_type("string"), types.String)
-        self.assertIsInstance(dialect._get_column_type("varchar"), types.VARCHAR)
+        assert isinstance(dialect._get_column_type("boolean"), types.BOOLEAN)
+        assert isinstance(dialect._get_column_type("tinyint"), types.INTEGER)
+        assert isinstance(dialect._get_column_type("smallint"), types.INTEGER)
+        assert isinstance(dialect._get_column_type("integer"), types.INTEGER)
+        assert isinstance(dialect._get_column_type("int"), types.INTEGER)
+        assert isinstance(dialect._get_column_type("bigint"), types.BIGINT)
+        assert isinstance(dialect._get_column_type("float"), types.FLOAT)
+        assert isinstance(dialect._get_column_type("double"), types.FLOAT)
+        assert isinstance(dialect._get_column_type("real"), types.FLOAT)
+        assert isinstance(dialect._get_column_type("string"), types.String)
+        assert isinstance(dialect._get_column_type("varchar"), types.VARCHAR)
         varchar_with_args = dialect._get_column_type("varchar(10)")
-        self.assertIsInstance(varchar_with_args, types.VARCHAR)
-        self.assertEqual(varchar_with_args.length, 10)
-        self.assertIsInstance(dialect._get_column_type("timestamp"), types.TIMESTAMP)
-        self.assertIsInstance(dialect._get_column_type("date"), types.DATE)
-        self.assertIsInstance(dialect._get_column_type("binary"), types.BINARY)
-        self.assertIsInstance(dialect._get_column_type("array<integer>"), types.String)
-        self.assertIsInstance(dialect._get_column_type("map<int, int>"), types.String)
-        self.assertIsInstance(
+        assert isinstance(varchar_with_args, types.VARCHAR)
+        assert varchar_with_args.length == 10
+        assert isinstance(dialect._get_column_type("timestamp"), types.TIMESTAMP)
+        assert isinstance(dialect._get_column_type("date"), types.DATE)
+        assert isinstance(dialect._get_column_type("binary"), types.BINARY)
+        assert isinstance(dialect._get_column_type("array<integer>"), types.String)
+        assert isinstance(dialect._get_column_type("map<int, int>"), types.String)
+        assert isinstance(
             dialect._get_column_type("struct<a: int, b: int>"), types.String
         )
         decimal_with_args = dialect._get_column_type("decimal(10,1)")
-        self.assertIsInstance(decimal_with_args, types.DECIMAL)
-        self.assertEqual(decimal_with_args.precision, 10)
-        self.assertEqual(decimal_with_args.scale, 1)
+        assert isinstance(decimal_with_args, types.DECIMAL)
+        assert decimal_with_args.precision == 10
+        assert decimal_with_args.scale == 1
 
-    @with_engine()
-    def test_contain_percents_character_query(self, engine, conn):
+    def test_contain_percents_character_query(self, engine):
+        engine, conn = engine
         select = sqlalchemy.sql.text(
             """
             SELECT date_parse('20191030', '%Y%m%d')
@@ -338,16 +299,16 @@ class TestSQLAlchemyAthena(unittest.TestCase):
 
         query = sqlalchemy.select(["*"]).select_from(table_expression)
         result = engine.execute(query)
-        self.assertEqual(result.fetchall(), [(datetime(2019, 10, 30),)])
+        assert result.fetchall() == [(datetime(2019, 10, 30),)]
 
         query_with_limit = (
             sqlalchemy.sql.select(["*"]).select_from(table_expression).limit(1)
         )
         result_with_limit = engine.execute(query_with_limit)
-        self.assertEqual(result_with_limit.fetchall(), [(datetime(2019, 10, 30),)])
+        assert result_with_limit.fetchall() == [(datetime(2019, 10, 30),)]
 
-    @with_engine()
-    def test_query_with_parameter(self, engine, conn):
+    def test_query_with_parameter(self, engine):
+        engine, conn = engine
         select = sqlalchemy.sql.text(
             """
             SELECT :word
@@ -357,16 +318,16 @@ class TestSQLAlchemyAthena(unittest.TestCase):
 
         query = sqlalchemy.select(["*"]).select_from(table_expression)
         result = engine.execute(query, word="cat")
-        self.assertEqual(result.fetchall(), [("cat",)])
+        assert result.fetchall() == [("cat",)]
 
         query_with_limit = (
             sqlalchemy.select(["*"]).select_from(table_expression).limit(1)
         )
         result_with_limit = engine.execute(query_with_limit, word="cat")
-        self.assertEqual(result_with_limit.fetchall(), [("cat",)])
+        assert result_with_limit.fetchall() == [("cat",)]
 
-    @with_engine()
-    def test_contain_percents_character_query_with_parameter(self, engine, conn):
+    def test_contain_percents_character_query_with_parameter(self, engine):
+        engine, conn = engine
         select1 = sqlalchemy.sql.text(
             """
             SELECT date_parse('20191030', '%Y%m%d'), :word
@@ -376,15 +337,13 @@ class TestSQLAlchemyAthena(unittest.TestCase):
 
         query1 = sqlalchemy.select(["*"]).select_from(table_expression1)
         result1 = engine.execute(query1, word="cat")
-        self.assertEqual(result1.fetchall(), [(datetime(2019, 10, 30), "cat")])
+        assert result1.fetchall() == [(datetime(2019, 10, 30), "cat")]
 
         query_with_limit1 = (
             sqlalchemy.select(["*"]).select_from(table_expression1).limit(1)
         )
         result_with_limit1 = engine.execute(query_with_limit1, word="cat")
-        self.assertEqual(
-            result_with_limit1.fetchall(), [(datetime(2019, 10, 30), "cat")]
-        )
+        assert result_with_limit1.fetchall() == [(datetime(2019, 10, 30), "cat")]
 
         select2 = sqlalchemy.sql.text(
             """
@@ -396,20 +355,20 @@ class TestSQLAlchemyAthena(unittest.TestCase):
 
         query2 = sqlalchemy.select(["*"]).select_from(table_expression2)
         result2 = engine.execute(query2, param="b%")
-        self.assertEqual(result2.fetchall(), [("a string", "b%")])
+        assert result2.fetchall() == [("a string", "b%")]
 
         query_with_limit2 = (
             sqlalchemy.select(["*"]).select_from(table_expression2).limit(1)
         )
         result_with_limit2 = engine.execute(query_with_limit2, param="b%")
-        self.assertEqual(result_with_limit2.fetchall(), [("a string", "b%")])
+        assert result_with_limit2.fetchall() == [("a string", "b%")]
 
-    @with_engine()
-    def test_to_sql(self, engine, conn):
+    def test_to_sql(self, engine):
         # TODO pyathena.error.OperationalError: SYNTAX_ERROR: line 1:305:
         #      Column 'foobar' cannot be resolved.
         #      def _format_bytes(formatter, escaper, val):
         #          return val.decode()
+        engine, conn = engine
         table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
         df = pd.DataFrame(
             {
@@ -448,43 +407,44 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
 
         table = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
-        self.assertEqual(
-            conn.execute(table.select()).fetchall(),
-            [
-                (
-                    1,
-                    12345,
-                    1.0,
-                    1.2345,
-                    "a",
-                    True,
-                    datetime(2020, 1, 1, 0, 0, 0),
-                    date(2020, 12, 31),
-                    # "foobar".encode(),
-                )
-            ],
-        )
+        assert conn.execute(table.select()).fetchall() == [
+            (
+                1,
+                12345,
+                1.0,
+                1.2345,
+                "a",
+                True,
+                datetime(2020, 1, 1, 0, 0, 0),
+                date(2020, 12, 31),
+                # "foobar".encode(),
+            )
+        ]
 
-    @with_engine(verify="false")
-    def test_conn_str_verify(self, engine, conn):
+    @pytest.mark.parametrize("engine", [{"verify": "false"}], indirect=True)
+    def test_conn_str_verify(self, engine):
+        engine, conn = engine
         kwargs = conn.connection._kwargs
-        self.assertFalse(kwargs["verify"])
+        assert not kwargs["verify"]
 
-    @with_engine(duration_seconds="1800")
-    def test_conn_str_duration_seconds(self, engine, conn):
+    @pytest.mark.parametrize("engine", [{"duration_seconds": "1800"}], indirect=True)
+    def test_conn_str_duration_seconds(self, engine):
+        engine, conn = engine
         kwargs = conn.connection._kwargs
-        self.assertEqual(kwargs["duration_seconds"], 1800)
+        assert kwargs["duration_seconds"] == 1800
 
-    @with_engine(poll_interval="5")
-    def test_conn_str_poll_interval(self, engine, conn):
-        self.assertEqual(conn.connection.poll_interval, 5)
+    @pytest.mark.parametrize("engine", [{"poll_interval": "5"}], indirect=True)
+    def test_conn_str_poll_interval(self, engine):
+        engine, conn = engine
+        assert conn.connection.poll_interval == 5
 
-    @with_engine(kill_on_interrupt="false")
-    def test_conn_str_kill_on_interrupt(self, engine, conn):
-        self.assertFalse(conn.connection.kill_on_interrupt)
+    @pytest.mark.parametrize("engine", [{"kill_on_interrupt": "false"}], indirect=True)
+    def test_conn_str_kill_on_interrupt(self, engine):
+        engine, conn = engine
+        assert not conn.connection.kill_on_interrupt
 
-    @with_engine()
-    def test_create_table(self, engine, conn):
+    def test_create_table(self, engine):
+        engine, conn = engine
         table_name = "test_create_table"
         column_name = "col"
         table = Table(
@@ -497,7 +457,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         insp = sqlalchemy.inspect(engine)
         table.create(bind=conn)
-        self.assertTrue(insp.has_table(table_name, schema=SCHEMA))
+        assert insp.has_table(table_name, schema=SCHEMA)
 
     def test_create_table_location(self):
         dialect = AthenaDialect()
@@ -512,18 +472,15 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         actual = CreateTable(table).compile(dialect=dialect)
         # If there is no `/` at the end of the `awsathena_location`, it will be appended.
-        self.assertEqual(
-            str(actual),
-            textwrap.dedent(
-                f"""
-                CREATE EXTERNAL TABLE {SCHEMA}.{table_name} (
-                \t{column_name} VARCHAR(10)
-                )
-                STORED AS PARQUET
-                LOCATION 's3://path/to/{SCHEMA}/{table_name}/'
-                TBLPROPERTIES ('parquet.compress'='SNAPPY')\n\n
-                """
-            ),
+        assert str(actual) == textwrap.dedent(
+            f"""
+            CREATE EXTERNAL TABLE {SCHEMA}.{table_name} (
+            \t{column_name} VARCHAR(10)
+            )
+            STORED AS PARQUET
+            LOCATION 's3://path/to/{SCHEMA}/{table_name}/'
+            TBLPROPERTIES ('parquet.compress'='SNAPPY')\n\n
+            """
         )
 
     def test_create_table_with_comments_compilation(self):
@@ -544,26 +501,23 @@ class TestSQLAlchemyAthena(unittest.TestCase):
             ),
         )
         actual = CreateTable(table).compile(dialect=dialect)
-        self.assertEqual(
-            str(actual),
-            textwrap.dedent(
-                f"""
-                CREATE EXTERNAL TABLE {SCHEMA}.{table_name} (
-                \t{column_name} VARCHAR(10) COMMENT 'some descriptive comment'
-                )
-                COMMENT '
-                Some table comment
+        assert str(actual) == textwrap.dedent(
+            f"""
+            CREATE EXTERNAL TABLE {SCHEMA}.{table_name} (
+            \t{column_name} VARCHAR(10) COMMENT 'some descriptive comment'
+            )
+            COMMENT '
+            Some table comment
 
-                a multiline one that should stay as is.
-                '
-                STORED AS PARQUET
-                LOCATION 's3://path/to/{SCHEMA}/{table_name}/'\n\n
-                """
-            ),
+            a multiline one that should stay as is.
+            '
+            STORED AS PARQUET
+            LOCATION 's3://path/to/{SCHEMA}/{table_name}/'\n\n
+            """
         )
 
-    @with_engine()
-    def test_create_table_with_comments(self, engine, conn):
+    def test_create_table_with_comments(self, engine):
+        engine, conn = engine
         table_name = "test_create_table_with_comments"
         column_name = "col"
         comment = textwrap.dedent(
@@ -582,16 +536,14 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
-        self.assertEqual(actual.c[column_name].comment, table.c[column_name].comment)
+        assert actual.c[column_name].comment == table.c[column_name].comment
         # The AWS API seems to return comments with squashed whitespace and line breaks.
-        # self.assertEqual(actual.comment, table.comment)
-        self.assertIsNotNone(actual.comment)
-        self.assertEqual(
-            actual.comment, "\n{}\n".format(re.sub(r"\s+", " ", comment[1:-1]))
-        )
+        # assert actual.comment == table.comment
+        assert actual.comment
+        assert actual.comment == "\n{}\n".format(re.sub(r"\s+", " ", comment[1:-1]))
 
-    @with_engine()
-    def test_column_comment_containing_single_quotes(self, engine, conn):
+    def test_column_comment_containing_single_quotes(self, engine):
+        engine, conn = engine
         table_name = "table_name_column_comment_single_quotes"
         column_name = "col"
         comment = "let's make sure quotes ain\\'t a problem"
@@ -603,10 +555,10 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         conn.execute(CreateTable(table), parameter="some value")
         actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
-        self.assertEqual(actual.c[column_name].comment, comment)
+        assert actual.c[column_name].comment == comment
 
-    @with_engine()
-    def test_column_comment_containing_placeholder(self, engine, conn):
+    def test_column_comment_containing_placeholder(self, engine):
+        engine, conn = engine
         table_name = "table_name_placeholder_in_column_comment"
         column_name = "col"
         comment = "the %(parameter)s ratio (in %)"
@@ -618,10 +570,10 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         )
         conn.execute(CreateTable(table), parameter="some value")
         actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
-        self.assertEqual(actual.c[column_name].comment, comment)
+        assert actual.c[column_name].comment == comment
 
-    @with_engine()
-    def test_create_table_with_primary_key(self, engine, conn):
+    def test_create_table_with_primary_key(self, engine):
+        engine, conn = engine
         dialect = AthenaDialect()
         table_name = "test_create_table_with_primary_key"
         table = Table(
@@ -634,22 +586,19 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
         ddl = CreateTable(actual).compile(dialect=dialect)
-        self.assertEqual(
-            str(ddl),
-            textwrap.dedent(
-                f"""
-                CREATE EXTERNAL TABLE {SCHEMA}.{table_name} (
-                \tpk INT
-                )
-                STORED AS PARQUET
-                LOCATION '{ENV.s3_staging_dir}{SCHEMA}/{table_name}/'\n\n
-                """
-            ),
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE EXTERNAL TABLE {SCHEMA}.{table_name} (
+            \tpk INT
+            )
+            STORED AS PARQUET
+            LOCATION '{ENV.s3_staging_dir}{SCHEMA}/{table_name}/'\n\n
+            """
         )
-        self.assertEqual(len(actual.primary_key.columns), 0)
+        assert len(actual.primary_key.columns) == 0
 
-    @with_engine()
-    def test_create_table_with_varchar_text_column(self, engine, conn):
+    def test_create_table_with_varchar_text_column(self, engine):
+        engine, conn = engine
         dialect = AthenaDialect()
         table_name = "test_create_table_with_varchar_text_column"
         table = Table(
@@ -666,41 +615,39 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
 
         ddl = CreateTable(actual).compile(dialect=dialect)
-        self.assertEqual(
-            str(ddl),
-            textwrap.dedent(
-                f"""
-                CREATE EXTERNAL TABLE {SCHEMA}.{table_name} (
-                \tcol_varchar STRING,
-                \tcol_varchar_length VARCHAR(10),
-                \tcol_varchar_type STRING,
-                \tcol_text STRING
-                )
-                STORED AS PARQUET
-                LOCATION '{ENV.s3_staging_dir}{SCHEMA}/{table_name}/'
-                TBLPROPERTIES ('parquet.compress'='SNAPPY')\n\n
-                """
-            ),
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE EXTERNAL TABLE {SCHEMA}.{table_name} (
+            \tcol_varchar STRING,
+            \tcol_varchar_length VARCHAR(10),
+            \tcol_varchar_type STRING,
+            \tcol_text STRING
+            )
+            STORED AS PARQUET
+            LOCATION '{ENV.s3_staging_dir}{SCHEMA}/{table_name}/'
+            TBLPROPERTIES ('parquet.compress'='SNAPPY')\n\n
+            """
         )
 
-        self.assertIsInstance(actual.c.col_varchar.type, types.String)
-        self.assertNotIsInstance(actual.c.col_varchar.type, types.VARCHAR)
-        self.assertIsNone(actual.c.col_varchar.type.length)
+        assert isinstance(actual.c.col_varchar.type, types.String)
+        assert not isinstance(actual.c.col_varchar.type, types.VARCHAR)
+        assert actual.c.col_varchar.type.length is None
 
-        self.assertIsInstance(actual.c.col_varchar_length.type, types.String)
-        self.assertIsInstance(actual.c.col_varchar_length.type, types.VARCHAR)
-        self.assertEqual(actual.c.col_varchar_length.type.length, 10)
+        assert isinstance(actual.c.col_varchar_length.type, types.String)
+        assert isinstance(actual.c.col_varchar_length.type, types.VARCHAR)
+        assert actual.c.col_varchar_length.type.length == 10
 
-        self.assertIsInstance(actual.c.col_varchar_type.type, types.String)
-        self.assertNotIsInstance(actual.c.col_varchar_type.type, types.VARCHAR)
-        self.assertIsNone(actual.c.col_varchar_type.type.length)
+        assert isinstance(actual.c.col_varchar_type.type, types.String)
+        assert not isinstance(actual.c.col_varchar_type.type, types.VARCHAR)
+        assert actual.c.col_varchar_type.type.length is None
 
-        self.assertIsInstance(actual.c.col_text.type, types.String)
-        self.assertNotIsInstance(actual.c.col_text.type, types.VARCHAR)
-        self.assertIsNone(actual.c.col_text.type.length)
+        assert isinstance(actual.c.col_text.type, types.String)
+        assert not isinstance(actual.c.col_text.type, types.VARCHAR)
+        assert actual.c.col_text.type.length is None
 
-    @with_engine()
-    def test_cast_as_varchar(self, engine, conn):
+    def test_cast_as_varchar(self, engine):
+        engine, conn = engine
+
         # varchar without length
         one_row = Table("one_row", MetaData(schema=SCHEMA), autoload_with=conn)
         actual = conn.execute(
@@ -709,7 +656,7 @@ class TestSQLAlchemyAthena(unittest.TestCase):
                 from_obj=one_row,
             )
         ).scalar()
-        self.assertEqual(actual, "1")
+        assert actual == "1"
 
         # varchar with length
         actual = conn.execute(
@@ -718,4 +665,4 @@ class TestSQLAlchemyAthena(unittest.TestCase):
                 from_obj=one_row,
             )
         ).scalar()
-        self.assertEqual(actual, "1")
+        assert actual == "1"

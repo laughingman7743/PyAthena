@@ -3,70 +3,62 @@ import contextlib
 import random
 import string
 import time
-import unittest
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from decimal import Decimal
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from pyathena.error import DatabaseError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.pandas.cursor import PandasCursor
 from pyathena.pandas.result_set import AthenaPandasResultSet
-from tests import ENV, S3_PREFIX, SCHEMA, WithConnect
-from tests.util import with_cursor
+from tests import ENV, S3_PREFIX, SCHEMA
+from tests.conftest import connect
 
 
-class TestPandasCursor(unittest.TestCase, WithConnect):
-    @with_cursor(cursor_class=PandasCursor)
-    def test_fetchone(self, cursor):
-        cursor.execute("SELECT * FROM one_row")
-        self.assertEqual(cursor.rownumber, 0)
-        self.assertEqual(cursor.fetchone(), (1,))
-        self.assertEqual(cursor.rownumber, 1)
-        self.assertIsNone(cursor.fetchone())
+class TestPandasCursor:
+    def test_fetchone(self, pandas_cursor):
+        pandas_cursor.execute("SELECT * FROM one_row")
+        assert pandas_cursor.rownumber == 0
+        assert pandas_cursor.fetchone() == (1,)
+        assert pandas_cursor.rownumber == 1
+        assert pandas_cursor.fetchone() is None
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_fetchmany(self, cursor):
-        cursor.execute("SELECT * FROM many_rows LIMIT 15")
-        self.assertEqual(len(cursor.fetchmany(10)), 10)
-        self.assertEqual(len(cursor.fetchmany(10)), 5)
+    def test_fetchmany(self, pandas_cursor):
+        pandas_cursor.execute("SELECT * FROM many_rows LIMIT 15")
+        assert len(pandas_cursor.fetchmany(10)) == 10
+        assert len(pandas_cursor.fetchmany(10)) == 5
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_fetchall(self, cursor):
-        cursor.execute("SELECT * FROM one_row")
-        self.assertEqual(cursor.fetchall(), [(1,)])
-        cursor.execute("SELECT a FROM many_rows ORDER BY a")
-        self.assertEqual(cursor.fetchall(), [(i,) for i in range(10000)])
+    def test_fetchall(self, pandas_cursor):
+        pandas_cursor.execute("SELECT * FROM one_row")
+        assert pandas_cursor.fetchall() == [(1,)]
+        pandas_cursor.execute("SELECT a FROM many_rows ORDER BY a")
+        assert pandas_cursor.fetchall() == [(i,) for i in range(10000)]
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_iterator(self, cursor):
-        cursor.execute("SELECT * FROM one_row")
-        self.assertEqual(list(cursor), [(1,)])
-        self.assertRaises(StopIteration, cursor.__next__)
+    def test_iterator(self, pandas_cursor):
+        pandas_cursor.execute("SELECT * FROM one_row")
+        assert list(pandas_cursor) == [(1,)]
+        pytest.raises(StopIteration, pandas_cursor.__next__)
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_arraysize(self, cursor):
-        cursor.arraysize = 5
-        cursor.execute("SELECT * FROM many_rows LIMIT 20")
-        self.assertEqual(len(cursor.fetchmany()), 5)
+    def test_arraysize(self, pandas_cursor):
+        pandas_cursor.arraysize = 5
+        pandas_cursor.execute("SELECT * FROM many_rows LIMIT 20")
+        assert len(pandas_cursor.fetchmany()) == 5
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_arraysize_default(self, cursor):
-        self.assertEqual(cursor.arraysize, AthenaPandasResultSet.DEFAULT_FETCH_SIZE)
+    def test_arraysize_default(self, pandas_cursor):
+        assert pandas_cursor.arraysize == AthenaPandasResultSet.DEFAULT_FETCH_SIZE
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_invalid_arraysize(self, cursor):
-        with self.assertRaises(ProgrammingError):
-            cursor.arraysize = 10000
-        with self.assertRaises(ProgrammingError):
-            cursor.arraysize = -1
+    def test_invalid_arraysize(self, pandas_cursor):
+        with pytest.raises(ProgrammingError):
+            pandas_cursor.arraysize = 10000
+        with pytest.raises(ProgrammingError):
+            pandas_cursor.arraysize = -1
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_complex(self, cursor):
-        cursor.execute(
+    def test_complex(self, pandas_cursor):
+        pandas_cursor.execute(
             """
             SELECT
               col_boolean
@@ -91,31 +83,28 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
             FROM one_row_complex
             """
         )
-        self.assertEqual(
-            cursor.description,
-            [
-                ("col_boolean", "boolean", None, None, 0, 0, "UNKNOWN"),
-                ("col_tinyint", "tinyint", None, None, 3, 0, "UNKNOWN"),
-                ("col_smallint", "smallint", None, None, 5, 0, "UNKNOWN"),
-                ("col_int", "integer", None, None, 10, 0, "UNKNOWN"),
-                ("col_bigint", "bigint", None, None, 19, 0, "UNKNOWN"),
-                ("col_float", "float", None, None, 17, 0, "UNKNOWN"),
-                ("col_double", "double", None, None, 17, 0, "UNKNOWN"),
-                ("col_string", "varchar", None, None, 2147483647, 0, "UNKNOWN"),
-                ("col_varchar", "varchar", None, None, 10, 0, "UNKNOWN"),
-                ("col_timestamp", "timestamp", None, None, 3, 0, "UNKNOWN"),
-                ("col_time", "time", None, None, 3, 0, "UNKNOWN"),
-                ("col_date", "date", None, None, 0, 0, "UNKNOWN"),
-                ("col_binary", "varbinary", None, None, 1073741824, 0, "UNKNOWN"),
-                ("col_array", "array", None, None, 0, 0, "UNKNOWN"),
-                ("col_array_json", "json", None, None, 0, 0, "UNKNOWN"),
-                ("col_map", "map", None, None, 0, 0, "UNKNOWN"),
-                ("col_map_json", "json", None, None, 0, 0, "UNKNOWN"),
-                ("col_struct", "row", None, None, 0, 0, "UNKNOWN"),
-                ("col_decimal", "decimal", None, None, 10, 1, "UNKNOWN"),
-            ],
-        )
-        rows = cursor.fetchall()
+        assert pandas_cursor.description == [
+            ("col_boolean", "boolean", None, None, 0, 0, "UNKNOWN"),
+            ("col_tinyint", "tinyint", None, None, 3, 0, "UNKNOWN"),
+            ("col_smallint", "smallint", None, None, 5, 0, "UNKNOWN"),
+            ("col_int", "integer", None, None, 10, 0, "UNKNOWN"),
+            ("col_bigint", "bigint", None, None, 19, 0, "UNKNOWN"),
+            ("col_float", "float", None, None, 17, 0, "UNKNOWN"),
+            ("col_double", "double", None, None, 17, 0, "UNKNOWN"),
+            ("col_string", "varchar", None, None, 2147483647, 0, "UNKNOWN"),
+            ("col_varchar", "varchar", None, None, 10, 0, "UNKNOWN"),
+            ("col_timestamp", "timestamp", None, None, 3, 0, "UNKNOWN"),
+            ("col_time", "time", None, None, 3, 0, "UNKNOWN"),
+            ("col_date", "date", None, None, 0, 0, "UNKNOWN"),
+            ("col_binary", "varbinary", None, None, 1073741824, 0, "UNKNOWN"),
+            ("col_array", "array", None, None, 0, 0, "UNKNOWN"),
+            ("col_array_json", "json", None, None, 0, 0, "UNKNOWN"),
+            ("col_map", "map", None, None, 0, 0, "UNKNOWN"),
+            ("col_map_json", "json", None, None, 0, 0, "UNKNOWN"),
+            ("col_struct", "row", None, None, 0, 0, "UNKNOWN"),
+            ("col_decimal", "decimal", None, None, 10, 1, "UNKNOWN"),
+        ]
+        rows = pandas_cursor.fetchall()
         expected = [
             (
                 True,
@@ -139,52 +128,46 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
                 Decimal("0.1"),
             )
         ]
-        self.assertEqual(rows, expected)
+        assert rows == expected
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_fetch_no_data(self, cursor):
-        self.assertRaises(ProgrammingError, cursor.fetchone)
-        self.assertRaises(ProgrammingError, cursor.fetchmany)
-        self.assertRaises(ProgrammingError, cursor.fetchall)
-        self.assertRaises(ProgrammingError, cursor.as_pandas)
+    def test_fetch_no_data(self, pandas_cursor):
+        pytest.raises(ProgrammingError, pandas_cursor.fetchone)
+        pytest.raises(ProgrammingError, pandas_cursor.fetchmany)
+        pytest.raises(ProgrammingError, pandas_cursor.fetchall)
+        pytest.raises(ProgrammingError, pandas_cursor.as_pandas)
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_as_pandas(self, cursor):
-        df = cursor.execute("SELECT * FROM one_row").as_pandas()
-        self.assertEqual(df.shape[0], 1)
-        self.assertEqual(df.shape[1], 1)
-        self.assertEqual([(row["number_of_rows"],) for _, row in df.iterrows()], [(1,)])
-        self.assertIsNotNone(cursor.query_id)
-        self.assertIsNotNone(cursor.query)
-        self.assertEqual(cursor.state, AthenaQueryExecution.STATE_SUCCEEDED)
-        self.assertIsNone(cursor.state_change_reason)
-        self.assertIsNotNone(cursor.completion_date_time)
-        self.assertIsInstance(cursor.completion_date_time, datetime)
-        self.assertIsNotNone(cursor.submission_date_time)
-        self.assertIsInstance(cursor.submission_date_time, datetime)
-        self.assertIsNotNone(cursor.data_scanned_in_bytes)
-        self.assertIsNotNone(cursor.engine_execution_time_in_millis)
-        self.assertIsNotNone(cursor.query_queue_time_in_millis)
-        self.assertIsNotNone(cursor.total_execution_time_in_millis)
-        # self.assertIsNotNone(cursor.query_planning_time_in_millis)  # TODO flaky test
-        # self.assertIsNotNone(cursor.service_processing_time_in_millis)  # TODO flaky test
-        self.assertIsNotNone(cursor.output_location)
-        self.assertIsNone(cursor.data_manifest_location)
-        self.assertIsNone(cursor.encryption_option)
-        self.assertIsNone(cursor.kms_key)
+    def test_as_pandas(self, pandas_cursor):
+        df = pandas_cursor.execute("SELECT * FROM one_row").as_pandas()
+        assert df.shape[0] == 1
+        assert df.shape[1] == 1
+        assert [(row["number_of_rows"],) for _, row in df.iterrows()] == [(1,)]
+        assert pandas_cursor.query_id
+        assert pandas_cursor.query
+        assert pandas_cursor.state == AthenaQueryExecution.STATE_SUCCEEDED
+        assert pandas_cursor.state_change_reason is None
+        assert pandas_cursor.completion_date_time
+        assert isinstance(pandas_cursor.completion_date_time, datetime)
+        assert pandas_cursor.submission_date_time
+        assert isinstance(pandas_cursor.submission_date_time, datetime)
+        assert pandas_cursor.data_scanned_in_bytes
+        assert pandas_cursor.engine_execution_time_in_millis
+        assert pandas_cursor.query_queue_time_in_millis
+        assert pandas_cursor.total_execution_time_in_millis
+        # assert pandas_cursor.query_planning_time_in_millis  # TODO flaky test
+        # assert pandas_cursor.service_processing_time_in_millis  # TODO flaky test
+        assert pandas_cursor.output_location
+        assert pandas_cursor.data_manifest_location is None
+        assert pandas_cursor.encryption_option is None
+        assert pandas_cursor.kms_key is None
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_many_as_pandas(self, cursor):
-        df = cursor.execute("SELECT * FROM many_rows").as_pandas()
-        self.assertEqual(df.shape[0], 10000)
-        self.assertEqual(df.shape[1], 1)
-        self.assertEqual(
-            [(row["a"],) for _, row in df.iterrows()], [(i,) for i in range(10000)]
-        )
+    def test_many_as_pandas(self, pandas_cursor):
+        df = pandas_cursor.execute("SELECT * FROM many_rows").as_pandas()
+        assert df.shape[0] == 10000
+        assert df.shape[1] == 1
+        assert [(row["a"],) for _, row in df.iterrows()] == [(i,) for i in range(10000)]
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_complex_as_pandas(self, cursor):
-        df = cursor.execute(
+    def test_complex_as_pandas(self, pandas_cursor):
+        df = pandas_cursor.execute(
             """
             SELECT
               col_boolean
@@ -209,8 +192,8 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
             FROM one_row_complex
             """
         ).as_pandas()
-        self.assertEqual(df.shape[0], 1)
-        self.assertEqual(df.shape[1], 19)
+        assert df.shape[0] == 1
+        assert df.shape[1] == 19
         dtypes = tuple(
             [
                 df["col_boolean"].dtype.type,
@@ -234,31 +217,28 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
                 df["col_decimal"].dtype.type,
             ]
         )
-        self.assertEqual(
-            dtypes,
-            tuple(
-                [
-                    np.bool_,
-                    np.int64,
-                    np.int64,
-                    np.int64,
-                    np.int64,
-                    np.float64,
-                    np.float64,
-                    np.object_,
-                    np.object_,
-                    np.datetime64,
-                    np.object_,
-                    np.datetime64,
-                    np.object_,
-                    np.object_,
-                    np.object_,
-                    np.object_,
-                    np.object_,
-                    np.object_,
-                    np.object_,
-                ]
-            ),
+        assert dtypes == tuple(
+            [
+                np.bool_,
+                np.int64,
+                np.int64,
+                np.int64,
+                np.int64,
+                np.float64,
+                np.float64,
+                np.object_,
+                np.object_,
+                np.datetime64,
+                np.object_,
+                np.datetime64,
+                np.object_,
+                np.object_,
+                np.object_,
+                np.object_,
+                np.object_,
+                np.object_,
+                np.object_,
+            ]
         )
         rows = [
             tuple(
@@ -286,80 +266,73 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
             )
             for _, row in df.iterrows()
         ]
-        self.assertEqual(
-            rows,
-            [
-                (
-                    True,
-                    127,
-                    32767,
-                    2147483647,
-                    9223372036854775807,
-                    0.5,
-                    0.25,
-                    "a string",
-                    "varchar",
-                    pd.Timestamp(2017, 1, 1, 0, 0, 0),
-                    datetime(2017, 1, 1, 0, 0, 0).time(),
-                    pd.Timestamp(2017, 1, 2),
-                    b"123",
-                    "[1, 2]",
-                    [1, 2],
-                    "{1=2, 3=4}",
-                    {"1": 2, "3": 4},
-                    "{a=1, b=2}",
-                    Decimal("0.1"),
-                )
-            ],
-        )
+        assert rows == [
+            (
+                True,
+                127,
+                32767,
+                2147483647,
+                9223372036854775807,
+                0.5,
+                0.25,
+                "a string",
+                "varchar",
+                pd.Timestamp(2017, 1, 1, 0, 0, 0),
+                datetime(2017, 1, 1, 0, 0, 0).time(),
+                pd.Timestamp(2017, 1, 2),
+                b"123",
+                "[1, 2]",
+                [1, 2],
+                "{1=2, 3=4}",
+                {"1": 2, "3": 4},
+                "{a=1, b=2}",
+                Decimal("0.1"),
+            )
+        ]
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_cancel(self, cursor):
+    def test_cancel(self, pandas_cursor):
         def cancel(c):
             time.sleep(random.randint(5, 10))
             c.cancel()
 
         with ThreadPoolExecutor(max_workers=1) as executor:
-            executor.submit(cancel, cursor)
+            executor.submit(cancel, pandas_cursor)
 
-            self.assertRaises(
+            pytest.raises(
                 DatabaseError,
-                lambda: cursor.execute(
+                lambda: pandas_cursor.execute(
                     """
-            SELECT a.a * rand(), b.a * rand()
-            FROM many_rows a
-            CROSS JOIN many_rows b
-            """
+                    SELECT a.a * rand(), b.a * rand()
+                    FROM many_rows a
+                    CROSS JOIN many_rows b
+                    """
                 ),
             )
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_cancel_initial(self, cursor):
-        self.assertRaises(ProgrammingError, cursor.cancel)
+    def test_cancel_initial(self, pandas_cursor):
+        pytest.raises(ProgrammingError, pandas_cursor.cancel)
 
     def test_open_close(self):
-        with contextlib.closing(self.connect()) as conn:
+        with contextlib.closing(connect()) as conn:
             with conn.cursor(PandasCursor):
                 pass
 
     def test_no_ops(self):
-        conn = self.connect()
+        conn = connect()
         cursor = conn.cursor(PandasCursor)
         cursor.close()
         conn.close()
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_show_columns(self, cursor):
-        cursor.execute("SHOW COLUMNS IN one_row")
-        self.assertEqual(cursor.fetchall(), [("number_of_rows      ",)])
+    def test_show_columns(self, pandas_cursor):
+        pandas_cursor.execute("SHOW COLUMNS IN one_row")
+        assert pandas_cursor.fetchall() == [("number_of_rows      ",)]
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_empty_result(self, cursor):
+    def test_empty_result(self, pandas_cursor):
         table = "test_pandas_cursor_empty_result_" + "".join(
             [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]
         )
         location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, S3_PREFIX, table)
-        df = cursor.execute(
+        df = pandas_cursor.execute(
             """
             CREATE EXTERNAL TABLE IF NOT EXISTS
             {schema}.{table} (number_of_rows INT)
@@ -370,22 +343,20 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
                 schema=SCHEMA, table=table, location=location
             )
         ).as_pandas()
-        self.assertEqual(df.shape[0], 0)
-        self.assertEqual(df.shape[1], 0)
+        assert df.shape[0] == 0
+        assert df.shape[1] == 0
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_integer_na_values(self, cursor):
-        df = cursor.execute(
+    def test_integer_na_values(self, pandas_cursor):
+        df = pandas_cursor.execute(
             """
             SELECT * FROM integer_na_values
             """
         ).as_pandas()
         rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
-        self.assertEqual(rows, [(1, 2), (1, pd.NA), (pd.NA, pd.NA)])
+        assert rows == [(1, 2), (1, pd.NA), (pd.NA, pd.NA)]
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_float_na_values(self, cursor):
-        df = cursor.execute(
+    def test_float_na_values(self, pandas_cursor):
+        df = pandas_cursor.execute(
             """
             SELECT * FROM (VALUES (0.33), (NULL))
             """
@@ -393,61 +364,59 @@ class TestPandasCursor(unittest.TestCase, WithConnect):
         rows = [tuple([row[0]]) for _, row in df.iterrows()]
         np.testing.assert_equal(rows, [(0.33,), (np.nan,)])
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_boolean_na_values(self, cursor):
-        df = cursor.execute(
+    def test_boolean_na_values(self, pandas_cursor):
+        df = pandas_cursor.execute(
             """
             SELECT * FROM boolean_na_values
             """
         ).as_pandas()
         rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
-        self.assertEqual(rows, [(True, False), (False, None), (None, None)])
+        assert rows == [(True, False), (False, None), (None, None)]
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_executemany(self, cursor):
-        cursor.executemany(
+    def test_executemany(self, pandas_cursor):
+        pandas_cursor.executemany(
             "INSERT INTO execute_many_pandas (a) VALUES (%(a)s)",
             [{"a": i} for i in range(1, 3)],
         )
-        cursor.execute("SELECT * FROM execute_many_pandas")
-        self.assertEqual(sorted(cursor.fetchall()), [(i,) for i in range(1, 3)])
+        pandas_cursor.execute("SELECT * FROM execute_many_pandas")
+        assert sorted(pandas_cursor.fetchall()) == [(i,) for i in range(1, 3)]
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_executemany_fetch(self, cursor):
-        cursor.executemany("SELECT %(x)d FROM one_row", [{"x": i} for i in range(1, 2)])
+    def test_executemany_fetch(self, pandas_cursor):
+        pandas_cursor.executemany(
+            "SELECT %(x)d FROM one_row", [{"x": i} for i in range(1, 2)]
+        )
         # Operations that have result sets are not allowed with executemany.
-        self.assertRaises(ProgrammingError, cursor.fetchall)
-        self.assertRaises(ProgrammingError, cursor.fetchmany)
-        self.assertRaises(ProgrammingError, cursor.fetchone)
-        self.assertRaises(ProgrammingError, cursor.as_pandas)
+        pytest.raises(ProgrammingError, pandas_cursor.fetchall)
+        pytest.raises(ProgrammingError, pandas_cursor.fetchmany)
+        pytest.raises(ProgrammingError, pandas_cursor.fetchone)
+        pytest.raises(ProgrammingError, pandas_cursor.as_pandas)
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_not_skip_blank_lines(self, cursor):
-        cursor.execute(
+    def test_not_skip_blank_lines(self, pandas_cursor):
+        pandas_cursor.execute(
             """
             SELECT * FROM (VALUES (1), (NULL))
             """
         )
-        self.assertEqual(len(cursor.fetchall()), 2)
+        assert len(pandas_cursor.fetchall()) == 2
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_empty_and_null_string(self, cursor):
+    def test_empty_and_null_string(self, pandas_cursor):
         # TODO https://github.com/laughingman7743/PyAthena/issues/118
         query = """
         SELECT * FROM (VALUES ('', 'a'), ('N/A', 'a'), ('NULL', 'a'), (NULL, 'a'))
         """
-        cursor.execute(query)
+        pandas_cursor.execute(query)
         np.testing.assert_equal(
-            cursor.fetchall(),
+            pandas_cursor.fetchall(),
             [(np.nan, "a"), ("N/A", "a"), ("NULL", "a"), (np.nan, "a")],
         )
-        cursor.execute(query, na_values=None)
-        self.assertEqual(
-            cursor.fetchall(),
-            [("", "a"), ("N/A", "a"), ("NULL", "a"), ("", "a")],
-        )
+        pandas_cursor.execute(query, na_values=None)
+        assert pandas_cursor.fetchall() == [
+            ("", "a"),
+            ("N/A", "a"),
+            ("NULL", "a"),
+            ("", "a"),
+        ]
 
-    @with_cursor(cursor_class=PandasCursor)
-    def test_null_decimal_value(self, cursor):
-        cursor.execute("SELECT CAST(null AS DECIMAL)")
-        self.assertEqual(cursor.fetchall(), [(None,)])
+    def test_null_decimal_value(self, pandas_cursor):
+        pandas_cursor.execute("SELECT CAST(null AS DECIMAL)")
+        assert pandas_cursor.fetchall() == [(None,)]

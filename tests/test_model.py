@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import unittest
 from datetime import datetime
 
 from pyathena.model import AthenaCompression, AthenaQueryExecution, AthenaRowFormat
@@ -37,41 +36,41 @@ ATHENA_QUERY_EXECUTION_RESPONSE = {
 }
 
 
-class TestAthenaQueryExecution(unittest.TestCase):
+class TestAthenaQueryExecution:
     def test_init(self):
         actual = AthenaQueryExecution(ATHENA_QUERY_EXECUTION_RESPONSE)
-        self.assertEqual(actual.database, "test_database")
-        self.assertEqual(actual.query_id, "12345678-90ab-cdef-1234-567890abcdef")
-        self.assertEqual(actual.query, "SELECT * FROM test_table")
-        self.assertEqual(actual.statement_type, "DML")
-        self.assertEqual(actual.state, "SUCCEEDED")
-        self.assertEqual(actual.state_change_reason, "test_reason")
-        self.assertEqual(actual.completion_date_time, datetime(2019, 1, 1, 0, 0, 0))
-        self.assertEqual(actual.submission_date_time, datetime(2019, 1, 1, 0, 0, 0))
-        self.assertEqual(actual.data_scanned_in_bytes, 1234567890)
-        self.assertEqual(actual.engine_execution_time_in_millis, 234567890)
-        self.assertEqual(actual.query_queue_time_in_millis, 34567890)
-        self.assertEqual(actual.total_execution_time_in_millis, 4567890)
-        self.assertEqual(actual.query_planning_time_in_millis, 567890)
-        self.assertEqual(actual.service_processing_time_in_millis, 67890)
-        self.assertEqual(actual.output_location, "s3://bucket/path/to/")
-        self.assertEqual(actual.data_manifest_location, "s3://bucket/path/to/")
-        self.assertEqual(actual.encryption_option, "test_encryption_option")
-        self.assertEqual(actual.kms_key, "test_kms_key")
-        self.assertEqual(actual.work_group, "test_work_group")
+        assert actual.database == "test_database"
+        assert actual.query_id, "12345678-90ab-cdef-1234-567890abcdef"
+        assert actual.query == "SELECT * FROM test_table"
+        assert actual.statement_type == "DML"
+        assert actual.state == "SUCCEEDED"
+        assert actual.state_change_reason == "test_reason"
+        assert actual.completion_date_time == datetime(2019, 1, 1, 0, 0, 0)
+        assert actual.submission_date_time == datetime(2019, 1, 1, 0, 0, 0)
+        assert actual.data_scanned_in_bytes == 1234567890
+        assert actual.engine_execution_time_in_millis == 234567890
+        assert actual.query_queue_time_in_millis == 34567890
+        assert actual.total_execution_time_in_millis == 4567890
+        assert actual.query_planning_time_in_millis == 567890
+        assert actual.service_processing_time_in_millis == 67890
+        assert actual.output_location == "s3://bucket/path/to/"
+        assert actual.data_manifest_location == "s3://bucket/path/to/"
+        assert actual.encryption_option == "test_encryption_option"
+        assert actual.kms_key == "test_kms_key"
+        assert actual.work_group == "test_work_group"
 
 
-class TestAthenaRowFormat(unittest.TestCase):
+class TestAthenaRowFormat:
     def test_is_valid(self):
-        self.assertTrue(AthenaRowFormat.is_valid("parquet"))
-        self.assertFalse(AthenaRowFormat.is_valid(None))
-        self.assertFalse(AthenaRowFormat.is_valid(""))
-        self.assertFalse(AthenaRowFormat.is_valid("foobar"))
+        assert AthenaRowFormat.is_valid("parquet")
+        assert not AthenaRowFormat.is_valid(None)
+        assert not AthenaRowFormat.is_valid("")
+        assert not AthenaRowFormat.is_valid("foobar")
 
 
-class TestAthenaCompression(unittest.TestCase):
+class TestAthenaCompression:
     def test_is_valid(self):
-        self.assertTrue(AthenaCompression.is_valid("snappy"))
-        self.assertFalse(AthenaCompression.is_valid(None))
-        self.assertFalse(AthenaCompression.is_valid(""))
-        self.assertFalse(AthenaCompression.is_valid("foobar"))
+        assert AthenaCompression.is_valid("snappy")
+        assert not AthenaCompression.is_valid(None)
+        assert not AthenaCompression.is_valid("")
+        assert not AthenaCompression.is_valid("foobar")
