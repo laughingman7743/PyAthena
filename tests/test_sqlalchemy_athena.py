@@ -126,6 +126,13 @@ class TestSQLAlchemyAthena(unittest.TestCase):
         self.assertRaises(AttributeError, lambda: one_row_complex.c.col_tinyint)
 
     @with_engine()
+    def test_partition_table_columns(self, engine, conn):
+        partition_table = Table("partition_table", MetaData(), autoload_with=conn)
+        self.assertEqual(len(partition_table.columns), 2)
+        self.assertTrue("a" in partition_table.columns)
+        self.assertTrue("b" in partition_table.columns)
+
+    @with_engine()
     def test_unicode(self, engine, conn):
         unicode_str = "密林"
         one_row = Table("one_row", MetaData(schema=SCHEMA))

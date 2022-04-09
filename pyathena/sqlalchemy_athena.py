@@ -470,7 +470,7 @@ class AthenaDialect(DefaultDialect):
                 "autoincrement": False,
                 "comment": c.comment,
             }
-            for c in metadata.columns
+            for c in metadata.columns + metadata.partition_keys
         ]
 
     def _get_column_type(self, type_):
