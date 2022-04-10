@@ -42,7 +42,7 @@ jobs:
           path: |
             ${{ github.workspace }}/.poetry
             ${{ github.workspace }}/.tox
-          key: venv-${{ github.workflow }}-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock', '**/tox.ini') }}
+          key: venv-${{ github.workflow }}-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock', '**/tox.ini') }}
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: poetry install --no-interaction --no-root
