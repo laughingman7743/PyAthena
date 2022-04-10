@@ -1,21 +1,15 @@
 # -*- coding: utf-8 -*-
 import textwrap
-import unittest
 from datetime import date, datetime
 from decimal import Decimal
 
+import pytest
+
 from pyathena.error import ProgrammingError
-from pyathena.formatter import DefaultParameterFormatter
 
 
-class TestDefaultParameterFormatter(unittest.TestCase):
-    def setUp(self):
-        self.formatter = DefaultParameterFormatter()
-
-    def format(self, operation, parameters=None):
-        return self.formatter.format(operation, parameters)
-
-    def test_add_partition(self):
+class TestDefaultParameterFormatter:
+    def test_add_partition(self, formatter):
         expected = textwrap.dedent(
             """
             ALTER TABLE test_table
@@ -23,7 +17,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 ALTER TABLE test_table
@@ -32,9 +26,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"dt": date(2017, 1, 1), "hour": 1},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_drop_partition(self):
+    def test_drop_partition(self, formatter):
         expected = textwrap.dedent(
             """
             ALTER TABLE test_table
@@ -42,7 +36,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 ALTER TABLE test_table
@@ -51,9 +45,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"dt": date(2017, 1, 1), "hour": 1},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_none(self):
+    def test_format_none(self, formatter):
         expected = textwrap.dedent(
             """
             SELECT *
@@ -62,7 +56,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -72,9 +66,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"param": None},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_datetime(self):
+    def test_format_datetime(self, formatter):
         expected = textwrap.dedent(
             """
             SELECT *
@@ -84,7 +78,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -98,9 +92,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
                 "end": datetime(2017, 1, 2, 6, 0, 0),
             },
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_date(self):
+    def test_format_date(self, formatter):
         expected = textwrap.dedent(
             """
             SELECT *
@@ -109,7 +103,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -119,9 +113,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"start": date(2017, 1, 1), "end": date(2017, 1, 2)},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_int(self):
+    def test_format_int(self, formatter):
         expected = textwrap.dedent(
             """
             SELECT *
@@ -130,7 +124,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -140,9 +134,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"param": 1},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_float(self):
+    def test_format_float(self, formatter):
         expected = textwrap.dedent(
             """
             SELECT *
@@ -151,7 +145,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -161,9 +155,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"param": 0.1},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_decimal(self):
+    def test_format_decimal(self, formatter):
         expected = textwrap.dedent(
             """
             SELECT *
@@ -172,7 +166,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -182,9 +176,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"param": Decimal("0.0000000001")},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_bool(self):
+    def test_format_bool(self, formatter):
         expected = textwrap.dedent(
             """
             SELECT *
@@ -193,7 +187,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -203,9 +197,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"param": True},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_str(self):
+    def test_format_str(self, formatter):
         expected = textwrap.dedent(
             """
             SELECT *
@@ -214,7 +208,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -224,9 +218,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"param": "amazon athena"},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_unicode(self):
+    def test_format_unicode(self, formatter):
         expected = textwrap.dedent(
             """
             SELECT *
@@ -235,7 +229,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -245,9 +239,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"param": "密林 女神"},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_none_list(self):
+    def test_format_none_list(self, formatter):
         expected = textwrap.dedent(
             """
             SELECT *
@@ -256,7 +250,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -266,9 +260,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"param": [None, None]},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_datetime_list(self):
+    def test_format_datetime_list(self, formatter):
         expected = textwrap.dedent(
             """
             SELECT *
@@ -278,7 +272,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -289,9 +283,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"param": [datetime(2017, 1, 1, 12, 0, 0), datetime(2017, 1, 2, 6, 0, 0)]},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_date_list(self):
+    def test_format_date_list(self, formatter):
         expected = textwrap.dedent(
             """
             SELECT *
@@ -300,7 +294,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -310,9 +304,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"param": [date(2017, 1, 1), date(2017, 1, 2)]},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_int_list(self):
+    def test_format_int_list(self, formatter):
         expected = textwrap.dedent(
             """
             SELECT *
@@ -321,7 +315,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -331,9 +325,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"param": [1, 2]},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_float_list(self):
+    def test_format_float_list(self, formatter):
         # default precision is 6
         expected = textwrap.dedent(
             """
@@ -343,7 +337,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -353,9 +347,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"param": [0.1, 0.2]},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_decimal_list(self):
+    def test_format_decimal_list(self, formatter):
         expected = textwrap.dedent(
             """
             SELECT *
@@ -364,7 +358,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -374,9 +368,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"param": [Decimal("0.0000000001"), Decimal("99.9999999999")]},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_bool_list(self):
+    def test_format_bool_list(self, formatter):
         expected = textwrap.dedent(
             """
             SELECT *
@@ -385,7 +379,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -395,9 +389,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"param": [True, False]},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_str_list(self):
+    def test_format_str_list(self, formatter):
         expected = textwrap.dedent(
             """
             SELECT *
@@ -406,7 +400,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -416,9 +410,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"param": ["amazon", "athena"]},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_unicode_list(self):
+    def test_format_unicode_list(self, formatter):
         expected = textwrap.dedent(
             """
             SELECT *
@@ -427,7 +421,7 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             """
         ).strip()
 
-        actual = self.format(
+        actual = formatter.format(
             textwrap.dedent(
                 """
                 SELECT *
@@ -437,12 +431,12 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ).strip(),
             {"param": ["密林", "女神"]},
         )
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
-    def test_format_bad_parameter(self):
-        self.assertRaises(
+    def test_format_bad_parameter(self, formatter):
+        pytest.raises(
             ProgrammingError,
-            lambda: self.format(
+            lambda: formatter.format(
                 """
                 SELECT *
                 FROM test_table
@@ -452,9 +446,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ),
         )
 
-        self.assertRaises(
+        pytest.raises(
             ProgrammingError,
-            lambda: self.format(
+            lambda: formatter.format(
                 """
                 SELECT *
                 FROM test_table
@@ -464,9 +458,9 @@ class TestDefaultParameterFormatter(unittest.TestCase):
             ),
         )
 
-        self.assertRaises(
+        pytest.raises(
             ProgrammingError,
-            lambda: self.format(
+            lambda: formatter.format(
                 """
                 SELECT *
                 FROM test_table

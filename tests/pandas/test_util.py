@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 import textwrap
-import unittest
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from pyathena import OperationalError
 from pyathena.pandas.util import (
@@ -16,43 +16,41 @@ from pyathena.pandas.util import (
     reset_index,
     to_sql,
 )
-from tests import ENV, S3_PREFIX, SCHEMA, WithConnect
-from tests.util import with_cursor
+from tests import ENV, S3_PREFIX, SCHEMA
 
 
-class TestPandasUtil(unittest.TestCase, WithConnect):
+class TestPandasUtil:
     def test_get_chunks(self):
         df = pd.DataFrame({"a": [1, 2, 3, 4, 5]})
         actual1 = get_chunks(df)
-        self.assertEqual([len(a) for a in actual1], [5])
+        assert [len(a) for a in actual1] == [5]
         actual2 = get_chunks(df, chunksize=2)
-        self.assertEqual([len(a) for a in actual2], [2, 2, 1])
+        assert [len(a) for a in actual2] == [2, 2, 1]
         actual3 = get_chunks(df, chunksize=10)
-        self.assertEqual([len(a) for a in actual3], [5])
+        assert [len(a) for a in actual3] == [5]
 
         # empty
-        self.assertEqual(list(get_chunks(pd.DataFrame())), [])
+        assert list(get_chunks(pd.DataFrame())) == []
 
         # invalid
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             list(get_chunks(df, chunksize=0))
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             list(get_chunks(df, chunksize=-1))
 
     def test_reset_index(self):
         df = pd.DataFrame({"a": [1, 2, 3, 4, 5]})
         reset_index(df)
-        self.assertEqual(list(df.columns), ["index", "a"])
+        assert list(df.columns) == ["index", "a"]
 
         df = pd.DataFrame({"a": [1, 2, 3, 4, 5]})
         reset_index(df, index_label="__index__")
-        self.assertEqual(list(df.columns), ["__index__", "a"])
+        assert list(df.columns) == ["__index__", "a"]
 
         df = pd.DataFrame({"a": [1, 2, 3, 4, 5]})
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             reset_index(df, index_label="a")
 
-    @with_cursor()
     def test_as_pandas(self, cursor):
         cursor.execute(
             """
@@ -126,9 +124,8 @@ class TestPandasUtil(unittest.TestCase, WithConnect):
                 Decimal("0.1"),
             )
         ]
-        self.assertEqual(rows, expected)
+        assert rows == expected
 
-    @with_cursor()
     def test_as_pandas_integer_na_values(self, cursor):
         cursor.execute(
             """
@@ -139,14 +136,13 @@ class TestPandasUtil(unittest.TestCase, WithConnect):
         rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
         # TODO AssertionError: Lists differ:
         #  [(1.0, 2.0), (1.0, nan), (nan, nan)] != [(1.0, 2.0), (1.0, nan), (nan, nan)]
-        # self.assertEqual(rows, [
+        # assert rows == [
         #     (1.0, 2.0),
         #     (1.0, np.nan),
         #     (np.nan, np.nan),
         # ])
         np.testing.assert_array_equal(rows, [(1, 2), (1, np.nan), (np.nan, np.nan)])
 
-    @with_cursor()
     def test_as_pandas_boolean_na_values(self, cursor):
         cursor.execute(
             """
@@ -155,7 +151,7 @@ class TestPandasUtil(unittest.TestCase, WithConnect):
         )
         df = as_pandas(cursor)
         rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
-        self.assertEqual(rows, [(True, False), (False, None), (None, None)])
+        assert rows == [(True, False), (False, None), (None, None)]
 
     def test_generate_ddl(self):
         df = pd.DataFrame(
@@ -189,26 +185,26 @@ class TestPandasUtil(unittest.TestCase, WithConnect):
         ]
 
         actual = generate_ddl(df, "test_table", "s3://bucket/path/to/", "test_schema")
-        self.assertEqual(
-            actual.strip(),
-            textwrap.dedent(
+        assert (
+            actual.strip()
+            == textwrap.dedent(
                 """
-                CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
-                `col_int` INT,
-                `col_bigint` BIGINT,
-                `col_float` FLOAT,
-                `col_double` DOUBLE,
-                `col_string` STRING,
-                `col_boolean` BOOLEAN,
-                `col_timestamp` TIMESTAMP,
-                `col_date` DATE,
-                `col_timedelta` BIGINT,
-                `col_binary` BINARY
-                )
-                STORED AS PARQUET
-                LOCATION 's3://bucket/path/to/'
-                """
-            ).strip(),
+            CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
+            `col_int` INT,
+            `col_bigint` BIGINT,
+            `col_float` FLOAT,
+            `col_double` DOUBLE,
+            `col_string` STRING,
+            `col_boolean` BOOLEAN,
+            `col_timestamp` TIMESTAMP,
+            `col_date` DATE,
+            `col_timedelta` BIGINT,
+            `col_binary` BINARY
+            )
+            STORED AS PARQUET
+            LOCATION 's3://bucket/path/to/'
+            """
+            ).strip()
         )
 
         # compression
@@ -219,27 +215,27 @@ class TestPandasUtil(unittest.TestCase, WithConnect):
             "test_schema",
             compression="snappy",
         )
-        self.assertEqual(
-            actual.strip(),
-            textwrap.dedent(
+        assert (
+            actual.strip()
+            == textwrap.dedent(
                 """
-                CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
-                `col_int` INT,
-                `col_bigint` BIGINT,
-                `col_float` FLOAT,
-                `col_double` DOUBLE,
-                `col_string` STRING,
-                `col_boolean` BOOLEAN,
-                `col_timestamp` TIMESTAMP,
-                `col_date` DATE,
-                `col_timedelta` BIGINT,
-                `col_binary` BINARY
-                )
-                STORED AS PARQUET
-                LOCATION 's3://bucket/path/to/'
-                TBLPROPERTIES ('parquet.compress'='SNAPPY')
-                """
-            ).strip(),
+            CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
+            `col_int` INT,
+            `col_bigint` BIGINT,
+            `col_float` FLOAT,
+            `col_double` DOUBLE,
+            `col_string` STRING,
+            `col_boolean` BOOLEAN,
+            `col_timestamp` TIMESTAMP,
+            `col_date` DATE,
+            `col_timedelta` BIGINT,
+            `col_binary` BINARY
+            )
+            STORED AS PARQUET
+            LOCATION 's3://bucket/path/to/'
+            TBLPROPERTIES ('parquet.compress'='SNAPPY')
+            """
+            ).strip()
         )
 
         # partitions
@@ -250,28 +246,28 @@ class TestPandasUtil(unittest.TestCase, WithConnect):
             "test_schema",
             partitions=["col_int"],
         )
-        self.assertEqual(
-            actual.strip(),
-            textwrap.dedent(
+        assert (
+            actual.strip()
+            == textwrap.dedent(
                 """
-                CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
-                `col_bigint` BIGINT,
-                `col_float` FLOAT,
-                `col_double` DOUBLE,
-                `col_string` STRING,
-                `col_boolean` BOOLEAN,
-                `col_timestamp` TIMESTAMP,
-                `col_date` DATE,
-                `col_timedelta` BIGINT,
-                `col_binary` BINARY
-                )
-                PARTITIONED BY (
-                `col_int` INT
-                )
-                STORED AS PARQUET
-                LOCATION 's3://bucket/path/to/'
-                """
-            ).strip(),
+            CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
+            `col_bigint` BIGINT,
+            `col_float` FLOAT,
+            `col_double` DOUBLE,
+            `col_string` STRING,
+            `col_boolean` BOOLEAN,
+            `col_timestamp` TIMESTAMP,
+            `col_date` DATE,
+            `col_timedelta` BIGINT,
+            `col_binary` BINARY
+            )
+            PARTITIONED BY (
+            `col_int` INT
+            )
+            STORED AS PARQUET
+            LOCATION 's3://bucket/path/to/'
+            """
+            ).strip()
         )
 
         # multiple partitions
@@ -282,43 +278,42 @@ class TestPandasUtil(unittest.TestCase, WithConnect):
             "test_schema",
             partitions=["col_int", "col_string"],
         )
-        self.assertEqual(
-            actual.strip(),
-            textwrap.dedent(
+        assert (
+            actual.strip()
+            == textwrap.dedent(
                 """
-                CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
-                `col_bigint` BIGINT,
-                `col_float` FLOAT,
-                `col_double` DOUBLE,
-                `col_boolean` BOOLEAN,
-                `col_timestamp` TIMESTAMP,
-                `col_date` DATE,
-                `col_timedelta` BIGINT,
-                `col_binary` BINARY
-                )
-                PARTITIONED BY (
-                `col_int` INT,
-                `col_string` STRING
-                )
-                STORED AS PARQUET
-                LOCATION 's3://bucket/path/to/'
-                """
-            ).strip(),
+            CREATE EXTERNAL TABLE IF NOT EXISTS `test_schema`.`test_table` (
+            `col_bigint` BIGINT,
+            `col_float` FLOAT,
+            `col_double` DOUBLE,
+            `col_boolean` BOOLEAN,
+            `col_timestamp` TIMESTAMP,
+            `col_date` DATE,
+            `col_timedelta` BIGINT,
+            `col_binary` BINARY
+            )
+            PARTITIONED BY (
+            `col_int` INT,
+            `col_string` STRING
+            )
+            STORED AS PARQUET
+            LOCATION 's3://bucket/path/to/'
+            """
+            ).strip()
         )
 
         # complex
         df = pd.DataFrame({"col_complex": np.complex_([1.0, 2.0, 3.0, 4.0, 5.0])})
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             generate_ddl(df, "test_table", "s3://bucket/path/to/")
 
         # time
         df = pd.DataFrame(
             {"col_time": [datetime(2020, 1, 1, 0, 0, 0).time()]}, index=["i"]
         )
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             generate_ddl(df, "test_table", "s3://bucket/path/to/")
 
-    @with_cursor()
     def test_to_sql(self, cursor):
         df = pd.DataFrame(
             {
@@ -359,7 +354,7 @@ class TestPandasUtil(unittest.TestCase, WithConnect):
             compression="snappy",
         )
         # table already exists
-        with self.assertRaises(OperationalError):
+        with pytest.raises(OperationalError):
             to_sql(
                 df,
                 table_name,
@@ -381,36 +376,30 @@ class TestPandasUtil(unittest.TestCase, WithConnect):
         )
 
         cursor.execute("SELECT * FROM {0}".format(table_name))
-        self.assertEqual(
-            cursor.fetchall(),
-            [
-                (
-                    1,
-                    12345,
-                    1.0,
-                    1.2345,
-                    "a",
-                    True,
-                    datetime(2020, 1, 1, 0, 0, 0),
-                    date(2020, 12, 31),
-                    "foobar".encode(),
-                )
-            ],
-        )
-        self.assertEqual(
-            [(d[0], d[1]) for d in cursor.description],
-            [
-                ("col_int", "integer"),
-                ("col_bigint", "bigint"),
-                ("col_float", "float"),
-                ("col_double", "double"),
-                ("col_string", "varchar"),
-                ("col_boolean", "boolean"),
-                ("col_timestamp", "timestamp"),
-                ("col_date", "date"),
-                ("col_binary", "varbinary"),
-            ],
-        )
+        assert cursor.fetchall() == [
+            (
+                1,
+                12345,
+                1.0,
+                1.2345,
+                "a",
+                True,
+                datetime(2020, 1, 1, 0, 0, 0),
+                date(2020, 12, 31),
+                "foobar".encode(),
+            )
+        ]
+        assert [(d[0], d[1]) for d in cursor.description] == [
+            ("col_int", "integer"),
+            ("col_bigint", "bigint"),
+            ("col_float", "float"),
+            ("col_double", "double"),
+            ("col_string", "varchar"),
+            ("col_boolean", "boolean"),
+            ("col_timestamp", "timestamp"),
+            ("col_date", "date"),
+            ("col_binary", "varbinary"),
+        ]
 
         # append
         to_sql(
@@ -423,35 +412,31 @@ class TestPandasUtil(unittest.TestCase, WithConnect):
             compression="snappy",
         )
         cursor.execute("SELECT * FROM {0}".format(table_name))
-        self.assertEqual(
-            cursor.fetchall(),
-            [
-                (
-                    1,
-                    12345,
-                    1.0,
-                    1.2345,
-                    "a",
-                    True,
-                    datetime(2020, 1, 1, 0, 0, 0),
-                    date(2020, 12, 31),
-                    "foobar".encode(),
-                ),
-                (
-                    1,
-                    12345,
-                    1.0,
-                    1.2345,
-                    "a",
-                    True,
-                    datetime(2020, 1, 1, 0, 0, 0),
-                    date(2020, 12, 31),
-                    "foobar".encode(),
-                ),
-            ],
-        )
+        assert cursor.fetchall() == [
+            (
+                1,
+                12345,
+                1.0,
+                1.2345,
+                "a",
+                True,
+                datetime(2020, 1, 1, 0, 0, 0),
+                date(2020, 12, 31),
+                "foobar".encode(),
+            ),
+            (
+                1,
+                12345,
+                1.0,
+                1.2345,
+                "a",
+                True,
+                datetime(2020, 1, 1, 0, 0, 0),
+                date(2020, 12, 31),
+                "foobar".encode(),
+            ),
+        ]
 
-    @with_cursor()
     def test_to_sql_with_index(self, cursor):
         df = pd.DataFrame({"col_int": np.int32([1])})
         table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
@@ -468,13 +453,12 @@ class TestPandasUtil(unittest.TestCase, WithConnect):
             index_label="col_index",
         )
         cursor.execute("SELECT * FROM {0}".format(table_name))
-        self.assertEqual(cursor.fetchall(), [(0, 1)])
-        self.assertEqual(
-            [(d[0], d[1]) for d in cursor.description],
-            [("col_index", "bigint"), ("col_int", "integer")],
-        )
+        assert cursor.fetchall() == [(0, 1)]
+        assert [(d[0], d[1]) for d in cursor.description] == [
+            ("col_index", "bigint"),
+            ("col_int", "integer"),
+        ]
 
-    @with_cursor()
     def test_to_sql_with_partitions(self, cursor):
         df = pd.DataFrame(
             {
@@ -496,13 +480,12 @@ class TestPandasUtil(unittest.TestCase, WithConnect):
             compression="snappy",
         )
         cursor.execute("SHOW PARTITIONS {0}".format(table_name))
-        self.assertEqual(
-            sorted(cursor.fetchall()), [("col_int={0}".format(i),) for i in range(10)]
-        )
+        assert sorted(cursor.fetchall()) == [
+            ("col_int={0}".format(i),) for i in range(10)
+        ]
         cursor.execute("SELECT COUNT(*) FROM {0}".format(table_name))
-        self.assertEqual(cursor.fetchall(), [(10,)])
+        assert cursor.fetchall() == [(10,)]
 
-    @with_cursor()
     def test_to_sql_with_multiple_partitions(self, cursor):
         df = pd.DataFrame(
             {
@@ -524,21 +507,18 @@ class TestPandasUtil(unittest.TestCase, WithConnect):
             compression="snappy",
         )
         cursor.execute("SHOW PARTITIONS {0}".format(table_name))
-        self.assertEqual(
-            sorted(cursor.fetchall()),
-            [("col_int={0}/col_string=a".format(i),) for i in range(5)]
-            + [("col_int={0}/col_string=b".format(i),) for i in range(5, 10)],
-        )
+        assert sorted(cursor.fetchall()), [
+            ("col_int={0}/col_string=a".format(i),) for i in range(5)
+        ] + [("col_int={0}/col_string=b".format(i),) for i in range(5, 10)]
         cursor.execute("SELECT COUNT(*) FROM {0}".format(table_name))
-        self.assertEqual(cursor.fetchall(), [(10,)])
+        assert cursor.fetchall() == [(10,)]
 
-    @with_cursor()
     def test_to_sql_invalid_args(self, cursor):
         df = pd.DataFrame({"col_int": np.int32([1])})
         table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
         location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, S3_PREFIX, table_name)
         # invalid if_exists
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             to_sql(
                 df,
                 table_name,
@@ -549,7 +529,7 @@ class TestPandasUtil(unittest.TestCase, WithConnect):
                 compression="snappy",
             )
         # invalid compression
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             to_sql(
                 df,
                 table_name,

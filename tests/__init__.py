@@ -24,10 +24,3 @@ class Env(object):
 
 
 ENV = Env()
-
-
-class WithConnect(object):
-    def connect(self, **opts):
-        from pyathena import connect
-
-        return connect(schema_name=SCHEMA, **opts)
