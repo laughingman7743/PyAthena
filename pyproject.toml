@@ -68,7 +68,7 @@ sqlalchemy = ["sqlalchemy"]
 
 [tool.pytest.ini_options]
 flake8-max-line-length = 100
-norecursedirs = "benchmark"
+norecursedirs = "benchmarks"
 
 [tool.isort]
 profile = "black"
@@ -89,7 +89,7 @@ warn_unreachable = true
 warn_unused_configs = true
 
 [[tool.mypy.overrides]]
-module = ["benchmark.*", "tests.*"]
+module = ["benchmarks.*", "tests.*"]
 ignore_errors = true
 
 [build-system]
