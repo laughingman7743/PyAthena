@@ -269,7 +269,7 @@ class AthenaTableMetadata:
 
     @property
     def serde_serialization_lib(self) -> Optional[str]:
-        return self._parameters.get("'serde.serialization.lib", None)
+        return self._parameters.get("serde.serialization.lib", None)
 
     @property
     def compression(self) -> Optional[str]:
