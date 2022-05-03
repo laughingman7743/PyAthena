@@ -69,8 +69,6 @@ class CursorIterator(metaclass=ABCMeta):
         else:
             return row
 
-    next = __next__
-
     def __iter__(self):
         return self
 
