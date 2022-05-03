@@ -197,7 +197,7 @@ If you want to use the query results output to S3 directly, you can use `PandasC
 This cursor fetches query results faster than the default cursor. (See `benchmark results`_.)
 
 .. _`pandas.read_sql_query`: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_sql_query.html
-.. _`benchmark results`: benchmarks/README.rst
+.. _`benchmark results`: benchmarks/
 
 To SQL
 ^^^^^^
