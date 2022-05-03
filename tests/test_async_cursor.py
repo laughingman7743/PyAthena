@@ -10,6 +10,7 @@ from pyathena.async_cursor import AsyncCursor
 from pyathena.error import NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
+from tests import ENV
 from tests.conftest import SCHEMA, connect
 
 
@@ -115,7 +116,7 @@ class TestAsyncCursor:
         assert query_execution.output_location
         assert query_execution.encryption_option is None
         assert query_execution.kms_key is None
-        assert query_execution.work_group == "primary"
+        assert query_execution.work_group == ENV.default_work_group
 
         assert result_set.database == query_execution.database
         assert result_set.query_id == query_execution.query_id

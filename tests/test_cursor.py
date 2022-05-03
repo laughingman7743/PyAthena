@@ -14,7 +14,7 @@ from pyathena import BINARY, BOOLEAN, DATE, DATETIME, JSON, NUMBER, STRING, TIME
 from pyathena.cursor import Cursor
 from pyathena.error import DatabaseError, NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
-from tests import ENV, S3_PREFIX, SCHEMA, WORK_GROUP
+from tests import ENV, S3_PREFIX, SCHEMA
 from tests.conftest import connect
 
 
@@ -45,7 +45,7 @@ class TestCursor:
         assert cursor.data_manifest_location is None
         assert cursor.encryption_option is None
         assert cursor.kms_key is None
-        assert cursor.work_group == "primary"
+        assert cursor.work_group == ENV.default_work_group
 
     def test_fetchmany(self, cursor):
         cursor.execute("SELECT * FROM many_rows LIMIT 15")
@@ -87,7 +87,7 @@ class TestCursor:
         # When using caching, the same query ID should be returned.
         assert third_query_id in [first_query_id, second_query_id]
 
-    @pytest.mark.parametrize("cursor", [{"work_group": WORK_GROUP}], indirect=True)
+    @pytest.mark.parametrize("cursor", [{"work_group": ENV.work_group}], indirect=True)
     def test_cache_size_with_work_group(self, cursor):
         now = datetime.utcnow()
         cursor.execute("SELECT %(now)s as date", {"now": now})
@@ -531,12 +531,12 @@ class TestCursor:
         cursor.execute("SHOW PARTITIONS partition_table")
         assert sorted(cursor.fetchall()) == [("b={0}".format(i),) for i in range(10)]
 
-    @pytest.mark.parametrize("cursor", [{"work_group": WORK_GROUP}], indirect=True)
+    @pytest.mark.parametrize("cursor", [{"work_group": ENV.work_group}], indirect=True)
     def test_workgroup(self, cursor):
         cursor.execute("SELECT * FROM one_row")
-        assert cursor.work_group == WORK_GROUP
+        assert cursor.work_group == ENV.work_group
 
-    @pytest.mark.parametrize("cursor", [{"work_group": WORK_GROUP}], indirect=True)
+    @pytest.mark.parametrize("cursor", [{"work_group": ENV.work_group}], indirect=True)
     def test_no_s3_staging_dir(self, cursor):
         cursor._s3_staging_dir = None
         cursor.execute("SELECT * FROM one_row")

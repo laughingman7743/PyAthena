@@ -14,6 +14,8 @@ from tests.util import read_query
 def connect(schema_name="default", **kwargs):
     from pyathena import connect
 
+    if "work_group" not in kwargs:
+        kwargs["work_group"] = ENV.default_work_group
     return connect(schema_name=schema_name, **kwargs)
 
 
