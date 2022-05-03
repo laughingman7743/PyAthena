@@ -434,7 +434,7 @@ class BaseCursor(metaclass=ABCMeta):
     @abstractmethod
     def executemany(
         self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]]
-    ):
+    ) -> None:
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod

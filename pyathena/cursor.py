@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, TypeVar, Union, cast
 
 from pyathena.common import BaseCursor, CursorIterator
 from pyathena.converter import Converter
@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from pyathena.connection import Connection
 
 _logger = logging.getLogger(__name__)  # type: ignore
+_T = TypeVar("_T", bound="Cursor")
 
 
 class Cursor(BaseCursor, CursorIterator, WithResultSet):
@@ -78,14 +79,14 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
 
     @synchronized
     def execute(
-        self,
+        self: _T,
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
-    ):
+    ) -> _T:
         self._reset_state()
         self.query_id = self._execute(
             operation,
@@ -110,7 +111,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
 
     def executemany(
         self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]]
-    ):
+    ) -> None:
         for parameters in seq_of_parameters:
             self.execute(operation, parameters)
         # Operations that have result sets are not allowed with executemany.
@@ -123,21 +124,27 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         self._cancel(self.query_id)
 
     @synchronized
-    def fetchone(self):
+    def fetchone(
+        self,
+    ) -> Optional[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaResultSet, self.result_set)
         return result_set.fetchone()
 
     @synchronized
-    def fetchmany(self, size: int = None):
+    def fetchmany(
+        self, size: int = None
+    ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaResultSet, self.result_set)
         return result_set.fetchmany(size)
 
     @synchronized
-    def fetchall(self):
+    def fetchall(
+        self,
+    ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaResultSet, self.result_set)
