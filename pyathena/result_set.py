@@ -199,7 +199,7 @@ class AthenaResultSet(CursorIterator):
             for m in self._meta_data
         ]
 
-    def __fetch(self, next_token: Optional[str] = None):
+    def __fetch(self, next_token: Optional[str] = None) -> Dict[str, Any]:
         if not self.query_id:
             raise ProgrammingError("QueryExecutionId is none or empty.")
         if self.state != AthenaQueryExecution.STATE_SUCCEEDED:
@@ -224,20 +224,22 @@ class AthenaResultSet(CursorIterator):
             _logger.exception("Failed to fetch result set.")
             raise OperationalError(*e.args) from e
         else:
-            return response
+            return cast(Dict[str, Any], response)
 
-    def _fetch(self):
+    def _fetch(self) -> None:
         if not self._next_token:
             raise ProgrammingError("NextToken is none or empty.")
         response = self.__fetch(self._next_token)
         self._process_rows(response)
 
-    def _pre_fetch(self):
+    def _pre_fetch(self) -> None:
         response = self.__fetch()
         self._process_meta_data(response)
         self._process_rows(response)
 
-    def fetchone(self):
+    def fetchone(
+        self,
+    ) -> Optional[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not self._rows and self._next_token:
             self._fetch()
         if not self._rows:
@@ -248,7 +250,9 @@ class AthenaResultSet(CursorIterator):
             self._rownumber += 1
             return self._rows.popleft()
 
-    def fetchmany(self, size: Optional[int] = None):
+    def fetchmany(
+        self, size: Optional[int] = None
+    ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not size or size <= 0:
             size = self._arraysize
         rows = []
@@ -260,7 +264,9 @@ class AthenaResultSet(CursorIterator):
                 break
         return rows
 
-    def fetchall(self):
+    def fetchall(
+        self,
+    ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         rows = []
         while True:
             row = self.fetchone()

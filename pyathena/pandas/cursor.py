@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, TypeVar, cast
 
 from pyathena.common import CursorIterator
 from pyathena.converter import Converter
@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from pyathena.connection import Connection
 
 _logger = logging.getLogger(__name__)  # type: ignore
+_T = TypeVar("_T", bound="PandasCursor")
 
 
 class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
@@ -79,7 +80,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
 
     @synchronized
     def execute(
-        self,
+        self: _T,
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
         work_group: Optional[str] = None,
@@ -90,7 +91,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         na_values: Optional[Iterable[str]] = ("",),
         quoting: int = 1,
         **kwargs,
-    ):
+    ) -> _T:
         self._reset_state()
         self.query_id = self._execute(
             operation,

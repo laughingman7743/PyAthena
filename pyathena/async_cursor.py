@@ -148,7 +148,7 @@ class AsyncCursor(BaseCursor):
 
     def executemany(
         self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]]
-    ):
+    ) -> None:
         raise NotSupportedError
 
     def cancel(self, query_id: str) -> "Future[None]":
