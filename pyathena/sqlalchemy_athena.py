@@ -404,7 +404,7 @@ class AthenaDialect(DefaultDialect):
         schema = schema if schema else raw_connection.schema_name
         with raw_connection.connection.cursor() as cursor:
             try:
-                return cursor._get_table_metadata(table_name, schema_name=schema)
+                return cursor.get_table_metadata(table_name, schema_name=schema)
             except pyathena.error.OperationalError as exc:
                 cause = exc.__cause__
                 if (
@@ -418,17 +418,8 @@ class AthenaDialect(DefaultDialect):
     def _get_tables(self, connection, schema=None, **kw):
         raw_connection = self._raw_connection(connection)
         schema = schema if schema else raw_connection.schema_name
-        tables = []
-        next_token = None
         with raw_connection.connection.cursor() as cursor:
-            while True:
-                next_token, response = cursor._list_table_metadata(
-                    schema_name=schema, next_token=next_token
-                )
-                tables.extend(response)
-                if not next_token:
-                    break
-        return tables
+            return cursor.list_table_metadata(schema_name=schema)
 
     def get_table_names(self, connection, schema=None, **kw):
         tables = self._get_tables(connection, schema, **kw)

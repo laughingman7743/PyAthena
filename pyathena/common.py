@@ -155,6 +155,18 @@ class BaseCursor(metaclass=ABCMeta):
         else:
             return AthenaTableMetadata(response)
 
+    def get_table_metadata(
+        self,
+        table_name: str,
+        catalog_name: Optional[str] = None,
+        schema_name: Optional[str] = None,
+    ) -> AthenaTableMetadata:
+        return self._get_table_metadata(
+            table_name=table_name,
+            catalog_name=catalog_name,
+            schema_name=schema_name,
+        )
+
     def _batch_get_query_execution(
         self, query_ids: List[str]
     ) -> List[AthenaQueryExecution]:
@@ -230,6 +242,28 @@ class BaseCursor(metaclass=ABCMeta):
                 AthenaTableMetadata({"TableMetadata": r})
                 for r in response.get("TableMetadataList", [])
             ]
+
+    def list_table_metadata(
+        self,
+        max_results: Optional[int] = None,
+        catalog_name: Optional[str] = None,
+        schema_name: Optional[str] = None,
+        expression: Optional[str] = None,
+    ) -> List[AthenaTableMetadata]:
+        metadata = []
+        next_token = None
+        while True:
+            next_token, response = self._list_table_metadata(
+                max_results=max_results,
+                catalog_name=catalog_name,
+                schema_name=schema_name,
+                expression=expression,
+                next_token=next_token,
+            )
+            metadata.extend(response)
+            if not next_token:
+                break
+        return metadata
 
     def __poll(self, query_id: str) -> AthenaQueryExecution:
         while True:
