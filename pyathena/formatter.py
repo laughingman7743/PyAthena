@@ -12,7 +12,7 @@ _logger = logging.getLogger(__name__)  # type: ignore
 _T = TypeVar("_T", bound="Formatter")
 
 
-class Formatter(object, metaclass=ABCMeta):
+class Formatter(metaclass=ABCMeta):
     def __init__(
         self,
         mappings: Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], Any]],

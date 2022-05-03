@@ -17,7 +17,7 @@ from sqlalchemy.sql.compiler import (
 import pyathena
 
 
-class UniversalSet(object):
+class UniversalSet:
     """UniversalSet
 
     https://github.com/dropbox/PyHive/blob/master/pyhive/common.py"""

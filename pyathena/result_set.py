@@ -367,7 +367,7 @@ class AthenaDictResultSet(AthenaResultSet):
         ]
 
 
-class WithResultSet(object):
+class WithResultSet:
     def __init__(self):
         super(WithResultSet, self).__init__()
 
