@@ -4,7 +4,7 @@ import random
 import string
 
 
-class Env(object):
+class Env:
     def __init__(self):
         self.region_name = os.getenv("AWS_DEFAULT_REGION")
         assert (

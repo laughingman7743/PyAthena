@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 _logger = logging.getLogger(__name__)  # type: ignore
 
 
-class CursorIterator(object, metaclass=ABCMeta):
+class CursorIterator(metaclass=ABCMeta):
 
     DEFAULT_FETCH_SIZE: int = 1000
 
@@ -75,7 +75,7 @@ class CursorIterator(object, metaclass=ABCMeta):
         return self
 
 
-class BaseCursor(object, metaclass=ABCMeta):
+class BaseCursor(metaclass=ABCMeta):
 
     # https://docs.aws.amazon.com/athena/latest/APIReference/API_ListQueryExecutions.html
     # Valid Range: Minimum value of 0. Maximum value of 50.

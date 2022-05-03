@@ -8,7 +8,7 @@ from pyathena.error import DataError
 _logger = logging.getLogger(__name__)  # type: ignore
 
 
-class AthenaQueryExecution(object):
+class AthenaQueryExecution:
 
     STATE_QUEUED: str = "QUEUED"
     STATE_RUNNING: str = "RUNNING"
@@ -160,7 +160,7 @@ class AthenaQueryExecution(object):
         return self._work_group
 
 
-class AthenaTableMetadataColumn(object):
+class AthenaTableMetadataColumn:
     def __init__(self, response):
         self._name: Optional[str] = response.get("Name", None)
         self._type: Optional[str] = response.get("Type", None)
@@ -179,7 +179,7 @@ class AthenaTableMetadataColumn(object):
         return self._comment
 
 
-class AthenaTableMetadataPartitionKey(object):
+class AthenaTableMetadataPartitionKey:
     def __init__(self, response):
         self._name: Optional[str] = response.get("Name", None)
         self._type: Optional[str] = response.get("Type", None)
@@ -198,7 +198,7 @@ class AthenaTableMetadataPartitionKey(object):
         return self._comment
 
 
-class AthenaTableMetadata(object):
+class AthenaTableMetadata:
     def __init__(self, response):
         table_metadata = response.get("TableMetadata", None)
         if not table_metadata:
@@ -282,7 +282,7 @@ class AthenaTableMetadata(object):
             return None
 
 
-class AthenaRowFormat(object):
+class AthenaRowFormat:
 
     ROW_FORMAT_PARQUET: str = "parquet"
     ROW_FORMAT_ORC: str = "orc"
@@ -301,7 +301,7 @@ class AthenaRowFormat(object):
         ]
 
 
-class AthenaCompression(object):
+class AthenaCompression:
 
     COMPRESSION_SNAPPY: str = "snappy"
     COMPRESSION_ZLIB: str = "zlib"

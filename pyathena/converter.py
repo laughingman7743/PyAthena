@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, Optional, Type
 _logger = logging.getLogger(__name__)  # type: ignore
 
 
-class Converter(object, metaclass=ABCMeta):
+class Converter(metaclass=ABCMeta):
     def __init__(
         self,
         mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]],

@@ -39,7 +39,7 @@ def synchronized(wrapped: Callable[..., Any]) -> Any:
     return _wrapper
 
 
-class RetryConfig(object):
+class RetryConfig:
     def __init__(
         self,
         exceptions: Iterable[str] = (
