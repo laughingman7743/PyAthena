@@ -1,7 +1,13 @@
 # -*- coding: utf-8 -*-
+import copy
 from datetime import datetime
 
-from pyathena.model import AthenaCompression, AthenaQueryExecution, AthenaRowFormat
+from pyathena.model import (
+    AthenaCompression,
+    AthenaQueryExecution,
+    AthenaRowFormat,
+    AthenaTableMetadata,
+)
 
 ATHENA_QUERY_EXECUTION_RESPONSE = {
     "QueryExecution": {
@@ -33,6 +39,82 @@ ATHENA_QUERY_EXECUTION_RESPONSE = {
         },
         "WorkGroup": "test_work_group",
     }
+}
+ATHENA_TABLE_METADATA_RESPONSE = {
+    "TableMetadata": {
+        "Name": "test_name",
+        "CreateTime": datetime(2015, 1, 1, 0, 0, 0),
+        "LastAccessTime": datetime(2015, 1, 1, 0, 0, 0),
+        "TableType": "test_table_type",
+        "Columns": [
+            {"Name": "test_name_1", "Type": "test_type_1", "Comment": "test_comment_1"},
+            {"Name": "test_name_2", "Type": "test_type_2", "Comment": "test_comment_2"},
+        ],
+        "PartitionKeys": [
+            {"Name": "test_name_1", "Type": "test_type_1", "Comment": "test_comment_1"},
+            {"Name": "test_name_2", "Type": "test_type_2", "Comment": "test_comment_2"},
+        ],
+        "Parameters": {"comment": "test_comment"},
+    }
+}
+ATHENA_TABLE_METADATA_PARAMETERS_TEXT = {
+    "EXTERNAL": "TRUE",
+    "has_encrypted_data": "false",
+    "inputformat": "org.apache.hadoop.mapred.TextInputFormat",
+    "location": "s3://bucket/path/to",
+    "outputformat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+    "presto_query_id": "20220101_123456_98765_abcde",
+    "serde.serialization.lib": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+    "write.compression": "SNAPPY",
+}
+ATHENA_TABLE_METADATA_PARAMETERS_JSON = {
+    "EXTERNAL": "TRUE",
+    "inputformat": "org.apache.hadoop.mapred.TextInputFormat",
+    "location": "s3://bucket/path/to",
+    "outputformat": "org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat",
+    "serde.param.serialization.format": "1",
+    "serde.param.write.compression": "GZIP",
+    "serde.serialization.lib": "org.openx.data.jsonserde.JsonSerDe",
+    "transient_lastDdlTime": "1234567890",
+}
+ATHENA_TABLE_METADATA_PARAMETERS_JSON_HCATALOG = {
+    "EXTERNAL": "TRUE",
+    "has_encrypted_data": "false",
+    "inputformat": "org.apache.hadoop.mapred.TextInputFormat",
+    "location": "s3://bucket/path/to",
+    "outputformat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+    "presto_query_id": "20220101_123456_98765_abcde",
+    "serde.serialization.lib": "org.apache.hive.hcatalog.data.JsonSerDe",
+    "write.compression": "SNAPPY",
+}
+ATHENA_TABLE_METADATA_PARAMETERS_PARQUET = {
+    "EXTERNAL": "TRUE",
+    "inputformat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+    "location": "s3://bucket/path/to",
+    "outputformat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
+    "parquet.compress": "SNAPPY",
+    "serde.param.serialization.format": "1",
+    "serde.serialization.lib": "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
+    "transient_lastDdlTime": "1234567890",
+}
+ATHENA_TABLE_METADATA_PARAMETERS_ORC = {
+    "EXTERNAL": "TRUE",
+    "has_encrypted_data": "false",
+    "inputformat": "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat",
+    "location": "s3://bucket/path/to",
+    "orc.compress": "SNAPPY",
+    "outputformat": "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat",
+    "presto_query_id": "20220101_123456_98765_abcde",
+    "serde.serialization.lib": "org.apache.hadoop.hive.ql.io.orc.OrcSerde",
+}
+ATHENA_TABLE_METADATA_PARAMETERS_AVRO = {
+    "EXTERNAL": "TRUE",
+    "has_encrypted_data": "false",
+    "inputformat": "org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat",
+    "location": "s3://bucket/path/to",
+    "outputformat": "org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat",
+    "presto_query_id": "20220101_123456_98765_abcde",
+    "serde.serialization.lib": "org.apache.hadoop.hive.serde2.avro.AvroSerDe",
 }
 
 
@@ -74,3 +156,151 @@ class TestAthenaCompression:
         assert not AthenaCompression.is_valid(None)
         assert not AthenaCompression.is_valid("")
         assert not AthenaCompression.is_valid("foobar")
+
+
+class TestAthenaTableMetadata:
+    def test_init(self):
+        actual = AthenaTableMetadata(ATHENA_TABLE_METADATA_RESPONSE)
+        assert actual.name == "test_name"
+        assert actual.create_time == datetime(2015, 1, 1, 0, 0, 0)
+        assert actual.last_access_time == datetime(2015, 1, 1, 0, 0, 0)
+        assert actual.table_type == "test_table_type"
+
+        columns = actual.columns
+        assert len(columns) == 2
+        assert columns[0].name == "test_name_1"
+        assert columns[0].type == "test_type_1"
+        assert columns[0].comment == "test_comment_1"
+        assert columns[1].name == "test_name_2"
+        assert columns[1].type == "test_type_2"
+        assert columns[1].comment == "test_comment_2"
+
+        partition_keys = actual.partition_keys
+        assert len(partition_keys) == 2
+        assert partition_keys[0].name == "test_name_1"
+        assert partition_keys[0].type == "test_type_1"
+        assert partition_keys[0].comment == "test_comment_1"
+        assert partition_keys[1].name == "test_name_2"
+        assert partition_keys[1].type == "test_type_2"
+        assert partition_keys[1].comment == "test_comment_2"
+
+        assert actual.parameters == {"comment": "test_comment"}
+        assert actual.comment == "test_comment"
+        assert actual.location is None
+        assert actual.input_format is None
+        assert actual.output_format is None
+        assert actual.serde_serialization_lib is None
+        assert actual.compression is None
+
+    def test_init_text(self):
+        response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
+        response["TableMetadata"]["Parameters"] = ATHENA_TABLE_METADATA_PARAMETERS_TEXT
+        actual = AthenaTableMetadata(response)
+        assert actual.parameters == ATHENA_TABLE_METADATA_PARAMETERS_TEXT
+        assert actual.comment is None
+        assert actual.location == "s3://bucket/path/to"
+        assert actual.input_format == "org.apache.hadoop.mapred.TextInputFormat"
+        assert (
+            actual.output_format
+            == "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
+        )
+        assert (
+            actual.serde_serialization_lib
+            == "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
+        )
+        assert actual.compression == "SNAPPY"
+
+    def test_init_json(self):
+        response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
+        response["TableMetadata"]["Parameters"] = ATHENA_TABLE_METADATA_PARAMETERS_JSON
+        actual = AthenaTableMetadata(response)
+        assert actual.parameters == ATHENA_TABLE_METADATA_PARAMETERS_JSON
+        assert actual.comment is None
+        assert actual.location == "s3://bucket/path/to"
+        assert actual.input_format == "org.apache.hadoop.mapred.TextInputFormat"
+        assert (
+            actual.output_format
+            == "org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat"
+        )
+        assert actual.serde_serialization_lib == "org.openx.data.jsonserde.JsonSerDe"
+        assert actual.compression == "GZIP"
+
+    def test_init_json_hcatalog(self):
+        response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
+        response["TableMetadata"][
+            "Parameters"
+        ] = ATHENA_TABLE_METADATA_PARAMETERS_JSON_HCATALOG
+        actual = AthenaTableMetadata(response)
+        assert actual.parameters == ATHENA_TABLE_METADATA_PARAMETERS_JSON_HCATALOG
+        assert actual.comment is None
+        assert actual.location == "s3://bucket/path/to"
+        assert actual.input_format == "org.apache.hadoop.mapred.TextInputFormat"
+        assert (
+            actual.output_format
+            == "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
+        )
+        assert (
+            actual.serde_serialization_lib == "org.apache.hive.hcatalog.data.JsonSerDe"
+        )
+        assert actual.compression == "SNAPPY"
+
+    def test_init_parquet(self):
+        response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
+        response["TableMetadata"][
+            "Parameters"
+        ] = ATHENA_TABLE_METADATA_PARAMETERS_PARQUET
+        actual = AthenaTableMetadata(response)
+        assert actual.parameters == ATHENA_TABLE_METADATA_PARAMETERS_PARQUET
+        assert actual.comment is None
+        assert actual.location == "s3://bucket/path/to"
+        assert (
+            actual.input_format
+            == "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+        )
+        assert (
+            actual.output_format
+            == "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+        )
+        assert (
+            actual.serde_serialization_lib
+            == "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+        )
+        assert actual.compression == "SNAPPY"
+
+    def test_init_orc(self):
+        response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
+        response["TableMetadata"]["Parameters"] = ATHENA_TABLE_METADATA_PARAMETERS_ORC
+        actual = AthenaTableMetadata(response)
+        assert actual.parameters == ATHENA_TABLE_METADATA_PARAMETERS_ORC
+        assert actual.comment is None
+        assert actual.location == "s3://bucket/path/to"
+        assert actual.input_format == "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat"
+        assert (
+            actual.output_format == "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat"
+        )
+        assert (
+            actual.serde_serialization_lib
+            == "org.apache.hadoop.hive.ql.io.orc.OrcSerde"
+        )
+        assert actual.compression == "SNAPPY"
+
+    def test_init_avro(self):
+        response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
+        response["TableMetadata"]["Parameters"] = ATHENA_TABLE_METADATA_PARAMETERS_AVRO
+        actual = AthenaTableMetadata(response)
+        assert actual.parameters == ATHENA_TABLE_METADATA_PARAMETERS_AVRO
+        assert actual.comment is None
+        assert actual.location == "s3://bucket/path/to"
+        assert (
+            actual.input_format
+            == "org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat"
+        )
+        assert (
+            actual.output_format
+            == "org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat"
+        )
+        assert (
+            actual.serde_serialization_lib
+            == "org.apache.hadoop.hive.serde2.avro.AvroSerDe"
+        )
+        assert actual.compression is None

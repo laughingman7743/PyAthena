@@ -269,15 +269,18 @@ class AthenaTableMetadata:
 
     @property
     def serde_serialization_lib(self) -> Optional[str]:
-        return self._parameters.get("'serde.serialization.lib", None)
+        return self._parameters.get("serde.serialization.lib", None)
 
     @property
     def compression(self) -> Optional[str]:
-        # TODO Supports compression of orc, avro, csv, and tsv formats
-        if "compressionType" in self._parameters:  # json
-            return self._parameters["compressionType"]
+        if "write.compression" in self._parameters:  # text or json
+            return self._parameters["write.compression"]
+        elif "serde.param.write.compression" in self._parameters:  # text or json
+            return self._parameters["serde.param.write.compression"]
         elif "parquet.compress" in self._parameters:  # parquet
             return self._parameters["parquet.compress"]
+        elif "orc.compress" in self._parameters:  # orc
+            return self._parameters["orc.compress"]
         else:
             return None
 
