@@ -374,12 +374,16 @@ class TestPandasCursor:
         assert rows == [(True, False), (False, None), (None, None)]
 
     def test_executemany(self, pandas_cursor):
+        rows = [(1, "foo"), (2, "bar"), (3, "jim o'rourke")]
         pandas_cursor.executemany(
-            "INSERT INTO execute_many_pandas (a) VALUES (%(a)s)",
-            [{"a": i} for i in range(1, 3)],
+            "INSERT INTO execute_many_pandas (a, b) VALUES (%(a)d, %(b)s)",
+            [
+                {"a": a, "b": b}
+                for a, b in [(1, "foo"), (2, "bar"), (3, "jim o'rourke")]
+            ],
         )
         pandas_cursor.execute("SELECT * FROM execute_many_pandas")
-        assert sorted(pandas_cursor.fetchall()) == [(i,) for i in range(1, 3)]
+        assert sorted(pandas_cursor.fetchall()) == [(a, b) for a, b in rows]
 
     def test_executemany_fetch(self, pandas_cursor):
         pandas_cursor.executemany(

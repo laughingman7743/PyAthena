@@ -543,12 +543,13 @@ class TestCursor:
         assert cursor.output_location
 
     def test_executemany(self, cursor):
+        rows = [(1, "foo"), (2, "bar"), (3, "jim o'rourke")]
         cursor.executemany(
-            "INSERT INTO execute_many (a) VALUES (%(a)s)",
-            [{"a": i} for i in range(1, 3)],
+            "INSERT INTO execute_many (a, b) VALUES (%(a)d, %(b)s)",
+            [{"a": a, "b": b} for a, b in rows],
         )
         cursor.execute("SELECT * FROM execute_many")
-        assert sorted(cursor.fetchall()) == [(i,) for i in range(1, 3)]
+        assert sorted(cursor.fetchall()) == [(a, b) for a, b in rows]
 
     def test_executemany_fetch(self, cursor):
         cursor.executemany("SELECT %(x)d FROM one_row", [{"x": i} for i in range(1, 2)])

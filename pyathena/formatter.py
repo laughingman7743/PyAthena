@@ -162,8 +162,11 @@ class DefaultParameterFormatter(Formatter):
             raise ProgrammingError("Query is none or empty.")
         operation = operation.strip()
 
-        if operation.upper().startswith("SELECT") or operation.upper().startswith(
-            "WITH"
+        operation_upper = operation.upper()
+        if (
+            operation_upper.startswith("SELECT")
+            or operation_upper.startswith("WITH")
+            or operation_upper.startswith("INSERT")
         ):
             escaper = _escape_presto
         else:
