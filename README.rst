@@ -1110,12 +1110,16 @@ Depends on the following environment variables:
 
 .. code:: bash
 
-    $ export AWS_ACCESS_KEY_ID=YOUR_ACCESS_KEY_ID
-    $ export AWS_SECRET_ACCESS_KEY=YOUR_SECRET_ACCESS_KEY
     $ export AWS_DEFAULT_REGION=us-west-2
     $ export AWS_ATHENA_S3_STAGING_DIR=s3://YOUR_S3_BUCKET/path/to/
+    $ export AWS_ATHENA_WORKGROUP=pyathena-test
 
-And you need to create a workgroup named ``test-pyathena`` with the ``Query result location`` configuration.
+In addition, you need to create a workgroup with the `Query result location` set to the name specified in the `AWS_ATHENA_WORKGROUP` environment variable.
+If primary is not available as the default workgroup, specify an alternative workgroup name for the default in the environment variable `AWS_ATHENA_DEFAULT_WORKGROUP`.
+
+.. code:: bash
+
+    $ AWS_ATHENA_DEFAULT_WORKGROUP=DEFAULT_WORKGROUP
 
 Run test
 ~~~~~~~~
@@ -1139,6 +1143,36 @@ Run test multiple Python versions
     $ pyenv local 3.10.1 3.9.1 3.8.2 3.7.2
     $ poetry run tox
     $ poetry run scripts/test_data/delete_test_data.sh
+
+GitHub Actions
+~~~~~~~~~~~~~~
+
+GitHub Actions uses OpenID Connect (OIDC) to access AWS resources. You will need to refer to the `GitHub Actions documentation`_ to configure it.
+
+.. _`GitHub Actions documentation`: https://docs.github.com/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services
+
+The CloudFormation templates for creating GitHub OIDC Provider and IAM Role can be found in the `aws-actions/configure-aws-credentials repository`_.
+
+.. _`aws-actions/configure-aws-credentials repository`: https://github.com/aws-actions/configure-aws-credentials#sample-iam-role-cloudformation-template
+
+Under `scripts/cloudformation`_ you will also find a CloudFormation template with additional permissions and workgroup settings needed for testing.
+
+.. _`scripts/cloudformation`: scripts/cloudformation/
+
+The example of the CloudFormation execution command is the following:
+
+.. code:: bash
+
+    $ aws --region us-west-2 \
+        cloudformation create-stack \
+        --stack-name github-actions-oidc-pyathena \
+        --capabilities CAPABILITY_NAMED_IAM \
+        --template-body file://./scripts/cloudformation/github_actions_oidc.yaml \
+        --parameters ParameterKey=GitHubOrg,ParameterValue=laughingman7743 \
+          ParameterKey=RepositoryName,ParameterValue=PyAthena \
+          ParameterKey=BucketName,ParameterValue=laughingman7743-athena \
+          ParameterKey=RoleName,ParameterValue=github-actions-oidc-pyathena-test \
+          ParameterKey=WorkGroupName,ParameterValue=pyathena-test
 
 Code formatting
 ---------------
