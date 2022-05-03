@@ -545,7 +545,7 @@ class TestCursor:
     def test_executemany(self, cursor):
         rows = [(1, "foo"), (2, "bar"), (3, "jim o'rourke")]
         cursor.executemany(
-            "INSERT INTO execute_many (a, b) VALUES (%(a)s, %(b)s)",
+            "INSERT INTO execute_many (a, b) VALUES (%(a)d, %(b)s)",
             [{"a": a, "b": b} for a, b in rows],
         )
         cursor.execute("SELECT * FROM execute_many")

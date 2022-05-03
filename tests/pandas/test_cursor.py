@@ -376,7 +376,7 @@ class TestPandasCursor:
     def test_executemany(self, pandas_cursor):
         rows = [(1, "foo"), (2, "bar"), (3, "jim o'rourke")]
         pandas_cursor.executemany(
-            "INSERT INTO execute_many_pandas (a, b) VALUES (%(a)s, %(b)s)",
+            "INSERT INTO execute_many_pandas (a, b) VALUES (%(a)d, %(b)s)",
             [
                 {"a": a, "b": b}
                 for a, b in [(1, "foo"), (2, "bar"), (3, "jim o'rourke")]
