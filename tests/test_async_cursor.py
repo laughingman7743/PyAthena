@@ -11,7 +11,7 @@ from pyathena.error import NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
 from tests import ENV
-from tests.conftest import SCHEMA, connect
+from tests.conftest import connect
 
 
 class TestAsyncCursor:
@@ -97,7 +97,7 @@ class TestAsyncCursor:
         future = async_cursor.query_execution(query_id)
         query_execution = future.result()
 
-        assert query_execution.database == SCHEMA
+        assert query_execution.database == ENV.schema
         assert query_execution.query_id
         assert query_execution.query == query
         assert query_execution.statement_type == AthenaQueryExecution.STATEMENT_TYPE_DML

@@ -16,7 +16,7 @@ from pyathena.pandas.util import (
     reset_index,
     to_sql,
 )
-from tests import ENV, S3_PREFIX, SCHEMA
+from tests import ENV
 
 
 class TestPandasUtil:
@@ -343,13 +343,13 @@ class TestPandasUtil:
             ]
         ]
         table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
-        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, S3_PREFIX, table_name)
+        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, ENV.schema, table_name)
         to_sql(
             df,
             table_name,
             cursor._connection,
             location,
-            schema=SCHEMA,
+            schema=ENV.schema,
             if_exists="fail",
             compression="snappy",
         )
@@ -360,7 +360,7 @@ class TestPandasUtil:
                 table_name,
                 cursor._connection,
                 location,
-                schema=SCHEMA,
+                schema=ENV.schema,
                 if_exists="fail",
                 compression="snappy",
             )
@@ -370,7 +370,7 @@ class TestPandasUtil:
             table_name,
             cursor._connection,
             location,
-            schema=SCHEMA,
+            schema=ENV.schema,
             if_exists="replace",
             compression="snappy",
         )
@@ -407,7 +407,7 @@ class TestPandasUtil:
             table_name,
             cursor._connection,
             location,
-            schema=SCHEMA,
+            schema=ENV.schema,
             if_exists="append",
             compression="snappy",
         )
@@ -440,13 +440,13 @@ class TestPandasUtil:
     def test_to_sql_with_index(self, cursor):
         df = pd.DataFrame({"col_int": np.int32([1])})
         table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
-        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, S3_PREFIX, table_name)
+        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, ENV.schema, table_name)
         to_sql(
             df,
             table_name,
             cursor._connection,
             location,
-            schema=SCHEMA,
+            schema=ENV.schema,
             if_exists="fail",
             compression="snappy",
             index=True,
@@ -468,13 +468,13 @@ class TestPandasUtil:
             }
         )
         table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
-        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, S3_PREFIX, table_name)
+        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, ENV.schema, table_name)
         to_sql(
             df,
             table_name,
             cursor._connection,
             location,
-            schema=SCHEMA,
+            schema=ENV.schema,
             partitions=["col_int"],
             if_exists="fail",
             compression="snappy",
@@ -495,13 +495,13 @@ class TestPandasUtil:
             }
         )
         table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
-        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, S3_PREFIX, table_name)
+        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, ENV.schema, table_name)
         to_sql(
             df,
             table_name,
             cursor._connection,
             location,
-            schema=SCHEMA,
+            schema=ENV.schema,
             partitions=["col_int", "col_string"],
             if_exists="fail",
             compression="snappy",
@@ -516,7 +516,7 @@ class TestPandasUtil:
     def test_to_sql_invalid_args(self, cursor):
         df = pd.DataFrame({"col_int": np.int32([1])})
         table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
-        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, S3_PREFIX, table_name)
+        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, ENV.schema, table_name)
         # invalid if_exists
         with pytest.raises(ValueError):
             to_sql(
@@ -524,7 +524,7 @@ class TestPandasUtil:
                 table_name,
                 cursor._connection,
                 location,
-                schema=SCHEMA,
+                schema=ENV.schema,
                 if_exists="foobar",
                 compression="snappy",
             )
@@ -535,7 +535,7 @@ class TestPandasUtil:
                 table_name,
                 cursor._connection,
                 location,
-                schema=SCHEMA,
+                schema=ENV.schema,
                 if_exists="fail",
                 compression="foobar",
             )

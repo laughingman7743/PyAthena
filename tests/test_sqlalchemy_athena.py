@@ -17,7 +17,7 @@ from sqlalchemy.sql.schema import Column, MetaData, Table
 from sqlalchemy.sql.selectable import TextualSelect
 
 from pyathena.sqlalchemy_athena import AthenaDialect
-from tests.conftest import ENV, S3_PREFIX, SCHEMA
+from tests.conftest import ENV
 
 
 class TestSQLAlchemyAthena:
@@ -55,7 +55,7 @@ class TestSQLAlchemyAthena:
 
     def test_reflect_table_with_schema(self, engine):
         engine, conn = engine
-        one_row = Table("one_row", MetaData(schema=SCHEMA), autoload_with=conn)
+        one_row = Table("one_row", MetaData(schema=ENV.schema), autoload_with=conn)
         assert len(one_row.c) == 1
         assert one_row.c.number_of_rows is not None
         assert one_row.comment == "table comment"
@@ -106,7 +106,7 @@ class TestSQLAlchemyAthena:
     def test_unicode(self, engine):
         engine, conn = engine
         unicode_str = "密林"
-        one_row = Table("one_row", MetaData(schema=SCHEMA))
+        one_row = Table("one_row", MetaData(schema=ENV.schema))
         returned_str = conn.execute(
             sqlalchemy.select(
                 [expression.bindparam("あまぞん", unicode_str, type_=types.String())],
@@ -119,7 +119,7 @@ class TestSQLAlchemyAthena:
         engine, conn = engine
         insp = sqlalchemy.inspect(engine)
         schemas = insp.get_schema_names()
-        assert SCHEMA in schemas
+        assert ENV.schema in schemas
         assert "default" in schemas
 
     def test_get_table_names(self, engine):
@@ -131,7 +131,7 @@ class TestSQLAlchemyAthena:
         assert "view_one_row" not in meta.tables
 
         insp = sqlalchemy.inspect(engine)
-        assert "many_rows" in insp.get_table_names(schema=SCHEMA)
+        assert "many_rows" in insp.get_table_names(schema=ENV.schema)
 
     def test_get_view_names(self, engine):
         engine, conn = engine
@@ -142,7 +142,7 @@ class TestSQLAlchemyAthena:
         assert "view_one_row" in meta.tables
 
         insp = sqlalchemy.inspect(engine)
-        actual = insp.get_view_names(schema=SCHEMA)
+        actual = insp.get_view_names(schema=ENV.schema)
         assert "one_row" not in actual
         assert "one_row_complex" not in actual
         assert "view_one_row" in actual
@@ -150,28 +150,28 @@ class TestSQLAlchemyAthena:
     def test_get_table_comment(self, engine):
         engine, conn = engine
         insp = sqlalchemy.inspect(engine)
-        actual = insp.get_table_comment("one_row", schema=SCHEMA)
+        actual = insp.get_table_comment("one_row", schema=ENV.schema)
         assert actual == {"text": "table comment"}
 
     def test_get_table_options(self, engine):
         engine, conn = engine
         insp = sqlalchemy.inspect(engine)
-        actual = insp.get_table_options("parquet_with_compression", schema=SCHEMA)
+        actual = insp.get_table_options("parquet_with_compression", schema=ENV.schema)
         assert actual == {
-            "awsathena_location": f"{ENV.s3_staging_dir}{S3_PREFIX}/parquet_with_compression",
+            "awsathena_location": f"{ENV.s3_staging_dir}{ENV.schema}/parquet_with_compression",
             "awsathena_compression": "SNAPPY",
         }
 
     def test_has_table(self, engine):
         engine, conn = engine
         insp = sqlalchemy.inspect(engine)
-        assert insp.has_table("one_row", schema=SCHEMA)
-        assert not insp.has_table("this_table_does_not_exist", schema=SCHEMA)
+        assert insp.has_table("one_row", schema=ENV.schema)
+        assert not insp.has_table("this_table_does_not_exist", schema=ENV.schema)
 
     def test_get_columns(self, engine):
         engine, conn = engine
         insp = sqlalchemy.inspect(engine)
-        actual = insp.get_columns(table_name="one_row", schema=SCHEMA)[0]
+        actual = insp.get_columns(table_name="one_row", schema=ENV.schema)[0]
         assert actual["name"] == "number_of_rows"
         assert isinstance(actual["type"], types.INTEGER)
         assert actual["nullable"]
@@ -182,7 +182,7 @@ class TestSQLAlchemyAthena:
     def test_char_length(self, engine):
         engine, conn = engine
         one_row_complex = Table(
-            "one_row_complex", MetaData(schema=SCHEMA), autoload_with=conn
+            "one_row_complex", MetaData(schema=ENV.schema), autoload_with=conn
         )
         result = conn.execute(
             sqlalchemy.select(
@@ -194,7 +194,7 @@ class TestSQLAlchemyAthena:
     def test_reflect_select(self, engine):
         engine, conn = engine
         one_row_complex = Table(
-            "one_row_complex", MetaData(schema=SCHEMA), autoload_with=conn
+            "one_row_complex", MetaData(schema=ENV.schema), autoload_with=conn
         )
         assert len(one_row_complex.c) == 16
         assert isinstance(one_row_complex.c.col_string, Column)
@@ -243,7 +243,7 @@ class TestSQLAlchemyAthena:
 
     def test_select_offset_limit(self, engine):
         engine, conn = engine
-        many_rows = Table("many_rows", MetaData(schema=SCHEMA), autoload_with=conn)
+        many_rows = Table("many_rows", MetaData(schema=ENV.schema), autoload_with=conn)
         rows = conn.execute(many_rows.select().offset(10).limit(5)).fetchall()
         assert rows == [(i,) for i in range(10, 15)]
 
@@ -400,13 +400,13 @@ class TestSQLAlchemyAthena:
         df.to_sql(
             table_name,
             engine,
-            schema=SCHEMA,
+            schema=ENV.schema,
             index=False,
             if_exists="replace",
             method="multi",
         )
 
-        table = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
+        table = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
         assert conn.execute(table.select()).fetchall() == [
             (
                 1,
@@ -451,13 +451,13 @@ class TestSQLAlchemyAthena:
             table_name,
             MetaData(),
             Column(column_name, types.String(10)),
-            schema=SCHEMA,
-            awsathena_location=f"{ENV.s3_staging_dir}{SCHEMA}/{table_name}",
+            schema=ENV.schema,
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}",
             awsathena_compression=None,
         )
         insp = sqlalchemy.inspect(engine)
         table.create(bind=conn)
-        assert insp.has_table(table_name, schema=SCHEMA)
+        assert insp.has_table(table_name, schema=ENV.schema)
 
     def test_create_table_location(self):
         dialect = AthenaDialect()
@@ -465,20 +465,20 @@ class TestSQLAlchemyAthena:
         column_name = "col"
         table = Table(
             table_name,
-            MetaData(schema=SCHEMA),
+            MetaData(schema=ENV.schema),
             Column(column_name, types.String(10)),
-            awsathena_location=f"s3://path/to/{SCHEMA}/{table_name}",
+            awsathena_location=f"s3://path/to/{ENV.schema}/{table_name}",
             awsathena_compression="SNAPPY",
         )
         actual = CreateTable(table).compile(dialect=dialect)
         # If there is no `/` at the end of the `awsathena_location`, it will be appended.
         assert str(actual) == textwrap.dedent(
             f"""
-            CREATE EXTERNAL TABLE {SCHEMA}.{table_name} (
+            CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
             \t{column_name} VARCHAR(10)
             )
             STORED AS PARQUET
-            LOCATION 's3://path/to/{SCHEMA}/{table_name}/'
+            LOCATION 's3://path/to/{ENV.schema}/{table_name}/'
             TBLPROPERTIES ('parquet.compress'='SNAPPY')\n\n
             """
         )
@@ -489,9 +489,9 @@ class TestSQLAlchemyAthena:
         column_name = "col"
         table = Table(
             table_name,
-            MetaData(schema=SCHEMA),
+            MetaData(schema=ENV.schema),
             Column(column_name, types.String(10), comment="some descriptive comment"),
-            awsathena_location=f"s3://path/to/{SCHEMA}/{table_name}/",
+            awsathena_location=f"s3://path/to/{ENV.schema}/{table_name}/",
             comment=textwrap.dedent(
                 """
                 Some table comment
@@ -503,7 +503,7 @@ class TestSQLAlchemyAthena:
         actual = CreateTable(table).compile(dialect=dialect)
         assert str(actual) == textwrap.dedent(
             f"""
-            CREATE EXTERNAL TABLE {SCHEMA}.{table_name} (
+            CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
             \t{column_name} VARCHAR(10) COMMENT 'some descriptive comment'
             )
             COMMENT '
@@ -512,7 +512,7 @@ class TestSQLAlchemyAthena:
             a multiline one that should stay as is.
             '
             STORED AS PARQUET
-            LOCATION 's3://path/to/{SCHEMA}/{table_name}/'\n\n
+            LOCATION 's3://path/to/{ENV.schema}/{table_name}/'\n\n
             """
         )
 
@@ -529,13 +529,13 @@ class TestSQLAlchemyAthena:
         )
         table = Table(
             table_name,
-            MetaData(schema=SCHEMA),
+            MetaData(schema=ENV.schema),
             Column(column_name, types.String(10), comment="some descriptive comment"),
-            awsathena_location=f"{ENV.s3_staging_dir}{SCHEMA}/{table_name}",
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}",
             comment=comment,
         )
         table.create(bind=conn)
-        actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
         assert actual.c[column_name].comment == table.c[column_name].comment
         # The AWS API seems to return comments with squashed whitespace and line breaks.
         # assert actual.comment == table.comment
@@ -549,12 +549,12 @@ class TestSQLAlchemyAthena:
         comment = "let's make sure quotes ain\\'t a problem"
         table = Table(
             table_name,
-            MetaData(schema=SCHEMA),
+            MetaData(schema=ENV.schema),
             Column(column_name, types.String(10), comment=comment),
-            awsathena_location=f"{ENV.s3_staging_dir}{SCHEMA}/{table_name}",
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}",
         )
         conn.execute(CreateTable(table), parameter="some value")
-        actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
         assert actual.c[column_name].comment == comment
 
     def test_column_comment_containing_placeholder(self, engine):
@@ -564,12 +564,12 @@ class TestSQLAlchemyAthena:
         comment = "the %(parameter)s ratio (in %)"
         table = Table(
             table_name,
-            MetaData(schema=SCHEMA),
+            MetaData(schema=ENV.schema),
             Column(column_name, types.String(10), comment=comment),
-            awsathena_location=f"{ENV.s3_staging_dir}{SCHEMA}/{table_name}",
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}",
         )
         conn.execute(CreateTable(table), parameter="some value")
-        actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
         assert actual.c[column_name].comment == comment
 
     def test_create_table_with_primary_key(self, engine):
@@ -578,21 +578,21 @@ class TestSQLAlchemyAthena:
         table_name = "test_create_table_with_primary_key"
         table = Table(
             table_name,
-            MetaData(schema=SCHEMA),
+            MetaData(schema=ENV.schema),
             Column("pk", types.Integer, primary_key=True),
-            awsathena_location=f"{ENV.s3_staging_dir}{SCHEMA}/{table_name}",
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}",
         )
         # The table will be created, but Athena does not support primary keys.
         table.create(bind=conn)
-        actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
         ddl = CreateTable(actual).compile(dialect=dialect)
         assert str(ddl) == textwrap.dedent(
             f"""
-            CREATE EXTERNAL TABLE {SCHEMA}.{table_name} (
+            CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
             \tpk INT
             )
             STORED AS PARQUET
-            LOCATION '{ENV.s3_staging_dir}{SCHEMA}/{table_name}/'\n\n
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'\n\n
             """
         )
         assert len(actual.primary_key.columns) == 0
@@ -603,28 +603,28 @@ class TestSQLAlchemyAthena:
         table_name = "test_create_table_with_varchar_text_column"
         table = Table(
             table_name,
-            MetaData(schema=SCHEMA),
+            MetaData(schema=ENV.schema),
             Column("col_varchar", types.String()),
             Column("col_varchar_length", types.String(10)),
             Column("col_varchar_type", types.String),
             Column("col_text", types.Text),
-            awsathena_location=f"{ENV.s3_staging_dir}{SCHEMA}/{table_name}/",
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_compression="SNAPPY",
         )
         table.create(bind=conn)
-        actual = Table(table_name, MetaData(schema=SCHEMA), autoload_with=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
         ddl = CreateTable(actual).compile(dialect=dialect)
         assert str(ddl) == textwrap.dedent(
             f"""
-            CREATE EXTERNAL TABLE {SCHEMA}.{table_name} (
+            CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
             \tcol_varchar STRING,
             \tcol_varchar_length VARCHAR(10),
             \tcol_varchar_type STRING,
             \tcol_text STRING
             )
             STORED AS PARQUET
-            LOCATION '{ENV.s3_staging_dir}{SCHEMA}/{table_name}/'
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
             TBLPROPERTIES ('parquet.compress'='SNAPPY')\n\n
             """
         )
@@ -649,7 +649,7 @@ class TestSQLAlchemyAthena:
         engine, conn = engine
 
         # varchar without length
-        one_row = Table("one_row", MetaData(schema=SCHEMA), autoload_with=conn)
+        one_row = Table("one_row", MetaData(schema=ENV.schema), autoload_with=conn)
         actual = conn.execute(
             sqlalchemy.select(
                 [expression.cast(one_row.c.number_of_rows, types.VARCHAR)],

@@ -14,7 +14,7 @@ from pyathena import BINARY, BOOLEAN, DATE, DATETIME, JSON, NUMBER, STRING, TIME
 from pyathena.cursor import Cursor
 from pyathena.error import DatabaseError, NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
-from tests import ENV, S3_PREFIX, SCHEMA
+from tests import ENV
 from tests.conftest import connect
 
 
@@ -25,7 +25,7 @@ class TestCursor:
         assert cursor.fetchone() == (1,)
         assert cursor.rownumber == 1
         assert cursor.fetchone() is None
-        assert cursor.database == SCHEMA
+        assert cursor.database == ENV.schema
         assert cursor.query_id
         assert cursor.query
         assert cursor.statement_type == AthenaQueryExecution.STATEMENT_TYPE_DML
@@ -495,7 +495,7 @@ class TestCursor:
 
     def test_multiple_connection(self):
         def execute_other_thread():
-            with contextlib.closing(connect(schema_name=SCHEMA)) as conn:
+            with contextlib.closing(connect(schema_name=ENV.schema)) as conn:
                 with conn.cursor() as cursor:
                     cursor.execute("SELECT * FROM one_row")
                     return cursor.fetchall()
@@ -518,7 +518,7 @@ class TestCursor:
 
     def test_show_partition(self, cursor):
         location = "{0}{1}/{2}/".format(
-            ENV.s3_staging_dir, S3_PREFIX, "partition_table"
+            ENV.s3_staging_dir, ENV.schema, "partition_table"
         )
         for i in range(10):
             cursor.execute(
