@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 import contextlib
-import os
-import uuid
+from pathlib import Path
 from urllib.parse import quote_plus
 
+import boto3
 import pytest
 import sqlalchemy
 
-from tests import BASE_PATH, ENV, S3_PREFIX, SCHEMA
+from tests import ENV
 from tests.util import read_query
 
 
@@ -36,7 +36,7 @@ def create_engine(**kwargs):
     return sqlalchemy.engine.create_engine(
         conn_str.format(
             region_name=ENV.region_name,
-            schema_name=SCHEMA,
+            schema_name=ENV.schema,
             s3_staging_dir=quote_plus(ENV.s3_staging_dir),
             s3_dir=quote_plus(ENV.s3_staging_dir),
             **kwargs,
@@ -47,6 +47,7 @@ def create_engine(**kwargs):
 @pytest.fixture(scope="session", autouse=True)
 def _setup_session(request):
     request.addfinalizer(_teardown_session)
+    _upload_rows()
     with contextlib.closing(connect()) as conn:
         with conn.cursor() as cursor:
             _create_database(cursor)
@@ -57,47 +58,47 @@ def _teardown_session():
     with contextlib.closing(connect()) as conn:
         with conn.cursor() as cursor:
             _drop_database(cursor)
+    _delete_rows()
+
+
+def _upload_rows():
+    client = boto3.client("s3")
+    rows = Path(__file__).parent.resolve() / "resources" / "rows"
+    for row in rows.iterdir():
+        key = f"{ENV.s3_staging_key}{ENV.schema}/{row.stem}/{row.name}"
+        client.upload_file(str(row), ENV.s3_staging_bucket, key)
+
+
+def _delete_rows():
+    client = boto3.client("s3")
+    rows = Path(__file__).parent.resolve() / "resources" / "rows"
+    for row in rows.iterdir():
+        key = f"{ENV.s3_staging_key}{ENV.schema}/{row.stem}/{row.name}"
+        client.delete_object(Bucket=ENV.s3_staging_bucket, Key=key)
 
 
 def _create_database(cursor):
-    for q in read_query(os.path.join(BASE_PATH, "sql", "create_database.sql")):
-        cursor.execute(q.format(schema=SCHEMA))
+    for q in read_query("create_database.sql.jinja2", schema=ENV.schema):
+        cursor.execute(q)
 
 
 def _drop_database(cursor):
-    for q in read_query(os.path.join(BASE_PATH, "sql", "drop_database.sql")):
-        cursor.execute(q.format(schema=SCHEMA))
+    for q in read_query("drop_database.sql.jinja2", schema=ENV.schema):
+        cursor.execute(q)
 
 
 def _create_table(cursor):
-    table_execute_many = f"execute_many_{str(uuid.uuid4()).replace('-', '')}"
-    table_execute_many_pandas = (
-        f"execute_many_pandas_{str(uuid.uuid4()).replace('-', '')}"
-    )
-    for q in read_query(os.path.join(BASE_PATH, "sql", "create_table.sql")):
-        cursor.execute(
-            q.format(
-                schema=SCHEMA,
-                location_one_row=f"{ENV.s3_staging_dir}{S3_PREFIX}/one_row/",
-                location_many_rows=f"{ENV.s3_staging_dir}{S3_PREFIX}/many_rows/",
-                location_one_row_complex=f"{ENV.s3_staging_dir}{S3_PREFIX}/one_row_complex/",
-                location_partition_table=f"{ENV.s3_staging_dir}{S3_PREFIX}/partition_table/",
-                location_integer_na_values=f"{ENV.s3_staging_dir}{S3_PREFIX}/integer_na_values/",
-                location_boolean_na_values=f"{ENV.s3_staging_dir}{S3_PREFIX}/boolean_na_values/",
-                location_execute_many=f"{ENV.s3_staging_dir}{S3_PREFIX}/{table_execute_many}/",
-                location_execute_many_pandas=f"{ENV.s3_staging_dir}{S3_PREFIX}/"
-                f"{table_execute_many_pandas}/",
-                location_parquet_with_compression=f"{ENV.s3_staging_dir}{S3_PREFIX}/"
-                f"parquet_with_compression/",
-            )
-        )
+    for q in read_query(
+        "create_table.sql.jinja2", s3_staging_dir=ENV.s3_staging_dir, schema=ENV.schema
+    ):
+        cursor.execute(q)
 
 
 def _cursor(cursor_class, request):
     if not hasattr(request, "param"):
         setattr(request, "param", {})
     with contextlib.closing(
-        connect(schema_name=SCHEMA, cursor_class=cursor_class, **request.param)
+        connect(schema_name=ENV.schema, cursor_class=cursor_class, **request.param)
     ) as conn:
         with conn.cursor() as cursor:
             yield cursor

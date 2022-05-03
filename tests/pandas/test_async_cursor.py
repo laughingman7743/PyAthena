@@ -12,7 +12,8 @@ from pyathena.error import NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.pandas.async_cursor import AsyncPandasCursor
 from pyathena.result_set import AthenaResultSet
-from tests.conftest import ENV, S3_PREFIX, SCHEMA, connect
+from tests import ENV
+from tests.conftest import connect
 
 
 class TestAsyncPandasCursor:
@@ -222,7 +223,7 @@ class TestAsyncPandasCursor:
         table = "test_pandas_cursor_empty_result_" + "".join(
             [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]
         )
-        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, S3_PREFIX, table)
+        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, ENV.schema, table)
         query_id, future = async_pandas_cursor.execute(
             """
             CREATE EXTERNAL TABLE IF NOT EXISTS
@@ -231,7 +232,7 @@ class TestAsyncPandasCursor:
             LINES TERMINATED BY '\n' STORED AS TEXTFILE
             LOCATION '{location}'
             """.format(
-                schema=SCHEMA, table=table, location=location
+                schema=ENV.schema, table=table, location=location
             )
         )
         df = future.result().as_pandas()

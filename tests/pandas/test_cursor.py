@@ -15,7 +15,7 @@ from pyathena.error import DatabaseError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.pandas.cursor import PandasCursor
 from pyathena.pandas.result_set import AthenaPandasResultSet
-from tests import ENV, S3_PREFIX, SCHEMA
+from tests import ENV
 from tests.conftest import connect
 
 
@@ -331,7 +331,7 @@ class TestPandasCursor:
         table = "test_pandas_cursor_empty_result_" + "".join(
             [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]
         )
-        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, S3_PREFIX, table)
+        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, ENV.schema, table)
         df = pandas_cursor.execute(
             """
             CREATE EXTERNAL TABLE IF NOT EXISTS
@@ -340,7 +340,7 @@ class TestPandasCursor:
             LINES TERMINATED BY '\n' STORED AS TEXTFILE
             LOCATION '{location}'
             """.format(
-                schema=SCHEMA, table=table, location=location
+                schema=ENV.schema, table=table, location=location
             )
         ).as_pandas()
         assert df.shape[0] == 0
