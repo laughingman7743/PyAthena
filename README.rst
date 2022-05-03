@@ -1114,8 +1114,14 @@ Depends on the following environment variables:
     $ export AWS_SECRET_ACCESS_KEY=YOUR_SECRET_ACCESS_KEY
     $ export AWS_DEFAULT_REGION=us-west-2
     $ export AWS_ATHENA_S3_STAGING_DIR=s3://YOUR_S3_BUCKET/path/to/
+    $ export AWS_ATHENA_WORKGROUP=pyathena-test
 
-And you need to create a workgroup named ``test-pyathena`` with the ``Query result location`` configuration.
+In addition, you need to create a workgroup with the `Query result location` set to the name specified in the `AWS_ATHENA_WORKGROUP` environment variable.
+If primary is not available as the default workgroup, specify an alternative workgroup name for the default in the environment variable `AWS_ATHENA_DEFAULT_WORKGROUP`.
+
+.. code:: bash
+
+    $ AWS_ATHENA_DEFAULT_WORKGROUP=DEFAULT_WORKGROUP
 
 Run test
 ~~~~~~~~
