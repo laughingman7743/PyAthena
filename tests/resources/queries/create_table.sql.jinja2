@@ -61,14 +61,16 @@ LOCATION '{{ s3_staging_dir }}{{ schema }}/boolean_na_values/';
 
 DROP TABLE IF EXISTS {{ schema }}.execute_many;
 CREATE EXTERNAL TABLE IF NOT EXISTS {{ schema }}.execute_many (
-    a INT
+    a INT,
+    b STRING
 )
 ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
 LOCATION '{{ s3_staging_dir }}{{ schema }}/execute_many/';
 
 DROP TABLE IF EXISTS {{ schema }}.execute_many_pandas;
 CREATE EXTERNAL TABLE IF NOT EXISTS {{ schema }}.execute_many_pandas (
-    a INT
+    a INT,
+    b STRING
 )
 ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
 LOCATION '{{ s3_staging_dir }}{{ schema }}/execute_many_pandas/';
