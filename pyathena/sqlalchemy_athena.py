@@ -231,17 +231,19 @@ class AthenaDDLCompiler(DDLCompiler):
         text = "\nCREATE EXTERNAL TABLE "
         if create.if_not_exists:
             text += "IF NOT EXISTS "
-        text += preparer.format_table(table) + " ("
+        text += preparer.format_table(table) + " (\n"
 
-        separator = "\n"
+        columns = []
+        partitions = []
         for create_column in create.columns:
             column = create_column.element
             try:
                 processed = self.process(create_column)
                 if processed is not None:
-                    text += separator
-                    separator = ",\n"
-                    text += "\t" + processed
+                    if column.dialect_options["awsathena"]["partition"]:
+                        partitions.append(f"\t{processed}")
+                    else:
+                        columns.append(f"\t{processed}")
             except exc.CompileError as ce:
                 util.raise_(
                     exc.CompileError(
@@ -252,8 +254,13 @@ class AthenaDDLCompiler(DDLCompiler):
                     ),
                     from_=ce,
                 )
-
-        text += f"\n)\n{self.post_create_table(table)}\n\n"
+        text += ",\n".join(columns)
+        text += "\n)\n"
+        if partitions:
+            text += "PARTITIONED BY (\n"
+            text += ",\n".join(partitions)
+            text += "\n)\n"
+        text += f"{self.post_create_table(table)}\n\n"
         return text
 
     def post_create_table(self, table):
@@ -299,15 +306,21 @@ class AthenaDDLCompiler(DDLCompiler):
                 )
         text += f"LOCATION '{location}'\n"
 
+        if dialect_opts["tblproperties"]:
+            tblproperties = dialect_opts["tblproperties"]
+        else:
+            tblproperties = {}
         if dialect_opts["compression"]:
-            compression = dialect_opts["compression"]
+            tblproperties.update({"parquet.compress": dialect_opts["compression"]})
         elif raw_connection:
             raw_connection = table.bind.raw_connection()
-            compression = raw_connection._kwargs.get("compression")
-        else:
-            compression = None
-        if compression:
-            text += f"TBLPROPERTIES ('parquet.compress'='{compression.upper()}')\n"
+            tblproperties.update(
+                {"parquet.compress": raw_connection._kwargs.get("compression")}
+            )
+        if tblproperties:
+            text += f"TBLPROPERTIES (\n"
+            text += ",\n".join([f"\t'{k}'='{v}'" for k, v in tblproperties.items()])
+            text += f"\n)\n"
 
         return text
 
@@ -338,6 +351,13 @@ class AthenaDialect(DefaultDialect):
             {
                 "location": None,
                 "compression": None,
+                "tblproperties": None,
+            },
+        ),
+        (
+            schema.Column,
+            {
+                "partition": False,
             },
         ),
     ]
@@ -440,6 +460,7 @@ class AthenaDialect(DefaultDialect):
         return {
             "awsathena_location": metadata.location,
             "awsathena_compression": metadata.compression,
+            "awsathena_tblproperties": metadata.parameters,
         }
 
     def has_table(self, connection, table_name, schema=None, **kw):
@@ -452,7 +473,7 @@ class AthenaDialect(DefaultDialect):
     @reflection.cache
     def get_columns(self, connection, table_name, schema=None, **kw):
         metadata = self._get_table(connection, table_name, schema=schema, **kw)
-        return [
+        columns = [
             {
                 "name": c.name,
                 "type": self._get_column_type(c.type),
@@ -460,9 +481,23 @@ class AthenaDialect(DefaultDialect):
                 "default": None,
                 "autoincrement": False,
                 "comment": c.comment,
+                "dialect_options": {"awsathena_partition": None},
             }
-            for c in metadata.columns + metadata.partition_keys
+            for c in metadata.columns
         ]
+        columns += [
+            {
+                "name": c.name,
+                "type": self._get_column_type(c.type),
+                "nullable": True,
+                "default": None,
+                "autoincrement": False,
+                "comment": c.comment,
+                "dialect_options": {"awsathena_partition": True},
+            }
+            for c in metadata.partition_keys
+        ]
+        return columns
 
     def _get_column_type(self, type_):
         match = self._pattern_column_type.match(type_)
