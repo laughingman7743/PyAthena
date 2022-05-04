@@ -224,6 +224,12 @@ class TestAthenaTableMetadata:
         )
         assert actual.serde_serialization_lib == "org.openx.data.jsonserde.JsonSerDe"
         assert actual.compression == "GZIP"
+        assert actual.serde_properties == {
+            "serialization.format": "1",
+            "write.compression": "GZIP",
+        }
+        for key in actual.table_properties.keys():
+            assert not key.startswith("serde.param.")
 
     def test_init_json_hcatalog(self):
         response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
@@ -243,6 +249,9 @@ class TestAthenaTableMetadata:
             actual.serde_serialization_lib == "org.apache.hive.hcatalog.data.JsonSerDe"
         )
         assert actual.compression == "SNAPPY"
+        assert not actual.serde_properties
+        for key in actual.table_properties.keys():
+            assert not key.startswith("serde.param.")
 
     def test_init_parquet(self):
         response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
@@ -266,6 +275,11 @@ class TestAthenaTableMetadata:
             == "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
         )
         assert actual.compression == "SNAPPY"
+        assert actual.serde_properties == {
+            "serialization.format": "1",
+        }
+        for key in actual.table_properties.keys():
+            assert not key.startswith("serde.param.")
 
     def test_init_orc(self):
         response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
@@ -283,6 +297,9 @@ class TestAthenaTableMetadata:
             == "org.apache.hadoop.hive.ql.io.orc.OrcSerde"
         )
         assert actual.compression == "SNAPPY"
+        assert not actual.serde_properties
+        for key in actual.table_properties.keys():
+            assert not key.startswith("serde.param.")
 
     def test_init_avro(self):
         response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
@@ -304,3 +321,6 @@ class TestAthenaTableMetadata:
             == "org.apache.hadoop.hive.serde2.avro.AvroSerDe"
         )
         assert actual.compression is None
+        assert not actual.serde_properties
+        for key in actual.table_properties.keys():
+            assert not key.startswith("serde.param.")

@@ -464,7 +464,7 @@ class AthenaDialect(DefaultDialect):
         return {
             "awsathena_location": metadata.location,
             "awsathena_compression": metadata.compression,
-            "awsathena_tblproperties": HashableDict(metadata.parameters),
+            "awsathena_tblproperties": HashableDict(metadata.table_properties),
         }
 
     def has_table(self, connection, table_name, schema=None, **kw):
