@@ -34,6 +34,11 @@ class AthenaDMLIdentifierPreparer(IdentifierPreparer):
     reserved_words = UniversalSet()
 
 
+class HashableDict(dict):  # type: ignore
+    def __hash__(self):
+        return hash(tuple(sorted(self.items())))
+
+
 class AthenaDDLIdentifierPreparer(IdentifierPreparer):
     def __init__(
         self,
@@ -460,7 +465,7 @@ class AthenaDialect(DefaultDialect):
         return {
             "awsathena_location": metadata.location,
             "awsathena_compression": metadata.compression,
-            "awsathena_tblproperties": metadata.parameters,
+            "awsathena_tblproperties": HashableDict(metadata.parameters),
         }
 
     def has_table(self, connection, table_name, schema=None, **kw):
