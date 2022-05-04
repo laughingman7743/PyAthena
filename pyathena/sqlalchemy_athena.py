@@ -188,12 +188,75 @@ class AthenaDDLCompiler(DDLCompiler):
             compile_kwargs=compile_kwargs,
         )
 
-    def _escape_comment(self, value, dialect):
+    def _escape_comment(self, value):
         value = value.replace("\\", "\\\\").replace("'", r"\'")
         # DDL statements raise a KeyError if the placeholders aren't escaped
-        if dialect.identifier_preparer._double_percents:
+        if self.dialect.identifier_preparer._double_percents:
             value = value.replace("%", "%%")
         return f"'{value}'"
+
+    def _get_comment(self, comment):
+        return f"COMMENT {self._escape_comment(comment)}"
+
+    def _get_table_location(self, table, dialect_opts, raw_connection):
+        if dialect_opts["location"]:
+            location = dialect_opts["location"]
+            location += "/" if not location.endswith("/") else ""
+        elif raw_connection:
+            base_location = (
+                raw_connection._kwargs["s3_dir"]
+                if "s3_dir" in raw_connection._kwargs
+                else raw_connection.s3_staging_dir
+            )
+            schema = table.schema if table.schema else raw_connection.schema_name
+            location = f"{base_location}{schema}/{table.name}/"
+        else:
+            location = None
+        if not location:
+            if raw_connection:
+                raise exc.CompileError(
+                    "`s3_dir` or `s3_staging_dir` parameter is required "
+                    "in the connection string"
+                )
+            else:
+                raise exc.CompileError(
+                    "The location of the table should be specified "
+                    "by the dialect keyword argument `awsathena_location`"
+                )
+        return f"LOCATION '{location}'"
+
+    def _get_table_properties(self, dialect_opts, raw_connection):
+        if dialect_opts["tblproperties"]:
+            tblproperties = dialect_opts["tblproperties"]
+        else:
+            tblproperties = {}
+        if dialect_opts["compression"]:
+            tblproperties.update({"parquet.compress": dialect_opts["compression"]})
+        elif raw_connection:
+            tblproperties.update(
+                {"parquet.compress": raw_connection._kwargs.get("compression")}
+            )
+        text = ""
+        if tblproperties:
+            text += "TBLPROPERTIES (\n"
+            text += ",\n".join([f"\t'{k}'='{v}'" for k, v in tblproperties.items()])
+            text += "\n)"
+        return text
+
+    def get_column_specification(self, column, **kwargs):
+        if isinstance(column.type, (types.Integer, types.INTEGER, types.INT)):
+            # https://docs.aws.amazon.com/athena/latest/ug/create-table.html
+            # In Data Definition Language (DDL) queries like CREATE TABLE,
+            # use the int keyword to represent an integer
+            type_ = "INT"
+        else:
+            type_ = self.dialect.type_compiler.process(
+                column.type, type_expression=column
+            )
+        text = f"{self.preparer.format_column(column)} {type_}"
+        if column.comment:
+            text += f" {self._get_comment(column.comment)}"
+        return text
 
     def visit_check_constraint(self, constraint, **kw):
         return None
@@ -209,25 +272,6 @@ class AthenaDDLCompiler(DDLCompiler):
 
     def visit_unique_constraint(self, constraint, **kw):
         return None
-
-    def get_column_specification(self, column, **kwargs):
-        if isinstance(column.type, (types.Integer, types.INTEGER, types.INT)):
-            # https://docs.aws.amazon.com/athena/latest/ug/create-table.html
-            # In Data Definition Language (DDL) queries like CREATE TABLE,
-            # use the int keyword to represent an integer
-            type_ = "INT"
-        else:
-            type_ = self.dialect.type_compiler.process(
-                column.type, type_expression=column
-            )
-        colspec = self.preparer.format_column(column) + " " + type_
-
-        comment = ""
-        if column.comment:
-            comment += " COMMENT "
-            comment += self._escape_comment(column.comment, self.dialect)
-
-        return f"{colspec}{comment}"
 
     def visit_create_table(self, create, **kwargs):
         table = create.element
@@ -276,57 +320,12 @@ class AthenaDDLCompiler(DDLCompiler):
             else None
         )
         text = ""
-
         if table.comment:
-            text += (
-                "COMMENT " + self._escape_comment(table.comment, self.dialect) + "\n"
-            )
-
+            text += f"{self._get_comment(table.comment)}\n"
         # TODO Supports orc, avro, json, csv or tsv format
         text += "STORED AS PARQUET\n"
-
-        if dialect_opts["location"]:
-            location = dialect_opts["location"]
-            location += "/" if not location.endswith("/") else ""
-        elif raw_connection:
-            base_location = (
-                raw_connection._kwargs["s3_dir"]
-                if "s3_dir" in raw_connection._kwargs
-                else raw_connection.s3_staging_dir
-            )
-            schema = table.schema if table.schema else raw_connection.schema_name
-            location = f"{base_location}{schema}/{table.name}/"
-        else:
-            location = None
-        if not location:
-            if raw_connection:
-                raise exc.CompileError(
-                    "`s3_dir` or `s3_staging_dir` parameter is required "
-                    "in the connection string"
-                )
-            else:
-                raise exc.CompileError(
-                    "The location of the table should be specified "
-                    "by the dialect keyword argument `awsathena_location`"
-                )
-        text += f"LOCATION '{location}'\n"
-
-        if dialect_opts["tblproperties"]:
-            tblproperties = dialect_opts["tblproperties"]
-        else:
-            tblproperties = {}
-        if dialect_opts["compression"]:
-            tblproperties.update({"parquet.compress": dialect_opts["compression"]})
-        elif raw_connection:
-            raw_connection = table.bind.raw_connection()
-            tblproperties.update(
-                {"parquet.compress": raw_connection._kwargs.get("compression")}
-            )
-        if tblproperties:
-            text += f"TBLPROPERTIES (\n"
-            text += ",\n".join([f"\t'{k}'='{v}'" for k, v in tblproperties.items()])
-            text += f"\n)\n"
-
+        text += f"{self._get_table_location(table, dialect_opts, raw_connection)}\n"
+        text += f"{self._get_table_properties(dialect_opts, raw_connection)}\n"
         return text
 
 

@@ -522,7 +522,7 @@ class TestSQLAlchemyAthena:
             multiline table comment
             '
             STORED AS PARQUET
-            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'\n\n
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'\n\n\n
             """
         )
         assert actual.c[column_name].comment == column_comment
@@ -571,7 +571,7 @@ class TestSQLAlchemyAthena:
             \tpk INT
             )
             STORED AS PARQUET
-            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'\n\n
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'\n\n\n
             """
         )
         assert len(actual.primary_key.columns) == 0
