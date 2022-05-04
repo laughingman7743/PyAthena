@@ -305,6 +305,8 @@ class AthenaDDLCompiler(DDLCompiler):
                 )
         text += ",\n".join(columns)
         text += "\n)\n"
+        if table.comment:
+            text += f"{self._get_comment(table.comment)}\n"
         if partitions:
             text += "PARTITIONED BY (\n"
             text += ",\n".join(partitions)
@@ -320,8 +322,6 @@ class AthenaDDLCompiler(DDLCompiler):
             else None
         )
         text = ""
-        if table.comment:
-            text += f"{self._get_comment(table.comment)}\n"
         # TODO Supports orc, avro, json, csv or tsv format
         text += "STORED AS PARQUET\n"
         text += f"{self._get_table_location(table, dialect_opts, raw_connection)}\n"

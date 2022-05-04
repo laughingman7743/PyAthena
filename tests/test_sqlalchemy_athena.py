@@ -514,7 +514,7 @@ class TestSQLAlchemyAthena:
         assert str(ddl) == textwrap.dedent(
             f"""
             CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
-            \t{column_name} VARCHAR(10) COMMENT 'column comment'
+            \t{column_name} VARCHAR(10) COMMENT '{column_comment}'
             )
             COMMENT '
             table comment
@@ -652,15 +652,18 @@ class TestSQLAlchemyAthena:
         engine, conn = engine
         dialect = AthenaDialect()
         table_name = "test_create_table_with_partition"
+        table_comment = "table comment"
+        column_comment = "column comment"
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
-            Column("col_1", types.String(10)),
-            Column("col_partition_1", types.String(10), awsathena_partition=True),
+            Column("col_1", types.String(10), comment=column_comment),
+            Column("col_partition_1", types.String(10), awsathena_partition=True, comment=column_comment),
             Column("col_partition_2", types.Integer, awsathena_partition=True),
             Column("col_2", types.Integer),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_compression="SNAPPY",
+            comment=table_comment,
         )
         ddl = CreateTable(table).compile(dialect=dialect)
         table.create(bind=conn)
@@ -669,11 +672,12 @@ class TestSQLAlchemyAthena:
         assert str(ddl) == textwrap.dedent(
             f"""
             CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
-            \tcol_1 VARCHAR(10),
+            \tcol_1 VARCHAR(10) COMMENT '{column_comment}',
             \tcol_2 INT
             )
+            COMMENT '{table_comment}'
             PARTITIONED BY (
-            \tcol_partition_1 VARCHAR(10),
+            \tcol_partition_1 VARCHAR(10) COMMENT '{column_comment}',
             \tcol_partition_2 INT
             )
             STORED AS PARQUET
