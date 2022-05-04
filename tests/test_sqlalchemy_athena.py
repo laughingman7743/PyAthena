@@ -157,10 +157,12 @@ class TestSQLAlchemyAthena:
         engine, conn = engine
         insp = sqlalchemy.inspect(engine)
         actual = insp.get_table_options("parquet_with_compression", schema=ENV.schema)
-        assert actual == {
-            "awsathena_location": f"{ENV.s3_staging_dir}{ENV.schema}/parquet_with_compression",
-            "awsathena_compression": "SNAPPY",
-        }
+        assert (
+            actual["awsathena_location"]
+            == f"{ENV.s3_staging_dir}{ENV.schema}/parquet_with_compression"
+        )
+        assert actual["awsathena_compression"] == "SNAPPY"
+        assert actual["awsathena_tblproperties"] is not None
 
     def test_has_table(self, engine):
         engine, conn = engine
