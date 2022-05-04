@@ -658,7 +658,12 @@ class TestSQLAlchemyAthena:
             table_name,
             MetaData(schema=ENV.schema),
             Column("col_1", types.String(10), comment=column_comment),
-            Column("col_partition_1", types.String(10), awsathena_partition=True, comment=column_comment),
+            Column(
+                "col_partition_1",
+                types.String(10),
+                awsathena_partition=True,
+                comment=column_comment,
+            ),
             Column("col_partition_2", types.Integer, awsathena_partition=True),
             Column("col_2", types.Integer),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
