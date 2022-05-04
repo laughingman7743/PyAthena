@@ -34,6 +34,11 @@ class AthenaDMLIdentifierPreparer(IdentifierPreparer):
     reserved_words = UniversalSet()
 
 
+class HashableDict(dict):  # type: ignore
+    def __hash__(self):
+        return hash(tuple(sorted(self.items())))
+
+
 class AthenaDDLIdentifierPreparer(IdentifierPreparer):
     def __init__(
         self,
@@ -183,96 +188,17 @@ class AthenaDDLCompiler(DDLCompiler):
             compile_kwargs=compile_kwargs,
         )
 
-    def _escape_comment(self, value, dialect):
+    def _escape_comment(self, value):
         value = value.replace("\\", "\\\\").replace("'", r"\'")
         # DDL statements raise a KeyError if the placeholders aren't escaped
-        if dialect.identifier_preparer._double_percents:
+        if self.dialect.identifier_preparer._double_percents:
             value = value.replace("%", "%%")
         return f"'{value}'"
 
-    def visit_check_constraint(self, constraint, **kw):
-        return None
+    def _get_comment(self, comment):
+        return f"COMMENT {self._escape_comment(comment)}"
 
-    def visit_column_check_constraint(self, constraint, **kw):
-        return None
-
-    def visit_foreign_key_constraint(self, constraint, **kw):
-        return None
-
-    def visit_primary_key_constraint(self, constraint, **kw):
-        return None
-
-    def visit_unique_constraint(self, constraint, **kw):
-        return None
-
-    def get_column_specification(self, column, **kwargs):
-        if isinstance(column.type, (types.Integer, types.INTEGER, types.INT)):
-            # https://docs.aws.amazon.com/athena/latest/ug/create-table.html
-            # In Data Definition Language (DDL) queries like CREATE TABLE,
-            # use the int keyword to represent an integer
-            type_ = "INT"
-        else:
-            type_ = self.dialect.type_compiler.process(
-                column.type, type_expression=column
-            )
-        colspec = self.preparer.format_column(column) + " " + type_
-
-        comment = ""
-        if column.comment:
-            comment += " COMMENT "
-            comment += self._escape_comment(column.comment, self.dialect)
-
-        return f"{colspec}{comment}"
-
-    def visit_create_table(self, create, **kwargs):
-        table = create.element
-        preparer = self.preparer
-
-        text = "\nCREATE EXTERNAL TABLE "
-        if create.if_not_exists:
-            text += "IF NOT EXISTS "
-        text += preparer.format_table(table) + " ("
-
-        separator = "\n"
-        for create_column in create.columns:
-            column = create_column.element
-            try:
-                processed = self.process(create_column)
-                if processed is not None:
-                    text += separator
-                    separator = ",\n"
-                    text += "\t" + processed
-            except exc.CompileError as ce:
-                util.raise_(
-                    exc.CompileError(
-                        util.u(
-                            f"(in table '{table.description}', column '{column.name}'): "
-                            f"{ce.args[0]}"
-                        )
-                    ),
-                    from_=ce,
-                )
-
-        text += f"\n)\n{self.post_create_table(table)}\n\n"
-        return text
-
-    def post_create_table(self, table):
-        dialect_opts = table.dialect_options["awsathena"]
-        raw_connection = (
-            table.bind.raw_connection()
-            if hasattr(table, "bind") and table.bind
-            else None
-        )
-        text = ""
-
-        if table.comment:
-            text += (
-                "COMMENT " + self._escape_comment(table.comment, self.dialect) + "\n"
-            )
-
-        # TODO Supports orc, avro, json, csv or tsv format
-        text += "STORED AS PARQUET\n"
-
+    def _get_table_location(self, table, dialect_opts, raw_connection):
         if dialect_opts["location"]:
             location = dialect_opts["location"]
             location += "/" if not location.endswith("/") else ""
@@ -297,18 +223,109 @@ class AthenaDDLCompiler(DDLCompiler):
                     "The location of the table should be specified "
                     "by the dialect keyword argument `awsathena_location`"
                 )
-        text += f"LOCATION '{location}'\n"
+        return f"LOCATION '{location}'"
 
-        if dialect_opts["compression"]:
-            compression = dialect_opts["compression"]
-        elif raw_connection:
-            raw_connection = table.bind.raw_connection()
-            compression = raw_connection._kwargs.get("compression")
+    def _get_table_properties(self, dialect_opts, raw_connection):
+        if dialect_opts["tblproperties"]:
+            tblproperties = dialect_opts["tblproperties"]
         else:
-            compression = None
-        if compression:
-            text += f"TBLPROPERTIES ('parquet.compress'='{compression.upper()}')\n"
+            tblproperties = {}
+        if dialect_opts["compression"]:
+            tblproperties.update({"parquet.compress": dialect_opts["compression"]})
+        elif raw_connection:
+            tblproperties.update(
+                {"parquet.compress": raw_connection._kwargs.get("compression")}
+            )
+        text = ""
+        if tblproperties:
+            text += "TBLPROPERTIES (\n"
+            text += ",\n".join([f"\t'{k}'='{v}'" for k, v in tblproperties.items()])
+            text += "\n)"
+        return text
 
+    def get_column_specification(self, column, **kwargs):
+        if isinstance(column.type, (types.Integer, types.INTEGER, types.INT)):
+            # https://docs.aws.amazon.com/athena/latest/ug/create-table.html
+            # In Data Definition Language (DDL) queries like CREATE TABLE,
+            # use the int keyword to represent an integer
+            type_ = "INT"
+        else:
+            type_ = self.dialect.type_compiler.process(
+                column.type, type_expression=column
+            )
+        text = f"{self.preparer.format_column(column)} {type_}"
+        if column.comment:
+            text += f" {self._get_comment(column.comment)}"
+        return text
+
+    def visit_check_constraint(self, constraint, **kw):
+        return None
+
+    def visit_column_check_constraint(self, constraint, **kw):
+        return None
+
+    def visit_foreign_key_constraint(self, constraint, **kw):
+        return None
+
+    def visit_primary_key_constraint(self, constraint, **kw):
+        return None
+
+    def visit_unique_constraint(self, constraint, **kw):
+        return None
+
+    def visit_create_table(self, create, **kwargs):
+        table = create.element
+        preparer = self.preparer
+
+        text = "\nCREATE EXTERNAL TABLE "
+        if create.if_not_exists:
+            text += "IF NOT EXISTS "
+        text += preparer.format_table(table) + " (\n"
+
+        columns = []
+        partitions = []
+        for create_column in create.columns:
+            column = create_column.element
+            try:
+                processed = self.process(create_column)
+                if processed is not None:
+                    if column.dialect_options["awsathena"]["partition"]:
+                        partitions.append(f"\t{processed}")
+                    else:
+                        columns.append(f"\t{processed}")
+            except exc.CompileError as ce:
+                util.raise_(
+                    exc.CompileError(
+                        util.u(
+                            f"(in table '{table.description}', column '{column.name}'): "
+                            f"{ce.args[0]}"
+                        )
+                    ),
+                    from_=ce,
+                )
+        text += ",\n".join(columns)
+        text += "\n)\n"
+        if table.comment:
+            text += f"{self._get_comment(table.comment)}\n"
+        if partitions:
+            text += "PARTITIONED BY (\n"
+            text += ",\n".join(partitions)
+            text += "\n)\n"
+        text += f"{self.post_create_table(table)}\n\n"
+        return text
+
+    def post_create_table(self, table):
+        dialect_opts = table.dialect_options["awsathena"]
+        raw_connection = (
+            table.bind.raw_connection()
+            if hasattr(table, "bind") and table.bind
+            else None
+        )
+        text = ""
+        # TODO Supports orc, avro, json, csv or tsv format
+        text += "STORED AS PARQUET\n"
+        text += f"{self._get_table_location(table, dialect_opts, raw_connection)}\n"
+        text += f"{self._get_table_properties(dialect_opts, raw_connection)}\n"
         return text
 
 
@@ -338,6 +355,13 @@ class AthenaDialect(DefaultDialect):
             {
                 "location": None,
                 "compression": None,
+                "tblproperties": None,
+            },
+        ),
+        (
+            schema.Column,
+            {
+                "partition": False,
             },
         ),
     ]
@@ -440,6 +464,7 @@ class AthenaDialect(DefaultDialect):
         return {
             "awsathena_location": metadata.location,
             "awsathena_compression": metadata.compression,
+            "awsathena_tblproperties": HashableDict(metadata.table_properties),
         }
 
     def has_table(self, connection, table_name, schema=None, **kw):
@@ -452,7 +477,7 @@ class AthenaDialect(DefaultDialect):
     @reflection.cache
     def get_columns(self, connection, table_name, schema=None, **kw):
         metadata = self._get_table(connection, table_name, schema=schema, **kw)
-        return [
+        columns = [
             {
                 "name": c.name,
                 "type": self._get_column_type(c.type),
@@ -460,9 +485,23 @@ class AthenaDialect(DefaultDialect):
                 "default": None,
                 "autoincrement": False,
                 "comment": c.comment,
+                "dialect_options": {"awsathena_partition": None},
             }
-            for c in metadata.columns + metadata.partition_keys
+            for c in metadata.columns
         ]
+        columns += [
+            {
+                "name": c.name,
+                "type": self._get_column_type(c.type),
+                "nullable": True,
+                "default": None,
+                "autoincrement": False,
+                "comment": c.comment,
+                "dialect_options": {"awsathena_partition": True},
+            }
+            for c in metadata.partition_keys
+        ]
+        return columns
 
     def _get_column_type(self, type_):
         match = self._pattern_column_type.match(type_)

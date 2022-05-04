@@ -284,6 +284,22 @@ class AthenaTableMetadata:
         else:
             return None
 
+    @property
+    def serde_properties(self) -> Dict[str, str]:
+        return {
+            k.replace("serde.param.", ""): v
+            for k, v in self._parameters.items()
+            if k.startswith("serde.param.")
+        }
+
+    @property
+    def table_properties(self) -> Dict[str, str]:
+        return {
+            k: v
+            for k, v in self._parameters.items()
+            if not k.startswith("serde.param.")
+        }
+
 
 class AthenaRowFormat:
 

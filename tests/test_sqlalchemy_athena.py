@@ -157,10 +157,12 @@ class TestSQLAlchemyAthena:
         engine, conn = engine
         insp = sqlalchemy.inspect(engine)
         actual = insp.get_table_options("parquet_with_compression", schema=ENV.schema)
-        assert actual == {
-            "awsathena_location": f"{ENV.s3_staging_dir}{ENV.schema}/parquet_with_compression",
-            "awsathena_compression": "SNAPPY",
-        }
+        assert (
+            actual["awsathena_location"]
+            == f"{ENV.s3_staging_dir}{ENV.schema}/parquet_with_compression"
+        )
+        assert actual["awsathena_compression"] == "SNAPPY"
+        assert actual["awsathena_tblproperties"] is not None
 
     def test_has_table(self, engine):
         engine, conn = engine
@@ -479,97 +481,73 @@ class TestSQLAlchemyAthena:
             )
             STORED AS PARQUET
             LOCATION 's3://path/to/{ENV.schema}/{table_name}/'
-            TBLPROPERTIES ('parquet.compress'='SNAPPY')\n\n
-            """
-        )
-
-    def test_create_table_with_comments_compilation(self):
-        dialect = AthenaDialect()
-        table_name = "test_create_table_with_comments_compilation"
-        column_name = "col"
-        table = Table(
-            table_name,
-            MetaData(schema=ENV.schema),
-            Column(column_name, types.String(10), comment="some descriptive comment"),
-            awsathena_location=f"s3://path/to/{ENV.schema}/{table_name}/",
-            comment=textwrap.dedent(
-                """
-                Some table comment
-
-                a multiline one that should stay as is.
-                """
-            ),
-        )
-        actual = CreateTable(table).compile(dialect=dialect)
-        assert str(actual) == textwrap.dedent(
-            f"""
-            CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
-            \t{column_name} VARCHAR(10) COMMENT 'some descriptive comment'
-            )
-            COMMENT '
-            Some table comment
-
-            a multiline one that should stay as is.
-            '
-            STORED AS PARQUET
-            LOCATION 's3://path/to/{ENV.schema}/{table_name}/'\n\n
+            TBLPROPERTIES (
+            \t'parquet.compress'='SNAPPY'
+            )\n\n
             """
         )
 
     def test_create_table_with_comments(self, engine):
         engine, conn = engine
+        dialect = AthenaDialect()
         table_name = "test_create_table_with_comments"
-        column_name = "col"
-        comment = textwrap.dedent(
+        table_comment = textwrap.dedent(
             """
-            Some table comment
+            table comment
 
-            a multiline one that should stay as is.
+            multiline table comment
             """
         )
+        column_name = "col"
+        column_comment = "column comment"
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
-            Column(column_name, types.String(10), comment="some descriptive comment"),
+            Column(column_name, types.String(10), comment=column_comment),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}",
+            comment=table_comment,
+        )
+        ddl = CreateTable(table).compile(dialect=dialect)
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
+            \t{column_name} VARCHAR(10) COMMENT '{column_comment}'
+            )
+            COMMENT '
+            table comment
+
+            multiline table comment
+            '
+            STORED AS PARQUET
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'\n\n\n
+            """
+        )
+        assert actual.c[column_name].comment == column_comment
+        # The AWS API seems to return comments with squashed whitespace and line breaks.
+        # assert actual.comment == table.comment
+        assert actual.comment
+        assert actual.comment == "\n{}\n".format(
+            re.sub(r"\s+", " ", table_comment.strip())
+        )
+
+    def test_create_table_with_special_character_comments(self, engine):
+        engine, conn = engine
+        table_name = "test_create_table_with_special_character_comments"
+        column_name = "col"
+        comment = "%%str%% %str% %(parameter)s \"s''t'r\""
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column(column_name, types.String(10), comment=comment),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}",
             comment=comment,
         )
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
-        assert actual.c[column_name].comment == table.c[column_name].comment
-        # The AWS API seems to return comments with squashed whitespace and line breaks.
-        # assert actual.comment == table.comment
-        assert actual.comment
-        assert actual.comment == "\n{}\n".format(re.sub(r"\s+", " ", comment[1:-1]))
-
-    def test_column_comment_containing_single_quotes(self, engine):
-        engine, conn = engine
-        table_name = "table_name_column_comment_single_quotes"
-        column_name = "col"
-        comment = "let's make sure quotes ain\\'t a problem"
-        table = Table(
-            table_name,
-            MetaData(schema=ENV.schema),
-            Column(column_name, types.String(10), comment=comment),
-            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}",
-        )
-        conn.execute(CreateTable(table), parameter="some value")
-        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
-        assert actual.c[column_name].comment == comment
-
-    def test_column_comment_containing_placeholder(self, engine):
-        engine, conn = engine
-        table_name = "table_name_placeholder_in_column_comment"
-        column_name = "col"
-        comment = "the %(parameter)s ratio (in %)"
-        table = Table(
-            table_name,
-            MetaData(schema=ENV.schema),
-            Column(column_name, types.String(10), comment=comment),
-            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}",
-        )
-        conn.execute(CreateTable(table), parameter="some value")
-        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+        assert actual.comment == comment
         assert actual.c[column_name].comment == comment
 
     def test_create_table_with_primary_key(self, engine):
@@ -582,17 +560,18 @@ class TestSQLAlchemyAthena:
             Column("pk", types.Integer, primary_key=True),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}",
         )
+        ddl = CreateTable(table).compile(dialect=dialect)
         # The table will be created, but Athena does not support primary keys.
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
-        ddl = CreateTable(actual).compile(dialect=dialect)
+
         assert str(ddl) == textwrap.dedent(
             f"""
             CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
             \tpk INT
             )
             STORED AS PARQUET
-            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'\n\n
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'\n\n\n
             """
         )
         assert len(actual.primary_key.columns) == 0
@@ -611,10 +590,10 @@ class TestSQLAlchemyAthena:
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_compression="SNAPPY",
         )
+        ddl = CreateTable(table).compile(dialect=dialect)
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
-        ddl = CreateTable(actual).compile(dialect=dialect)
         assert str(ddl) == textwrap.dedent(
             f"""
             CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
@@ -625,7 +604,9 @@ class TestSQLAlchemyAthena:
             )
             STORED AS PARQUET
             LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
-            TBLPROPERTIES ('parquet.compress'='SNAPPY')\n\n
+            TBLPROPERTIES (
+            \t'parquet.compress'='SNAPPY'
+            )\n\n
             """
         )
 
@@ -666,3 +647,102 @@ class TestSQLAlchemyAthena:
             )
         ).scalar()
         assert actual == "1"
+
+    def test_create_table_with_partition(self, engine):
+        engine, conn = engine
+        dialect = AthenaDialect()
+        table_name = "test_create_table_with_partition"
+        table_comment = "table comment"
+        column_comment = "column comment"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column("col_1", types.String(10), comment=column_comment),
+            Column(
+                "col_partition_1",
+                types.String(10),
+                awsathena_partition=True,
+                comment=column_comment,
+            ),
+            Column("col_partition_2", types.Integer, awsathena_partition=True),
+            Column("col_2", types.Integer),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            awsathena_compression="SNAPPY",
+            comment=table_comment,
+        )
+        ddl = CreateTable(table).compile(dialect=dialect)
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
+            \tcol_1 VARCHAR(10) COMMENT '{column_comment}',
+            \tcol_2 INT
+            )
+            COMMENT '{table_comment}'
+            PARTITIONED BY (
+            \tcol_partition_1 VARCHAR(10) COMMENT '{column_comment}',
+            \tcol_partition_2 INT
+            )
+            STORED AS PARQUET
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            TBLPROPERTIES (
+            \t'parquet.compress'='SNAPPY'
+            )\n\n
+            """
+        )
+        assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
+        assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
+        assert actual.c.col_partition_1.dialect_options["awsathena"]["partition"]
+        assert actual.c.col_partition_2.dialect_options["awsathena"]["partition"]
+
+    def test_create_table_with_date_partition(self, engine):
+        engine, conn = engine
+        dialect = AthenaDialect()
+        table_name = "test_create_table_with_date_partition"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column("col_1", types.String(10)),
+            Column("col_2", types.Integer),
+            Column("dt", types.String, awsathena_partition=True),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            awsathena_compression="SNAPPY",
+            awsathena_tblproperties={
+                "projection.enabled": "true",
+                "projection.dt.type": "date",
+                "projection.dt.range": "NOW-1YEARS,NOW",
+                "projection.dt.format": "yyyy-MM-dd",
+            },
+        )
+        ddl = CreateTable(table).compile(dialect=dialect)
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
+            \tcol_1 VARCHAR(10),
+            \tcol_2 INT
+            )
+            PARTITIONED BY (
+            \tdt STRING
+            )
+            STORED AS PARQUET
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            TBLPROPERTIES (
+            \t'projection.enabled'='true',
+            \t'projection.dt.type'='date',
+            \t'projection.dt.range'='NOW-1YEARS,NOW',
+            \t'projection.dt.format'='yyyy-MM-dd',
+            \t'parquet.compress'='SNAPPY'
+            )\n\n
+            """
+        )
+        assert actual.c.dt.dialect_options["awsathena"]["partition"]
+        tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
+        assert tblproperties["projection.enabled"] == "true"
+        assert tblproperties["projection.dt.type"] == "date"
+        assert tblproperties["projection.dt.range"] == "NOW-1YEARS,NOW"
+        assert tblproperties["projection.dt.format"] == "yyyy-MM-dd"
