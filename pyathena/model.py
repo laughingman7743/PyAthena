@@ -268,6 +268,21 @@ class AthenaTableMetadata:
         return self._parameters.get("outputformat", None)
 
     @property
+    def row_format(self) -> Optional[str]:
+        serde = self.serde_serialization_lib
+        if serde:
+            return f"SERDE '{serde}'"
+        return None
+
+    @property
+    def file_format(self) -> Optional[str]:
+        input = self.input_format
+        output = self.output_format
+        if input and output:
+            return f"INPUTFORMAT '{input}' OUTPUTFORMAT '{output}'"
+        return None
+
+    @property
     def serde_serialization_lib(self) -> Optional[str]:
         return self._parameters.get("serde.serialization.lib", None)
 

@@ -483,7 +483,7 @@ class TestSQLAlchemyAthena:
             LOCATION 's3://path/to/{ENV.schema}/{table_name}/'
             TBLPROPERTIES (
             \t'parquet.compress'='SNAPPY'
-            )\n\n
+            )
             """
         )
 
@@ -522,7 +522,7 @@ class TestSQLAlchemyAthena:
             multiline table comment
             '
             STORED AS PARQUET
-            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'\n\n\n
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
             """
         )
         assert actual.c[column_name].comment == column_comment
@@ -571,7 +571,7 @@ class TestSQLAlchemyAthena:
             \tpk INT
             )
             STORED AS PARQUET
-            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'\n\n\n
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
             """
         )
         assert len(actual.primary_key.columns) == 0
@@ -606,7 +606,7 @@ class TestSQLAlchemyAthena:
             LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
             TBLPROPERTIES (
             \t'parquet.compress'='SNAPPY'
-            )\n\n
+            )
             """
         )
 
@@ -689,7 +689,7 @@ class TestSQLAlchemyAthena:
             LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
             TBLPROPERTIES (
             \t'parquet.compress'='SNAPPY'
-            )\n\n
+            )
             """
         )
         assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
@@ -737,7 +737,7 @@ class TestSQLAlchemyAthena:
             \t'projection.dt.range'='NOW-1YEARS,NOW',
             \t'projection.dt.format'='yyyy-MM-dd',
             \t'parquet.compress'='SNAPPY'
-            )\n\n
+            )
             """
         )
         assert actual.c.dt.dialect_options["awsathena"]["partition"]

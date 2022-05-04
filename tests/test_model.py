@@ -209,6 +209,15 @@ class TestAthenaTableMetadata:
             == "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
         )
         assert actual.compression == "SNAPPY"
+        assert (
+            actual.row_format
+            == "SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'"
+        )
+        assert (
+            actual.file_format
+            == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
+            "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
+        )
 
     def test_init_json(self):
         response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
@@ -230,6 +239,12 @@ class TestAthenaTableMetadata:
         }
         for key in actual.table_properties.keys():
             assert not key.startswith("serde.param.")
+        assert actual.row_format == "SERDE 'org.openx.data.jsonserde.JsonSerDe'"
+        assert (
+            actual.file_format
+            == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
+            "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat'"
+        )
 
     def test_init_json_hcatalog(self):
         response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
@@ -252,6 +267,12 @@ class TestAthenaTableMetadata:
         assert not actual.serde_properties
         for key in actual.table_properties.keys():
             assert not key.startswith("serde.param.")
+        assert actual.row_format == "SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'"
+        assert (
+            actual.file_format
+            == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
+            "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
+        )
 
     def test_init_parquet(self):
         response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
@@ -280,6 +301,15 @@ class TestAthenaTableMetadata:
         }
         for key in actual.table_properties.keys():
             assert not key.startswith("serde.param.")
+        assert (
+            actual.row_format
+            == "SERDE 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'"
+        )
+        assert (
+            actual.file_format
+            == "INPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' "
+            "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'"
+        )
 
     def test_init_orc(self):
         response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
@@ -300,6 +330,12 @@ class TestAthenaTableMetadata:
         assert not actual.serde_properties
         for key in actual.table_properties.keys():
             assert not key.startswith("serde.param.")
+        assert actual.row_format == "SERDE 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
+        assert (
+            actual.file_format
+            == "INPUTFORMAT 'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' "
+            "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'"
+        )
 
     def test_init_avro(self):
         response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
@@ -324,3 +360,11 @@ class TestAthenaTableMetadata:
         assert not actual.serde_properties
         for key in actual.table_properties.keys():
             assert not key.startswith("serde.param.")
+        assert (
+            actual.row_format == "SERDE 'org.apache.hadoop.hive.serde2.avro.AvroSerDe'"
+        )
+        assert (
+            actual.file_format
+            == "INPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat' "
+            "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat'"
+        )

@@ -79,12 +79,12 @@ class AthenaStatementCompiler(SQLCompiler):
         )
 
     def limit_clause(self, select, **kw):
-        text = ""
+        text = []
         if select._offset_clause is not None:
-            text += " OFFSET " + self.process(select._offset_clause, **kw)
+            text.append(" OFFSET " + self.process(select._offset_clause, **kw))
         if select._limit_clause is not None:
-            text += "\n LIMIT " + self.process(select._limit_clause, **kw)
-        return text
+            text.append(" LIMIT " + self.process(select._limit_clause, **kw))
+        return "\n".join(text)
 
 
 class AthenaTypeCompiler(GenericTypeCompiler):
@@ -198,6 +198,32 @@ class AthenaDDLCompiler(DDLCompiler):
     def _get_comment(self, comment):
         return f"COMMENT {self._escape_comment(comment)}"
 
+    def _get_file_format(self, dialect_opts):
+        text = []
+        if dialect_opts["file_format"]:
+            text.append(f"STORED AS {dialect_opts['file_format'].upper()}")
+        return "\n".join(text)
+
+    def _get_row_format(self, dialect_opts):
+        text = []
+        if dialect_opts["row_format"]:
+            text.append(f"ROW FORMAT {dialect_opts['row_format']}")
+        return "\n".join(text)
+
+    def _get_serde_properties(self, dialect_opts):
+        if dialect_opts["serdeproperties"]:
+            serde_properties = dialect_opts["serdeproperties"]
+        else:
+            serde_properties = {}
+        text = []
+        if serde_properties:
+            text.append("WITH SERDEPROPERTIES (")
+            text.append(
+                ",\n".join([f"\t'{k}'='{v}'" for k, v in serde_properties.items()])
+            )
+            text.append(")")
+        return "\n".join(text)
+
     def _get_table_location(self, table, dialect_opts, raw_connection):
         if dialect_opts["location"]:
             location = dialect_opts["location"]
@@ -227,21 +253,23 @@ class AthenaDDLCompiler(DDLCompiler):
 
     def _get_table_properties(self, dialect_opts, raw_connection):
         if dialect_opts["tblproperties"]:
-            tblproperties = dialect_opts["tblproperties"]
+            table_properties = dialect_opts["tblproperties"]
         else:
-            tblproperties = {}
+            table_properties = {}
         if dialect_opts["compression"]:
-            tblproperties.update({"parquet.compress": dialect_opts["compression"]})
+            table_properties.update({"parquet.compress": dialect_opts["compression"]})
         elif raw_connection:
-            tblproperties.update(
+            table_properties.update(
                 {"parquet.compress": raw_connection._kwargs.get("compression")}
             )
-        text = ""
-        if tblproperties:
-            text += "TBLPROPERTIES (\n"
-            text += ",\n".join([f"\t'{k}'='{v}'" for k, v in tblproperties.items()])
-            text += "\n)"
-        return text
+        text = []
+        if table_properties:
+            text.append("TBLPROPERTIES (")
+            text.append(
+                ",\n".join([f"\t'{k}'='{v}'" for k, v in table_properties.items()])
+            )
+            text.append(")")
+        return "\n".join(text)
 
     def get_column_specification(self, column, **kwargs):
         if isinstance(column.type, (types.Integer, types.INTEGER, types.INT)):
@@ -253,10 +281,10 @@ class AthenaDDLCompiler(DDLCompiler):
             type_ = self.dialect.type_compiler.process(
                 column.type, type_expression=column
             )
-        text = f"{self.preparer.format_column(column)} {type_}"
+        text = [f"{self.preparer.format_column(column)} {type_}"]
         if column.comment:
-            text += f" {self._get_comment(column.comment)}"
-        return text
+            text.append(f"{self._get_comment(column.comment)}")
+        return " ".join(text)
 
     def visit_check_constraint(self, constraint, **kw):
         return None
@@ -277,10 +305,12 @@ class AthenaDDLCompiler(DDLCompiler):
         table = create.element
         preparer = self.preparer
 
-        text = "\nCREATE EXTERNAL TABLE "
+        text = ["\nCREATE EXTERNAL TABLE"]
         if create.if_not_exists:
-            text += "IF NOT EXISTS "
-        text += preparer.format_table(table) + " (\n"
+            text.append("IF NOT EXISTS")
+        text.append(preparer.format_table(table))
+        text.append("(")
+        text = [" ".join(text)]
 
         columns = []
         partitions = []
@@ -303,16 +333,16 @@ class AthenaDDLCompiler(DDLCompiler):
                     ),
                     from_=ce,
                 )
-        text += ",\n".join(columns)
-        text += "\n)\n"
+        text.append(",\n".join(columns))
+        text.append(")")
         if table.comment:
-            text += f"{self._get_comment(table.comment)}\n"
+            text.append(self._get_comment(table.comment))
         if partitions:
-            text += "PARTITIONED BY (\n"
-            text += ",\n".join(partitions)
-            text += "\n)\n"
-        text += f"{self.post_create_table(table)}\n\n"
-        return text
+            text.append("PARTITIONED BY (")
+            text.append(",\n".join(partitions))
+            text.append(")")
+        text.append(f"{self.post_create_table(table)}\n")
+        return "\n".join(text)
 
     def post_create_table(self, table):
         dialect_opts = table.dialect_options["awsathena"]
@@ -321,12 +351,14 @@ class AthenaDDLCompiler(DDLCompiler):
             if hasattr(table, "bind") and table.bind
             else None
         )
-        text = ""
-        # TODO Supports orc, avro, json, csv or tsv format
-        text += "STORED AS PARQUET\n"
-        text += f"{self._get_table_location(table, dialect_opts, raw_connection)}\n"
-        text += f"{self._get_table_properties(dialect_opts, raw_connection)}\n"
-        return text
+        text = [
+            self._get_row_format(dialect_opts),
+            self._get_file_format(dialect_opts),
+            self._get_serde_properties(dialect_opts),
+            self._get_table_location(table, dialect_opts, raw_connection),
+            self._get_table_properties(dialect_opts, raw_connection),
+        ]
+        return "\n".join([t for t in text if t])
 
 
 class AthenaDialect(DefaultDialect):
@@ -355,6 +387,9 @@ class AthenaDialect(DefaultDialect):
             {
                 "location": None,
                 "compression": None,
+                "row_format": None,
+                "file_format": "PARQUET",
+                "serdeproperties": None,
                 "tblproperties": None,
             },
         ),
@@ -464,6 +499,9 @@ class AthenaDialect(DefaultDialect):
         return {
             "awsathena_location": metadata.location,
             "awsathena_compression": metadata.compression,
+            "awsathena_row_format": metadata.row_format,
+            "awsathena_file_format": metadata.file_format,
+            "awsathena_serdeproperties": HashableDict(metadata.serde_properties),
             "awsathena_tblproperties": HashableDict(metadata.table_properties),
         }
 
