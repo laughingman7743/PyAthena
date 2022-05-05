@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import logging
+import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Pattern
 
 from pyathena.error import DataError
 
@@ -316,37 +317,85 @@ class AthenaTableMetadata:
         }
 
 
-class AthenaRowFormat:
+class AthenaFileFormat:
 
-    ROW_FORMAT_PARQUET: str = "parquet"
-    ROW_FORMAT_ORC: str = "orc"
-    ROW_FORMAT_CSV: str = "csv"
-    ROW_FORMAT_JSON: str = "json"
-    ROW_FORMAT_AVRO: str = "avro"
+    FILE_FORMAT_SEQUENCEFILE: str = "SEQUENCEFILE"
+    FILE_FORMAT_TEXTFILE: str = "TEXTFILE"
+    FILE_FORMAT_RCFILE: str = "RCFILE"
+    FILE_FORMAT_ORC: str = "ORC"
+    FILE_FORMAT_PARQUET: str = "PARQUET"
+    FILE_FORMAT_AVRO: str = "AVRO"
+    FILE_FORMAT_ION: str = "ION"
 
     @staticmethod
-    def is_valid(value: Optional[str]) -> bool:
-        return value in [
-            AthenaRowFormat.ROW_FORMAT_PARQUET,
-            AthenaRowFormat.ROW_FORMAT_ORC,
-            AthenaRowFormat.ROW_FORMAT_CSV,
-            AthenaRowFormat.ROW_FORMAT_JSON,
-            AthenaRowFormat.ROW_FORMAT_AVRO,
-        ]
+    def is_parquet(value: str) -> bool:
+        return value.upper() == AthenaFileFormat.FILE_FORMAT_PARQUET
+
+    @staticmethod
+    def is_orc(value: str) -> bool:
+        return value.upper() == AthenaFileFormat.FILE_FORMAT_ORC
+
+
+class AthenaRowFormatSerde:
+
+    PATTERN_ROW_FORMAT_SERDE: Pattern[str] = re.compile(
+        r"^(?i)(?:serde) '(?P<serde>.+)'$"
+    )
+
+    ROW_FORMAT_SERDE_CSV: str = "org.apache.hadoop.hive.serde2.OpenCSVSerde"
+    ROW_FORMAT_SERDE_REGEX: str = "org.apache.hadoop.hive.serde2.RegexSerDe"
+    ROW_FORMAT_SERDE_LAZY_SIMPLE: str = (
+        "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
+    )
+    ROW_FORMAT_SERDE_CLOUD_TRAIL: str = "com.amazon.emr.hive.serde.CloudTrailSerde"
+    ROW_FORMAT_SERDE_GROK: str = "com.amazonaws.glue.serde.GrokSerDe"
+    ROW_FORMAT_SERDE_JSON: str = "org.openx.data.jsonserde.JsonSerDe"
+    ROW_FORMAT_SERDE_JSON_HCATALOG: str = "org.apache.hive.hcatalog.data.JsonSerDe"
+    ROW_FORMAT_SERDE_PARQUET: str = (
+        "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+    )
+    ROW_FORMAT_SERDE_ORC: str = "org.apache.hadoop.hive.ql.io.orc.OrcSerde"
+    ROW_FORMAT_SERDE_AVRO: str = "org.apache.hadoop.hive.serde2.avro.AvroSerDe"
+
+    @staticmethod
+    def is_parquet(value: str) -> bool:
+        match = AthenaRowFormatSerde.PATTERN_ROW_FORMAT_SERDE.search(value)
+        if match:
+            serde = match.group("serde")
+            if serde == AthenaRowFormatSerde.ROW_FORMAT_SERDE_PARQUET:
+                return True
+        return False
+
+    @staticmethod
+    def is_orc(value: str) -> bool:
+        match = AthenaRowFormatSerde.PATTERN_ROW_FORMAT_SERDE.search(value)
+        if match:
+            serde = match.group("serde")
+            if serde == AthenaRowFormatSerde.ROW_FORMAT_SERDE_ORC:
+                return True
+        return False
 
 
 class AthenaCompression:
 
-    COMPRESSION_SNAPPY: str = "snappy"
-    COMPRESSION_ZLIB: str = "zlib"
-    COMPRESSION_LZO: str = "lzo"
-    COMPRESSION_GZIP: str = "gzip"
+    COMPRESSION_BZIP2: str = "BZIP2"
+    COMPRESSION_DEFLATE: str = "DEFLATE"
+    COMPRESSION_GZIP: str = "GZIP"
+    COMPRESSION_LZ4: str = "LZ4"
+    COMPRESSION_LZO: str = "LZO"
+    COMPRESSION_SNAPPY: str = "SNAPPY"
+    COMPRESSION_ZLIB: str = "ZLIB"
+    COMPRESSION_ZSTD: str = "ZSTD"
 
     @staticmethod
-    def is_valid(value: Optional[str]) -> bool:
-        return value in [
+    def is_valid(value: str) -> bool:
+        return value.upper() in [
+            AthenaCompression.COMPRESSION_BZIP2,
+            AthenaCompression.COMPRESSION_DEFLATE,
+            AthenaCompression.COMPRESSION_GZIP,
+            AthenaCompression.COMPRESSION_LZ4,
+            AthenaCompression.COMPRESSION_LZO,
             AthenaCompression.COMPRESSION_SNAPPY,
             AthenaCompression.COMPRESSION_ZLIB,
-            AthenaCompression.COMPRESSION_LZO,
-            AthenaCompression.COMPRESSION_GZIP,
+            AthenaCompression.COMPRESSION_ZSTD,
         ]

@@ -4,8 +4,9 @@ from datetime import datetime
 
 from pyathena.model import (
     AthenaCompression,
+    AthenaFileFormat,
     AthenaQueryExecution,
-    AthenaRowFormat,
+    AthenaRowFormatSerde,
     AthenaTableMetadata,
 )
 
@@ -140,22 +141,6 @@ class TestAthenaQueryExecution:
         assert actual.encryption_option == "test_encryption_option"
         assert actual.kms_key == "test_kms_key"
         assert actual.work_group == "test_work_group"
-
-
-class TestAthenaRowFormat:
-    def test_is_valid(self):
-        assert AthenaRowFormat.is_valid("parquet")
-        assert not AthenaRowFormat.is_valid(None)
-        assert not AthenaRowFormat.is_valid("")
-        assert not AthenaRowFormat.is_valid("foobar")
-
-
-class TestAthenaCompression:
-    def test_is_valid(self):
-        assert AthenaCompression.is_valid("snappy")
-        assert not AthenaCompression.is_valid(None)
-        assert not AthenaCompression.is_valid("")
-        assert not AthenaCompression.is_valid("foobar")
 
 
 class TestAthenaTableMetadata:
@@ -368,3 +353,65 @@ class TestAthenaTableMetadata:
             == "INPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat'"
         )
+
+
+class TestAthenaFileFormat:
+    def test_is_parquet(self):
+        assert AthenaFileFormat.is_parquet("parquet")
+        assert AthenaFileFormat.is_parquet("PARQUET")
+        assert not AthenaFileFormat.is_parquet("")
+        assert not AthenaFileFormat.is_parquet("foobar")
+
+    def test_is_orc(self):
+        assert AthenaFileFormat.is_parquet("orc")
+        assert AthenaFileFormat.is_parquet("ORC")
+        assert not AthenaFileFormat.is_parquet("")
+        assert not AthenaFileFormat.is_parquet("foobar")
+
+
+class TestAthenaRowFormatSerde:
+    def test_is_parquet(self):
+        assert AthenaRowFormatSerde.is_parquet(
+            "SERDE 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'"
+        )
+        assert AthenaRowFormatSerde.is_parquet(
+            "SerDe 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'"
+        )
+        assert AthenaRowFormatSerde.is_parquet(
+            "Serde 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'"
+        )
+        assert AthenaRowFormatSerde.is_parquet(
+            "serde 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'"
+        )
+        assert not AthenaRowFormatSerde.is_parquet("")
+        assert not AthenaRowFormatSerde.is_parquet(
+            "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+        )
+        assert not AthenaRowFormatSerde.is_parquet("foobar")
+
+    def test_is_orc(self):
+        assert AthenaRowFormatSerde.is_parquet(
+            "SERDE 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
+        )
+        assert AthenaRowFormatSerde.is_parquet(
+            "SerDe 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
+        )
+        assert AthenaRowFormatSerde.is_parquet(
+            "Serde 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
+        )
+        assert AthenaRowFormatSerde.is_parquet(
+            "serde 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
+        )
+        assert not AthenaRowFormatSerde.is_parquet("")
+        assert not AthenaRowFormatSerde.is_parquet(
+            "org.apache.hadoop.hive.ql.io.orc.OrcSerde"
+        )
+        assert not AthenaRowFormatSerde.is_parquet("foobar")
+
+
+class TestAthenaCompression:
+    def test_is_valid(self):
+        assert AthenaCompression.is_valid("snappy")
+        assert AthenaCompression.is_valid("SNAPPY")
+        assert not AthenaCompression.is_valid("")
+        assert not AthenaCompression.is_valid("foobar")
