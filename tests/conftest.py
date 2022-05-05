@@ -22,7 +22,7 @@ def connect(schema_name="default", **kwargs):
 def create_engine(**kwargs):
     conn_str = (
         "awsathena+rest://athena.{region_name}.amazonaws.com:443/"
-        + "{schema_name}?s3_staging_dir={s3_staging_dir}&s3_dir={s3_dir}"
+        + "{schema_name}?s3_staging_dir={s3_staging_dir}&location={location}"
     )
     if "verify" in kwargs:
         conn_str += "&verify={verify}"
@@ -47,7 +47,7 @@ def create_engine(**kwargs):
             region_name=ENV.region_name,
             schema_name=ENV.schema,
             s3_staging_dir=quote_plus(ENV.s3_staging_dir),
-            s3_dir=quote_plus(ENV.s3_staging_dir),
+            location=quote_plus(ENV.s3_staging_dir),
             **kwargs,
         )
     )

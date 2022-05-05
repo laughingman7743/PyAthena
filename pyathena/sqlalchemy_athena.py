@@ -262,8 +262,8 @@ class AthenaDDLCompiler(DDLCompiler):
             location += "/" if not location.endswith("/") else ""
         elif raw_connection:
             base_location = (
-                raw_connection._kwargs["s3_dir"]
-                if "s3_dir" in raw_connection._kwargs
+                raw_connection._kwargs["location"]
+                if "location" in raw_connection._kwargs
                 else raw_connection.s3_staging_dir
             )
             schema = table.schema if table.schema else raw_connection.schema_name
@@ -280,7 +280,7 @@ class AthenaDDLCompiler(DDLCompiler):
         else:
             if raw_connection:
                 raise exc.CompileError(
-                    "`s3_dir` or `s3_staging_dir` parameter is required "
+                    "`location` or `s3_staging_dir` parameter is required "
                     "in the connection string"
                 )
             else:
