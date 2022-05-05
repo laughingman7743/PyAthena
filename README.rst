@@ -22,7 +22,8 @@ PyAthena is a Python `DB API 2.0 (PEP 249)`_ client for `Amazon Athena`_.
 .. _`Amazon Athena`: https://docs.aws.amazon.com/athena/latest/APIReference/Welcome.html
 
 .. contents:: Table of Contents:
-   :depth: 3
+   :local:
+   :depth: 2
 
 Requirements
 ------------
