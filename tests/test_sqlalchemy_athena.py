@@ -4,6 +4,7 @@ import textwrap
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
+from urllib.parse import quote_plus
 
 import numpy as np
 import pandas as pd
@@ -56,7 +57,7 @@ class TestSQLAlchemyAthena:
         assert "file_format" in dialect_opts
         assert "serdeproperties" in dialect_opts
         assert "tblproperties" in dialect_opts
-        assert dialect_opts["location"] == f"{ENV.s3_staging_dir}{ENV.schema}/one_row/"
+        assert dialect_opts["location"] == f"{ENV.s3_staging_dir}{ENV.schema}/one_row"
         assert (
             dialect_opts["row_format"]
             == "SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'"
@@ -86,7 +87,7 @@ class TestSQLAlchemyAthena:
         assert "file_format" in dialect_opts
         assert "serdeproperties" in dialect_opts
         assert "tblproperties" in dialect_opts
-        assert dialect_opts["location"] == f"{ENV.s3_staging_dir}{ENV.schema}/one_row/"
+        assert dialect_opts["location"] == f"{ENV.s3_staging_dir}{ENV.schema}/one_row"
         assert (
             dialect_opts["row_format"]
             == "SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'"
@@ -417,7 +418,10 @@ class TestSQLAlchemyAthena:
         result_with_limit2 = engine.execute(query_with_limit2, param="b%")
         assert result_with_limit2.fetchall() == [("a string", "b%")]
 
-    def test_to_sql(self, engine):
+    @pytest.mark.parametrize(
+        "engine", [{"file_format": "parquet", "compression": "snappy"}], indirect=True
+    )
+    def test_to_sql_parquet(self, engine):
         # TODO pyathena.error.OperationalError: SYNTAX_ERROR: line 1:305:
         #      Column 'foobar' cannot be resolved.
         #      def _format_bytes(formatter, escaper, val):
@@ -475,6 +479,67 @@ class TestSQLAlchemyAthena:
             )
         ]
 
+    @pytest.mark.parametrize(
+        "engine",
+        [
+            {
+                "row_format": "SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'",
+                "serdeproperties": quote_plus("'ignore.malformed.json'='1'"),
+            }
+        ],
+        indirect=True,
+    )
+    def test_to_sql_json(self, engine):
+        engine, conn = engine
+        table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
+        df = pd.DataFrame(
+            {
+                "col_int": np.int32([1]),
+                "col_bigint": np.int64([12345]),
+                "col_float": np.float32([1.0]),
+                "col_double": np.float64([1.2345]),
+                "col_string": ["a"],
+                "col_boolean": np.bool_([True]),
+                "col_timestamp": [datetime(2020, 1, 1, 0, 0, 0)],
+                "col_date": [date(2020, 12, 31)],
+            }
+        )
+        # Explicitly specify column order
+        df = df[
+            [
+                "col_int",
+                "col_bigint",
+                "col_float",
+                "col_double",
+                "col_string",
+                "col_boolean",
+                "col_timestamp",
+                "col_date",
+            ]
+        ]
+        df.to_sql(
+            table_name,
+            engine,
+            schema=ENV.schema,
+            index=False,
+            if_exists="replace",
+            method="multi",
+        )
+
+        table = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+        assert conn.execute(table.select()).fetchall() == [
+            (
+                1,
+                12345,
+                1.0,
+                1.2345,
+                "a",
+                True,
+                datetime(2020, 1, 1, 0, 0, 0),
+                date(2020, 12, 31),
+            )
+        ]
+
     @pytest.mark.parametrize("engine", [{"verify": "false"}], indirect=True)
     def test_conn_str_verify(self, engine):
         engine, conn = engine
@@ -522,7 +587,7 @@ class TestSQLAlchemyAthena:
             MetaData(schema=ENV.schema),
             Column(column_name, types.String(10)),
             awsathena_location=f"s3://path/to/{ENV.schema}/{table_name}",
-            awsathena_row_format="PARQUET",
+            awsathena_file_format="PARQUET",
             awsathena_compression="SNAPPY",
         )
         actual = CreateTable(table).compile(dialect=dialect)
@@ -535,7 +600,7 @@ class TestSQLAlchemyAthena:
             STORED AS PARQUET
             LOCATION 's3://path/to/{ENV.schema}/{table_name}/'
             TBLPROPERTIES (
-            \t'parquet.compress'='SNAPPY'
+            \t'parquet.compress' = 'SNAPPY'
             )
             """
         )
@@ -550,10 +615,10 @@ class TestSQLAlchemyAthena:
             MetaData(schema=ENV.schema),
             Column(column_name, types.String(10)),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
-            awsathena_row_format="SERDE `org.apache.hadoop.hive.serde2.OpenCSVSerde`",
+            awsathena_row_format="SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde'",
             awsathena_serdeproperties={
                 "separatorChar": ",",
-                "escapeChar": "\\",
+                "escapeChar": "\\\\",
             },
         )
         ddl = CreateTable(table).compile(dialect=dialect)
@@ -565,12 +630,12 @@ class TestSQLAlchemyAthena:
             CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
             \t{column_name} VARCHAR(10)
             )
-            ROW FORMAT SERDE `org.apache.hadoop.hive.serde2.OpenCSVSerde`
+            ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde'
             WITH SERDEPROPERTIES (
             \t'separatorChar' = ',',
-            \t'escapeChar' = '\\'
-            ) 
-            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}'
+            \t'escapeChar' = '\\\\'
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
             """
         )
         dialect_opts = actual.dialect_options["awsathena"]
@@ -583,10 +648,8 @@ class TestSQLAlchemyAthena:
             == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
         )
-        assert dialect_opts["serdeproperties"] == {
-            "separatorChar": ",",
-            "escapeChar": "\\",
-        }
+        assert dialect_opts["serdeproperties"]["separatorChar"] == ","
+        assert dialect_opts["serdeproperties"]["escapeChar"] == "\\"
         assert dialect_opts["tblproperties"] is not None
 
     def test_create_table_grok(self, engine):
@@ -602,8 +665,8 @@ class TestSQLAlchemyAthena:
             awsathena_row_format="SERDE 'com.amazonaws.glue.serde.GrokSerDe'",
             awsathena_serdeproperties={
                 "input.grokCustomPatterns": "POSTFIX_QUEUEID [0-9A-F]{7,12}",
-                "input.format": "%{SYSLOGBASE} %{POSTFIX_QUEUEID:queue_id}: "
-                "%{GREEDYDATA:syslog_message}",
+                "input.format": "%%{SYSLOGBASE} %%{POSTFIX_QUEUEID:queue_id}: "
+                "%%{GREEDYDATA:syslog_message}",
             },
             awsathena_file_format="INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'",
@@ -619,13 +682,13 @@ class TestSQLAlchemyAthena:
             )
             ROW FORMAT SERDE 'com.amazonaws.glue.serde.GrokSerDe'
             WITH SERDEPROPERTIES (
-            \t'input.grokCustomPatterns' = 'POSTFIX_QUEUEID [0-9A-F]{7,12}',
-            \t'input.format' = '%{{SYSLOGBASE}} %{{POSTFIX_QUEUEID:queue_id}}: \
-%{{GREEDYDATA:syslog_message}}'            
+            \t'input.grokCustomPatterns' = 'POSTFIX_QUEUEID [0-9A-F]{{7,12}}',
+            \t'input.format' = '%%{{SYSLOGBASE}} %%{{POSTFIX_QUEUEID:queue_id}}: \
+%%{{GREEDYDATA:syslog_message}}'
             )
             STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' \
 OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
-            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}'
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
             """
         )
         dialect_opts = actual.dialect_options["awsathena"]
@@ -637,11 +700,15 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
         )
-        assert dialect_opts["serdeproperties"] == {
-            "input.grokCustomPatterns": "POSTFIX_QUEUEID [0-9A-F]{7,12}",
-            "input.format": "%{{SYSLOGBASE}} %{{POSTFIX_QUEUEID:queue_id}}: "
-            "%{{GREEDYDATA:syslog_message}}",
-        }
+        assert (
+            dialect_opts["serdeproperties"]["input.grokCustomPatterns"]
+            == "POSTFIX_QUEUEID [0-9A-F]{7,12}"
+        )
+        assert (
+            dialect_opts["serdeproperties"]["input.format"]
+            == "%{SYSLOGBASE} %{POSTFIX_QUEUEID:queue_id}: "
+            "%{GREEDYDATA:syslog_message}"
+        )
         assert dialect_opts["tblproperties"] is not None
 
     def test_create_table_json(self, engine):
@@ -656,7 +723,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_row_format="SERDE 'org.openx.data.jsonserde.JsonSerDe'",
             awsathena_serdeproperties={
-                "ignore.malformed.json": "true",
+                "ignore.malformed.json": "1",
             },
         )
         ddl = CreateTable(table).compile(dialect=dialect)
@@ -670,9 +737,9 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             )
             ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
             WITH SERDEPROPERTIES (
-            \t'ignore.malformed.json' = 'true'
-            ) 
-            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}'
+            \t'ignore.malformed.json' = '1'
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
             """
         )
         dialect_opts = actual.dialect_options["awsathena"]
@@ -682,11 +749,9 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         assert (
             dialect_opts["file_format"]
             == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
-            "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
+            "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat'"
         )
-        assert dialect_opts["serdeproperties"] == {
-            "ignore.malformed.json": "true",
-        }
+        assert dialect_opts["serdeproperties"]["ignore.malformed.json"] == "1"
         assert dialect_opts["tblproperties"] is not None
 
     def test_create_table_parquet(self, engine):
@@ -698,7 +763,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             table_name,
             MetaData(schema=ENV.schema),
             Column(column_name, types.String(10)),
-            Column("year", types.String, partition=True),
+            Column("year", types.String, awsathena_partition=True),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_file_format="PARQUET",
             awsathena_compression="ZSTD",
@@ -712,18 +777,18 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
             \t{column_name} VARCHAR(10)
             )
-            STORED AS PARQUET
             PARTITIONED BY (
             \tyear STRING
             )
-            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}'
-            TBLEPROPERTIES (
-            \t"parquet.compress" = "ZSTD"
-            ) 
+            STORED AS PARQUET
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            TBLPROPERTIES (
+            \t'parquet.compress' = 'ZSTD'
+            )
             """
         )
         dialect_opts = actual.dialect_options["awsathena"]
-        assert dialect_opts["compress"] == "ZSTD"
+        assert dialect_opts["compression"] == "ZSTD"
         assert (
             dialect_opts["row_format"]
             == "SERDE 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'"
@@ -733,7 +798,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             == "INPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'"
         )
-        assert not dialect_opts["serdeproperties"]
+        assert dialect_opts["serdeproperties"] is not None
         assert dialect_opts["tblproperties"] is not None
 
     def test_create_table_orc(self, engine):
@@ -745,7 +810,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             table_name,
             MetaData(schema=ENV.schema),
             Column(column_name, types.String(10)),
-            Column("year", types.String, partition=True),
+            Column("year", types.String, awsathena_partition=True),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_file_format="ORC",
             awsathena_tblproperties={
@@ -761,18 +826,18 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
             \t{column_name} VARCHAR(10)
             )
-            STORED AS ORC
             PARTITIONED BY (
             \tyear STRING
             )
-            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}'
-            TBLEPROPERTIES (
-            \t"orc.compress" = "ZLIB"
-            ) 
+            STORED AS ORC
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            TBLPROPERTIES (
+            \t'orc.compress' = 'ZLIB'
+            )
             """
         )
         dialect_opts = actual.dialect_options["awsathena"]
-        assert dialect_opts["compress"] == "ZLIB"
+        assert dialect_opts["compression"] == "ZLIB"
         assert (
             dialect_opts["row_format"]
             == "SERDE 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
@@ -782,7 +847,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             == "INPUTFORMAT 'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'"
         )
-        assert not dialect_opts["serdeproperties"]
+        assert dialect_opts["serdeproperties"] is not None
         assert dialect_opts["tblproperties"] is not None
 
     def test_create_table_avro(self, engine):
@@ -794,23 +859,24 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             table_name,
             MetaData(schema=ENV.schema),
             Column(column_name, types.String(10)),
-            Column("year", types.String, partition=True),
+            Column("year", types.String, awsathena_partition=True),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            awsathena_file_format="AVRO",
             awsathena_row_format="SERDE 'org.apache.hadoop.hive.serde2.avro.AvroSerDe'",
             awsathena_serdeproperties={
                 "avro.schema.literal": textwrap.dedent(
                     """
-                {
-                   "type" : "record",
-                   "name" : "test_create_table_avro",
-                   "namespace" : "default",
-                   "fields" : [ {
+                    {
+                     "type" : "record",
+                     "name" : "test_create_table_avro",
+                     "namespace" : "default",
+                     "fields" : [ {
                       "name" : "col",
                       "type" : [ "null", "string" ],
                       "default" : null
-                   } ]
-                }                
-                """
+                     } ]
+                    }
+                    """
                 ),
             },
         )
@@ -823,25 +889,26 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
             \t{column_name} VARCHAR(10)
             )
-            ROW FORMAT SERDE `org.apache.hadoop.hive.serde2.avro.AvroSerDe`
             PARTITIONED BY (
             \tyear STRING
             )
+            ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.avro.AvroSerDe'
             WITH SERDEPROPERTIES (
             \t'avro.schema.literal' = '
             {{
-               "type" : "record",
-               "name" : "test_create_table_avro",
-               "namespace" : "default",
-               "fields" : [ {{
-                  "name" : "col",
-                  "type" : [ "null", "string" ],
-                  "default" : null
-               }} ]
+             "type" : "record",
+             "name" : "test_create_table_avro",
+             "namespace" : "default",
+             "fields" : [ {{
+              "name" : "col",
+              "type" : [ "null", "string" ],
+              "default" : null
+             }} ]
             }}
             '
-            ) 
-            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}'
+            )
+            STORED AS AVRO
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
             """
         )
         dialect_opts = actual.dialect_options["awsathena"]
@@ -854,22 +921,23 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             == "INPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat'"
         )
-        assert dialect_opts["serdeproperties"] == {
-            "avro.schema.literal": textwrap.dedent(
+        assert (
+            dialect_opts["serdeproperties"]["avro.schema.literal"].replace("\n", "")
+            == textwrap.dedent(
                 """
-            {
-               "type" : "record",
-               "name" : "test_create_table_avro",
-               "namespace" : "default",
-               "fields" : [ {
-                  "name" : "col",
-                  "type" : [ "null", "string" ],
-                  "default" : null
-               } ]
-            }
-            """
-            )
-        }
+                {
+                 "type" : "record",
+                 "name" : "test_create_table_avro",
+                 "namespace" : "default",
+                 "fields" : [ {
+                 "name" : "col",
+                 "type" : [ "null", "string" ],
+                 "default" : null
+                 } ]
+                }
+                """
+            ).replace("\n", "")
+        )
         assert dialect_opts["tblproperties"] is not None
 
     def test_create_table_with_comments(self, engine):
@@ -890,7 +958,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             MetaData(schema=ENV.schema),
             Column(column_name, types.String(10), comment=column_comment),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
-            awsathena_row_format="PARQUET",
+            awsathena_file_format="PARQUET",
             comment=table_comment,
         )
         ddl = CreateTable(table).compile(dialect=dialect)
@@ -944,7 +1012,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             table_name,
             MetaData(schema=ENV.schema),
             Column("pk", types.Integer, primary_key=True),
-            awsathena_row_format="PARQUET",
+            awsathena_file_format="PARQUET",
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
         )
         ddl = CreateTable(table).compile(dialect=dialect)
@@ -975,7 +1043,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             Column("col_varchar_type", types.String),
             Column("col_text", types.Text),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
-            awsathena_row_format="PARQUET",
+            awsathena_file_format="PARQUET",
             awsathena_compression="SNAPPY",
         )
         ddl = CreateTable(table).compile(dialect=dialect)
@@ -993,7 +1061,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             STORED AS PARQUET
             LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
             TBLPROPERTIES (
-            \t'parquet.compress'='SNAPPY'
+            \t'parquet.compress' = 'SNAPPY'
             )
             """
         )
@@ -1055,7 +1123,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             Column("col_partition_2", types.Integer, awsathena_partition=True),
             Column("col_2", types.Integer),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
-            awsathena_row_format="PARQUET",
+            awsathena_file_format="PARQUET",
             awsathena_compression="SNAPPY",
             comment=table_comment,
         )
@@ -1077,7 +1145,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             STORED AS PARQUET
             LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
             TBLPROPERTIES (
-            \t'parquet.compress'='SNAPPY'
+            \t'parquet.compress' = 'SNAPPY'
             )
             """
         )
@@ -1097,7 +1165,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             Column("col_2", types.Integer),
             Column("dt", types.String, awsathena_partition=True),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
-            awsathena_row_format="PARQUET",
+            awsathena_file_format="PARQUET",
             awsathena_compression="SNAPPY",
             awsathena_tblproperties={
                 "projection.enabled": "true",
@@ -1122,11 +1190,11 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             STORED AS PARQUET
             LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
             TBLPROPERTIES (
-            \t'projection.enabled'='true',
-            \t'projection.dt.type'='date',
-            \t'projection.dt.range'='NOW-1YEARS,NOW',
-            \t'projection.dt.format'='yyyy-MM-dd',
-            \t'parquet.compress'='SNAPPY'
+            \t'projection.enabled' = 'true',
+            \t'projection.dt.type' = 'date',
+            \t'projection.dt.range' = 'NOW-1YEARS,NOW',
+            \t'projection.dt.format' = 'yyyy-MM-dd',
+            \t'parquet.compress' = 'SNAPPY'
             )
             """
         )

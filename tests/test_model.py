@@ -363,10 +363,10 @@ class TestAthenaFileFormat:
         assert not AthenaFileFormat.is_parquet("foobar")
 
     def test_is_orc(self):
-        assert AthenaFileFormat.is_parquet("orc")
-        assert AthenaFileFormat.is_parquet("ORC")
-        assert not AthenaFileFormat.is_parquet("")
-        assert not AthenaFileFormat.is_parquet("foobar")
+        assert AthenaFileFormat.is_orc("orc")
+        assert AthenaFileFormat.is_orc("ORC")
+        assert not AthenaFileFormat.is_orc("")
+        assert not AthenaFileFormat.is_orc("foobar")
 
 
 class TestAthenaRowFormatSerde:
@@ -390,23 +390,23 @@ class TestAthenaRowFormatSerde:
         assert not AthenaRowFormatSerde.is_parquet("foobar")
 
     def test_is_orc(self):
-        assert AthenaRowFormatSerde.is_parquet(
+        assert AthenaRowFormatSerde.is_orc(
             "SERDE 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
         )
-        assert AthenaRowFormatSerde.is_parquet(
+        assert AthenaRowFormatSerde.is_orc(
             "SerDe 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
         )
-        assert AthenaRowFormatSerde.is_parquet(
+        assert AthenaRowFormatSerde.is_orc(
             "Serde 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
         )
-        assert AthenaRowFormatSerde.is_parquet(
+        assert AthenaRowFormatSerde.is_orc(
             "serde 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
         )
-        assert not AthenaRowFormatSerde.is_parquet("")
-        assert not AthenaRowFormatSerde.is_parquet(
+        assert not AthenaRowFormatSerde.is_orc("")
+        assert not AthenaRowFormatSerde.is_orc(
             "org.apache.hadoop.hive.ql.io.orc.OrcSerde"
         )
-        assert not AthenaRowFormatSerde.is_parquet("foobar")
+        assert not AthenaRowFormatSerde.is_orc("foobar")
 
 
 class TestAthenaCompression:
