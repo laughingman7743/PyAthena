@@ -15,6 +15,7 @@ from sqlalchemy.sql.compiler import (
 )
 
 import pyathena
+from pyathena.model import AthenaFileFormat, AthenaRowFormatSerde
 
 
 class UniversalSet:
@@ -201,7 +202,7 @@ class AthenaDDLCompiler(DDLCompiler):
     def _get_file_format(self, dialect_opts):
         text = []
         if dialect_opts["file_format"]:
-            text.append(f"STORED AS {dialect_opts['file_format'].upper()}")
+            text.append(f"STORED AS {dialect_opts['file_format']}")
         return "\n".join(text)
 
     def _get_row_format(self, dialect_opts):
@@ -256,12 +257,31 @@ class AthenaDDLCompiler(DDLCompiler):
             table_properties = dialect_opts["tblproperties"]
         else:
             table_properties = {}
+
         if dialect_opts["compression"]:
-            table_properties.update({"parquet.compress": dialect_opts["compression"]})
+            compression = dialect_opts["compression"]
         elif raw_connection:
-            table_properties.update(
-                {"parquet.compress": raw_connection._kwargs.get("compression")}
-            )
+            compression = raw_connection._kwargs.get("compression")
+        else:
+            compression = None
+        if compression:
+            file_format = dialect_opts["file_format"]
+            row_format = dialect_opts["row_format"]
+            if file_format:
+                if file_format == AthenaFileFormat.FILE_FORMAT_PARQUET:
+                    table_properties.update({"parquet.compress": compression})
+                elif file_format == AthenaFileFormat.FILE_FORMAT_ORC:
+                    table_properties.update({"orc.compress": compression})
+                else:
+                    table_properties.update({"write.compress": compression})
+            elif row_format:
+                if AthenaRowFormatSerde.is_parquet(row_format):
+                    table_properties.update({"parquet.compress": compression})
+                elif AthenaRowFormatSerde.is_orc(row_format):
+                    table_properties.update({"orc.compress": compression})
+                else:
+                    table_properties.update({"write.compress": compression})
+
         text = []
         if table_properties:
             text.append("TBLPROPERTIES (")
@@ -353,8 +373,8 @@ class AthenaDDLCompiler(DDLCompiler):
         )
         text = [
             self._get_row_format(dialect_opts),
-            self._get_file_format(dialect_opts),
             self._get_serde_properties(dialect_opts),
+            self._get_file_format(dialect_opts),
             self._get_table_location(table, dialect_opts, raw_connection),
             self._get_table_properties(dialect_opts, raw_connection),
         ]
@@ -388,7 +408,7 @@ class AthenaDialect(DefaultDialect):
                 "location": None,
                 "compression": None,
                 "row_format": None,
-                "file_format": "PARQUET",
+                "file_format": None,
                 "serdeproperties": None,
                 "tblproperties": None,
             },
