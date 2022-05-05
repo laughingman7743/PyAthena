@@ -21,6 +21,9 @@ PyAthena is a Python `DB API 2.0 (PEP 249)`_ client for `Amazon Athena`_.
 .. _`DB API 2.0 (PEP 249)`: https://www.python.org/dev/peps/pep-0249/
 .. _`Amazon Athena`: https://docs.aws.amazon.com/athena/latest/APIReference/Welcome.html
 
+.. contents:: Table of Contents:
+   :depth: 3
+
 Requirements
 ------------
 
@@ -160,6 +163,142 @@ Dialect & driver
 
 .. _`PyAthenaJDBC`: https://github.com/laughingman7743/PyAthenaJDBC
 
+
+Dialect options
+^^^^^^^^^^^^^^^
+
+Table options
+#############
+
+location
+    Type:
+        str
+    Description:
+        Specifies the location of the underlying data in the Amazon S3 from which the table is created.
+    value:
+        s3://bucket/path/to/
+    Example:
+        .. code:: python
+
+            Table("some_table", metadata, ..., awsathena_location="s3://bucket/path/to/")
+compression
+    Type:
+        str
+    Description:
+        Specifies the compression format.
+    Value:
+        * BZIP2
+        * DEFLATE
+        * GZIP
+        * LZ4
+        * LZO
+        * SNAPPY
+        * ZLIB
+        * ZSTD
+        * NONE|UNCOMPRESSED
+    Example:
+        .. code:: python
+
+            Table("some_table", metadata, ..., awsathena_compression="SNAPPY")
+row_format
+    Type:
+        str
+    Description:
+        Specifies the row format of the table and its underlying source data if applicable.
+    Value:
+        * [DELIMITED FIELDS TERMINATED BY char [ESCAPED BY char]]
+        * [DELIMITED COLLECTION ITEMS TERMINATED BY char]
+        * [MAP KEYS TERMINATED BY char]
+        * [LINES TERMINATED BY char]
+        * [NULL DEFINED AS char]
+        * SERDE 'serde_name'
+    Example:
+        .. code:: python
+
+            Table("some_table", metadata, ..., awsathena_row_format="SERDE 'org.openx.data.jsonserde.JsonSerDe'")
+file_format
+    Type:
+        str
+    Description:
+        Specifies the file format for table data.
+    Value:
+        * SEQUENCEFILE
+        * TEXTFILE
+        * RCFILE
+        * ORC
+        * PARQUET
+        * AVRO
+        * ION
+        * INPUTFORMAT input_format_classname OUTPUTFORMAT output_format_classname
+    Example:
+        .. code:: python
+
+            Table("some_table", metadata, ..., awsathena_file_format="PARQUET")
+            Table("some_table", metadata, ..., awsathena_file_format="INPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'")
+serdeproperties
+    Type:
+        dict[str, str]
+    Description:
+        Specifies one or more custom properties allowed in SerDe.
+    Value:
+        .. code:: python
+
+            { "property_name": "property_value", "property_name": "property_value", ... }
+    Example:
+        .. code:: python
+
+            Table("some_table", metadata, ..., awsathena_serdeproperties={
+                "separatorChar": ",", "escapeChar": "\\\\"
+            })
+tblproperties
+    Type:
+        dict[str, str]
+    Description:
+        Specifies custom metadata key-value pairs for the table definition in addition to predefined table properties.
+    Value:
+        .. code:: python
+
+            { "property_name": "property_value", "property_name": "property_value", ... }
+    Example:
+        .. code:: python
+
+            Table("some_table", metadata, ..., awsathena_tblproperties={
+                "projection.enabled": "true",
+                "projection.dt.type": "date",
+                "projection.dt.range": "NOW-1YEARS,NOW",
+                "projection.dt.format": "yyyy-MM-dd",
+            })
+
+All table options can also be specified in a connection string as follows:
+
+.. code:: text
+
+    awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3%3A%2F%2Fbucket%2Fpath%2Fto%2F&location=s3%3A%2F%2Fbucket%2Fpath%2Fto%2F&file_format=parquet&compression=snappy&...
+
+``serdeproperties`` and ``tblproperties`` must be converted to strings in the ``'key'='value','key'='value'`` format and url encoded.
+If single quotes are included, escape them with a backslash.
+
+For example, if you specify a projection setting: ``'projection.enabled'='true','projection.dt.type'='date','projection.dt.range'='NOW-1YEARS,NOW','projection.dt.format'= 'yyyy-MM-dd'`` in tblproperties, it would look like this
+
+.. code:: text
+
+    awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3%3A%2F%2Fbucket%2Fpath%2Fto%2F&tblproperties=%27projection.enabled%27%3D%27true%27%2C%27projection.dt.type%27%3D%27date%27%2C%27projection.dt.range%27%3D%27NOW-1YEARS%2CNOW%27%2C%27projection.dt.format%27%3D+%27yyyy-MM-dd%27
+
+Column options
+##############
+
+partition
+    Type:
+        bool
+    Description:
+        Specifies a key for partitioning data.
+    Value:
+        True / False
+    Example:
+        .. code:: python
+
+            Column("dt", types.String, ..., awsathena_partition=True)
+
 Pandas
 ~~~~~~
 
@@ -212,24 +351,24 @@ You can use `pandas.DataFrame.to_sql`_ to write records stored in DataFrame to A
     from sqlalchemy import create_engine
 
     conn_str = "awsathena+rest://:@athena.{region_name}.amazonaws.com:443/"\
-               "{schema_name}?s3_staging_dir={s3_staging_dir}&s3_dir={s3_dir}&compression=snappy"
+               "{schema_name}?s3_staging_dir={s3_staging_dir}&location={location}&compression=snappy"
     engine = create_engine(conn_str.format(
         region_name="us-west-2",
         schema_name="YOUR_SCHEMA",
         s3_staging_dir=quote_plus("s3://YOUR_S3_BUCKET/path/to/"),
-        s3_dir=quote_plus("s3://YOUR_S3_BUCKET/path/to/")))
+        location=quote_plus("s3://YOUR_S3_BUCKET/path/to/")))
 
     df = pd.DataFrame({"a": [1, 2, 3, 4, 5]})
     df.to_sql("YOUR_TABLE", engine, schema="YOUR_SCHEMA", index=False, if_exists="replace", method="multi")
 
-The location of the Amazon S3 table is specified by the ``s3_dir`` parameter in the connection string.
-If ``s3_dir`` is not specified, ``s3_staging_dir`` parameter will be used. The following rules apply.
+The location of the Amazon S3 table is specified by the ``location`` parameter in the connection string.
+If ``location`` is not specified, ``s3_staging_dir`` parameter will be used. The following rules apply.
 
 .. code:: text
 
-    s3://{s3_dir or s3_staging_dir}/{schema}/{table}/
+    s3://{location or s3_staging_dir}/{schema}/{table}/
 
-The data format only supports Parquet. The compression format is specified by the ``compression`` parameter in the connection string.
+The file format, row format, and compression settings are specified in the connection string, see `Table options`_.
 
 The ``pyathena.pandas.util`` package also has helper methods.
 
@@ -1119,7 +1258,7 @@ If primary is not available as the default workgroup, specify an alternative wor
 
 .. code:: bash
 
-    $ AWS_ATHENA_DEFAULT_WORKGROUP=DEFAULT_WORKGROUP
+    $ export AWS_ATHENA_DEFAULT_WORKGROUP=DEFAULT_WORKGROUP
 
 Run test
 ~~~~~~~~

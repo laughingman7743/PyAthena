@@ -22,8 +22,7 @@ def connect(schema_name="default", **kwargs):
 def create_engine(**kwargs):
     conn_str = (
         "awsathena+rest://athena.{region_name}.amazonaws.com:443/"
-        + "{schema_name}?s3_staging_dir={s3_staging_dir}&s3_dir={s3_dir}"
-        + "&compression=snappy"
+        + "{schema_name}?s3_staging_dir={s3_staging_dir}&location={location}"
     )
     if "verify" in kwargs:
         conn_str += "&verify={verify}"
@@ -33,12 +32,22 @@ def create_engine(**kwargs):
         conn_str += "&poll_interval={poll_interval}"
     if "kill_on_interrupt" in kwargs:
         conn_str += "&kill_on_interrupt={kill_on_interrupt}"
+    if "file_format" in kwargs:
+        conn_str += "&file_format={file_format}"
+    if "row_format" in kwargs:
+        conn_str += "&row_format={row_format}"
+    if "compression" in kwargs:
+        conn_str += "&compression={compression}"
+    if "tblproperties" in kwargs:
+        conn_str += "&tblproperties={tblproperties}"
+    if "serdeproperties" in kwargs:
+        conn_str += "&serdeproperties={serdeproperties}"
     return sqlalchemy.engine.create_engine(
         conn_str.format(
             region_name=ENV.region_name,
             schema_name=ENV.schema,
             s3_staging_dir=quote_plus(ENV.s3_staging_dir),
-            s3_dir=quote_plus(ENV.s3_staging_dir),
+            location=quote_plus(ENV.s3_staging_dir),
             **kwargs,
         )
     )

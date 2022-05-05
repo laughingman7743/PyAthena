@@ -4,8 +4,9 @@ from datetime import datetime
 
 from pyathena.model import (
     AthenaCompression,
+    AthenaFileFormat,
     AthenaQueryExecution,
-    AthenaRowFormat,
+    AthenaRowFormatSerde,
     AthenaTableMetadata,
 )
 
@@ -142,22 +143,6 @@ class TestAthenaQueryExecution:
         assert actual.work_group == "test_work_group"
 
 
-class TestAthenaRowFormat:
-    def test_is_valid(self):
-        assert AthenaRowFormat.is_valid("parquet")
-        assert not AthenaRowFormat.is_valid(None)
-        assert not AthenaRowFormat.is_valid("")
-        assert not AthenaRowFormat.is_valid("foobar")
-
-
-class TestAthenaCompression:
-    def test_is_valid(self):
-        assert AthenaCompression.is_valid("snappy")
-        assert not AthenaCompression.is_valid(None)
-        assert not AthenaCompression.is_valid("")
-        assert not AthenaCompression.is_valid("foobar")
-
-
 class TestAthenaTableMetadata:
     def test_init(self):
         actual = AthenaTableMetadata(ATHENA_TABLE_METADATA_RESPONSE)
@@ -209,6 +194,15 @@ class TestAthenaTableMetadata:
             == "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
         )
         assert actual.compression == "SNAPPY"
+        assert (
+            actual.row_format
+            == "SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'"
+        )
+        assert (
+            actual.file_format
+            == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
+            "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
+        )
 
     def test_init_json(self):
         response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
@@ -230,6 +224,12 @@ class TestAthenaTableMetadata:
         }
         for key in actual.table_properties.keys():
             assert not key.startswith("serde.param.")
+        assert actual.row_format == "SERDE 'org.openx.data.jsonserde.JsonSerDe'"
+        assert (
+            actual.file_format
+            == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
+            "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat'"
+        )
 
     def test_init_json_hcatalog(self):
         response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
@@ -252,6 +252,12 @@ class TestAthenaTableMetadata:
         assert not actual.serde_properties
         for key in actual.table_properties.keys():
             assert not key.startswith("serde.param.")
+        assert actual.row_format == "SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'"
+        assert (
+            actual.file_format
+            == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
+            "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
+        )
 
     def test_init_parquet(self):
         response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
@@ -280,6 +286,15 @@ class TestAthenaTableMetadata:
         }
         for key in actual.table_properties.keys():
             assert not key.startswith("serde.param.")
+        assert (
+            actual.row_format
+            == "SERDE 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'"
+        )
+        assert (
+            actual.file_format
+            == "INPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' "
+            "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'"
+        )
 
     def test_init_orc(self):
         response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
@@ -300,6 +315,12 @@ class TestAthenaTableMetadata:
         assert not actual.serde_properties
         for key in actual.table_properties.keys():
             assert not key.startswith("serde.param.")
+        assert actual.row_format == "SERDE 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
+        assert (
+            actual.file_format
+            == "INPUTFORMAT 'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' "
+            "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'"
+        )
 
     def test_init_avro(self):
         response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
@@ -324,3 +345,73 @@ class TestAthenaTableMetadata:
         assert not actual.serde_properties
         for key in actual.table_properties.keys():
             assert not key.startswith("serde.param.")
+        assert (
+            actual.row_format == "SERDE 'org.apache.hadoop.hive.serde2.avro.AvroSerDe'"
+        )
+        assert (
+            actual.file_format
+            == "INPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat' "
+            "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat'"
+        )
+
+
+class TestAthenaFileFormat:
+    def test_is_parquet(self):
+        assert AthenaFileFormat.is_parquet("parquet")
+        assert AthenaFileFormat.is_parquet("PARQUET")
+        assert not AthenaFileFormat.is_parquet("")
+        assert not AthenaFileFormat.is_parquet("foobar")
+
+    def test_is_orc(self):
+        assert AthenaFileFormat.is_orc("orc")
+        assert AthenaFileFormat.is_orc("ORC")
+        assert not AthenaFileFormat.is_orc("")
+        assert not AthenaFileFormat.is_orc("foobar")
+
+
+class TestAthenaRowFormatSerde:
+    def test_is_parquet(self):
+        assert AthenaRowFormatSerde.is_parquet(
+            "SERDE 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'"
+        )
+        assert AthenaRowFormatSerde.is_parquet(
+            "SerDe 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'"
+        )
+        assert AthenaRowFormatSerde.is_parquet(
+            "Serde 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'"
+        )
+        assert AthenaRowFormatSerde.is_parquet(
+            "serde 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'"
+        )
+        assert not AthenaRowFormatSerde.is_parquet("")
+        assert not AthenaRowFormatSerde.is_parquet(
+            "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+        )
+        assert not AthenaRowFormatSerde.is_parquet("foobar")
+
+    def test_is_orc(self):
+        assert AthenaRowFormatSerde.is_orc(
+            "SERDE 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
+        )
+        assert AthenaRowFormatSerde.is_orc(
+            "SerDe 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
+        )
+        assert AthenaRowFormatSerde.is_orc(
+            "Serde 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
+        )
+        assert AthenaRowFormatSerde.is_orc(
+            "serde 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
+        )
+        assert not AthenaRowFormatSerde.is_orc("")
+        assert not AthenaRowFormatSerde.is_orc(
+            "org.apache.hadoop.hive.ql.io.orc.OrcSerde"
+        )
+        assert not AthenaRowFormatSerde.is_orc("foobar")
+
+
+class TestAthenaCompression:
+    def test_is_valid(self):
+        assert AthenaCompression.is_valid("snappy")
+        assert AthenaCompression.is_valid("SNAPPY")
+        assert not AthenaCompression.is_valid("")
+        assert not AthenaCompression.is_valid("foobar")
