@@ -65,6 +65,7 @@ class Connection:
         formatter: Optional[Formatter] = None,
         retry_config: Optional[RetryConfig] = None,
         cursor_class: Type[BaseCursor] = Cursor,
+        cursor_kwargs: Optional[Dict[str, Any]] = None,
         kill_on_interrupt: bool = True,
         session: Optional[Session] = None,
         **kwargs
@@ -141,6 +142,7 @@ class Connection:
         self._formatter = formatter if formatter else DefaultParameterFormatter()
         self._retry_config = retry_config if retry_config else RetryConfig()
         self.cursor_class = cursor_class
+        self.cursor_kwargs = cursor_kwargs if cursor_kwargs else dict()
         self.kill_on_interrupt = kill_on_interrupt
 
     def _assume_role(
@@ -219,6 +221,7 @@ class Connection:
         self.close()
 
     def cursor(self, cursor: Optional[Type[BaseCursor]] = None, **kwargs) -> BaseCursor:
+        kwargs.update(self.cursor_kwargs)
         if not cursor:
             cursor = self.cursor_class
         converter = kwargs.pop("converter", self._converter)
