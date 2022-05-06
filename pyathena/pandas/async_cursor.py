@@ -8,6 +8,7 @@ from pyathena.async_cursor import AsyncCursor
 from pyathena.common import CursorIterator
 from pyathena.converter import Converter
 from pyathena.formatter import Formatter
+from pyathena.model import AthenaCompression, AthenaFileFormat
 from pyathena.pandas.result_set import AthenaPandasResultSet
 from pyathena.util import RetryConfig
 
@@ -22,36 +23,38 @@ class AsyncPandasCursor(AsyncCursor):
     def __init__(
         self,
         connection: "Connection",
-        s3_staging_dir: str,
-        poll_interval: float,
-        encryption_option: str,
-        kms_key: str,
         converter: Converter,
         formatter: Formatter,
         retry_config: RetryConfig,
-        schema_name: Optional[str],
-        catalog_name: Optional[str],
-        work_group: Optional[str],
+        s3_staging_dir: Optional[str] = None,
+        schema_name: Optional[str] = None,
+        catalog_name: Optional[str] = None,
+        work_group: Optional[str] = None,
+        poll_interval: float = 1,
+        encryption_option: Optional[str] = None,
+        kms_key: Optional[str] = None,
+        kill_on_interrupt: bool = True,
         max_workers: int = (cpu_count() or 1) * 5,
         arraysize: int = CursorIterator.DEFAULT_FETCH_SIZE,
-        kill_on_interrupt: bool = True,
+        unload: bool = False,
     ) -> None:
         super(AsyncPandasCursor, self).__init__(
             connection=connection,
-            s3_staging_dir=s3_staging_dir,
-            poll_interval=poll_interval,
-            encryption_option=encryption_option,
-            kms_key=kms_key,
             converter=converter,
             formatter=formatter,
             retry_config=retry_config,
-            max_workers=max_workers,
-            arraysize=arraysize,
+            s3_staging_dir=s3_staging_dir,
             schema_name=schema_name,
             catalog_name=catalog_name,
             work_group=work_group,
+            poll_interval=poll_interval,
+            encryption_option=encryption_option,
+            kms_key=kms_key,
             kill_on_interrupt=kill_on_interrupt,
+            max_workers=max_workers,
+            arraysize=arraysize,
         )
+        self._unload = unload
 
     def _collect_result_set(
         self,
@@ -73,6 +76,8 @@ class AsyncPandasCursor(AsyncCursor):
             keep_default_na=keep_default_na,
             na_values=na_values,
             quoting=quoting,
+            unload=self._unload,
+            max_workers=self._max_workers,
             **kwargs,
         )
 
@@ -89,6 +94,17 @@ class AsyncPandasCursor(AsyncCursor):
         quoting: int = 1,
         **kwargs,
     ) -> Tuple[str, "Future[Union[AthenaResultSet, AthenaPandasResultSet]]"]:
+        if self._unload:
+            s3_staging_dir = s3_staging_dir if s3_staging_dir else self._s3_staging_dir
+            assert (
+                s3_staging_dir
+            ), "If the unload option is used, s3_staging_dir is required."
+            operation = self._formatter.wrap_unload(
+                operation,
+                s3_staging_dir=s3_staging_dir,
+                unload_format=AthenaFileFormat.FILE_FORMAT_PARQUET,
+                unload_compression=AthenaCompression.COMPRESSION_SNAPPY,
+            )
         query_id = self._execute(
             operation,
             parameters=parameters,

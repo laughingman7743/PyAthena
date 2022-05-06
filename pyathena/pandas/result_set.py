@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
+import io
 import logging
+from concurrent import futures
+from concurrent.futures import ThreadPoolExecutor
+from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Type
 
 from pyathena.converter import Converter
@@ -36,6 +40,8 @@ class AthenaPandasResultSet(AthenaResultSet):
         keep_default_na: bool = False,
         na_values: Optional[Iterable[str]] = ("",),
         quoting: int = 1,
+        unload: bool = False,
+        max_workers: int = (cpu_count() or 1) * 5,
         **kwargs,
     ) -> None:
         super(AthenaPandasResultSet, self).__init__(
@@ -49,15 +55,13 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._keep_default_na = keep_default_na
         self._na_values = na_values
         self._quoting = quoting
+        self._unload = unload
+        self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._kwargs = kwargs
         self._client = connection.session.client(
             "s3", region_name=connection.region_name, **connection._client_kwargs
         )
-        if (
-            self.state == AthenaQueryExecution.STATE_SUCCEEDED
-            and self.output_location
-            and self.output_location.endswith((".csv", ".txt"))
-        ):
+        if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
             self._df = self._as_pandas()
         else:
             import pandas as pd
@@ -132,11 +136,13 @@ class AthenaPandasResultSet(AthenaResultSet):
                 break
         return rows
 
-    def _as_pandas(self) -> "DataFrame":
+    def _read_csv(self) -> "DataFrame":
         import pandas as pd
 
         if not self.output_location:
             raise ProgrammingError("OutputLocation is none or empty.")
+        if not self.output_location.endswith((".csv", ".txt")):
+            return pd.DataFrame()
         bucket, key = parse_output_location(self.output_location)
         try:
             response = retry_api_call(
@@ -147,7 +153,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                 Key=key,
             )
         except Exception as e:
-            _logger.exception("Failed to download csv.")
+            _logger.exception(f"Failed to download {bucket}{key}.")
             raise OperationalError(*e.args) from e
         else:
             length = response["ContentLength"]
@@ -181,12 +187,82 @@ class AthenaPandasResultSet(AthenaResultSet):
                 df = pd.DataFrame()
             return df
 
+    def _read_data_manifest(self) -> List[str]:
+        if not self.data_manifest_location:
+            raise ProgrammingError("DataManifestLocation is none or empty.")
+        bucket, key = parse_output_location(self.data_manifest_location)
+        try:
+            response = retry_api_call(
+                self._client.get_object,
+                config=self._retry_config,
+                logger=_logger,
+                Bucket=bucket,
+                Key=key,
+            )
+        except Exception as e:
+            _logger.exception(f"Failed to read {bucket}{key}.")
+            raise OperationalError(*e.args) from e
+        else:
+            manifest: str = response["Body"].read().decode("utf-8").strip()
+            return manifest.split("\n")
+
+    def __read_parquet(self, output_location) -> "DataFrame":
+        import pandas as pd
+
+        bucket, key = parse_output_location(output_location)
+        try:
+            response = retry_api_call(
+                self._client.get_object,
+                config=self._retry_config,
+                logger=_logger,
+                Bucket=bucket,
+                Key=key,
+            )
+        except Exception as e:
+            _logger.exception(f"Failed to download {bucket}{key}.")
+            raise OperationalError(*e.args) from e
+        else:
+            length = response["ContentLength"]
+            if length:
+                df = pd.read_parquet(
+                    path=io.BytesIO(response["Body"].read()), engine="pyarrow"
+                )
+                df = self._trunc_date(df)
+            else:
+                df = pd.DataFrame()
+            return df
+
+    def _read_parquet(self) -> "DataFrame":
+        import pandas as pd
+
+        manifests = self._read_data_manifest()
+        if manifests:
+            results = []
+            fs = [self._executor.submit(self.__read_parquet, m) for m in manifests]
+            for f in futures.as_completed(fs):
+                results.append(f.result())
+            df = pd.concat(results, ignore_index=True, copy=False)
+        else:
+            df = pd.DataFrame()
+        return df
+
+    def _as_pandas(self) -> "DataFrame":
+        if (
+            self._unload
+            and self.statement_type == AthenaQueryExecution.STATEMENT_TYPE_DML
+        ):
+            df = self._read_parquet()
+        else:
+            df = self._read_csv()
+        return df
+
     def as_pandas(self) -> "DataFrame":
         return self._df
 
-    def close(self) -> None:
+    def close(self, wait: bool = False) -> None:
         import pandas as pd
 
         super(AthenaPandasResultSet, self).close()
         self._df = pd.DataFrame()
         self._iterrows = enumerate([])
+        self._executor.shutdown(wait=wait)

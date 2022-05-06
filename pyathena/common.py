@@ -85,21 +85,24 @@ class BaseCursor(metaclass=ABCMeta):
     def __init__(
         self,
         connection: "Connection",
-        s3_staging_dir: Optional[str],
-        schema_name: Optional[str],
-        catalog_name: Optional[str],
-        work_group: Optional[str],
-        poll_interval: float,
-        encryption_option: Optional[str],
-        kms_key: Optional[str],
         converter: Converter,
         formatter: Formatter,
         retry_config: RetryConfig,
-        kill_on_interrupt: bool,
+        s3_staging_dir: Optional[str] = None,
+        schema_name: Optional[str] = None,
+        catalog_name: Optional[str] = None,
+        work_group: Optional[str] = None,
+        poll_interval: float = 1,
+        encryption_option: Optional[str] = None,
+        kms_key: Optional[str] = None,
+        kill_on_interrupt: bool = True,
         **kwargs
     ) -> None:
         super(BaseCursor, self).__init__()
         self._connection = connection
+        self._converter = converter
+        self._formatter = formatter
+        self._retry_config = retry_config
         self._s3_staging_dir = s3_staging_dir
         self._schema_name = schema_name
         self._catalog_name = catalog_name
@@ -107,9 +110,6 @@ class BaseCursor(metaclass=ABCMeta):
         self._poll_interval = poll_interval
         self._encryption_option = encryption_option
         self._kms_key = kms_key
-        self._converter = converter
-        self._formatter = formatter
-        self._retry_config = retry_config
         self._kill_on_interrupt = kill_on_interrupt
 
     @property

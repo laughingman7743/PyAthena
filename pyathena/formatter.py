@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
+import textwrap
+import uuid
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from datetime import date, datetime
@@ -7,6 +9,7 @@ from decimal import Decimal
 from typing import Any, Callable, Dict, Optional, Type, TypeVar
 
 from pyathena.error import ProgrammingError
+from pyathena.model import AthenaCompression, AthenaFileFormat
 
 _logger = logging.getLogger(__name__)  # type: ignore
 _T = TypeVar("_T", bound="Formatter")
@@ -49,6 +52,16 @@ class Formatter(metaclass=ABCMeta):
     def format(
         self, operation: str, parameters: Optional[Dict[str, Any]] = None
     ) -> str:
+        raise NotImplementedError  # pragma: no cover
+
+    @abstractmethod
+    def wrap_unload(
+        self,
+        operation: str,
+        s3_staging_dir: str,
+        unload_format: str,
+        unload_compression: str,
+    ):
         raise NotImplementedError  # pragma: no cover
 
 
@@ -188,3 +201,30 @@ class DefaultParameterFormatter(Formatter):
                 )
 
         return (operation % kwargs).strip() if kwargs is not None else operation.strip()
+
+    def wrap_unload(
+        self,
+        operation: str,
+        s3_staging_dir: str,
+        unload_format: str = AthenaFileFormat.FILE_FORMAT_PARQUET,
+        unload_compression: str = AthenaCompression.COMPRESSION_SNAPPY,
+    ):
+        if not operation or not operation.strip():
+            raise ProgrammingError("Query is none or empty.")
+
+        operation_upper = operation.strip().upper()
+        if operation_upper.startswith("SELECT") or operation_upper.startswith("WITH"):
+            now = datetime.utcnow().strftime("%Y%m%d")
+            operation = textwrap.dedent(
+                f"""
+                UNLOAD (
+                \t{operation.strip()}
+                )
+                TO '{s3_staging_dir}{now}/{str(uuid.uuid4())}'
+                WITH (
+                \tformat = '{unload_format}',
+                \tcompression = '{unload_compression}'
+                )
+                """
+            )
+        return operation
