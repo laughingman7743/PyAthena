@@ -189,6 +189,13 @@ class AthenaDDLCompiler(DDLCompiler):
             compile_kwargs=compile_kwargs,
         )
 
+    def _get_raw_connection(self, table):
+        return (
+            table.bind.raw_connection()
+            if hasattr(table, "bind") and table.bind
+            else None
+        )
+
     def _escape_comment(self, value):
         value = value.replace("\\", "\\\\").replace("'", r"\'")
         # DDL statements raise a KeyError if the placeholders aren't escaped
@@ -198,6 +205,15 @@ class AthenaDDLCompiler(DDLCompiler):
 
     def _get_comment_specification(self, comment):
         return f"COMMENT {self._escape_comment(comment)}"
+
+    def _get_bucket_count(self, dialect_opts, raw_connection):
+        if dialect_opts["bucket_count"]:
+            bucket_count = dialect_opts["bucket_count"]
+        elif raw_connection:
+            bucket_count = raw_connection._kwargs.get("bucket_count")
+        else:
+            bucket_count = None
+        return bucket_count
 
     def _get_file_format(self, dialect_opts, raw_connection):
         if dialect_opts["file_format"]:
@@ -381,26 +397,31 @@ class AthenaDDLCompiler(DDLCompiler):
 
     def visit_create_table(self, create, **kwargs):
         table = create.element
-        preparer = self.preparer
+        table_dialect_opts = table.dialect_options["awsathena"]
+        raw_connection = self._get_raw_connection(table)
 
         text = ["\nCREATE EXTERNAL TABLE"]
         if create.if_not_exists:
             text.append("IF NOT EXISTS")
-        text.append(preparer.format_table(table))
+        text.append(self.preparer.format_table(table))
         text.append("(")
         text = [" ".join(text)]
 
         columns = []
         partitions = []
+        buckets = []
         for create_column in create.columns:
             column = create_column.element
+            column_dialect_opts = column.dialect_options["awsathena"]
             try:
                 processed = self.process(create_column)
                 if processed is not None:
-                    if column.dialect_options["awsathena"]["partition"]:
+                    if column_dialect_opts["partition"]:
                         partitions.append(f"\t{processed}")
                     else:
                         columns.append(f"\t{processed}")
+                    if column_dialect_opts["cluster"]:
+                        buckets.append(f"\t{self.preparer.format_column(column)}")
             except exc.CompileError as ce:
                 util.raise_(
                     exc.CompileError(
@@ -419,16 +440,17 @@ class AthenaDDLCompiler(DDLCompiler):
             text.append("PARTITIONED BY (")
             text.append(",\n".join(partitions))
             text.append(")")
+        bucket_count = self._get_bucket_count(table_dialect_opts, raw_connection)
+        if buckets and bucket_count:
+            text.append("CLUSTERED BY (")
+            text.append(",\n".join(buckets))
+            text.append(f") INTO {bucket_count} BUCKETS")
         text.append(f"{self.post_create_table(table)}\n")
         return "\n".join(text)
 
     def post_create_table(self, table):
         dialect_opts = table.dialect_options["awsathena"]
-        raw_connection = (
-            table.bind.raw_connection()
-            if hasattr(table, "bind") and table.bind
-            else None
-        )
+        raw_connection = self._get_raw_connection(table)
         text = [
             self._get_row_format_specification(dialect_opts, raw_connection),
             self._get_serde_properties_specification(dialect_opts, raw_connection),
@@ -469,12 +491,14 @@ class AthenaDialect(DefaultDialect):
                 "file_format": None,
                 "serdeproperties": None,
                 "tblproperties": None,
+                "bucket_count": None,
             },
         ),
         (
             schema.Column,
             {
                 "partition": False,
+                "cluster": False,
             },
         ),
     ]
@@ -574,6 +598,7 @@ class AthenaDialect(DefaultDialect):
 
     def get_table_options(self, connection, table_name, schema=None, **kw):
         metadata = self._get_table(connection, table_name, schema=schema, **kw)
+        # TODO The metadata retrieved from the API does not seem to include bucketing information.
         return {
             "awsathena_location": metadata.location,
             "awsathena_compression": metadata.compression,

@@ -572,7 +572,6 @@ class TestSQLAlchemyAthena:
             Column(column_name, types.String(10)),
             schema=ENV.schema,
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}",
-            awsathena_compression=None,
         )
         insp = sqlalchemy.inspect(engine)
         table.create(bind=conn)
@@ -604,6 +603,51 @@ class TestSQLAlchemyAthena:
             )
             """
         )
+
+    def test_create_table_bucketing(self, engine):
+        engine, conn = engine
+        dialect = AthenaDialect()
+        table_name = "test_create_table_bucketing"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column("col_1", types.String(10), awsathena_cluster=True),
+            Column("col_2", types.Integer, awsathena_cluster=True),
+            Column("col_3", types.String, awsathena_partition=True),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            awsathena_bucket_count=5,
+        )
+        ddl = CreateTable(table).compile(dialect=dialect)
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
+            \tcol_1 VARCHAR(10),
+            \tcol_2 INT
+            )
+            PARTITIONED BY (
+            \tcol_3 STRING
+            )
+            CLUSTERED BY (
+            \tcol_1,
+            \tcol_2
+            ) INTO 5 BUCKETS
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            """
+        )
+        dialect_opts = actual.dialect_options["awsathena"]
+        assert (
+            dialect_opts["row_format"]
+            == "SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'"
+        )
+        assert (
+            dialect_opts["file_format"]
+            == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
+            "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
+        )
+        # TODO The metadata retrieved from the API does not seem to include bucketing information.
 
     def test_create_table_csv(self, engine):
         engine, conn = engine
