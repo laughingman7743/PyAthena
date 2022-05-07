@@ -540,6 +540,73 @@ class TestSQLAlchemyAthena:
             )
         ]
 
+    @pytest.mark.parametrize(
+        "engine",
+        [
+            {
+                "file_format": "parquet",
+                "compression": "snappy",
+                "bucket_count": 5,
+                "partition": "col_int%2Ccol_string"
+                # INSERT is not supported for bucketed tables
+            }
+        ],
+        indirect=True,
+    )
+    def test_to_sql_column_options(self, engine):
+        engine, conn = engine
+        table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
+        df = pd.DataFrame(
+            {
+                "col_bigint": np.int64([12345]),
+                "col_float": np.float32([1.0]),
+                "col_double": np.float64([1.2345]),
+                "col_boolean": np.bool_([True]),
+                "col_timestamp": [datetime(2020, 1, 1, 0, 0, 0)],
+                "col_date": [date(2020, 12, 31)],
+                # partitions
+                "col_int": np.int32([1]),
+                "col_string": ["a"],
+            }
+        )
+        # Explicitly specify column order
+        df = df[
+            [
+                "col_bigint",
+                "col_float",
+                "col_double",
+                "col_boolean",
+                "col_timestamp",
+                "col_date",
+                # partitions
+                "col_int",
+                "col_string",
+            ]
+        ]
+        df.to_sql(
+            table_name,
+            engine,
+            schema=ENV.schema,
+            index=False,
+            if_exists="replace",
+            method="multi",
+        )
+
+        table = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+        assert conn.execute(table.select()).fetchall() == [
+            (
+                12345,
+                1.0,
+                1.2345,
+                True,
+                datetime(2020, 1, 1, 0, 0, 0),
+                date(2020, 12, 31),
+                # partitions
+                1,
+                "a",
+            )
+        ]
+
     @pytest.mark.parametrize("engine", [{"verify": "false"}], indirect=True)
     def test_conn_str_verify(self, engine):
         engine, conn = engine
@@ -578,7 +645,6 @@ class TestSQLAlchemyAthena:
         assert insp.has_table(table_name, schema=ENV.schema)
 
     def test_create_table_location(self):
-        dialect = AthenaDialect()
         table_name = "test_create_table_location"
         column_name = "col"
         table = Table(
@@ -589,7 +655,7 @@ class TestSQLAlchemyAthena:
             awsathena_file_format="PARQUET",
             awsathena_compression="SNAPPY",
         )
-        actual = CreateTable(table).compile(dialect=dialect)
+        actual = CreateTable(table).compile(dialect=AthenaDialect())
         # If there is no `/` at the end of the `awsathena_location`, it will be appended.
         assert str(actual) == textwrap.dedent(
             f"""
@@ -606,7 +672,6 @@ class TestSQLAlchemyAthena:
 
     def test_create_table_bucketing(self, engine):
         engine, conn = engine
-        dialect = AthenaDialect()
         table_name = "test_create_table_bucketing"
         table = Table(
             table_name,
@@ -617,7 +682,7 @@ class TestSQLAlchemyAthena:
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_bucket_count=5,
         )
-        ddl = CreateTable(table).compile(dialect=dialect)
+        ddl = CreateTable(table).compile(dialect=AthenaDialect())
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -649,9 +714,68 @@ class TestSQLAlchemyAthena:
         )
         # TODO The metadata retrieved from the API does not seem to include bucketing information.
 
+    @pytest.mark.parametrize(
+        "engine",
+        [
+            {
+                "file_format": "PARQUET",
+                "compression": "SNAPPY",
+                "bucket_count": 5,
+                "partition": "test_create_table_conn_str.col_3",
+                "cluster": "col_1%2Ctest_create_table_conn_str.col_2",
+            }
+        ],
+        indirect=True,
+    )
+    def test_create_table_conn_str(self, engine):
+        engine, conn = engine
+        table_name = "test_create_table_conn_str"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema, bind=conn),
+            Column("col_1", types.String(10)),
+            Column("col_2", types.Integer),
+            Column("col_3", types.String),
+        )
+        ddl = CreateTable(table).compile(dialect=AthenaDialect())
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
+            \tcol_1 VARCHAR(10),
+            \tcol_2 INT
+            )
+            PARTITIONED BY (
+            \tcol_3 STRING
+            )
+            CLUSTERED BY (
+            \tcol_1,
+            \tcol_2
+            ) INTO 5 BUCKETS
+            STORED AS PARQUET
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            TBLPROPERTIES (
+            \t'parquet.compress' = 'SNAPPY'
+            )
+            """
+        )
+        dialect_opts = actual.dialect_options["awsathena"]
+        assert dialect_opts["compression"] == "SNAPPY"
+        assert (
+            dialect_opts["row_format"]
+            == "SERDE 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'"
+        )
+        assert (
+            dialect_opts["file_format"]
+            == "INPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' "
+            "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'"
+        )
+        assert actual.c.col_3.dialect_options["awsathena"]["partition"]
+
     def test_create_table_csv(self, engine):
         engine, conn = engine
-        dialect = AthenaDialect()
         table_name = "test_create_table_csv"
         column_name = "col"
         table = Table(
@@ -665,7 +789,7 @@ class TestSQLAlchemyAthena:
                 "escapeChar": "\\\\",
             },
         )
-        ddl = CreateTable(table).compile(dialect=dialect)
+        ddl = CreateTable(table).compile(dialect=AthenaDialect())
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -698,7 +822,6 @@ class TestSQLAlchemyAthena:
 
     def test_create_table_grok(self, engine):
         engine, conn = engine
-        dialect = AthenaDialect()
         table_name = "test_create_table_grok"
         column_name = "col"
         table = Table(
@@ -715,7 +838,7 @@ class TestSQLAlchemyAthena:
             awsathena_file_format="INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'",
         )
-        ddl = CreateTable(table).compile(dialect=dialect)
+        ddl = CreateTable(table).compile(dialect=AthenaDialect())
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -757,7 +880,6 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
 
     def test_create_table_json(self, engine):
         engine, conn = engine
-        dialect = AthenaDialect()
         table_name = "test_create_table_json"
         column_name = "col"
         table = Table(
@@ -770,7 +892,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
                 "ignore.malformed.json": "1",
             },
         )
-        ddl = CreateTable(table).compile(dialect=dialect)
+        ddl = CreateTable(table).compile(dialect=AthenaDialect())
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -800,7 +922,6 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
 
     def test_create_table_parquet(self, engine):
         engine, conn = engine
-        dialect = AthenaDialect()
         table_name = "test_create_table_parquet"
         column_name = "col"
         table = Table(
@@ -812,7 +933,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             awsathena_file_format="PARQUET",
             awsathena_compression="ZSTD",
         )
-        ddl = CreateTable(table).compile(dialect=dialect)
+        ddl = CreateTable(table).compile(dialect=AthenaDialect())
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -847,7 +968,6 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
 
     def test_create_table_orc(self, engine):
         engine, conn = engine
-        dialect = AthenaDialect()
         table_name = "test_create_table_orc"
         column_name = "col"
         table = Table(
@@ -861,7 +981,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
                 "orc.compress": "ZLIB",
             },
         )
-        ddl = CreateTable(table).compile(dialect=dialect)
+        ddl = CreateTable(table).compile(dialect=AthenaDialect())
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -896,7 +1016,6 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
 
     def test_create_table_avro(self, engine):
         engine, conn = engine
-        dialect = AthenaDialect()
         table_name = "test_create_table_avro"
         column_name = "col"
         table = Table(
@@ -924,7 +1043,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
                 ),
             },
         )
-        ddl = CreateTable(table).compile(dialect=dialect)
+        ddl = CreateTable(table).compile(dialect=AthenaDialect())
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -986,7 +1105,6 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
 
     def test_create_table_with_comments(self, engine):
         engine, conn = engine
-        dialect = AthenaDialect()
         table_name = "test_create_table_with_comments"
         table_comment = textwrap.dedent(
             """
@@ -1005,7 +1123,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             awsathena_file_format="PARQUET",
             comment=table_comment,
         )
-        ddl = CreateTable(table).compile(dialect=dialect)
+        ddl = CreateTable(table).compile(dialect=AthenaDialect())
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -1050,7 +1168,6 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
 
     def test_create_table_with_primary_key(self, engine):
         engine, conn = engine
-        dialect = AthenaDialect()
         table_name = "test_create_table_with_primary_key"
         table = Table(
             table_name,
@@ -1059,7 +1176,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             awsathena_file_format="PARQUET",
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
         )
-        ddl = CreateTable(table).compile(dialect=dialect)
+        ddl = CreateTable(table).compile(dialect=AthenaDialect())
         # The table will be created, but Athena does not support primary keys.
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
@@ -1077,7 +1194,6 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
 
     def test_create_table_with_varchar_text_column(self, engine):
         engine, conn = engine
-        dialect = AthenaDialect()
         table_name = "test_create_table_with_varchar_text_column"
         table = Table(
             table_name,
@@ -1090,7 +1206,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             awsathena_file_format="PARQUET",
             awsathena_compression="SNAPPY",
         )
-        ddl = CreateTable(table).compile(dialect=dialect)
+        ddl = CreateTable(table).compile(dialect=AthenaDialect())
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -1150,7 +1266,6 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
 
     def test_create_table_with_partition(self, engine):
         engine, conn = engine
-        dialect = AthenaDialect()
         table_name = "test_create_table_with_partition"
         table_comment = "table comment"
         column_comment = "column comment"
@@ -1171,7 +1286,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             awsathena_compression="SNAPPY",
             comment=table_comment,
         )
-        ddl = CreateTable(table).compile(dialect=dialect)
+        ddl = CreateTable(table).compile(dialect=AthenaDialect())
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -1200,7 +1315,6 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
 
     def test_create_table_with_date_partition(self, engine):
         engine, conn = engine
-        dialect = AthenaDialect()
         table_name = "test_create_table_with_date_partition"
         table = Table(
             table_name,
@@ -1218,7 +1332,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
                 "projection.dt.format": "yyyy-MM-dd",
             },
         )
-        ddl = CreateTable(table).compile(dialect=dialect)
+        ddl = CreateTable(table).compile(dialect=AthenaDialect())
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 

@@ -189,12 +189,16 @@ class AthenaDDLCompiler(DDLCompiler):
             compile_kwargs=compile_kwargs,
         )
 
-    def _get_raw_connection(self, table):
-        return (
-            table.bind.raw_connection()
-            if hasattr(table, "bind") and table.bind
-            else None
-        )
+    def _raw_connection(self, table):
+        if hasattr(table, "bind") and table.bind:
+            bind = table.bind
+            if isinstance(bind, Engine):
+                conn = bind.raw_connection()
+            else:
+                conn = bind.connection
+        else:
+            conn = None
+        return conn
 
     def _escape_comment(self, value):
         value = value.replace("\\", "\\\\").replace("'", r"\'")
@@ -395,32 +399,45 @@ class AthenaDDLCompiler(DDLCompiler):
     def visit_unique_constraint(self, constraint, **kw):
         return None
 
-    def visit_create_table(self, create, **kwargs):
-        table = create.element
-        table_dialect_opts = table.dialect_options["awsathena"]
-        raw_connection = self._get_raw_connection(table)
+    def _get_raw_connection_partitions(self, raw_connection):
+        if raw_connection:
+            partition = raw_connection._kwargs.get("partition")
+            partitions = partition.split(",") if partition else []
+        else:
+            partitions = []
+        return partitions
 
-        text = ["\nCREATE EXTERNAL TABLE"]
-        if create.if_not_exists:
-            text.append("IF NOT EXISTS")
-        text.append(self.preparer.format_table(table))
-        text.append("(")
-        text = [" ".join(text)]
+    def _get_raw_connection_buckets(self, raw_connection):
+        if raw_connection:
+            bucket = raw_connection._kwargs.get("cluster")
+            buckets = bucket.split(",") if bucket else []
+        else:
+            buckets = []
+        return buckets
 
-        columns = []
-        partitions = []
-        buckets = []
-        for create_column in create.columns:
+    def _prepared_columns(self, table, create_columns, raw_connection):
+        columns, partitions, buckets = [], [], []
+        raw_conn_partitions = self._get_raw_connection_partitions(raw_connection)
+        raw_conn_buckets = self._get_raw_connection_buckets(raw_connection)
+        for create_column in create_columns:
             column = create_column.element
             column_dialect_opts = column.dialect_options["awsathena"]
             try:
                 processed = self.process(create_column)
                 if processed is not None:
-                    if column_dialect_opts["partition"]:
+                    if (
+                        column_dialect_opts["partition"]
+                        or column.name in raw_conn_partitions
+                        or f"{table.name}.{column.name}" in raw_conn_partitions
+                    ):
                         partitions.append(f"\t{processed}")
                     else:
                         columns.append(f"\t{processed}")
-                    if column_dialect_opts["cluster"]:
+                    if (
+                        column_dialect_opts["cluster"]
+                        or column.name in raw_conn_buckets
+                        or f"{table.name}.{column.name}" in raw_conn_buckets
+                    ):
                         buckets.append(f"\t{self.preparer.format_column(column)}")
             except exc.CompileError as ce:
                 util.raise_(
@@ -432,25 +449,46 @@ class AthenaDDLCompiler(DDLCompiler):
                     ),
                     from_=ce,
                 )
+        return columns, partitions, buckets
+
+    def visit_create_table(self, create, **kwargs):
+        table = create.element
+        table_dialect_opts = table.dialect_options["awsathena"]
+        raw_connection = self._raw_connection(table)
+
+        text = ["\nCREATE EXTERNAL TABLE"]
+        if create.if_not_exists:
+            text.append("IF NOT EXISTS")
+        text.append(self.preparer.format_table(table))
+        text.append("(")
+        text = [" ".join(text)]
+
+        columns, partitions, buckets = self._prepared_columns(
+            table, create.columns, raw_connection
+        )
         text.append(",\n".join(columns))
         text.append(")")
+
         if table.comment:
             text.append(self._get_comment_specification(table.comment))
+
         if partitions:
             text.append("PARTITIONED BY (")
             text.append(",\n".join(partitions))
             text.append(")")
+
         bucket_count = self._get_bucket_count(table_dialect_opts, raw_connection)
         if buckets and bucket_count:
             text.append("CLUSTERED BY (")
             text.append(",\n".join(buckets))
             text.append(f") INTO {bucket_count} BUCKETS")
+
         text.append(f"{self.post_create_table(table)}\n")
         return "\n".join(text)
 
     def post_create_table(self, table):
         dialect_opts = table.dialect_options["awsathena"]
-        raw_connection = self._get_raw_connection(table)
+        raw_connection = self._raw_connection(table)
         text = [
             self._get_row_format_specification(dialect_opts, raw_connection),
             self._get_serde_properties_specification(dialect_opts, raw_connection),

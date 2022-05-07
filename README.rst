@@ -322,7 +322,17 @@ cluster
 
             Column("dt", types.String, ..., awsathena_cluster=True)
 
+To specify column options from a connection string, specify the column name as a comma-separated string.
 
+.. code:: text
+
+    awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?partition=column1%2Ccolumn2&cluster=column1%2Ccolumn2&...
+
+If you want to limit the column options to specific table names only, specify the table and column names connected by dots as a comma-separated string.
+
+.. code:: text
+
+    awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?partition=table1.column1%2Ctable1.column2&cluster=table2.column1%2Ctable2.column2&...
 
 Pandas
 ~~~~~~
