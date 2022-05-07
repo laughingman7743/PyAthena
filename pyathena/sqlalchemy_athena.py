@@ -443,7 +443,7 @@ class AthenaDDLCompiler(DDLCompiler):
         bucket_count = self._get_bucket_count(table_dialect_opts, raw_connection)
         if buckets and bucket_count:
             text.append("CLUSTERED BY (")
-            text.append(",\n".join(partitions))
+            text.append(",\n".join(buckets))
             text.append(f") INTO {bucket_count} BUCKETS")
         text.append(f"{self.post_create_table(table)}\n")
         return "\n".join(text)

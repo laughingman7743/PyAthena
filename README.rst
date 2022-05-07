@@ -269,6 +269,17 @@ tblproperties
                 "projection.dt.range": "NOW-1YEARS,NOW",
                 "projection.dt.format": "yyyy-MM-dd",
             })
+bucket_count
+    Type:
+        int
+    Description:
+        The number of buckets for bucketing your data.
+    Value:
+        Integer value greater than or equal to 0
+    Example:
+        .. code:: python
+
+            Table("some_table", metadata, ..., awsathena_bucket_count=5)
 
 All table options can also be specified in a connection string as follows:
 
@@ -299,6 +310,19 @@ partition
         .. code:: python
 
             Column("dt", types.String, ..., awsathena_partition=True)
+cluster
+    Type:
+        bool
+    Description:
+        Divides the data in the specified column into data subsets called buckets, with or without partitioning.
+    Value:
+        True / False
+    Example:
+        .. code:: python
+
+            Column("dt", types.String, ..., awsathena_cluster=True)
+
+
 
 Pandas
 ~~~~~~
