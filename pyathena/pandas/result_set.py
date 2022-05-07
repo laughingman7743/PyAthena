@@ -249,7 +249,8 @@ class AthenaPandasResultSet(AthenaResultSet):
     def _as_pandas(self) -> "DataFrame":
         if (
             self._unload
-            and self.statement_type == AthenaQueryExecution.STATEMENT_TYPE_DML
+            and self.query
+            and self.query.strip().upper().startswith("UNLOAD")
         ):
             df = self._read_parquet()
         else:
