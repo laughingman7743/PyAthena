@@ -281,7 +281,7 @@ bucket_count
 
             Table("some_table", metadata, ..., awsathena_bucket_count=5)
 
-All table options can also be specified in a connection string as follows:
+All table options can also be configured with the connection string as follows:
 
 .. code:: text
 
@@ -290,7 +290,7 @@ All table options can also be specified in a connection string as follows:
 ``serdeproperties`` and ``tblproperties`` must be converted to strings in the ``'key'='value','key'='value'`` format and url encoded.
 If single quotes are included, escape them with a backslash.
 
-For example, if you specify a projection setting: ``'projection.enabled'='true','projection.dt.type'='date','projection.dt.range'='NOW-1YEARS,NOW','projection.dt.format'= 'yyyy-MM-dd'`` in tblproperties, it would look like this
+For example, if you configure a projection setting ``'projection.enabled'='true','projection.dt.type'='date','projection.dt.range'='NOW-1YEARS,NOW','projection.dt.format'= 'yyyy-MM-dd'`` in tblproperties, it would look like this
 
 .. code:: text
 
@@ -309,7 +309,7 @@ partition
     Example:
         .. code:: python
 
-            Column("dt", types.String, ..., awsathena_partition=True)
+            Column("some_column", types.String, ..., awsathena_partition=True)
 cluster
     Type:
         bool
@@ -320,9 +320,9 @@ cluster
     Example:
         .. code:: python
 
-            Column("dt", types.String, ..., awsathena_cluster=True)
+            Column("some_column", types.String, ..., awsathena_cluster=True)
 
-To specify column options from a connection string, specify the column name as a comma-separated string.
+To configure column options from the connection string, specify the column name as a comma-separated string.
 
 .. code:: text
 
