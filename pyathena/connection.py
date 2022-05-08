@@ -7,11 +7,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 from boto3.session import Session
 
 from pyathena.common import BaseCursor
-from pyathena.converter import (
-    Converter,
-    DefaultPandasTypeConverter,
-    DefaultTypeConverter,
-)
+from pyathena.converter import Converter, DefaultTypeConverter
 from pyathena.cursor import Cursor
 from pyathena.error import NotSupportedError
 from pyathena.formatter import DefaultParameterFormatter, Formatter
@@ -227,6 +223,7 @@ class Connection:
         converter = kwargs.pop("converter", self._converter)
         if not converter:
             from pyathena.pandas.async_cursor import AsyncPandasCursor
+            from pyathena.pandas.converter import DefaultPandasTypeConverter
             from pyathena.pandas.cursor import PandasCursor
 
             if cursor is PandasCursor or cursor is AsyncPandasCursor:
