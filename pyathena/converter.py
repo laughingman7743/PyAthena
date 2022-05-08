@@ -138,12 +138,6 @@ _DEFAULT_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {
     "decimal": _to_decimal,
     "json": _to_json,
 }
-_DEFAULT_PANDAS_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {
-    "boolean": _to_boolean,
-    "decimal": _to_decimal,
-    "varbinary": _to_binary,
-    "json": _to_json,
-}
 
 
 class DefaultTypeConverter(Converter):
@@ -157,37 +151,3 @@ class DefaultTypeConverter(Converter):
         if converter:
             return converter(value)
         return value
-
-
-class DefaultPandasTypeConverter(Converter):
-    def __init__(self) -> None:
-        super(DefaultPandasTypeConverter, self).__init__(
-            mappings=deepcopy(_DEFAULT_PANDAS_CONVERTERS),
-            default=_to_default,
-            types=self._dtypes,
-        )
-
-    @property
-    def _dtypes(self) -> Dict[str, Type[Any]]:
-        if not hasattr(self, "__dtypes"):
-            import pandas as pd
-
-            self.__dtypes = {
-                "tinyint": pd.Int64Dtype(),
-                "smallint": pd.Int64Dtype(),
-                "integer": pd.Int64Dtype(),
-                "bigint": pd.Int64Dtype(),
-                "float": float,
-                "real": float,
-                "double": float,
-                "char": str,
-                "varchar": str,
-                "string": str,
-                "array": str,
-                "map": str,
-                "row": str,
-            }
-        return self.__dtypes
-
-    def convert(self, type_: str, value: Optional[str]) -> Optional[Any]:
-        pass
