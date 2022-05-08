@@ -25,34 +25,35 @@ class AsyncCursor(BaseCursor):
     def __init__(
         self,
         connection: "Connection",
-        s3_staging_dir: str,
-        poll_interval: float,
-        encryption_option: str,
-        kms_key: str,
         converter: Converter,
         formatter: Formatter,
         retry_config: RetryConfig,
+        s3_staging_dir: Optional[str] = None,
         schema_name: Optional[str] = None,
         catalog_name: Optional[str] = None,
         work_group: Optional[str] = None,
+        poll_interval: float = 1,
+        encryption_option: Optional[str] = None,
+        kms_key: Optional[str] = None,
+        kill_on_interrupt: bool = True,
         max_workers: int = (cpu_count() or 1) * 5,
         arraysize: int = CursorIterator.DEFAULT_FETCH_SIZE,
-        kill_on_interrupt: bool = True,
     ) -> None:
         super(AsyncCursor, self).__init__(
             connection=connection,
-            s3_staging_dir=s3_staging_dir,
-            poll_interval=poll_interval,
-            encryption_option=encryption_option,
-            kms_key=kms_key,
             converter=converter,
             formatter=formatter,
             retry_config=retry_config,
+            s3_staging_dir=s3_staging_dir,
             schema_name=schema_name,
             catalog_name=catalog_name,
             work_group=work_group,
+            poll_interval=poll_interval,
+            encryption_option=encryption_option,
+            kms_key=kms_key,
             kill_on_interrupt=kill_on_interrupt,
         )
+        self._max_workers = max_workers
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._arraysize = arraysize
         self._result_set_class = AthenaResultSet
