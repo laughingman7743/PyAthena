@@ -40,8 +40,8 @@ class AthenaPandasResultSet(AthenaResultSet):
         keep_default_na: bool = False,
         na_values: Optional[Iterable[str]] = ("",),
         quoting: int = 1,
-        unload: bool = False,
         max_workers: int = (cpu_count() or 1) * 5,
+        unload: bool = False,
         **kwargs,
     ) -> None:
         super(AthenaPandasResultSet, self).__init__(
@@ -55,8 +55,9 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._keep_default_na = keep_default_na
         self._na_values = na_values
         self._quoting = quoting
-        self._unload = unload
+        self._max_workers = max_workers
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
+        self._unload = unload
         self._kwargs = kwargs
         self._client = connection.session.client(
             "s3", region_name=connection.region_name, **connection._client_kwargs
