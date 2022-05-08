@@ -54,15 +54,32 @@ class Formatter(metaclass=ABCMeta):
     ) -> str:
         raise NotImplementedError  # pragma: no cover
 
-    @abstractmethod
+    @staticmethod
     def wrap_unload(
-        self,
         operation: str,
         s3_staging_dir: str,
-        unload_format: str,
-        unload_compression: str,
+        format_: str = AthenaFileFormat.FILE_FORMAT_PARQUET,
+        compression: str = AthenaCompression.COMPRESSION_SNAPPY,
     ):
-        raise NotImplementedError  # pragma: no cover
+        if not operation or not operation.strip():
+            raise ProgrammingError("Query is none or empty.")
+
+        operation_upper = operation.strip().upper()
+        if operation_upper.startswith("SELECT") or operation_upper.startswith("WITH"):
+            now = datetime.utcnow().strftime("%Y%m%d")
+            operation = textwrap.dedent(
+                f"""
+                UNLOAD (
+                \t{operation.strip()}
+                )
+                TO '{s3_staging_dir}{now}/{str(uuid.uuid4())}'
+                WITH (
+                \tformat = '{format_}',
+                \tcompression = '{compression}'
+                )
+                """
+            )
+        return operation
 
 
 def _escape_presto(val: str) -> str:
@@ -201,30 +218,3 @@ class DefaultParameterFormatter(Formatter):
                 )
 
         return (operation % kwargs).strip() if kwargs is not None else operation.strip()
-
-    def wrap_unload(
-        self,
-        operation: str,
-        s3_staging_dir: str,
-        unload_format: str = AthenaFileFormat.FILE_FORMAT_PARQUET,
-        unload_compression: str = AthenaCompression.COMPRESSION_SNAPPY,
-    ):
-        if not operation or not operation.strip():
-            raise ProgrammingError("Query is none or empty.")
-
-        operation_upper = operation.strip().upper()
-        if operation_upper.startswith("SELECT") or operation_upper.startswith("WITH"):
-            now = datetime.utcnow().strftime("%Y%m%d")
-            operation = textwrap.dedent(
-                f"""
-                UNLOAD (
-                \t{operation.strip()}
-                )
-                TO '{s3_staging_dir}{now}/{str(uuid.uuid4())}'
-                WITH (
-                \tformat = '{unload_format}',
-                \tcompression = '{unload_compression}'
-                )
-                """
-            )
-        return operation
