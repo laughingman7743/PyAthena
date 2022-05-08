@@ -88,14 +88,14 @@ class BaseCursor(metaclass=ABCMeta):
         converter: Converter,
         formatter: Formatter,
         retry_config: RetryConfig,
-        s3_staging_dir: Optional[str] = None,
-        schema_name: Optional[str] = None,
-        catalog_name: Optional[str] = None,
-        work_group: Optional[str] = None,
-        poll_interval: float = 1,
-        encryption_option: Optional[str] = None,
-        kms_key: Optional[str] = None,
-        kill_on_interrupt: bool = True,
+        s3_staging_dir: Optional[str],
+        schema_name: Optional[str],
+        catalog_name: Optional[str],
+        work_group: Optional[str],
+        poll_interval: float,
+        encryption_option: Optional[str],
+        kms_key: Optional[str],
+        kill_on_interrupt: bool,
         **kwargs
     ) -> None:
         super(BaseCursor, self).__init__()

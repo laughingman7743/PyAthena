@@ -24,24 +24,22 @@ def create_engine(**kwargs):
         "awsathena+rest://athena.{region_name}.amazonaws.com:443/"
         + "{schema_name}?s3_staging_dir={s3_staging_dir}&location={location}"
     )
-    if "verify" in kwargs:
-        conn_str += "&verify={verify}"
-    if "duration_seconds" in kwargs:
-        conn_str += "&duration_seconds={duration_seconds}"
-    if "poll_interval" in kwargs:
-        conn_str += "&poll_interval={poll_interval}"
-    if "kill_on_interrupt" in kwargs:
-        conn_str += "&kill_on_interrupt={kill_on_interrupt}"
-    if "file_format" in kwargs:
-        conn_str += "&file_format={file_format}"
-    if "row_format" in kwargs:
-        conn_str += "&row_format={row_format}"
-    if "compression" in kwargs:
-        conn_str += "&compression={compression}"
-    if "tblproperties" in kwargs:
-        conn_str += "&tblproperties={tblproperties}"
-    if "serdeproperties" in kwargs:
-        conn_str += "&serdeproperties={serdeproperties}"
+    for arg in [
+        "verify",
+        "duration_seconds",
+        "poll_interval",
+        "kill_on_interrupt",
+        "file_format",
+        "row_format",
+        "compression",
+        "tblproperties",
+        "serdeproperties",
+        "partition",
+        "cluster",
+        "bucket_count",
+    ]:
+        if arg in kwargs:
+            conn_str += f"&{arg}={{{arg}}}"
     return sqlalchemy.engine.create_engine(
         conn_str.format(
             region_name=ENV.region_name,

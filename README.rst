@@ -269,8 +269,19 @@ tblproperties
                 "projection.dt.range": "NOW-1YEARS,NOW",
                 "projection.dt.format": "yyyy-MM-dd",
             })
+bucket_count
+    Type:
+        int
+    Description:
+        The number of buckets for bucketing your data.
+    Value:
+        Integer value greater than or equal to 0
+    Example:
+        .. code:: python
 
-All table options can also be specified in a connection string as follows:
+            Table("some_table", metadata, ..., awsathena_bucket_count=5)
+
+All table options can also be configured with the connection string as follows:
 
 .. code:: text
 
@@ -279,7 +290,7 @@ All table options can also be specified in a connection string as follows:
 ``serdeproperties`` and ``tblproperties`` must be converted to strings in the ``'key'='value','key'='value'`` format and url encoded.
 If single quotes are included, escape them with a backslash.
 
-For example, if you specify a projection setting: ``'projection.enabled'='true','projection.dt.type'='date','projection.dt.range'='NOW-1YEARS,NOW','projection.dt.format'= 'yyyy-MM-dd'`` in tblproperties, it would look like this
+For example, if you configure a projection setting ``'projection.enabled'='true','projection.dt.type'='date','projection.dt.range'='NOW-1YEARS,NOW','projection.dt.format'= 'yyyy-MM-dd'`` in tblproperties, it would look like this
 
 .. code:: text
 
@@ -298,7 +309,30 @@ partition
     Example:
         .. code:: python
 
-            Column("dt", types.String, ..., awsathena_partition=True)
+            Column("some_column", types.String, ..., awsathena_partition=True)
+cluster
+    Type:
+        bool
+    Description:
+        Divides the data in the specified column into data subsets called buckets, with or without partitioning.
+    Value:
+        True / False
+    Example:
+        .. code:: python
+
+            Column("some_column", types.String, ..., awsathena_cluster=True)
+
+To configure column options from the connection string, specify the column name as a comma-separated string.
+
+.. code:: text
+
+    awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?partition=column1%2Ccolumn2&cluster=column1%2Ccolumn2&...
+
+If you want to limit the column options to specific table names only, specify the table and column names connected by dots as a comma-separated string.
+
+.. code:: text
+
+    awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?partition=table1.column1%2Ctable1.column2&cluster=table2.column1%2Ctable2.column2&...
 
 Pandas
 ~~~~~~
