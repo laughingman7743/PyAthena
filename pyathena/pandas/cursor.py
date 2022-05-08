@@ -108,8 +108,8 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
             operation = self._formatter.wrap_unload(
                 operation,
                 s3_staging_dir=s3_staging_dir,
-                unload_format=AthenaFileFormat.FILE_FORMAT_PARQUET,
-                unload_compression=AthenaCompression.COMPRESSION_SNAPPY,
+                format_=AthenaFileFormat.FILE_FORMAT_PARQUET,
+                compression=AthenaCompression.COMPRESSION_SNAPPY,
             )
         self.query_id = self._execute(
             operation,
