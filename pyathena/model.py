@@ -338,9 +338,7 @@ class AthenaFileFormat:
 
 class AthenaRowFormatSerde:
 
-    PATTERN_ROW_FORMAT_SERDE: Pattern[str] = re.compile(
-        r"^(?i)(?:serde) '(?P<serde>.+)'$"
-    )
+    PATTERN_ROW_FORMAT_SERDE: Pattern[str] = re.compile(r"^(?i:serde) '(?P<serde>.+)'$")
 
     ROW_FORMAT_SERDE_CSV: str = "org.apache.hadoop.hive.serde2.OpenCSVSerde"
     ROW_FORMAT_SERDE_REGEX: str = "org.apache.hadoop.hive.serde2.RegexSerDe"
