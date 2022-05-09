@@ -2,7 +2,7 @@
 import logging
 from concurrent.futures import Future
 from multiprocessing import cpu_count
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
 
 from pyathena.arrow.converter import DefaultArrowTypeConverter
 from pyathena.arrow.result_set import AthenaArrowResultSet
