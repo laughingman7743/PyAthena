@@ -133,21 +133,27 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         self._cancel(self.query_id)
 
     @synchronized
-    def fetchone(self):
+    def fetchone(
+        self,
+    ) -> Optional[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaArrowResultSet, self.result_set)
         return result_set.fetchone()
 
     @synchronized
-    def fetchmany(self, size: Optional[int] = None):
+    def fetchmany(
+        self, size: Optional[int] = None
+    ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaArrowResultSet, self.result_set)
         return result_set.fetchmany(size)
 
     @synchronized
-    def fetchall(self):
+    def fetchall(
+        self,
+    ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaArrowResultSet, self.result_set)

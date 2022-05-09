@@ -1,6 +1,17 @@
 # -*- coding: utf-8 -*-
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 from pyathena.converter import Converter
 from pyathena.error import ProgrammingError
@@ -119,7 +130,9 @@ class AthenaArrowResultSet(AthenaResultSet):
             ]
             self._rows.extend(processed_rows)
 
-    def fetchone(self):
+    def fetchone(
+        self,
+    ) -> Optional[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not self._rows:
             self._fetch()
         if not self._rows:
@@ -129,7 +142,9 @@ class AthenaArrowResultSet(AthenaResultSet):
         self._rownumber += 1
         return self._rows.popleft()
 
-    def fetchmany(self, size: Optional[int] = None):
+    def fetchmany(
+        self, size: Optional[int] = None
+    ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not size or size <= 0:
             size = self._arraysize
         rows = []
@@ -141,7 +156,9 @@ class AthenaArrowResultSet(AthenaResultSet):
                 break
         return rows
 
-    def fetchall(self):
+    def fetchall(
+        self,
+    ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         rows = []
         while True:
             row = self.fetchone()
@@ -175,6 +192,9 @@ class AthenaArrowResultSet(AthenaResultSet):
                 column_types=self.column_types,
             ),
         )
+
+    def _read_parquet(self) -> "Table":
+        pass
 
     def _as_arrow(self) -> "Table":
         # TODO unload read parquet
