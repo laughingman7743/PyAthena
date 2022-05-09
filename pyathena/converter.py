@@ -89,13 +89,13 @@ def _to_int(varchar_value: Optional[str]) -> Optional[int]:
 
 
 def _to_decimal(varchar_value: Optional[str]) -> Optional[Decimal]:
-    if varchar_value is None or varchar_value == "":
+    if not varchar_value:
         return None
     return Decimal(varchar_value)
 
 
 def _to_boolean(varchar_value: Optional[str]) -> Optional[bool]:
-    if varchar_value is None or varchar_value == "":
+    if not varchar_value:
         return None
     return bool(strtobool(varchar_value))
 
