@@ -4,7 +4,10 @@ from concurrent.futures import Future
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
 
-from pyathena.arrow.converter import DefaultArrowTypeConverter
+from pyathena.arrow.converter import (
+    DefaultArrowTypeConverter,
+    DefaultArrowUnloadTypeConverter,
+)
 from pyathena.arrow.result_set import AthenaArrowResultSet
 from pyathena.async_cursor import AsyncCursor
 from pyathena.common import CursorIterator
@@ -57,8 +60,12 @@ class AsyncArrowCursor(AsyncCursor):
         self._unload = unload
 
     @staticmethod
-    def get_default_converter():
-        return DefaultArrowTypeConverter()
+    def get_default_converter(unload=False):
+        if unload:
+            converter = DefaultArrowUnloadTypeConverter()
+        else:
+            converter = DefaultArrowTypeConverter()
+        return converter
 
     def _collect_result_set(
         self,

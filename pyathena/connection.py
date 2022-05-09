@@ -222,7 +222,7 @@ class Connection:
             cursor = self.cursor_class
         converter = kwargs.pop("converter", self._converter)
         if not converter:
-            converter = cursor.get_default_converter()
+            converter = cursor.get_default_converter(kwargs.get("unload", False))
         return cursor(
             connection=self,
             converter=converter,

@@ -74,3 +74,15 @@ class DefaultArrowTypeConverter(Converter):
     def convert(self, type_: str, value: Optional[str]) -> Optional[Any]:
         converter = self.get(type_)
         return converter(value)
+
+
+class DefaultArrowUnloadTypeConverter(Converter):
+    def __init__(self) -> None:
+        super(DefaultArrowUnloadTypeConverter, self).__init__(
+            mappings=dict(),
+            default=_to_default,
+        )
+
+    def convert(self, type_: str, value: Optional[str]) -> Optional[Any]:
+        converter = self.get(type_)
+        return converter(value)

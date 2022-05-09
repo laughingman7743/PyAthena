@@ -2,7 +2,10 @@
 import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, TypeVar, Union, cast
 
-from pyathena.arrow.converter import DefaultArrowTypeConverter
+from pyathena.arrow.converter import (
+    DefaultArrowTypeConverter,
+    DefaultArrowUnloadTypeConverter,
+)
 from pyathena.arrow.result_set import AthenaArrowResultSet
 from pyathena.common import BaseCursor, CursorIterator
 from pyathena.converter import Converter
@@ -59,8 +62,12 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         self._result_set: Optional[AthenaArrowResultSet] = None
 
     @staticmethod
-    def get_default_converter():
-        return DefaultArrowTypeConverter()
+    def get_default_converter(unload=False):
+        if unload:
+            converter = DefaultArrowUnloadTypeConverter()
+        else:
+            converter = DefaultArrowTypeConverter()
+        return converter
 
     @property
     def result_set(self) -> Optional[AthenaArrowResultSet]:

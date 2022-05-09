@@ -54,7 +54,7 @@ class AsyncPandasCursor(AsyncCursor):
         )
 
     @staticmethod
-    def get_default_converter():
+    def get_default_converter(unload=False):
         return DefaultPandasTypeConverter()
 
     def _collect_result_set(

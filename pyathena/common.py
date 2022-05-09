@@ -113,7 +113,7 @@ class BaseCursor(metaclass=ABCMeta):
         self._kill_on_interrupt = kill_on_interrupt
 
     @staticmethod
-    def get_default_converter():
+    def get_default_converter(unload=False):
         return DefaultTypeConverter()
 
     @property
