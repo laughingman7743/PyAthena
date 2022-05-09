@@ -77,39 +77,13 @@ class AsyncCursor(BaseCursor):
 
     def _description(
         self, query_id: str
-    ) -> Optional[
-        List[
-            Tuple[
-                Optional[Any],
-                Optional[Any],
-                None,
-                None,
-                Optional[Any],
-                Optional[Any],
-                Optional[Any],
-            ]
-        ]
-    ]:
+    ) -> Optional[List[Tuple[str, str, None, None, int, int, str]]]:
         result_set = self._collect_result_set(query_id)
         return result_set.description
 
     def description(
         self, query_id: str
-    ) -> "Future[\
-        Optional[\
-            List[\
-                Tuple[\
-                    Optional[Any],\
-                    Optional[Any],\
-                    None,\
-                    None,\
-                    Optional[Any],\
-                    Optional[Any],\
-                    Optional[Any],\
-                ]\
-            ]\
-        ]\
-    ]":
+    ) -> "Future[Optional[List[Tuple[str, str, None, None, int, int, str]]]]":
         return self._executor.submit(self._description, query_id)
 
     def query_execution(self, query_id: str) -> "Future[AthenaQueryExecution]":

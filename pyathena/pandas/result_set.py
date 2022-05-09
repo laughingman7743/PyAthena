@@ -66,7 +66,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._iterrows = enumerate(self._df.to_dict("records"))
 
     @property
-    def dtypes(self) -> Dict[Optional[Any], Type[Any]]:
+    def dtypes(self) -> Dict[str, Type[Any]]:
         description = self.description if self.description else []
         return {
             d[0]: self._converter.types[d[1]]
@@ -80,7 +80,7 @@ class AthenaPandasResultSet(AthenaResultSet):
     ) -> Dict[Optional[Any], Callable[[Optional[str]], Optional[Any]]]:
         description = self.description if self.description else []
         return {
-            d[0]: self._converter.mappings[d[1]]
+            d[0]: self._converter.get(d[1])
             for d in description
             if d[1] in self._converter.mappings
         }
