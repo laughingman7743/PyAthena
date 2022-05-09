@@ -16,7 +16,6 @@ from pyathena.util import RetryConfig
 
 if TYPE_CHECKING:
     from pyathena.connection import Connection
-    from pyathena.pandas.result_set import AthenaPandasResultSet
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
@@ -110,7 +109,7 @@ class AsyncCursor(BaseCursor):
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
-    ) -> Tuple[str, "Future[Union[AthenaResultSet, AthenaPandasResultSet]]"]:
+    ) -> Tuple[str, "Future[Union[AthenaResultSet, Any]]"]:
         query_id = self._execute(
             operation,
             parameters=parameters,
