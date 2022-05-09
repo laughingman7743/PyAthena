@@ -69,7 +69,9 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         self._result_set: Optional[AthenaPandasResultSet] = None
 
     @staticmethod
-    def get_default_converter(unload=False):
+    def get_default_converter(
+        unload: bool = False,
+    ) -> Union[DefaultPandasTypeConverter, Any]:
         return DefaultPandasTypeConverter()
 
     @property

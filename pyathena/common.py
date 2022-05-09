@@ -4,7 +4,7 @@ import sys
 import time
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from pyathena.converter import Converter, DefaultTypeConverter
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
@@ -113,7 +113,7 @@ class BaseCursor(metaclass=ABCMeta):
         self._kill_on_interrupt = kill_on_interrupt
 
     @staticmethod
-    def get_default_converter(unload=False):
+    def get_default_converter(unload: bool = False) -> Union[DefaultTypeConverter, Any]:
         return DefaultTypeConverter()
 
     @property

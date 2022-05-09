@@ -60,12 +60,13 @@ class AsyncArrowCursor(AsyncCursor):
         self._unload = unload
 
     @staticmethod
-    def get_default_converter(unload=False):
+    def get_default_converter(
+        unload: bool = False,
+    ) -> Union[DefaultArrowTypeConverter, DefaultArrowUnloadTypeConverter, Any]:
         if unload:
-            converter = DefaultArrowUnloadTypeConverter()
+            return DefaultArrowUnloadTypeConverter()
         else:
-            converter = DefaultArrowTypeConverter()
-        return converter
+            return DefaultArrowTypeConverter()
 
     def _collect_result_set(
         self,

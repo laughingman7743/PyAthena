@@ -62,12 +62,13 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         self._result_set: Optional[AthenaArrowResultSet] = None
 
     @staticmethod
-    def get_default_converter(unload=False):
+    def get_default_converter(
+        unload: bool = False,
+    ) -> Union[DefaultArrowTypeConverter, DefaultArrowUnloadTypeConverter, Any]:
         if unload:
-            converter = DefaultArrowUnloadTypeConverter()
+            return DefaultArrowUnloadTypeConverter()
         else:
-            converter = DefaultArrowTypeConverter()
-        return converter
+            return DefaultArrowTypeConverter()
 
     @property
     def result_set(self) -> Optional[AthenaArrowResultSet]:
