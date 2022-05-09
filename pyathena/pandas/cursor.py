@@ -19,6 +19,7 @@ from pyathena.cursor import BaseCursor
 from pyathena.error import OperationalError, ProgrammingError
 from pyathena.formatter import Formatter
 from pyathena.model import AthenaQueryExecution
+from pyathena.pandas.converter import DefaultPandasTypeConverter
 from pyathena.pandas.result_set import AthenaPandasResultSet
 from pyathena.result_set import WithResultSet
 from pyathena.util import RetryConfig, synchronized
@@ -66,6 +67,10 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         )
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaPandasResultSet] = None
+
+    @staticmethod
+    def get_default_converter():
+        return DefaultPandasTypeConverter()
 
     @property
     def result_set(self) -> Optional[AthenaPandasResultSet]:

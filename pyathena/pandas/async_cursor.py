@@ -8,6 +8,7 @@ from pyathena.async_cursor import AsyncCursor
 from pyathena.common import CursorIterator
 from pyathena.converter import Converter
 from pyathena.formatter import Formatter
+from pyathena.pandas.converter import DefaultPandasTypeConverter
 from pyathena.pandas.result_set import AthenaPandasResultSet
 from pyathena.util import RetryConfig
 
@@ -51,6 +52,10 @@ class AsyncPandasCursor(AsyncCursor):
             max_workers=max_workers,
             arraysize=arraysize,
         )
+
+    @staticmethod
+    def get_default_converter():
+        return DefaultPandasTypeConverter()
 
     def _collect_result_set(
         self,

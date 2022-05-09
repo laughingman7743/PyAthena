@@ -6,7 +6,7 @@ from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
-from pyathena.converter import Converter
+from pyathena.converter import Converter, DefaultTypeConverter
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
 from pyathena.formatter import Formatter
 from pyathena.model import AthenaQueryExecution, AthenaTableMetadata
@@ -111,6 +111,10 @@ class BaseCursor(metaclass=ABCMeta):
         self._encryption_option = encryption_option
         self._kms_key = kms_key
         self._kill_on_interrupt = kill_on_interrupt
+
+    @staticmethod
+    def get_default_converter():
+        return DefaultTypeConverter()
 
     @property
     def connection(self) -> "Connection":
