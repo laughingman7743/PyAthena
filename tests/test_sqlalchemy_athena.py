@@ -422,10 +422,6 @@ class TestSQLAlchemyAthena:
         "engine", [{"file_format": "parquet", "compression": "snappy"}], indirect=True
     )
     def test_to_sql_parquet(self, engine):
-        # TODO pyathena.error.OperationalError: SYNTAX_ERROR: line 1:305:
-        #      Column 'foobar' cannot be resolved.
-        #      def _format_bytes(formatter, escaper, val):
-        #          return val.decode()
         engine, conn = engine
         table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
         df = pd.DataFrame(
@@ -438,7 +434,6 @@ class TestSQLAlchemyAthena:
                 "col_boolean": np.bool_([True]),
                 "col_timestamp": [datetime(2020, 1, 1, 0, 0, 0)],
                 "col_date": [date(2020, 12, 31)],
-                # "col_binary": "foobar".encode(),
             }
         )
         # Explicitly specify column order
@@ -452,7 +447,6 @@ class TestSQLAlchemyAthena:
                 "col_boolean",
                 "col_timestamp",
                 "col_date",
-                # "col_binary",
             ]
         ]
         df.to_sql(
@@ -475,7 +469,6 @@ class TestSQLAlchemyAthena:
                 True,
                 datetime(2020, 1, 1, 0, 0, 0),
                 date(2020, 12, 31),
-                # "foobar".encode(),
             )
         ]
 
