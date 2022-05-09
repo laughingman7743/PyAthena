@@ -61,6 +61,7 @@ pytest-mypy = "*"
 [tool.poetry.extras]
 pandas = ["pandas", "pyarrow"]
 sqlalchemy = ["sqlalchemy"]
+arrow = ["pyarrow"]
 
 [tool.poetry.plugins."sqlalchemy.dialects"]
 "awsathena" = "pyathena.sqlalchemy_athena:AthenaDialect"
