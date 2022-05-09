@@ -6,10 +6,12 @@ from typing import Any, Callable, Dict, Optional, Type
 from pyathena.converter import (
     Converter,
     _to_binary,
+    _to_date,
     _to_datetime,
     _to_decimal,
     _to_default,
     _to_json,
+    _to_time,
 )
 
 _logger = logging.getLogger(__name__)  # type: ignore
@@ -20,6 +22,8 @@ _DEFAULT_ARROW_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] =
     # In CSV column #1: CSV conversion error to timestamp[ms]:
     # invalid value '2022-01-01 11:22:33.123'
     "timestamp": _to_datetime,
+    "date": _to_date,
+    "time": _to_time,
     "decimal": _to_decimal,
     "varbinary": _to_binary,
     "json": _to_json,
@@ -51,8 +55,11 @@ class DefaultArrowTypeConverter(Converter):
                 "char": pa.string(),
                 "varchar": pa.string(),
                 "string": pa.string(),
-                "timestamp": pa.string(),
+                # TODO pyarrow.lib.ArrowInvalid:
+                # In CSV column #1: CSV conversion error to timestamp[ms]:
+                # invalid value '2022-01-01 11:22:33.123'
                 # "timestamp": pa.timestamp("ms"),
+                "timestamp": pa.string(),
                 "date": pa.string(),
                 "time": pa.string(),
                 "varbinary": pa.string(),
