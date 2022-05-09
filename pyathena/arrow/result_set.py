@@ -30,7 +30,7 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 class AthenaArrowResultSet(AthenaResultSet):
 
-    DEFAULT_BLOCK_SIZE = 1024 * 1024 * 1024
+    DEFAULT_BLOCK_SIZE = 1024 * 1024 * 128
 
     _timestamp_parsers: List[str] = [
         # TODO pyarrow.lib.ArrowInvalid:
