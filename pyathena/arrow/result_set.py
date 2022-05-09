@@ -13,6 +13,7 @@ from typing import (
     cast,
 )
 
+from pyathena import OperationalError
 from pyathena.converter import Converter
 from pyathena.error import ProgrammingError
 from pyathena.model import AthenaQueryExecution
@@ -34,7 +35,7 @@ class AthenaArrowResultSet(AthenaResultSet):
     _timestamp_parsers: List[str] = [
         # TODO pyarrow.lib.ArrowInvalid:
         # In CSV column #1: CSV conversion error to timestamp[ms]:
-        # invalid value '2022-01-01 11:22:33.123 UTC'
+        # invalid value '2022-01-01 11:22:33.123'
         "%Y-%m-%d",
         "%Y-%m-%d %H:%M:%S",
         "%Y-%m-%d %H:%M:%S %Z",
@@ -58,6 +59,8 @@ class AthenaArrowResultSet(AthenaResultSet):
         arraysize: int,
         retry_config: RetryConfig,
         block_size: Optional[int] = None,
+        unload: bool = False,
+        unload_location: Optional[str] = None,
         **kwargs,
     ) -> None:
         super(AthenaArrowResultSet, self).__init__(
@@ -69,6 +72,8 @@ class AthenaArrowResultSet(AthenaResultSet):
         )
         self._arraysize = arraysize
         self._block_size = block_size if block_size else self.DEFAULT_BLOCK_SIZE
+        self._unload = unload
+        self._unload_location = unload_location
         self._kwargs = kwargs
         self._fs = self.__s3_file_system()
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
@@ -100,21 +105,43 @@ class AthenaArrowResultSet(AthenaResultSet):
         return fs
 
     @property
-    def converters(
-        self,
-    ) -> Dict[str, Callable[[Optional[str]], Optional[Any]]]:
-        description = self.description if self.description else []
-        return {d[0]: self._converter.get(d[1]) for d in description}
+    def is_unload(self):
+        return (
+            self._unload
+            and self.query
+            and self.query.strip().upper().startswith("UNLOAD")
+        )
 
-    @property
-    def column_types(self) -> Dict[str, Type[Any]]:
+    def converters(
+        self, column_names: Optional[List[str]] = None
+    ) -> Dict[str, Callable[[Optional[str]], Optional[Any]]]:
+        if self.is_unload and column_names:
+            converters = {c: self._converter.get(c) for c in column_names}
+        else:
+            description = self.description if self.description else []
+            converters = {d[0]: self._converter.get(d[1]) for d in description}
+        return converters
+
+    def column_types(
+        self, column_names: Optional[List[str]] = None
+    ) -> Dict[str, Type[Any]]:
         import pyarrow as pa
 
-        description = self.description if self.description else []
-        types = self._converter.types
-        return {
-            d[0]: types.get(d[1], pa.string()) for d in description if d[1] in types
-        }
+        converter_types = self._converter.types
+        if self.is_unload and column_names:
+            types = {
+                c: converter_types.get(c, pa.string())
+                for c in column_names
+                if c in converter_types
+            }
+        else:
+            description = self.description if self.description else []
+            types = {
+                d[0]: converter_types.get(d[1], pa.string())
+                for d in description
+                if d[1] in converter_types
+            }
+        return types
 
     def _fetch(self) -> None:
         try:
@@ -125,7 +152,10 @@ class AthenaArrowResultSet(AthenaResultSet):
             dict_rows = rows.to_pydict()
             column_names = dict_rows.keys()
             processed_rows = [
-                tuple(self.converters[k](v) for k, v in zip(column_names, row))
+                tuple(
+                    self.converters(column_names)[k](v)
+                    for k, v in zip(column_names, row)
+                )
                 for row in zip(*dict_rows.values())
             ]
             self._rows.extend(processed_rows)
@@ -174,40 +204,59 @@ class AthenaArrowResultSet(AthenaResultSet):
 
         if not self.output_location:
             raise ProgrammingError("OutputLocation is none or empty.")
-        if not self.output_location.endswith((".csv", ".txt")):
-            return pa.Table.from_pydict(dict())
-        bucket, key = parse_output_location(self.output_location)
-        return csv.read_csv(
-            self._fs.open_input_file(f"{bucket}/{key}"),
-            read_options=csv.ReadOptions(skip_rows=0, block_size=self._block_size),
-            parse_options=csv.ParseOptions(
-                delimiter=",",
-                quote_char='"',
-                double_quote=True,
-                escape_char=False,
-            ),
-            convert_options=csv.ConvertOptions(
-                quoted_strings_can_be_null=False,
-                timestamp_parsers=self._timestamp_parsers,
-                column_types=self.column_types,
-            ),
-        )
+        if self.output_location.endswith((".csv", ".txt")):
+            bucket, key = parse_output_location(self.output_location)
+            try:
+                table = csv.read_csv(
+                    # self._fs.open_input_file(f"{bucket}/{key}"),
+                    self._fs.open_input_stream(f"{bucket}/{key}"),
+                    read_options=csv.ReadOptions(
+                        skip_rows=0, block_size=self._block_size
+                    ),
+                    parse_options=csv.ParseOptions(
+                        delimiter=",",
+                        quote_char='"',
+                        double_quote=True,
+                        escape_char=False,
+                    ),
+                    convert_options=csv.ConvertOptions(
+                        quoted_strings_can_be_null=False,
+                        timestamp_parsers=self._timestamp_parsers,
+                        column_types=self.column_types(),
+                    ),
+                )
+            except Exception as e:
+                _logger.exception(f"Failed to read {bucket}{key}.")
+                raise OperationalError(*e.args) from e
+        else:
+            table = pa.Table.from_pydict(dict())
+        return table
 
     def _read_parquet(self) -> "Table":
-        pass
+        import pyarrow as pa
+        from pyarrow import parquet
+
+        if self._unload_location:
+            bucket, key = parse_output_location(self._unload_location)
+            try:
+                # TODO Set block_size
+                dataset = parquet.ParquetDataset(
+                    f"{bucket}/{key}", filesystem=self._fs, use_legacy_dataset=False
+                )
+                table = dataset.read(use_threads=True)
+            except Exception as e:
+                _logger.exception(f"Failed to read {bucket}{key}.")
+                raise OperationalError(*e.args) from e
+        else:
+            table = pa.Table.from_pydict(dict())
+        return table
 
     def _as_arrow(self) -> "Table":
-        # TODO unload read parquet
-        # if (
-        #     self._unload
-        #     and self.query
-        #     and self.query.strip().upper().startswith("UNLOAD")
-        # ):
-        #     table = self._read_parquet()
-        # else:
-        #     table = self._read_csv()
-        # return table
-        return self._read_csv()
+        if self.is_unload:
+            table = self._read_parquet()
+        else:
+            table = self._read_csv()
+        return table
 
     def as_arrow(self) -> "Table":
         return self._table

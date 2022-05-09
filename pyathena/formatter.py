@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
+import textwrap
+import uuid
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from datetime import date, datetime
@@ -7,6 +9,7 @@ from decimal import Decimal
 from typing import Any, Callable, Dict, Optional, Type, TypeVar
 
 from pyathena.error import ProgrammingError
+from pyathena.model import AthenaCompression, AthenaFileFormat
 
 _logger = logging.getLogger(__name__)  # type: ignore
 _T = TypeVar("_T", bound="Formatter")
@@ -50,6 +53,34 @@ class Formatter(metaclass=ABCMeta):
         self, operation: str, parameters: Optional[Dict[str, Any]] = None
     ) -> str:
         raise NotImplementedError  # pragma: no cover
+
+    @staticmethod
+    def wrap_unload(
+        operation: str,
+        s3_staging_dir: str,
+        format_: str = AthenaFileFormat.FILE_FORMAT_PARQUET,
+        compression: str = AthenaCompression.COMPRESSION_SNAPPY,
+    ):
+        if not operation or not operation.strip():
+            raise ProgrammingError("Query is none or empty.")
+
+        operation_upper = operation.strip().upper()
+        if operation_upper.startswith("SELECT") or operation_upper.startswith("WITH"):
+            now = datetime.utcnow().strftime("%Y%m%d")
+            location = f"{s3_staging_dir}{now}/{str(uuid.uuid4())}/"
+            operation = textwrap.dedent(
+                f"""
+                UNLOAD (
+                \t{operation.strip()}
+                )
+                TO '{location}'
+                WITH (
+                \tformat = '{format_}',
+                \tcompression = '{compression}'
+                )
+                """
+            )
+        return operation, location
 
 
 def _escape_presto(val: str) -> str:

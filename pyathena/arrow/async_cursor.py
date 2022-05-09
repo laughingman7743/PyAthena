@@ -10,6 +10,7 @@ from pyathena.async_cursor import AsyncCursor
 from pyathena.common import CursorIterator
 from pyathena.converter import Converter
 from pyathena.formatter import Formatter
+from pyathena.model import AthenaCompression, AthenaFileFormat
 from pyathena.util import RetryConfig
 
 if TYPE_CHECKING:
@@ -35,6 +36,7 @@ class AsyncArrowCursor(AsyncCursor):
         kill_on_interrupt: bool = True,
         max_workers: int = (cpu_count() or 1) * 5,
         arraysize: int = CursorIterator.DEFAULT_FETCH_SIZE,
+        unload: bool = False,
     ) -> None:
         super(AsyncArrowCursor, self).__init__(
             connection=connection,
@@ -52,6 +54,7 @@ class AsyncArrowCursor(AsyncCursor):
             max_workers=max_workers,
             arraysize=arraysize,
         )
+        self._unload = unload
 
     @staticmethod
     def get_default_converter():
@@ -60,9 +63,7 @@ class AsyncArrowCursor(AsyncCursor):
     def _collect_result_set(
         self,
         query_id: str,
-        keep_default_na: bool = False,
-        na_values: List[str] = None,
-        quoting: int = 1,
+        unload_location: Optional[str] = None,
         kwargs: Dict[str, Any] = None,
     ) -> AthenaArrowResultSet:
         if kwargs is None:
@@ -74,9 +75,8 @@ class AsyncArrowCursor(AsyncCursor):
             query_execution=query_execution,
             arraysize=self._arraysize,
             retry_config=self._retry_config,
-            keep_default_na=keep_default_na,
-            na_values=na_values,
-            quoting=quoting,
+            unload=self._unload,
+            unload_location=unload_location,
             **kwargs,
         )
 
@@ -90,6 +90,19 @@ class AsyncArrowCursor(AsyncCursor):
         cache_expiration_time: int = 0,
         **kwargs,
     ) -> Tuple[str, "Future[Union[AthenaArrowResultSet, Any]]"]:
+        if self._unload:
+            s3_staging_dir = s3_staging_dir if s3_staging_dir else self._s3_staging_dir
+            assert (
+                s3_staging_dir
+            ), "If the unload option is used, s3_staging_dir is required."
+            operation, unload_location = self._formatter.wrap_unload(
+                operation,
+                s3_staging_dir=s3_staging_dir,
+                format_=AthenaFileFormat.FILE_FORMAT_PARQUET,
+                compression=AthenaCompression.COMPRESSION_SNAPPY,
+            )
+        else:
+            unload_location = None
         query_id = self._execute(
             operation,
             parameters=parameters,
@@ -103,6 +116,7 @@ class AsyncArrowCursor(AsyncCursor):
             self._executor.submit(
                 self._collect_result_set,
                 query_id,
+                unload_location,
                 kwargs,
             ),
         )
