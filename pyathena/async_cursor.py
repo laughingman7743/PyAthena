@@ -16,7 +16,6 @@ from pyathena.util import RetryConfig
 
 if TYPE_CHECKING:
     from pyathena.connection import Connection
-    from pyathena.pandas.result_set import AthenaPandasResultSet
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
@@ -77,39 +76,13 @@ class AsyncCursor(BaseCursor):
 
     def _description(
         self, query_id: str
-    ) -> Optional[
-        List[
-            Tuple[
-                Optional[Any],
-                Optional[Any],
-                None,
-                None,
-                Optional[Any],
-                Optional[Any],
-                Optional[Any],
-            ]
-        ]
-    ]:
+    ) -> Optional[List[Tuple[str, str, None, None, int, int, str]]]:
         result_set = self._collect_result_set(query_id)
         return result_set.description
 
     def description(
         self, query_id: str
-    ) -> "Future[\
-        Optional[\
-            List[\
-                Tuple[\
-                    Optional[Any],\
-                    Optional[Any],\
-                    None,\
-                    None,\
-                    Optional[Any],\
-                    Optional[Any],\
-                    Optional[Any],\
-                ]\
-            ]\
-        ]\
-    ]":
+    ) -> "Future[Optional[List[Tuple[str, str, None, None, int, int, str]]]]":
         return self._executor.submit(self._description, query_id)
 
     def query_execution(self, query_id: str) -> "Future[AthenaQueryExecution]":
@@ -136,7 +109,7 @@ class AsyncCursor(BaseCursor):
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
-    ) -> Tuple[str, "Future[Union[AthenaResultSet, AthenaPandasResultSet]]"]:
+    ) -> Tuple[str, "Future[Union[AthenaResultSet, Any]]"]:
         query_id = self._execute(
             operation,
             parameters=parameters,

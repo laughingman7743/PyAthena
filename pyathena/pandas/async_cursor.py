@@ -13,7 +13,6 @@ from pyathena.util import RetryConfig
 
 if TYPE_CHECKING:
     from pyathena.connection import Connection
-    from pyathena.result_set import AthenaResultSet
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
@@ -88,7 +87,7 @@ class AsyncPandasCursor(AsyncCursor):
         na_values: List[str] = None,
         quoting: int = 1,
         **kwargs,
-    ) -> Tuple[str, "Future[Union[AthenaResultSet, AthenaPandasResultSet]]"]:
+    ) -> Tuple[str, "Future[Union[AthenaPandasResultSet, Any]]"]:
         query_id = self._execute(
             operation,
             parameters=parameters,

@@ -12,52 +12,6 @@ from typing import Any, Callable, Dict, Optional, Type
 _logger = logging.getLogger(__name__)  # type: ignore
 
 
-class Converter(metaclass=ABCMeta):
-    def __init__(
-        self,
-        mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]],
-        default: Callable[[Optional[str]], Optional[Any]] = None,
-        types: Dict[str, Type[Any]] = None,
-    ) -> None:
-        if mappings:
-            self._mappings = mappings
-        else:
-            self._mappings = dict()
-        self._default = default
-        if types:
-            self._types = types
-        else:
-            self._types = dict()
-
-    @property
-    def mappings(self) -> Dict[str, Callable[[Optional[str]], Optional[Any]]]:
-        return self._mappings
-
-    @property
-    def types(self) -> Dict[str, Type[Any]]:
-        return self._types
-
-    def get(self, type_: str) -> Optional[Callable[[Optional[str]], Optional[Any]]]:
-        return self.mappings.get(type_, self._default)
-
-    def set(
-        self, type_: str, converter: Callable[[Optional[str]], Optional[Any]]
-    ) -> None:
-        self.mappings[type_] = converter
-
-    def remove(self, type_: str) -> None:
-        self.mappings.pop(type_, None)
-
-    def update(
-        self, mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]]
-    ) -> None:
-        self.mappings.update(mappings)
-
-    @abstractmethod
-    def convert(self, type_: str, value: Optional[str]) -> Optional[Any]:
-        raise NotImplementedError  # pragma: no cover
-
-
 def _to_date(varchar_value: Optional[str]) -> Optional[date]:
     if varchar_value is None:
         return None
@@ -89,13 +43,13 @@ def _to_int(varchar_value: Optional[str]) -> Optional[int]:
 
 
 def _to_decimal(varchar_value: Optional[str]) -> Optional[Decimal]:
-    if varchar_value is None or varchar_value == "":
+    if not varchar_value:
         return None
     return Decimal(varchar_value)
 
 
 def _to_boolean(varchar_value: Optional[str]) -> Optional[bool]:
-    if varchar_value is None or varchar_value == "":
+    if not varchar_value:
         return None
     return bool(strtobool(varchar_value))
 
@@ -140,6 +94,52 @@ _DEFAULT_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {
 }
 
 
+class Converter(metaclass=ABCMeta):
+    def __init__(
+        self,
+        mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]],
+        default: Callable[[Optional[str]], Optional[Any]] = _to_default,
+        types: Dict[str, Type[Any]] = None,
+    ) -> None:
+        if mappings:
+            self._mappings = mappings
+        else:
+            self._mappings = dict()
+        self._default = default
+        if types:
+            self._types = types
+        else:
+            self._types = dict()
+
+    @property
+    def mappings(self) -> Dict[str, Callable[[Optional[str]], Optional[Any]]]:
+        return self._mappings
+
+    @property
+    def types(self) -> Dict[str, Type[Any]]:
+        return self._types
+
+    def get(self, type_: str) -> Callable[[Optional[str]], Optional[Any]]:
+        return self.mappings.get(type_, self._default)
+
+    def set(
+        self, type_: str, converter: Callable[[Optional[str]], Optional[Any]]
+    ) -> None:
+        self.mappings[type_] = converter
+
+    def remove(self, type_: str) -> None:
+        self.mappings.pop(type_, None)
+
+    def update(
+        self, mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]]
+    ) -> None:
+        self.mappings.update(mappings)
+
+    @abstractmethod
+    def convert(self, type_: str, value: Optional[str]) -> Optional[Any]:
+        raise NotImplementedError  # pragma: no cover
+
+
 class DefaultTypeConverter(Converter):
     def __init__(self) -> None:
         super(DefaultTypeConverter, self).__init__(
@@ -148,6 +148,4 @@ class DefaultTypeConverter(Converter):
 
     def convert(self, type_: str, value: Optional[str]) -> Optional[Any]:
         converter = self.get(type_)
-        if converter:
-            return converter(value)
-        return value
+        return converter(value)

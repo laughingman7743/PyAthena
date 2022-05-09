@@ -171,30 +171,18 @@ class AthenaResultSet(CursorIterator):
     @property
     def description(
         self,
-    ) -> Optional[
-        List[
-            Tuple[
-                Optional[Any],
-                Optional[Any],
-                None,
-                None,
-                Optional[Any],
-                Optional[Any],
-                Optional[Any],
-            ]
-        ]
-    ]:
+    ) -> Optional[List[Tuple[str, str, None, None, int, int, str]]]:
         if self._metadata is None:
             return None
         return [
             (
-                m.get("Name", None),
-                m.get("Type", None),
+                m["Name"],
+                m["Type"],
                 None,
                 None,
-                m.get("Precision", None),
-                m.get("Scale", None),
-                m.get("Nullable", None),
+                m["Precision"],
+                m["Scale"],
+                m["Nullable"],
             )
             for m in self._metadata
         ]
@@ -400,19 +388,7 @@ class WithResultSet:
     @property
     def description(
         self,
-    ) -> Optional[
-        List[
-            Tuple[
-                Optional[Any],
-                Optional[Any],
-                None,
-                None,
-                Optional[Any],
-                Optional[Any],
-                Optional[Any],
-            ]
-        ]
-    ]:
+    ) -> Optional[List[Tuple[str, str, None, None, int, int, str]]]:
         if not self.has_result_set:
             return None
         result_set = cast(AthenaResultSet, self.result_set)

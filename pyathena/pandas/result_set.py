@@ -1,6 +1,17 @@
 # -*- coding: utf-8 -*-
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Type
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 from pyathena.converter import Converter
 from pyathena.error import OperationalError, ProgrammingError
@@ -66,7 +77,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._iterrows = enumerate(self._df.to_dict("records"))
 
     @property
-    def dtypes(self) -> Dict[Optional[Any], Type[Any]]:
+    def dtypes(self) -> Dict[str, Type[Any]]:
         description = self.description if self.description else []
         return {
             d[0]: self._converter.types[d[1]]
@@ -80,7 +91,7 @@ class AthenaPandasResultSet(AthenaResultSet):
     ) -> Dict[Optional[Any], Callable[[Optional[str]], Optional[Any]]]:
         description = self.description if self.description else []
         return {
-            d[0]: self._converter.mappings[d[1]]
+            d[0]: self._converter.get(d[1])
             for d in description
             if d[1] in self._converter.mappings
         }
@@ -97,7 +108,9 @@ class AthenaPandasResultSet(AthenaResultSet):
             df.loc[:, times] = df.loc[:, times].apply(lambda r: r.dt.time)
         return df
 
-    def _fetch(self):
+    def fetchone(
+        self,
+    ) -> Optional[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         try:
             row = next(self._iterrows)
         except StopIteration:
@@ -107,10 +120,9 @@ class AthenaPandasResultSet(AthenaResultSet):
             description = self.description if self.description else []
             return tuple([row[1][d[0]] for d in description])
 
-    def fetchone(self):
-        return self._fetch()
-
-    def fetchmany(self, size: Optional[int] = None):
+    def fetchmany(
+        self, size: Optional[int] = None
+    ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not size or size <= 0:
             size = self._arraysize
         rows = []
@@ -122,7 +134,9 @@ class AthenaPandasResultSet(AthenaResultSet):
                 break
         return rows
 
-    def fetchall(self):
+    def fetchall(
+        self,
+    ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         rows = []
         while True:
             row = self.fetchone()
