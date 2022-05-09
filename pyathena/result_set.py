@@ -44,7 +44,7 @@ class AthenaResultSet(CursorIterator):
         assert self._query_execution, "Required argument `query_execution` not found."
         self._retry_config = retry_config
 
-        self._meta_data: Optional[Tuple[Any, ...]] = None
+        self._metadata: Optional[Tuple[Any, ...]] = None
         self._rows: Deque[
             Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]
         ] = collections.deque()
@@ -184,7 +184,7 @@ class AthenaResultSet(CursorIterator):
             ]
         ]
     ]:
-        if self._meta_data is None:
+        if self._metadata is None:
             return None
         return [
             (
@@ -196,7 +196,7 @@ class AthenaResultSet(CursorIterator):
                 m.get("Scale", None),
                 m.get("Nullable", None),
             )
-            for m in self._meta_data
+            for m in self._metadata
         ]
 
     def __fetch(self, next_token: Optional[str] = None) -> Dict[str, Any]:
@@ -234,7 +234,7 @@ class AthenaResultSet(CursorIterator):
 
     def _pre_fetch(self) -> None:
         response = self.__fetch()
-        self._process_meta_data(response)
+        self._process_metadata(response)
         self._process_rows(response)
 
     def fetchone(
@@ -276,20 +276,20 @@ class AthenaResultSet(CursorIterator):
                 break
         return rows
 
-    def _process_meta_data(self, response: Dict[str, Any]) -> None:
+    def _process_metadata(self, response: Dict[str, Any]) -> None:
         result_set = response.get("ResultSet", None)
         if not result_set:
             raise DataError("KeyError `ResultSet`")
-        meta_data = result_set.get("ResultSetMetadata", None)
-        if not meta_data:
+        metadata = result_set.get("ResultSetMetadata", None)
+        if not metadata:
             raise DataError("KeyError `ResultSetMetadata`")
-        column_info = meta_data.get("ColumnInfo", None)
+        column_info = metadata.get("ColumnInfo", None)
         if column_info is None:
             raise DataError("KeyError `ColumnInfo`")
-        self._meta_data = tuple(column_info)
+        self._metadata = tuple(column_info)
 
     def _get_rows(
-        self, offset: int, meta_data: Tuple[Any, ...], rows: List[Dict[str, Any]]
+        self, offset: int, metadata: Tuple[Any, ...], rows: List[Dict[str, Any]]
     ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         return [
             tuple(
@@ -297,7 +297,7 @@ class AthenaResultSet(CursorIterator):
                     self._converter.convert(
                         meta.get("Type", None), row.get("VarCharValue", None)
                     )
-                    for meta, row in zip(meta_data, rows[i].get("Data", []))
+                    for meta, row in zip(metadata, rows[i].get("Data", []))
                 ]
             )
             for i in range(offset, len(rows))
@@ -317,15 +317,15 @@ class AthenaResultSet(CursorIterator):
                 if not self._next_token and self._is_first_row_column_labels(rows)
                 else 0
             )
-            meta_data = cast(Tuple[Any, ...], self._meta_data)
-            processed_rows = self._get_rows(offset, meta_data, rows)
+            metadata = cast(Tuple[Any, ...], self._metadata)
+            processed_rows = self._get_rows(offset, metadata, rows)
         self._rows.extend(processed_rows)
         self._next_token = response.get("NextToken", None)
 
     def _is_first_row_column_labels(self, rows: List[Dict[str, Any]]) -> bool:
         first_row_data = rows[0].get("Data", [])
-        meta_data = cast(Tuple[Any, Any], self._meta_data)
-        for meta, data in zip(meta_data, first_row_data):
+        metadata = cast(Tuple[Any, Any], self._metadata)
+        for meta, data in zip(metadata, first_row_data):
             if meta.get("Name", None) != data.get("VarCharValue", None):
                 return False
         return True
@@ -337,7 +337,7 @@ class AthenaResultSet(CursorIterator):
     def close(self) -> None:
         self._connection = None
         self._query_execution = None
-        self._meta_data = None
+        self._metadata = None
         self._rows.clear()
         self._next_token = None
         self._rownumber = None
@@ -355,7 +355,7 @@ class AthenaDictResultSet(AthenaResultSet):
     dict_type: Type[Any] = dict
 
     def _get_rows(
-        self, offset: int, meta_data: Tuple[Any, ...], rows: List[Dict[str, Any]]
+        self, offset: int, metadata: Tuple[Any, ...], rows: List[Dict[str, Any]]
     ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         return [
             self.dict_type(
@@ -366,7 +366,7 @@ class AthenaDictResultSet(AthenaResultSet):
                             meta.get("Type", None), row.get("VarCharValue", None)
                         ),
                     )
-                    for meta, row in zip(meta_data, rows[i].get("Data", []))
+                    for meta, row in zip(metadata, rows[i].get("Data", []))
                 ]
             )
             for i in range(offset, len(rows))
