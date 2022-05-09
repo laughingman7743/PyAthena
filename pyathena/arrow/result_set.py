@@ -18,6 +18,8 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 class AthenaArrowResultSet(AthenaResultSet):
 
+    DEFAULT_BLOCK_SIZE = 1024 * 1024 * 1024
+
     _timestamp_parsers: List[str] = [
         # TODO pyarrow.lib.ArrowInvalid:
         # In CSV column #1: CSV conversion error to timestamp[ms]:
@@ -44,6 +46,7 @@ class AthenaArrowResultSet(AthenaResultSet):
         query_execution: AthenaQueryExecution,
         arraysize: int,
         retry_config: RetryConfig,
+        block_size: Optional[int] = None,
         **kwargs,
     ) -> None:
         super(AthenaArrowResultSet, self).__init__(
@@ -54,6 +57,7 @@ class AthenaArrowResultSet(AthenaResultSet):
             retry_config=retry_config,
         )
         self._arraysize = arraysize
+        self._block_size = block_size if block_size else self.DEFAULT_BLOCK_SIZE
         self._kwargs = kwargs
         self._fs = self.__s3_file_system()
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
@@ -158,7 +162,7 @@ class AthenaArrowResultSet(AthenaResultSet):
         bucket, key = parse_output_location(self.output_location)
         return csv.read_csv(
             self._fs.open_input_file(f"{bucket}/{key}"),
-            read_options=csv.ReadOptions(skip_rows=0),
+            read_options=csv.ReadOptions(skip_rows=0, block_size=self._block_size),
             parse_options=csv.ParseOptions(
                 delimiter=",",
                 quote_char='"',
