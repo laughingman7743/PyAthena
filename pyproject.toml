@@ -67,6 +67,7 @@ arrow = ["pyarrow"]
 "awsathena" = "pyathena.sqlalchemy_athena:AthenaDialect"
 "awsathena.rest" = "pyathena.sqlalchemy_athena:AthenaRestDialect"
 "awsathena.pandas" = "pyathena.sqlalchemy_athena:AthenaPandasDialect"
+"awsathena.arrow" = "pyathena.sqlalchemy_athena:AthenaArrowDialect"
 
 [tool.pytest.ini_options]
 flake8-max-line-length = 100

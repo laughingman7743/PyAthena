@@ -766,3 +766,18 @@ class AthenaPandasDialect(AthenaDialect):
         opts = super()._create_connect_args(url)
         opts.update({"cursor_class": PandasCursor})
         return [[], opts]
+
+
+class AthenaArrowDialect(AthenaDialect):
+    driver = "arrow"
+
+    def create_connect_args(self, url):
+        from pyathena.arrow.cursor import ArrowCursor
+
+        opts = super()._create_connect_args(url)
+        opts.update({"cursor_class": ArrowCursor})
+        if "unload" in opts:
+            opts.update(
+                {"cursor_kwargs": {"unload": bool(strtobool(url.query["unload"]))}}
+            )
+        return [[], opts]
