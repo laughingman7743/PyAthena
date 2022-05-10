@@ -198,22 +198,7 @@ class TestArrowCursor:
             """
         )
         assert arrow_cursor.description == [
-            ("col_boolean", "boolean", None, None, 0, 0, "UNKNOWN"),
-            ("col_tinyint", "tinyint", None, None, 3, 0, "UNKNOWN"),
-            ("col_smallint", "smallint", None, None, 5, 0, "UNKNOWN"),
-            ("col_int", "integer", None, None, 10, 0, "UNKNOWN"),
-            ("col_bigint", "bigint", None, None, 19, 0, "UNKNOWN"),
-            ("col_float", "float", None, None, 17, 0, "UNKNOWN"),
-            ("col_double", "double", None, None, 17, 0, "UNKNOWN"),
-            ("col_string", "varchar", None, None, 2147483647, 0, "UNKNOWN"),
-            ("col_varchar", "varchar", None, None, 10, 0, "UNKNOWN"),
-            ("col_timestamp", "timestamp", None, None, 3, 0, "UNKNOWN"),
-            ("col_date", "date", None, None, 0, 0, "UNKNOWN"),
-            ("col_binary", "varbinary", None, None, 1073741824, 0, "UNKNOWN"),
-            ("col_array", "array", None, None, 0, 0, "UNKNOWN"),
-            ("col_map", "map", None, None, 0, 0, "UNKNOWN"),
-            ("col_struct", "row", None, None, 0, 0, "UNKNOWN"),
-            ("col_decimal", "decimal", None, None, 10, 1, "UNKNOWN"),
+            ("rows", "bigint", None, None, 19, 0, "UNKNOWN"),
         ]
         rows = arrow_cursor.fetchall()
         expected = [
