@@ -93,17 +93,6 @@ class TestArrowCursor:
         with pytest.raises(ProgrammingError):
             arrow_cursor.arraysize = -1
 
-    @pytest.mark.parametrize(
-        "arrow_cursor",
-        [
-            {"cursor_kwargs": {"unload": False}},
-            {
-                "cursor_kwargs": {"unload": True},
-                "converter": ArrowUnloadTypeConverter(),
-            },
-        ],
-        indirect=True,
-    )
     def test_complex(self, arrow_cursor):
         arrow_cursor.execute(
             """
@@ -165,6 +154,87 @@ class TestArrowCursor:
                 "varchar",
                 datetime(2017, 1, 1, 0, 0, 0),
                 datetime(2017, 1, 1, 0, 0, 0).time(),
+                datetime(2017, 1, 2).date(),
+                b"123",
+                "[1, 2]",
+                [1, 2],
+                "{1=2, 3=4}",
+                {"1": 2, "3": 4},
+                "{a=1, b=2}",
+                Decimal("0.1"),
+            )
+        ]
+        assert rows == expected
+
+    @pytest.mark.parametrize(
+        "arrow_cursor",
+        [
+            {
+                "cursor_kwargs": {"unload": True},
+                "converter": ArrowUnloadTypeConverter(),
+            },
+        ],
+        indirect=True,
+    )
+    def test_complex_unload(self, arrow_cursor):
+        # NOT_SUPPORTED: Unsupported Hive type: time
+        arrow_cursor.execute(
+            """
+            SELECT
+              col_boolean
+              ,col_tinyint
+              ,col_smallint
+              ,col_int
+              ,col_bigint
+              ,col_float
+              ,col_double
+              ,col_string
+              ,col_varchar
+              ,col_timestamp
+              ,col_date
+              ,col_binary
+              ,col_array
+              ,CAST(col_array AS json) AS col_array_json
+              ,col_map
+              ,CAST(col_map AS json) AS col_map_json
+              ,col_struct
+              ,col_decimal
+            FROM one_row_complex
+            """
+        )
+        assert arrow_cursor.description == [
+            ("col_boolean", "boolean", None, None, 0, 0, "UNKNOWN"),
+            ("col_tinyint", "tinyint", None, None, 3, 0, "UNKNOWN"),
+            ("col_smallint", "smallint", None, None, 5, 0, "UNKNOWN"),
+            ("col_int", "integer", None, None, 10, 0, "UNKNOWN"),
+            ("col_bigint", "bigint", None, None, 19, 0, "UNKNOWN"),
+            ("col_float", "float", None, None, 17, 0, "UNKNOWN"),
+            ("col_double", "double", None, None, 17, 0, "UNKNOWN"),
+            ("col_string", "varchar", None, None, 2147483647, 0, "UNKNOWN"),
+            ("col_varchar", "varchar", None, None, 10, 0, "UNKNOWN"),
+            ("col_timestamp", "timestamp", None, None, 3, 0, "UNKNOWN"),
+            ("col_date", "date", None, None, 0, 0, "UNKNOWN"),
+            ("col_binary", "varbinary", None, None, 1073741824, 0, "UNKNOWN"),
+            ("col_array", "array", None, None, 0, 0, "UNKNOWN"),
+            ("col_array_json", "json", None, None, 0, 0, "UNKNOWN"),
+            ("col_map", "map", None, None, 0, 0, "UNKNOWN"),
+            ("col_map_json", "json", None, None, 0, 0, "UNKNOWN"),
+            ("col_struct", "row", None, None, 0, 0, "UNKNOWN"),
+            ("col_decimal", "decimal", None, None, 10, 1, "UNKNOWN"),
+        ]
+        rows = arrow_cursor.fetchall()
+        expected = [
+            (
+                True,
+                127,
+                32767,
+                2147483647,
+                9223372036854775807,
+                0.5,
+                0.25,
+                "a string",
+                "varchar",
+                datetime(2017, 1, 1, 0, 0, 0),
                 datetime(2017, 1, 2).date(),
                 b"123",
                 "[1, 2]",
