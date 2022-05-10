@@ -284,6 +284,9 @@ class TestArrowCursor:
     )
     def test_show_columns(self, arrow_cursor):
         arrow_cursor.execute("SHOW COLUMNS IN one_row")
+        assert arrow_cursor.description == [
+            ("field", "string", None, None, 0, 0, "UNKNOWN")
+        ]
         assert arrow_cursor.fetchall() == [("number_of_rows      ",)]
 
     @pytest.mark.parametrize(

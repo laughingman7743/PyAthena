@@ -325,6 +325,9 @@ class TestPandasCursor:
 
     def test_show_columns(self, pandas_cursor):
         pandas_cursor.execute("SHOW COLUMNS IN one_row")
+        assert pandas_cursor.description == [
+            ("field", "string", None, None, 0, 0, "UNKNOWN")
+        ]
         assert pandas_cursor.fetchall() == [("number_of_rows      ",)]
 
     def test_empty_result(self, pandas_cursor):
