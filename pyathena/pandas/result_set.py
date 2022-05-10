@@ -171,7 +171,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                     sep = "\t"
                     header = None
                     description = self.description if self.description else []
-                    names: Optional[Any] = [d[0] for d in description]
+                    names = [d[0] for d in description]
                 else:  # csv format
                     sep = ","
                     header = 0
