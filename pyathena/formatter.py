@@ -80,6 +80,8 @@ class Formatter(metaclass=ABCMeta):
                 )
                 """
             )
+        else:
+            location = None
         return operation, location
 
 
