@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 import logging
+from builtins import isinstance
 from copy import deepcopy
-from typing import Any, Callable, Dict, Optional, Type
+from datetime import date, datetime
+from typing import Any, Callable, Dict, Optional, Type, Union
 
 from pyathena.converter import (
     Converter,
     _to_binary,
-    _to_date,
-    _to_datetime,
     _to_decimal,
     _to_default,
     _to_json,
@@ -17,11 +17,16 @@ from pyathena.converter import (
 _logger = logging.getLogger(__name__)  # type: ignore
 
 
+def _to_date(value: Optional[Union[str, datetime]]) -> Optional[date]:
+    if value is None:
+        return None
+    elif isinstance(value, datetime):
+        return value.date()
+    else:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+
+
 _DEFAULT_ARROW_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {
-    # TODO pyarrow.lib.ArrowInvalid:
-    # In CSV column #1: CSV conversion error to timestamp[ms]:
-    # invalid value '2022-01-01 11:22:33.123'
-    "timestamp": _to_datetime,
     "date": _to_date,
     "time": _to_time,
     "decimal": _to_decimal,
@@ -55,12 +60,8 @@ class DefaultArrowTypeConverter(Converter):
                 "char": pa.string(),
                 "varchar": pa.string(),
                 "string": pa.string(),
-                # TODO pyarrow.lib.ArrowInvalid:
-                # In CSV column #1: CSV conversion error to timestamp[ms]:
-                # invalid value '2022-01-01 11:22:33.123'
-                # "timestamp": pa.timestamp("ms"),
-                "timestamp": pa.string(),
-                "date": pa.string(),
+                "timestamp": pa.timestamp("ms"),
+                "date": pa.timestamp("ms"),
                 "time": pa.string(),
                 "varbinary": pa.string(),
                 "array": pa.string(),

@@ -33,9 +33,6 @@ class AthenaArrowResultSet(AthenaResultSet):
     DEFAULT_BLOCK_SIZE = 1024 * 1024 * 128
 
     _timestamp_parsers: List[str] = [
-        # TODO pyarrow.lib.ArrowInvalid:
-        # In CSV column #1: CSV conversion error to timestamp[ms]:
-        # invalid value '2022-01-01 11:22:33.123'
         "%Y-%m-%d",
         "%Y-%m-%d %H:%M:%S",
         "%Y-%m-%d %H:%M:%S %Z",
@@ -112,8 +109,14 @@ class AthenaArrowResultSet(AthenaResultSet):
             and self.query.strip().upper().startswith("UNLOAD")
         )
 
+    @property
+    def timestamp_parsers(self) -> List[str]:
+        from pyarrow.csv import ISO8601
+
+        return [ISO8601] + self._timestamp_parsers
+
     def get_column_types(
-            self, column_names: Optional[List[str]] = None
+        self, column_names: Optional[List[str]] = None
     ) -> Dict[str, Type[Any]]:
         import pyarrow as pa
 
@@ -220,7 +223,7 @@ class AthenaArrowResultSet(AthenaResultSet):
                     ),
                     convert_options=csv.ConvertOptions(
                         quoted_strings_can_be_null=False,
-                        timestamp_parsers=self._timestamp_parsers,
+                        timestamp_parsers=self.timestamp_parsers,
                         column_types=self.get_column_types(),
                     ),
                 )
