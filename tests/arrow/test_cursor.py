@@ -10,20 +10,8 @@ import pytest
 
 from pyathena.arrow.cursor import ArrowCursor
 from pyathena.arrow.result_set import AthenaArrowResultSet
-from pyathena.converter import Converter, _to_binary, _to_json
 from pyathena.error import DatabaseError, ProgrammingError
 from tests.conftest import connect
-
-
-class ArrowUnloadTypeConverter(Converter):
-    def __init__(self) -> None:
-        super(ArrowUnloadTypeConverter, self).__init__(
-            mappings={"col_binary": _to_binary}
-        )
-
-    def convert(self, type_, value):
-        converter = self.get(type_)
-        return converter(value)
 
 
 class TestArrowCursor:
@@ -167,7 +155,6 @@ class TestArrowCursor:
         [
             {
                 "cursor_kwargs": {"unload": True},
-                "converter": ArrowUnloadTypeConverter(),
             },
         ],
         indirect=True,
