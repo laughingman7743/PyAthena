@@ -302,14 +302,12 @@ class TestArrowCursor:
     )
     def test_executemany(self, arrow_cursor):
         rows = [(1, "foo"), (2, "bar"), (3, "jim o'rourke")]
+        table_name = f"execute_many_arrow{'_unload' if arrow_cursor._unload else ''}"
         arrow_cursor.executemany(
-            "INSERT INTO execute_many_arrow (a, b) VALUES (%(a)d, %(b)s)",
-            [
-                {"a": a, "b": b}
-                for a, b in [(1, "foo"), (2, "bar"), (3, "jim o'rourke")]
-            ],
+            f"INSERT INTO {table_name} (a, b) VALUES (%(a)d, %(b)s)",
+            [{"a": a, "b": b} for a, b in rows],
         )
-        arrow_cursor.execute("SELECT * FROM execute_many_arrow")
+        arrow_cursor.execute(f"SELECT * FROM {table_name}")
         assert sorted(arrow_cursor.fetchall()) == [(a, b) for a, b in rows]
 
     @pytest.mark.parametrize(
