@@ -52,8 +52,8 @@ class TestPandasCursor:
         assert pandas_cursor.arraysize == AthenaPandasResultSet.DEFAULT_FETCH_SIZE
 
     def test_invalid_arraysize(self, pandas_cursor):
-        with pytest.raises(ProgrammingError):
-            pandas_cursor.arraysize = 10000
+        pandas_cursor.arraysize = 10000
+        assert pandas_cursor.arraysize == 10000
         with pytest.raises(ProgrammingError):
             pandas_cursor.arraysize = -1
 

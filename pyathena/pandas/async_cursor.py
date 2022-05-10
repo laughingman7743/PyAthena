@@ -4,6 +4,7 @@ from concurrent.futures import Future
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
+from pyathena import ProgrammingError
 from pyathena.async_cursor import AsyncCursor
 from pyathena.common import CursorIterator
 from pyathena.converter import Converter
@@ -58,6 +59,16 @@ class AsyncPandasCursor(AsyncCursor):
         unload: bool = False,
     ) -> Union[DefaultPandasTypeConverter, Any]:
         return DefaultPandasTypeConverter()
+
+    @property
+    def arraysize(self) -> int:
+        return self._arraysize
+
+    @arraysize.setter
+    def arraysize(self, value: int) -> None:
+        if value <= 0:
+            raise ProgrammingError("arraysize must be a positive integer value.")
+        self._arraysize = value
 
     def _collect_result_set(
         self,

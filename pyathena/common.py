@@ -20,6 +20,8 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 class CursorIterator(metaclass=ABCMeta):
 
+    # https://docs.aws.amazon.com/athena/latest/APIReference/API_GetQueryResults.html
+    # Valid Range: Minimum value of 1. Maximum value of 1000.
     DEFAULT_FETCH_SIZE: int = 1000
 
     def __init__(self, **kwargs) -> None:

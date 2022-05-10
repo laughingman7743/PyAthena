@@ -4,6 +4,7 @@ from concurrent.futures import Future
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
 
+from pyathena import ProgrammingError
 from pyathena.arrow.converter import (
     DefaultArrowTypeConverter,
     DefaultArrowUnloadTypeConverter,
@@ -67,6 +68,16 @@ class AsyncArrowCursor(AsyncCursor):
             return DefaultArrowUnloadTypeConverter()
         else:
             return DefaultArrowTypeConverter()
+
+    @property
+    def arraysize(self) -> int:
+        return self._arraysize
+
+    @arraysize.setter
+    def arraysize(self, value: int) -> None:
+        if value <= 0:
+            raise ProgrammingError("arraysize must be a positive integer value.")
+        self._arraysize = value
 
     def _collect_result_set(
         self,

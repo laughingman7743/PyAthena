@@ -75,6 +75,16 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         return DefaultPandasTypeConverter()
 
     @property
+    def arraysize(self) -> int:
+        return self._arraysize
+
+    @arraysize.setter
+    def arraysize(self, value: int) -> None:
+        if value <= 0:
+            raise ProgrammingError("arraysize must be a positive integer value.")
+        self._arraysize = value
+
+    @property
     def result_set(self) -> Optional[AthenaPandasResultSet]:
         return self._result_set
 

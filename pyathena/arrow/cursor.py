@@ -71,6 +71,16 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
             return DefaultArrowTypeConverter()
 
     @property
+    def arraysize(self) -> int:
+        return self._arraysize
+
+    @arraysize.setter
+    def arraysize(self, value: int) -> None:
+        if value <= 0:
+            raise ProgrammingError("arraysize must be a positive integer value.")
+        self._arraysize = value
+
+    @property
     def result_set(self) -> Optional[AthenaArrowResultSet]:
         return self._result_set
 

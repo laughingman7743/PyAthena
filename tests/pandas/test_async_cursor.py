@@ -79,8 +79,8 @@ class TestAsyncPandasCursor:
         assert async_pandas_cursor.arraysize == AthenaResultSet.DEFAULT_FETCH_SIZE
 
     def test_invalid_arraysize(self, async_pandas_cursor):
-        with pytest.raises(ProgrammingError):
-            async_pandas_cursor.arraysize = 10000
+        async_pandas_cursor.arraysize = 10000
+        assert async_pandas_cursor.arraysize == 10000
         with pytest.raises(ProgrammingError):
             async_pandas_cursor.arraysize = -1
 
