@@ -208,7 +208,6 @@ class AthenaArrowResultSet(AthenaResultSet):
             bucket, key = parse_output_location(self.output_location)
             try:
                 table = csv.read_csv(
-                    # self._fs.open_input_file(f"{bucket}/{key}"),
                     self._fs.open_input_stream(f"{bucket}/{key}"),
                     read_options=csv.ReadOptions(
                         skip_rows=0, block_size=self._block_size
@@ -239,7 +238,6 @@ class AthenaArrowResultSet(AthenaResultSet):
         if self._unload_location:
             bucket, key = parse_output_location(self._unload_location)
             try:
-                # TODO Set block_size
                 dataset = parquet.ParquetDataset(
                     f"{bucket}/{key}", filesystem=self._fs, use_legacy_dataset=False
                 )
