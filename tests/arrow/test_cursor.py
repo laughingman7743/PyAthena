@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from decimal import Decimal
 
+import pandas as pd
 import pytest
 
 from pyathena.arrow.cursor import ArrowCursor
@@ -199,12 +200,12 @@ class TestArrowCursor:
                 0.25,
                 "a string",
                 "varchar",
-                datetime(2017, 1, 1, 0, 0, 0),
+                pd.Timestamp(2017, 1, 1, 0, 0, 0),
                 datetime(2017, 1, 2).date(),
                 b"123",
-                "[1, 2]",
-                "{1=2, 3=4}",
-                "{a=1, b=2}",
+                [1, 2],
+                [(1, 2), (3, 4)],
+                {"a": 1, "b": 2},
                 Decimal("0.1"),
             )
         ]
