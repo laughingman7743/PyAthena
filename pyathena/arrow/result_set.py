@@ -67,6 +67,7 @@ class AthenaArrowResultSet(AthenaResultSet):
             arraysize=1,  # Fetch one row to retrieve metadata
             retry_config=retry_config,
         )
+        self._rows.clear()  # Clear pre_fetch data
         self._arraysize = arraysize
         self._block_size = block_size if block_size else self.DEFAULT_BLOCK_SIZE
         self._unload = unload

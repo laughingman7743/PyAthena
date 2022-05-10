@@ -56,6 +56,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             arraysize=1,  # Fetch one row to retrieve metadata
             retry_config=retry_config,
         )
+        self._rows.clear()  # Clear pre_fetch data
         self._arraysize = arraysize
         self._keep_default_na = keep_default_na
         self._na_values = na_values
