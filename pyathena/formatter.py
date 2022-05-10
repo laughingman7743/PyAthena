@@ -67,7 +67,7 @@ class Formatter(metaclass=ABCMeta):
         operation_upper = operation.strip().upper()
         if operation_upper.startswith("SELECT") or operation_upper.startswith("WITH"):
             now = datetime.utcnow().strftime("%Y%m%d")
-            location = f"{s3_staging_dir}{now}/{str(uuid.uuid4())}/"
+            location = f"{s3_staging_dir}unload/{now}/{str(uuid.uuid4())}/"
             operation = textwrap.dedent(
                 f"""
                 UNLOAD (
