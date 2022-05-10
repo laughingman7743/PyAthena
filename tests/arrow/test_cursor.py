@@ -285,7 +285,7 @@ class TestArrowCursor:
     )
     def test_executemany_fetch(self, arrow_cursor):
         arrow_cursor.executemany(
-            "SELECT %(x)d FROM one_row", [{"x": i} for i in range(1, 2)]
+            "SELECT %(x)d AS x FROM one_row", [{"x": i} for i in range(1, 2)]
         )
         # Operations that have result sets are not allowed with executemany.
         pytest.raises(ProgrammingError, arrow_cursor.fetchall)
