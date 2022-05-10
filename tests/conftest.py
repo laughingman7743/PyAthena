@@ -154,6 +154,20 @@ def async_pandas_cursor(request):
 
 
 @pytest.fixture
+def arrow_cursor(request):
+    from pyathena.arrow.cursor import ArrowCursor
+
+    yield from _cursor(ArrowCursor, request)
+
+
+@pytest.fixture
+def async_arrow_cursor(request):
+    from pyathena.arrow.async_cursor import AsyncArrowCursor
+
+    yield from _cursor(AsyncArrowCursor, request)
+
+
+@pytest.fixture
 def engine(request):
     if not hasattr(request, "param"):
         setattr(request, "param", {})
