@@ -10,8 +10,24 @@ import pytest
 
 from pyathena.arrow.cursor import ArrowCursor
 from pyathena.arrow.result_set import AthenaArrowResultSet
+from pyathena.converter import Converter, _to_binary, _to_json
 from pyathena.error import DatabaseError, ProgrammingError
 from tests.conftest import connect
+
+
+class ArrowUnloadTypeConverter(Converter):
+    def __init__(self) -> None:
+        super(ArrowUnloadTypeConverter, self).__init__(
+            mappings={
+                "col_binary": _to_binary,
+                "col_array_json": _to_json,
+                "col_map_json": _to_json,
+            }
+        )
+
+    def convert(self, type_, value):
+        converter = self.get(type_)
+        return converter(value)
 
 
 class TestArrowCursor:
@@ -79,7 +95,13 @@ class TestArrowCursor:
 
     @pytest.mark.parametrize(
         "arrow_cursor",
-        [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
+        [
+            {"cursor_kwargs": {"unload": False}},
+            {
+                "cursor_kwargs": {"unload": True},
+                "converter": ArrowUnloadTypeConverter(),
+            },
+        ],
         indirect=True,
     )
     def test_complex(self, arrow_cursor):
@@ -143,7 +165,7 @@ class TestArrowCursor:
                 "varchar",
                 datetime(2017, 1, 1, 0, 0, 0),
                 datetime(2017, 1, 1, 0, 0, 0).time(),
-                datetime(2017, 1, 2),
+                datetime(2017, 1, 2).date(),
                 b"123",
                 "[1, 2]",
                 [1, 2],
