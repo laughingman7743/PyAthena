@@ -19,9 +19,7 @@ class ArrowUnloadTypeConverter(Converter):
     def __init__(self) -> None:
         super(ArrowUnloadTypeConverter, self).__init__(
             mappings={
-                "col_binary": _to_binary,
-                "col_array_json": _to_json,
-                "col_map_json": _to_json,
+                "col_binary": _to_binary
             }
         )
 
@@ -178,6 +176,7 @@ class TestArrowCursor:
     )
     def test_complex_unload(self, arrow_cursor):
         # NOT_SUPPORTED: Unsupported Hive type: time
+        # NOT_SUPPORTED: Unsupported Hive type: json
         arrow_cursor.execute(
             """
             SELECT
@@ -194,9 +193,7 @@ class TestArrowCursor:
               ,col_date
               ,col_binary
               ,col_array
-              ,CAST(col_array AS json) AS col_array_json
               ,col_map
-              ,CAST(col_map AS json) AS col_map_json
               ,col_struct
               ,col_decimal
             FROM one_row_complex
@@ -216,9 +213,7 @@ class TestArrowCursor:
             ("col_date", "date", None, None, 0, 0, "UNKNOWN"),
             ("col_binary", "varbinary", None, None, 1073741824, 0, "UNKNOWN"),
             ("col_array", "array", None, None, 0, 0, "UNKNOWN"),
-            ("col_array_json", "json", None, None, 0, 0, "UNKNOWN"),
             ("col_map", "map", None, None, 0, 0, "UNKNOWN"),
-            ("col_map_json", "json", None, None, 0, 0, "UNKNOWN"),
             ("col_struct", "row", None, None, 0, 0, "UNKNOWN"),
             ("col_decimal", "decimal", None, None, 10, 1, "UNKNOWN"),
         ]
@@ -238,9 +233,7 @@ class TestArrowCursor:
                 datetime(2017, 1, 2).date(),
                 b"123",
                 "[1, 2]",
-                [1, 2],
                 "{1=2, 3=4}",
-                {"1": 2, "3": 4},
                 "{a=1, b=2}",
                 Decimal("0.1"),
             )
