@@ -112,18 +112,8 @@ class AthenaArrowResultSet(AthenaResultSet):
             and self.query.strip().upper().startswith("UNLOAD")
         )
 
-    def converters(
-        self, column_names: Optional[List[str]] = None
-    ) -> Dict[str, Callable[[Optional[str]], Optional[Any]]]:
-        if self.is_unload and column_names:
-            converters = {c: self._converter.get(c) for c in column_names}
-        else:
-            description = self.description if self.description else []
-            converters = {d[0]: self._converter.get(d[1]) for d in description}
-        return converters
-
-    def column_types(
-        self, column_names: Optional[List[str]] = None
+    def get_column_types(
+            self, column_names: Optional[List[str]] = None
     ) -> Dict[str, Type[Any]]:
         import pyarrow as pa
 
@@ -143,6 +133,16 @@ class AthenaArrowResultSet(AthenaResultSet):
             }
         return types
 
+    def get_converters(
+        self, column_names: Optional[List[str]] = None
+    ) -> Dict[str, Callable[[Optional[str]], Optional[Any]]]:
+        if self.is_unload and column_names:
+            converters = {c: self._converter.get(c) for c in column_names}
+        else:
+            description = self.description if self.description else []
+            converters = {d[0]: self._converter.get(d[1]) for d in description}
+        return converters
+
     def _fetch(self) -> None:
         try:
             rows = next(self._batches)
@@ -153,7 +153,7 @@ class AthenaArrowResultSet(AthenaResultSet):
             column_names = dict_rows.keys()
             processed_rows = [
                 tuple(
-                    self.converters(column_names)[k](v)
+                    self.get_converters(column_names)[k](v)
                     for k, v in zip(column_names, row)
                 )
                 for row in zip(*dict_rows.values())
@@ -221,7 +221,7 @@ class AthenaArrowResultSet(AthenaResultSet):
                     convert_options=csv.ConvertOptions(
                         quoted_strings_can_be_null=False,
                         timestamp_parsers=self._timestamp_parsers,
-                        column_types=self.column_types(),
+                        column_types=self.get_column_types(),
                     ),
                 )
             except Exception as e:
