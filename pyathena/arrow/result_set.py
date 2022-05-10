@@ -18,7 +18,7 @@ from pyathena.converter import Converter
 from pyathena.error import ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
-from pyathena.util import RetryConfig, parse_output_location
+from pyathena.util import RetryConfig, parse_output_location, retry_api_call
 
 if TYPE_CHECKING:
     from pyarrow import Table
@@ -72,6 +72,9 @@ class AthenaArrowResultSet(AthenaResultSet):
         self._unload = unload
         self._unload_location = unload_location
         self._kwargs = kwargs
+        self._client = connection.session.client(
+            "s3", region_name=connection.region_name, **connection._client_kwargs
+        )
         self._fs = self.__s3_file_system()
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
             self._table = self._as_arrow()
@@ -201,38 +204,70 @@ class AthenaArrowResultSet(AthenaResultSet):
                 break
         return rows
 
+    def _get_content_length(self, bucket, key):
+        try:
+            response = retry_api_call(
+                self._client.head_object,
+                config=self._retry_config,
+                logger=_logger,
+                Bucket=bucket,
+                Key=key,
+            )
+        except Exception as e:
+            _logger.exception("Failed to get content length.")
+            raise OperationalError(*e.args) from e
+        else:
+            return response["ContentLength"]
+
     def _read_csv(self) -> "Table":
         import pyarrow as pa
         from pyarrow import csv
 
         if not self.output_location:
             raise ProgrammingError("OutputLocation is none or empty.")
-        if self.output_location.endswith((".csv", ".txt")):
-            bucket, key = parse_output_location(self.output_location)
-            try:
-                table = csv.read_csv(
-                    self._fs.open_input_stream(f"{bucket}/{key}"),
-                    read_options=csv.ReadOptions(
-                        skip_rows=0, block_size=self._block_size
-                    ),
-                    parse_options=csv.ParseOptions(
-                        delimiter=",",
-                        quote_char='"',
-                        double_quote=True,
-                        escape_char=False,
-                    ),
-                    convert_options=csv.ConvertOptions(
-                        quoted_strings_can_be_null=False,
-                        timestamp_parsers=self.timestamp_parsers,
-                        column_types=self.get_column_types(),
-                    ),
-                )
-            except Exception as e:
-                _logger.exception(f"Failed to read {bucket}{key}.")
-                raise OperationalError(*e.args) from e
+        bucket, key = parse_output_location(self.output_location)
+        # TODO check content length
+        # length = self._get_content_length(bucket, key)
+        # if not length:
+        #     return pa.Table.from_pydict(dict())
+        if self.output_location.endswith(".txt"):
+            description = self.description if self.description else []
+            column_names = [d[0] for d in description]
+            read_opts = csv.ReadOptions(
+                column_names=column_names, block_size=self._block_size, use_threads=True
+            )
+            parse_opts = csv.ParseOptions(
+                delimiter="\t",
+                quote_char=False,
+                double_quote=False,
+                escape_char=False,
+            )
+        elif self.output_location.endswith(".csv"):
+            read_opts = csv.ReadOptions(
+                skip_rows=0, block_size=self._block_size, use_threads=True
+            )
+            parse_opts = csv.ParseOptions(
+                delimiter=",",
+                quote_char='"',
+                double_quote=True,
+                escape_char=False,
+            )
         else:
-            table = pa.Table.from_pydict(dict())
-        return table
+            return pa.Table.from_pydict(dict())
+        try:
+            return csv.read_csv(
+                self._fs.open_input_stream(f"{bucket}/{key}"),
+                read_options=read_opts,
+                parse_options=parse_opts,
+                convert_options=csv.ConvertOptions(
+                    quoted_strings_can_be_null=False,
+                    timestamp_parsers=self.timestamp_parsers,
+                    column_types=self.get_column_types(),
+                ),
+            )
+        except Exception as e:
+            _logger.exception(f"Failed to read {bucket}{key}.")
+            raise OperationalError(*e.args) from e
 
     def _read_parquet(self) -> "Table":
         import pyarrow as pa

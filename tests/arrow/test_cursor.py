@@ -18,9 +18,7 @@ from tests.conftest import connect
 class ArrowUnloadTypeConverter(Converter):
     def __init__(self) -> None:
         super(ArrowUnloadTypeConverter, self).__init__(
-            mappings={
-                "col_binary": _to_binary
-            }
+            mappings={"col_binary": _to_binary}
         )
 
     def convert(self, type_, value):
