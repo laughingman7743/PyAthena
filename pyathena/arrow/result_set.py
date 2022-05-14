@@ -205,7 +205,10 @@ class AthenaArrowResultSet(AthenaResultSet):
                 break
         return rows
 
-    def _get_content_length(self, bucket, key):
+    def _get_content_length(self) -> int:
+        if not self.output_location:
+            raise ProgrammingError("OutputLocation is none or empty.")
+        bucket, key = parse_output_location(self.output_location)
         try:
             response = retry_api_call(
                 self._client.head_object,
@@ -218,7 +221,7 @@ class AthenaArrowResultSet(AthenaResultSet):
             _logger.exception("Failed to get content length.")
             raise OperationalError(*e.args) from e
         else:
-            return response["ContentLength"]
+            return cast(int, response["ContentLength"])
 
     def _read_csv(self) -> "Table":
         import pyarrow as pa
@@ -226,16 +229,17 @@ class AthenaArrowResultSet(AthenaResultSet):
 
         if not self.output_location:
             raise ProgrammingError("OutputLocation is none or empty.")
-        bucket, key = parse_output_location(self.output_location)
-        # TODO check content length
-        # length = self._get_content_length(bucket, key)
-        # if not length:
-        #     return pa.Table.from_pydict(dict())
-        if self.output_location.endswith(".txt"):
+        if not self.output_location.endswith((".csv", ".txt")):
+            return pa.Table.from_pydict(dict())
+        length = self._get_content_length()
+        if length and self.output_location.endswith(".txt"):
             description = self.description if self.description else []
             column_names = [d[0] for d in description]
             read_opts = csv.ReadOptions(
-                column_names=column_names, block_size=self._block_size, use_threads=True
+                skip_rows=0,
+                column_names=column_names,
+                block_size=self._block_size,
+                use_threads=True,
             )
             parse_opts = csv.ParseOptions(
                 delimiter="\t",
@@ -243,7 +247,7 @@ class AthenaArrowResultSet(AthenaResultSet):
                 double_quote=False,
                 escape_char=False,
             )
-        elif self.output_location.endswith(".csv"):
+        elif length and self.output_location.endswith(".csv"):
             read_opts = csv.ReadOptions(
                 skip_rows=0, block_size=self._block_size, use_threads=True
             )
@@ -255,6 +259,8 @@ class AthenaArrowResultSet(AthenaResultSet):
             )
         else:
             return pa.Table.from_pydict(dict())
+
+        bucket, key = parse_output_location(self.output_location)
         try:
             return csv.read_csv(
                 self._fs.open_input_stream(f"{bucket}/{key}"),
@@ -270,23 +276,44 @@ class AthenaArrowResultSet(AthenaResultSet):
             _logger.exception(f"Failed to read {bucket}{key}.")
             raise OperationalError(*e.args) from e
 
+    def _read_data_manifest(self) -> List[str]:
+        if not self.data_manifest_location:
+            raise ProgrammingError("DataManifestLocation is none or empty.")
+        bucket, key = parse_output_location(self.data_manifest_location)
+        try:
+            response = retry_api_call(
+                self._client.get_object,
+                config=self._retry_config,
+                logger=_logger,
+                Bucket=bucket,
+                Key=key,
+            )
+        except Exception as e:
+            _logger.exception(f"Failed to read {bucket}{key}.")
+            raise OperationalError(*e.args) from e
+        else:
+            manifest: str = response["Body"].read().decode("utf-8").strip()
+            return manifest.split("\n") if manifest else []
+
     def _read_parquet(self) -> "Table":
         import pyarrow as pa
         from pyarrow import parquet
 
-        if self._unload_location:
-            bucket, key = parse_output_location(self._unload_location)
-            try:
-                dataset = parquet.ParquetDataset(
-                    f"{bucket}/{key}", filesystem=self._fs, use_legacy_dataset=False
-                )
-                table = dataset.read(use_threads=True)
-            except Exception as e:
-                _logger.exception(f"Failed to read {bucket}{key}.")
-                raise OperationalError(*e.args) from e
-        else:
-            table = pa.Table.from_pydict(dict())
-        return table
+        if not self._unload_location:
+            return pa.Table.from_pydict(dict())
+        manifests = self._read_data_manifest()
+        if not manifests:
+            return pa.Table.from_pydict(dict())
+
+        bucket, key = parse_output_location(self._unload_location)
+        try:
+            dataset = parquet.ParquetDataset(
+                f"{bucket}/{key}", filesystem=self._fs, use_legacy_dataset=False
+            )
+            return dataset.read(use_threads=True)
+        except Exception as e:
+            _logger.exception(f"Failed to read {bucket}{key}.")
+            raise OperationalError(*e.args) from e
 
     def _as_arrow(self) -> "Table":
         if self.is_unload:
