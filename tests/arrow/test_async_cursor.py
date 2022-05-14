@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import contextlib
+import random
+import string
 import time
 from datetime import datetime
 from random import randint
@@ -10,6 +12,7 @@ from pyathena.arrow.async_cursor import AsyncArrowCursor
 from pyathena.error import NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
+from tests import ENV
 from tests.conftest import connect
 
 
@@ -233,8 +236,11 @@ class TestAsyncarrowCursor:
         indirect=True,
     )
     def test_as_arrow(self, async_arrow_cursor):
-        # TODO
-        pass
+        query_id, future = async_arrow_cursor.execute("SELECT * FROM one_row")
+        table = future.result().as_arrow()
+        assert table.shape[0] == 1
+        assert table.shape[1] == 1
+        assert [row for row in zip(*table.to_pydict().values())] == [(1,)]
 
     @pytest.mark.parametrize(
         "async_arrow_cursor",
@@ -242,8 +248,13 @@ class TestAsyncarrowCursor:
         indirect=True,
     )
     def test_many_as_arrow(self, async_arrow_cursor):
-        # TODO
-        pass
+        query_id, future = async_arrow_cursor.execute("SELECT * FROM many_rows")
+        table = future.result().as_arrow()
+        assert table.shape[0] == 10000
+        assert table.shape[1] == 1
+        assert [row for row in zip(*table.to_pydict().values())] == [
+            (i,) for i in range(10000)
+        ]
 
     def test_cancel(self, async_arrow_cursor):
         query_id, future = async_arrow_cursor.execute(
@@ -283,5 +294,18 @@ class TestAsyncarrowCursor:
         indirect=True,
     )
     def test_empty_result(self, async_arrow_cursor):
-        # TODO
-        pass
+        table = "test_pandas_cursor_empty_result_" + "".join(
+            [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]
+        )
+        query_id, future = async_arrow_cursor.execute(
+            f"""
+            CREATE EXTERNAL TABLE IF NOT EXISTS
+            {ENV.schema}.{table} (number_of_rows INT)
+            ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+            LINES TERMINATED BY '\n' STORED AS TEXTFILE
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table}/'
+            """
+        )
+        table = future.result().as_arrow()
+        assert table.shape[0] == 0
+        assert table.shape[1] == 0

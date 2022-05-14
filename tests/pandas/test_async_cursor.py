@@ -223,17 +223,14 @@ class TestAsyncPandasCursor:
         table = "test_pandas_cursor_empty_result_" + "".join(
             [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]
         )
-        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, ENV.schema, table)
         query_id, future = async_pandas_cursor.execute(
-            """
+            f"""
             CREATE EXTERNAL TABLE IF NOT EXISTS
-            {schema}.{table} (number_of_rows INT)
+            {ENV.schema}.{table} (number_of_rows INT)
             ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
             LINES TERMINATED BY '\n' STORED AS TEXTFILE
-            LOCATION '{location}'
-            """.format(
-                schema=ENV.schema, table=table, location=location
-            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table}/'
+            """
         )
         df = future.result().as_pandas()
         assert df.shape[0] == 0

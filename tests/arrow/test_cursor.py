@@ -1,17 +1,21 @@
 # -*- coding: utf-8 -*-
 import contextlib
 import random
+import string
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from decimal import Decimal
 
 import pandas as pd
+import pyarrow as pa
 import pytest
 
 from pyathena.arrow.cursor import ArrowCursor
 from pyathena.arrow.result_set import AthenaArrowResultSet
 from pyathena.error import DatabaseError, ProgrammingError
+from pyathena.model import AthenaQueryExecution
+from tests import ENV
 from tests.conftest import connect
 
 
@@ -125,8 +129,7 @@ class TestArrowCursor:
             ("col_struct", "row", None, None, 0, 0, "UNKNOWN"),
             ("col_decimal", "decimal", None, None, 10, 1, "UNKNOWN"),
         ]
-        rows = arrow_cursor.fetchall()
-        expected = [
+        assert arrow_cursor.fetchall() == [
             (
                 True,
                 127,
@@ -149,7 +152,6 @@ class TestArrowCursor:
                 Decimal("0.1"),
             )
         ]
-        assert rows == expected
 
     @pytest.mark.parametrize(
         "arrow_cursor",
@@ -188,8 +190,7 @@ class TestArrowCursor:
         assert arrow_cursor.description == [
             ("rows", "bigint", None, None, 19, 0, "UNKNOWN"),
         ]
-        rows = arrow_cursor.fetchall()
-        expected = [
+        assert arrow_cursor.fetchall() == [
             (
                 True,
                 127,
@@ -209,7 +210,6 @@ class TestArrowCursor:
                 Decimal("0.1"),
             )
         ]
-        assert rows == expected
 
     def test_fetch_no_data(self, arrow_cursor):
         pytest.raises(ProgrammingError, arrow_cursor.fetchone)
@@ -223,8 +223,31 @@ class TestArrowCursor:
         indirect=True,
     )
     def test_as_arrow(self, arrow_cursor):
-        # TODO
-        pass
+        table = arrow_cursor.execute("SELECT * FROM one_row").as_arrow()
+        assert table.shape[0] == 1
+        assert table.shape[1] == 1
+        assert [row for row in zip(*table.to_pydict().values())] == [(1,)]
+        assert arrow_cursor.query_id
+        assert arrow_cursor.query
+        assert arrow_cursor.state == AthenaQueryExecution.STATE_SUCCEEDED
+        assert arrow_cursor.state_change_reason is None
+        assert arrow_cursor.completion_date_time
+        assert isinstance(arrow_cursor.completion_date_time, datetime)
+        assert arrow_cursor.submission_date_time
+        assert isinstance(arrow_cursor.submission_date_time, datetime)
+        assert arrow_cursor.data_scanned_in_bytes
+        assert arrow_cursor.engine_execution_time_in_millis
+        assert arrow_cursor.query_queue_time_in_millis
+        assert arrow_cursor.total_execution_time_in_millis
+        # assert arrow_cursor.query_planning_time_in_millis  # TODO flaky test
+        # assert arrow_cursor.service_processing_time_in_millis  # TODO flaky test
+        assert arrow_cursor.output_location
+        if arrow_cursor._unload:
+            assert arrow_cursor.data_manifest_location
+        else:
+            assert arrow_cursor.data_manifest_location is None
+        assert arrow_cursor.encryption_option is None
+        assert arrow_cursor.kms_key is None
 
     @pytest.mark.parametrize(
         "arrow_cursor",
@@ -232,17 +255,165 @@ class TestArrowCursor:
         indirect=True,
     )
     def test_many_as_arrow(self, arrow_cursor):
-        # TODO
-        pass
+        table = arrow_cursor.execute("SELECT * FROM many_rows").as_arrow()
+        assert table.shape[0] == 10000
+        assert table.shape[1] == 1
+        assert [row for row in zip(*table.to_pydict().values())] == [
+            (i,) for i in range(10000)
+        ]
+
+    def test_complex_as_arrow(self, arrow_cursor):
+        table = arrow_cursor.execute(
+            """
+            SELECT
+              col_boolean
+              ,col_tinyint
+              ,col_smallint
+              ,col_int
+              ,col_bigint
+              ,col_float
+              ,col_double
+              ,col_string
+              ,col_varchar
+              ,col_timestamp
+              ,CAST(col_timestamp AS time) AS col_time
+              ,col_date
+              ,col_binary
+              ,col_array
+              ,CAST(col_array AS json) AS col_array_json
+              ,col_map
+              ,CAST(col_map AS json) AS col_map_json
+              ,col_struct
+              ,col_decimal
+            FROM one_row_complex
+            """
+        ).as_arrow()
+        assert table.shape[0] == 1
+        assert table.shape[1] == 19
+        assert table.schema == pa.schema(
+            [
+                pa.field("col_boolean", pa.bool_()),
+                pa.field("col_tinyint", pa.int64()),
+                pa.field("col_smallint", pa.int64()),
+                pa.field("col_int", pa.int64()),
+                pa.field("col_bigint", pa.int64()),
+                pa.field("col_float", pa.float64()),
+                pa.field("col_double", pa.float64()),
+                pa.field("col_string", pa.string()),
+                pa.field("col_varchar", pa.string()),
+                pa.field("col_timestamp", pa.timestamp("ms")),
+                pa.field("col_time", pa.string()),
+                pa.field("col_date", pa.timestamp("ms")),
+                pa.field("col_binary", pa.string()),
+                pa.field("col_array", pa.string()),
+                pa.field("col_array_json", pa.string()),
+                pa.field("col_map", pa.string()),
+                pa.field("col_map_json", pa.string()),
+                pa.field("col_struct", pa.string()),
+                pa.field("col_decimal", pa.string()),
+            ]
+        )
+        assert [row for row in zip(*table.to_pydict().values())] == [
+            (
+                True,
+                127,
+                32767,
+                2147483647,
+                9223372036854775807,
+                0.5,
+                0.25,
+                "a string",
+                "varchar",
+                datetime(2017, 1, 1, 0, 0, 0),
+                "00:00:00.000",
+                datetime(2017, 1, 2, 0, 0, 0),
+                "31 32 33",
+                "[1, 2]",
+                [1, 2],
+                "{1=2, 3=4}",
+                {"1": 2, "3": 4},
+                "{a=1, b=2}",
+                "0.1",
+            )
+        ]
 
     @pytest.mark.parametrize(
         "arrow_cursor",
-        [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
+        [
+            {
+                "cursor_kwargs": {"unload": True},
+            },
+        ],
         indirect=True,
     )
-    def test_complex_as_arrow(self, arrow_cursor):
-        # TODO
-        pass
+    def test_complex_unload_as_arrow(self, arrow_cursor):
+        # NOT_SUPPORTED: Unsupported Hive type: time
+        # NOT_SUPPORTED: Unsupported Hive type: json
+        table = arrow_cursor.execute(
+            """
+            SELECT
+              col_boolean
+              ,col_tinyint
+              ,col_smallint
+              ,col_int
+              ,col_bigint
+              ,col_float
+              ,col_double
+              ,col_string
+              ,col_varchar
+              ,col_timestamp
+              ,col_date
+              ,col_binary
+              ,col_array
+              ,col_map
+              ,col_struct
+              ,col_decimal
+            FROM one_row_complex
+            """
+        ).as_arrow()
+        assert table.shape[0] == 1
+        assert table.shape[1] == 16
+        assert table.schema == pa.schema(
+            [
+                pa.field("col_boolean", pa.bool_()),
+                pa.field("col_tinyint", pa.int64()),
+                pa.field("col_smallint", pa.int64()),
+                pa.field("col_int", pa.int64()),
+                pa.field("col_bigint", pa.int64()),
+                pa.field("col_float", pa.float64()),
+                pa.field("col_double", pa.float64()),
+                pa.field("col_string", pa.string()),
+                pa.field("col_varchar", pa.string()),
+                pa.field("col_timestamp", pa.timestamp("ms")),
+                pa.field("col_date", pa.timestamp("ms")),
+                pa.field("col_binary", pa.string()),
+                pa.field("col_array", pa.string()),
+                pa.field("col_map", pa.string()),
+                pa.field("col_struct", pa.string()),
+                pa.field("col_decimal", pa.string()),
+            ]
+        )
+        assert [row for row in zip(*table.to_pydict().values())] == [
+            (
+                True,
+                127,
+                32767,
+                2147483647,
+                9223372036854775807,
+                0.5,
+                0.25,
+                "a string",
+                "varchar",
+                datetime(2017, 1, 1, 0, 0, 0),
+                datetime(2017, 1, 1, 0, 0, 0).time(),
+                datetime(2017, 1, 2).date(),
+                b"123",
+                [1, 2],
+                [(1, 2), (3, 4)],
+                {"a": 1, "b": 2},
+                Decimal("0.1"),
+            )
+        ]
 
     def test_cancel(self, arrow_cursor):
         def cancel(c):
@@ -295,8 +466,20 @@ class TestArrowCursor:
         indirect=True,
     )
     def test_empty_result(self, arrow_cursor):
-        # TODO
-        pass
+        table = "test_arrow_cursor_empty_result_" + "".join(
+            [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]
+        )
+        df = arrow_cursor.execute(
+            f"""
+            CREATE EXTERNAL TABLE IF NOT EXISTS
+            {ENV.schema}.{table} (number_of_rows INT)
+            ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+            LINES TERMINATED BY '\n' STORED AS TEXTFILE
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table}/'
+            """
+        ).as_arrow()
+        assert df.shape[0] == 0
+        assert df.shape[1] == 0
 
     @pytest.mark.parametrize(
         "arrow_cursor",

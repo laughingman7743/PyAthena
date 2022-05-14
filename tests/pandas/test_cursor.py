@@ -104,8 +104,7 @@ class TestPandasCursor:
             ("col_struct", "row", None, None, 0, 0, "UNKNOWN"),
             ("col_decimal", "decimal", None, None, 10, 1, "UNKNOWN"),
         ]
-        rows = pandas_cursor.fetchall()
-        expected = [
+        assert pandas_cursor.fetchall() == [
             (
                 True,
                 127,
@@ -128,7 +127,6 @@ class TestPandasCursor:
                 Decimal("0.1"),
             )
         ]
-        assert rows == expected
 
     def test_fetch_no_data(self, pandas_cursor):
         pytest.raises(ProgrammingError, pandas_cursor.fetchone)
@@ -334,17 +332,14 @@ class TestPandasCursor:
         table = "test_pandas_cursor_empty_result_" + "".join(
             [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]
         )
-        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, ENV.schema, table)
         df = pandas_cursor.execute(
-            """
+            f"""
             CREATE EXTERNAL TABLE IF NOT EXISTS
-            {schema}.{table} (number_of_rows INT)
+            {ENV.schema}.{table} (number_of_rows INT)
             ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
             LINES TERMINATED BY '\n' STORED AS TEXTFILE
-            LOCATION '{location}'
-            """.format(
-                schema=ENV.schema, table=table, location=location
-            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table}/'
+            """
         ).as_pandas()
         assert df.shape[0] == 0
         assert df.shape[1] == 0
