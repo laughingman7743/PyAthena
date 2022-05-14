@@ -329,9 +329,9 @@ class TestArrowCursor:
                 datetime(2017, 1, 2, 0, 0, 0),
                 "31 32 33",
                 "[1, 2]",
-                [1, 2],
+                "[1,2]",
                 "{1=2, 3=4}",
-                {"1": 2, "3": 4},
+                '{"1":2,"3":4}',
                 "{a=1, b=2}",
                 "0.1",
             )
@@ -376,21 +376,26 @@ class TestArrowCursor:
         assert table.schema == pa.schema(
             [
                 pa.field("col_boolean", pa.bool_()),
-                pa.field("col_tinyint", pa.int64()),
-                pa.field("col_smallint", pa.int64()),
-                pa.field("col_int", pa.int64()),
+                pa.field("col_tinyint", pa.int32()),
+                pa.field("col_smallint", pa.int32()),
+                pa.field("col_int", pa.int32()),
                 pa.field("col_bigint", pa.int64()),
-                pa.field("col_float", pa.float64()),
+                pa.field("col_float", pa.float32()),
                 pa.field("col_double", pa.float64()),
                 pa.field("col_string", pa.string()),
                 pa.field("col_varchar", pa.string()),
-                pa.field("col_timestamp", pa.timestamp("ms")),
-                pa.field("col_date", pa.timestamp("ms")),
-                pa.field("col_binary", pa.string()),
-                pa.field("col_array", pa.string()),
-                pa.field("col_map", pa.string()),
-                pa.field("col_struct", pa.string()),
-                pa.field("col_decimal", pa.string()),
+                pa.field("col_timestamp", pa.timestamp("ns")),
+                pa.field("col_date", pa.date32()),
+                pa.field("col_binary", pa.binary()),
+                pa.field("col_array", pa.list_(pa.field("array_element", pa.int32()))),
+                pa.field(
+                    "col_map", pa.map_(pa.int32(), pa.field("entries", pa.int32()))
+                ),
+                pa.field(
+                    "col_struct",
+                    pa.struct([pa.field("a", pa.int32()), pa.field("b", pa.int32())]),
+                ),
+                pa.field("col_decimal", pa.decimal128(10, 1)),
             ]
         )
         assert [row for row in zip(*table.to_pydict().values())] == [
@@ -404,8 +409,7 @@ class TestArrowCursor:
                 0.25,
                 "a string",
                 "varchar",
-                datetime(2017, 1, 1, 0, 0, 0),
-                datetime(2017, 1, 1, 0, 0, 0).time(),
+                pd.Timestamp(2017, 1, 1, 0, 0, 0),
                 datetime(2017, 1, 2).date(),
                 b"123",
                 [1, 2],
