@@ -44,7 +44,7 @@ class AthenaResultSet(CursorIterator):
         assert self._query_execution, "Required argument `query_execution` not found."
         self._retry_config = retry_config
 
-        self._metadata: Optional[Tuple[Any, ...]] = None
+        self._metadata: Optional[Tuple[Dict[str, Any], ...]] = None
         self._rows: Deque[
             Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]
         ] = collections.deque()

@@ -89,6 +89,7 @@ class TestAsyncPandasCursor:
             "SELECT 1 AS foobar FROM one_row"
         )
         result_set = future.result()
+        assert result_set.fetchall() == [(1,)]
         assert result_set.description == [
             ("foobar", "integer", None, None, 10, 0, "UNKNOWN")
         ]

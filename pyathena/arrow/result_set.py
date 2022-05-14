@@ -14,6 +14,7 @@ from typing import (
 )
 
 from pyathena import OperationalError
+from pyathena.arrow.util import to_column_info
 from pyathena.converter import Converter
 from pyathena.error import ProgrammingError
 from pyathena.model import AthenaQueryExecution
@@ -119,36 +120,22 @@ class AthenaArrowResultSet(AthenaResultSet):
 
         return [ISO8601] + self._timestamp_parsers
 
-    def get_column_types(
-        self, column_names: Optional[List[str]] = None
-    ) -> Dict[str, Type[Any]]:
+    @property
+    def column_types(self) -> Dict[str, Type[Any]]:
         import pyarrow as pa
 
         converter_types = self._converter.types
-        if self.is_unload and column_names:
-            types = {
-                c: converter_types.get(c, pa.string())
-                for c in column_names
-                if c in converter_types
-            }
-        else:
-            description = self.description if self.description else []
-            types = {
-                d[0]: converter_types.get(d[1], pa.string())
-                for d in description
-                if d[1] in converter_types
-            }
-        return types
+        description = self.description if self.description else []
+        return {
+            d[0]: converter_types.get(d[1], pa.string())
+            for d in description
+            if d[1] in converter_types
+        }
 
-    def get_converters(
-        self, column_names: Optional[List[str]] = None
-    ) -> Dict[str, Callable[[Optional[str]], Optional[Any]]]:
-        if self.is_unload and column_names:
-            converters = {c: self._converter.get(c) for c in column_names}
-        else:
-            description = self.description if self.description else []
-            converters = {d[0]: self._converter.get(d[1]) for d in description}
-        return converters
+    @property
+    def converters(self) -> Dict[str, Callable[[Optional[str]], Optional[Any]]]:
+        description = self.description if self.description else []
+        return {d[0]: self._converter.get(d[1]) for d in description}
 
     def _fetch(self) -> None:
         try:
@@ -159,10 +146,7 @@ class AthenaArrowResultSet(AthenaResultSet):
             dict_rows = rows.to_pydict()
             column_names = dict_rows.keys()
             processed_rows = [
-                tuple(
-                    self.get_converters(column_names)[k](v)
-                    for k, v in zip(column_names, row)
-                )
+                tuple(self.converters[k](v) for k, v in zip(column_names, row))
                 for row in zip(*dict_rows.values())
             ]
             self._rows.extend(processed_rows)
@@ -269,7 +253,7 @@ class AthenaArrowResultSet(AthenaResultSet):
                 convert_options=csv.ConvertOptions(
                     quoted_strings_can_be_null=False,
                     timestamp_parsers=self.timestamp_parsers,
-                    column_types=self.get_column_types(),
+                    column_types=self.column_types,
                 ),
             )
         except Exception as e:
@@ -299,11 +283,11 @@ class AthenaArrowResultSet(AthenaResultSet):
         import pyarrow as pa
         from pyarrow import parquet
 
-        if not self._unload_location:
-            return pa.Table.from_pydict(dict())
         manifests = self._read_data_manifest()
         if not manifests:
             return pa.Table.from_pydict(dict())
+        if not self._unload_location:
+            self._unload_location = "/".join(manifests[0].split("/")[:-1]) + "/"
 
         bucket, key = parse_output_location(self._unload_location)
         try:
@@ -318,6 +302,7 @@ class AthenaArrowResultSet(AthenaResultSet):
     def _as_arrow(self) -> "Table":
         if self.is_unload:
             table = self._read_parquet()
+            self._metadata = to_column_info(table.schema)
         else:
             table = self._read_csv()
         return table

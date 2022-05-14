@@ -50,11 +50,11 @@ class DefaultArrowTypeConverter(Converter):
 
             self.__dtypes = {
                 "boolean": pa.bool_(),
-                "tinyint": pa.int64(),
-                "smallint": pa.int64(),
-                "integer": pa.int64(),
+                "tinyint": pa.int8(),
+                "smallint": pa.int16(),
+                "integer": pa.int32(),
                 "bigint": pa.int64(),
-                "float": pa.float64(),
+                "float": pa.float32(),
                 "real": pa.float64(),
                 "double": pa.float64(),
                 "char": pa.string(),

@@ -188,7 +188,40 @@ class TestArrowCursor:
             """
         )
         assert arrow_cursor.description == [
-            ("rows", "bigint", None, None, 19, 0, "UNKNOWN"),
+            ("col_boolean", "boolean", None, None, 0, 0, "NULLABLE"),
+            (
+                "col_tinyint",
+                # If unloaded, it will be an integer instead of tinyint
+                "integer",
+                None,
+                None,
+                10,
+                0,
+                "NULLABLE",
+            ),
+            (
+                "col_smallint",
+                # If unloaded, it will be an integer instead of smallint
+                "integer",
+                None,
+                None,
+                10,
+                0,
+                "NULLABLE",
+            ),
+            ("col_int", "integer", None, None, 10, 0, "NULLABLE"),
+            ("col_bigint", "bigint", None, None, 19, 0, "NULLABLE"),
+            ("col_float", "float", None, None, 17, 0, "NULLABLE"),
+            ("col_double", "double", None, None, 17, 0, "NULLABLE"),
+            ("col_string", "varchar", None, None, 2147483647, 0, "NULLABLE"),
+            ("col_varchar", "varchar", None, None, 2147483647, 0, "NULLABLE"),
+            ("col_timestamp", "timestamp", None, None, 3, 0, "NULLABLE"),
+            ("col_date", "date", None, None, 0, 0, "NULLABLE"),
+            ("col_binary", "varbinary", None, None, 1073741824, 0, "NULLABLE"),
+            ("col_array", "array", None, None, 0, 0, "NULLABLE"),
+            ("col_map", "map", None, None, 0, 0, "NULLABLE"),
+            ("col_struct", "row", None, None, 0, 0, "NULLABLE"),
+            ("col_decimal", "decimal", None, None, 10, 1, "NULLABLE"),
         ]
         assert arrow_cursor.fetchall() == [
             (
@@ -293,11 +326,11 @@ class TestArrowCursor:
         assert table.schema == pa.schema(
             [
                 pa.field("col_boolean", pa.bool_()),
-                pa.field("col_tinyint", pa.int64()),
-                pa.field("col_smallint", pa.int64()),
-                pa.field("col_int", pa.int64()),
+                pa.field("col_tinyint", pa.int8()),
+                pa.field("col_smallint", pa.int16()),
+                pa.field("col_int", pa.int32()),
                 pa.field("col_bigint", pa.int64()),
-                pa.field("col_float", pa.float64()),
+                pa.field("col_float", pa.float32()),
                 pa.field("col_double", pa.float64()),
                 pa.field("col_string", pa.string()),
                 pa.field("col_varchar", pa.string()),

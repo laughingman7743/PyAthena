@@ -122,9 +122,10 @@ class TestAsyncarrowCursor:
             "SELECT CAST(1 AS INT) AS foobar FROM one_row"
         )
         result_set = future.result()
+        assert result_set.fetchall() == [(1,)]
         if async_arrow_cursor._unload:
             assert result_set.description == [
-                ("rows", "bigint", None, None, 19, 0, "UNKNOWN")
+                ("foobar", "integer", None, None, 10, 0, "NULLABLE")
             ]
         else:
             assert result_set.description == [
