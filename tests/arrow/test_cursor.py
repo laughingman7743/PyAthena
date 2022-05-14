@@ -486,6 +486,25 @@ class TestArrowCursor:
         assert df.shape[1] == 0
 
     @pytest.mark.parametrize(
+        "async_arrow_cursor",
+        [
+            {
+                "cursor_kwargs": {"unload": True},
+            },
+        ],
+        indirect=True,
+    )
+    def test_empty_result_unload(self, async_arrow_cursor):
+        query_id, future = async_arrow_cursor.execute(
+            """
+            SELECT * FROM one_row LIMIT 0
+            """
+        )
+        table = future.result().as_arrow()
+        assert table.shape[0] == 0
+        assert table.shape[1] == 0
+
+    @pytest.mark.parametrize(
         "arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
         indirect=True,
