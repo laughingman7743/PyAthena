@@ -51,7 +51,10 @@ class TestArrowCursor:
         arrow_cursor.execute("SELECT * FROM one_row")
         assert arrow_cursor.fetchall() == [(1,)]
         arrow_cursor.execute("SELECT a FROM many_rows ORDER BY a")
-        assert arrow_cursor.fetchall() == [(i,) for i in range(10000)]
+        if arrow_cursor._unload:
+            assert sorted(arrow_cursor.fetchall()) == [(i,) for i in range(10000)]
+        else:
+            assert arrow_cursor.fetchall() == [(i,) for i in range(10000)]
 
     @pytest.mark.parametrize(
         "arrow_cursor",

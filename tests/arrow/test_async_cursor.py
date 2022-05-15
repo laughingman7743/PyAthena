@@ -77,7 +77,10 @@ class TestAsyncarrowCursor:
             "SELECT a FROM many_rows ORDER BY a"
         )
         result_set = future.result()
-        assert result_set.fetchall() == [(i,) for i in range(10000)]
+        if async_arrow_cursor._unload:
+            assert sorted(result_set.fetchall()) == [(i,) for i in range(10000)]
+        else:
+            assert result_set.fetchall() == [(i,) for i in range(10000)]
 
     @pytest.mark.parametrize(
         "async_arrow_cursor",
