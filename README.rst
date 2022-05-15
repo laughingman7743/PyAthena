@@ -344,7 +344,7 @@ Pandas
 As DataFrame
 ^^^^^^^^^^^^
 
-You can use the `pandas.read_sql_query`_ to handle the query results as a `DataFrame object`_.
+You can use the `pandas.read_sql_query`_ to handle the query results as a `pandas.DataFrame object`_.
 
 .. code:: python
 
