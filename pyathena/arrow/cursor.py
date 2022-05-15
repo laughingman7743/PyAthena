@@ -1,39 +1,30 @@
 # -*- coding: utf-8 -*-
 import logging
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Tuple,
-    TypeVar,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, TypeVar, Union, cast
 
-from pyathena.common import CursorIterator
+from pyathena.arrow.converter import (
+    DefaultArrowTypeConverter,
+    DefaultArrowUnloadTypeConverter,
+)
+from pyathena.arrow.result_set import AthenaArrowResultSet
+from pyathena.common import BaseCursor, CursorIterator
 from pyathena.converter import Converter
-from pyathena.cursor import BaseCursor
 from pyathena.error import OperationalError, ProgrammingError
 from pyathena.formatter import Formatter
-from pyathena.model import AthenaQueryExecution
-from pyathena.pandas.converter import DefaultPandasTypeConverter
-from pyathena.pandas.result_set import AthenaPandasResultSet
+from pyathena.model import AthenaCompression, AthenaFileFormat, AthenaQueryExecution
 from pyathena.result_set import WithResultSet
 from pyathena.util import RetryConfig, synchronized
 
 if TYPE_CHECKING:
-    from pandas import DataFrame
+    from pyarrow import Table
 
     from pyathena.connection import Connection
 
 _logger = logging.getLogger(__name__)  # type: ignore
-_T = TypeVar("_T", bound="PandasCursor")
+_T = TypeVar("_T", bound="ArrowCursor")
 
 
-class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
+class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
     def __init__(
         self,
         connection: "Connection",
@@ -48,9 +39,10 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         encryption_option: Optional[str] = None,
         kms_key: Optional[str] = None,
         kill_on_interrupt: bool = True,
+        unload: bool = False,
         **kwargs,
     ) -> None:
-        super(PandasCursor, self).__init__(
+        super(ArrowCursor, self).__init__(
             connection=connection,
             converter=converter,
             formatter=formatter,
@@ -65,14 +57,18 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
             kill_on_interrupt=kill_on_interrupt,
             **kwargs,
         )
+        self._unload = unload
         self._query_id: Optional[str] = None
-        self._result_set: Optional[AthenaPandasResultSet] = None
+        self._result_set: Optional[AthenaArrowResultSet] = None
 
     @staticmethod
     def get_default_converter(
         unload: bool = False,
-    ) -> Union[DefaultPandasTypeConverter, Any]:
-        return DefaultPandasTypeConverter()
+    ) -> Union[DefaultArrowTypeConverter, DefaultArrowUnloadTypeConverter, Any]:
+        if unload:
+            return DefaultArrowUnloadTypeConverter()
+        else:
+            return DefaultArrowTypeConverter()
 
     @property
     def arraysize(self) -> int:
@@ -85,7 +81,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         self._arraysize = value
 
     @property
-    def result_set(self) -> Optional[AthenaPandasResultSet]:
+    def result_set(self) -> Optional[AthenaArrowResultSet]:
         return self._result_set
 
     @result_set.setter
@@ -117,12 +113,22 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
-        keep_default_na: bool = False,
-        na_values: Optional[Iterable[str]] = ("",),
-        quoting: int = 1,
         **kwargs,
     ) -> _T:
         self._reset_state()
+        if self._unload:
+            s3_staging_dir = s3_staging_dir if s3_staging_dir else self._s3_staging_dir
+            assert (
+                s3_staging_dir
+            ), "If the unload option is used, s3_staging_dir is required."
+            operation, unload_location = self._formatter.wrap_unload(
+                operation,
+                s3_staging_dir=s3_staging_dir,
+                format_=AthenaFileFormat.FILE_FORMAT_PARQUET,
+                compression=AthenaCompression.COMPRESSION_SNAPPY,
+            )
+        else:
+            unload_location = None
         self.query_id = self._execute(
             operation,
             parameters=parameters,
@@ -133,15 +139,14 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         )
         query_execution = self._poll(self.query_id)
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
-            self.result_set = AthenaPandasResultSet(
+            self.result_set = AthenaArrowResultSet(
                 connection=self._connection,
                 converter=self._converter,
                 query_execution=query_execution,
                 arraysize=self.arraysize,
                 retry_config=self._retry_config,
-                keep_default_na=keep_default_na,
-                na_values=na_values,
-                quoting=quoting,
+                unload=self._unload,
+                unload_location=unload_location,
                 **kwargs,
             )
         else:
@@ -168,7 +173,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
     ) -> Optional[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        result_set = cast(AthenaPandasResultSet, self.result_set)
+        result_set = cast(AthenaArrowResultSet, self.result_set)
         return result_set.fetchone()
 
     @synchronized
@@ -177,7 +182,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
     ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        result_set = cast(AthenaPandasResultSet, self.result_set)
+        result_set = cast(AthenaArrowResultSet, self.result_set)
         return result_set.fetchmany(size)
 
     @synchronized
@@ -186,12 +191,12 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
     ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        result_set = cast(AthenaPandasResultSet, self.result_set)
+        result_set = cast(AthenaArrowResultSet, self.result_set)
         return result_set.fetchall()
 
     @synchronized
-    def as_pandas(self) -> "DataFrame":
+    def as_arrow(self) -> "Table":
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        result_set = cast(AthenaPandasResultSet, self.result_set)
-        return result_set.as_pandas()
+        result_set = cast(AthenaArrowResultSet, self.result_set)
+        return result_set.as_arrow()

@@ -4,7 +4,7 @@ import sys
 import time
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from pyathena.converter import Converter, DefaultTypeConverter
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
@@ -20,6 +20,8 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 class CursorIterator(metaclass=ABCMeta):
 
+    # https://docs.aws.amazon.com/athena/latest/APIReference/API_GetQueryResults.html
+    # Valid Range: Minimum value of 1. Maximum value of 1000.
     DEFAULT_FETCH_SIZE: int = 1000
 
     def __init__(self, **kwargs) -> None:
@@ -113,7 +115,7 @@ class BaseCursor(metaclass=ABCMeta):
         self._kill_on_interrupt = kill_on_interrupt
 
     @staticmethod
-    def get_default_converter():
+    def get_default_converter(unload: bool = False) -> Union[DefaultTypeConverter, Any]:
         return DefaultTypeConverter()
 
     @property

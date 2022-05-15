@@ -52,8 +52,8 @@ class TestPandasCursor:
         assert pandas_cursor.arraysize == AthenaPandasResultSet.DEFAULT_FETCH_SIZE
 
     def test_invalid_arraysize(self, pandas_cursor):
-        with pytest.raises(ProgrammingError):
-            pandas_cursor.arraysize = 10000
+        pandas_cursor.arraysize = 10000
+        assert pandas_cursor.arraysize == 10000
         with pytest.raises(ProgrammingError):
             pandas_cursor.arraysize = -1
 
@@ -104,8 +104,7 @@ class TestPandasCursor:
             ("col_struct", "row", None, None, 0, 0, "UNKNOWN"),
             ("col_decimal", "decimal", None, None, 10, 1, "UNKNOWN"),
         ]
-        rows = pandas_cursor.fetchall()
-        expected = [
+        assert pandas_cursor.fetchall() == [
             (
                 True,
                 127,
@@ -128,7 +127,6 @@ class TestPandasCursor:
                 Decimal("0.1"),
             )
         ]
-        assert rows == expected
 
     def test_fetch_no_data(self, pandas_cursor):
         pytest.raises(ProgrammingError, pandas_cursor.fetchone)
@@ -325,23 +323,23 @@ class TestPandasCursor:
 
     def test_show_columns(self, pandas_cursor):
         pandas_cursor.execute("SHOW COLUMNS IN one_row")
+        assert pandas_cursor.description == [
+            ("field", "string", None, None, 0, 0, "UNKNOWN")
+        ]
         assert pandas_cursor.fetchall() == [("number_of_rows      ",)]
 
     def test_empty_result(self, pandas_cursor):
         table = "test_pandas_cursor_empty_result_" + "".join(
             [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]
         )
-        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, ENV.schema, table)
         df = pandas_cursor.execute(
-            """
+            f"""
             CREATE EXTERNAL TABLE IF NOT EXISTS
-            {schema}.{table} (number_of_rows INT)
+            {ENV.schema}.{table} (number_of_rows INT)
             ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
             LINES TERMINATED BY '\n' STORED AS TEXTFILE
-            LOCATION '{location}'
-            """.format(
-                schema=ENV.schema, table=table, location=location
-            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table}/'
+            """
         ).as_pandas()
         assert df.shape[0] == 0
         assert df.shape[1] == 0
@@ -377,10 +375,7 @@ class TestPandasCursor:
         rows = [(1, "foo"), (2, "bar"), (3, "jim o'rourke")]
         pandas_cursor.executemany(
             "INSERT INTO execute_many_pandas (a, b) VALUES (%(a)d, %(b)s)",
-            [
-                {"a": a, "b": b}
-                for a, b in [(1, "foo"), (2, "bar"), (3, "jim o'rourke")]
-            ],
+            [{"a": a, "b": b} for a, b in rows],
         )
         pandas_cursor.execute("SELECT * FROM execute_many_pandas")
         assert sorted(pandas_cursor.fetchall()) == [(a, b) for a, b in rows]
