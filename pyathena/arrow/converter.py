@@ -85,5 +85,4 @@ class DefaultArrowUnloadTypeConverter(Converter):
         )
 
     def convert(self, type_: str, value: Optional[str]) -> Optional[Any]:
-        converter = self.get(type_)
-        return converter(value)
+        pass
