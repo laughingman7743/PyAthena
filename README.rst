@@ -963,7 +963,7 @@ NOTE: PandasCursor handles the CSV file on memory. Pay attention to the memory c
 AsyncPandasCursor
 ~~~~~~~~~~~~~~~~~
 
-AsyncPandasCursor is an AsyncCursor that can handle pandas.DataFrame.
+AsyncPandasCursor is an AsyncCursor that can handle `pandas.DataFrame object`_.
 This cursor directly handles the CSV of query results output to S3 in the same way as PandasCursor.
 
 You can use the AsyncPandasCursor by specifying the ``cursor_class``
@@ -1238,7 +1238,7 @@ Execution information of the query can also be retrieved.
     print(cursor.service_processing_time_in_millis)
     print(cursor.output_location)
 
-If you want to customize the pyarrow.Table object types, create a converter class like this:
+If you want to customize the `pyarrow.Table object`_ types, create a converter class like this:
 
 .. code:: python
 
@@ -1369,7 +1369,7 @@ Try adding an alias to the SELECTed column, such as ``SELECT 1 AS name``.
 AsyncArrowCursor
 ~~~~~~~~~~~~~~~~
 
-AsyncArrowCursor is an AsyncCursor that can handle arrow.Table.
+AsyncArrowCursor is an AsyncCursor that can handle `pyarrow.Table object`_.
 This cursor directly handles the CSV of query results output to S3 in the same way as ArrowCursor.
 
 You can use the AsyncArrowCursor by specifying the ``cursor_class``
@@ -1726,9 +1726,7 @@ Run test
 
     $ pip install poetry
     $ poetry install -v
-    $ poetry run scripts/test_data/upload_test_data.sh
     $ poetry run pytest
-    $ poetry run scripts/test_data/delete_test_data.sh
 
 Run test multiple Python versions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1737,10 +1735,8 @@ Run test multiple Python versions
 
     $ pip install poetry
     $ poetry install -v
-    $ poetry run scripts/test_data/upload_test_data.sh
     $ pyenv local 3.10.1 3.9.1 3.8.2 3.7.2
     $ poetry run tox
-    $ poetry run scripts/test_data/delete_test_data.sh
 
 GitHub Actions
 ~~~~~~~~~~~~~~
