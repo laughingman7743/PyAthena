@@ -81,10 +81,16 @@ class AthenaStatementCompiler(SQLCompiler):
 
     def limit_clause(self, select, **kw):
         text = []
-        if select._offset_clause is not None:
-            text.append(" OFFSET " + self.process(select._offset_clause, **kw))
-        if select._limit_clause is not None:
-            text.append(" LIMIT " + self.process(select._limit_clause, **kw))
+        offset_clause = select._offset_clause
+        if offset_clause is not None and select._simple_int_clause(offset_clause):
+            text.append(
+                f" OFFSET {self.process(offset_clause.render_literal_execute(), **kw)}"
+            )
+        limit_clause = select._limit_clause
+        if limit_clause is not None and select._simple_int_clause(limit_clause):
+            text.append(
+                f" LIMIT {self.process(limit_clause.render_literal_execute(), **kw)}"
+            )
         return "\n".join(text)
 
 
@@ -516,6 +522,7 @@ class AthenaDialect(DefaultDialect):
     supports_native_boolean = True
     supports_unicode_statements = True
     supports_unicode_binds = True
+    supports_statement_cache = True
     returns_unicode_strings = True
     description_encoding = None
     postfetch_lastrowid = False
