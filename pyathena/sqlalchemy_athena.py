@@ -762,10 +762,12 @@ class AthenaDialect(DefaultDialect):
 
 class AthenaRestDialect(AthenaDialect):
     driver = "rest"
+    supports_statement_cache = True
 
 
 class AthenaPandasDialect(AthenaDialect):
     driver = "pandas"
+    supports_statement_cache = True
 
     def create_connect_args(self, url):
         from pyathena.pandas.cursor import PandasCursor
@@ -777,6 +779,7 @@ class AthenaPandasDialect(AthenaDialect):
 
 class AthenaArrowDialect(AthenaDialect):
     driver = "arrow"
+    supports_statement_cache = True
 
     def create_connect_args(self, url):
         from pyathena.arrow.cursor import ArrowCursor
