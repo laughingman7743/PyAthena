@@ -10,7 +10,6 @@ from typing import (
     Tuple,
     Type,
     Union,
-    cast,
 )
 
 from pyathena import OperationalError
@@ -19,7 +18,7 @@ from pyathena.converter import Converter
 from pyathena.error import ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
-from pyathena.util import RetryConfig, parse_output_location, retry_api_call
+from pyathena.util import RetryConfig, parse_output_location
 
 if TYPE_CHECKING:
     from pyarrow import Table
@@ -74,9 +73,6 @@ class AthenaArrowResultSet(AthenaResultSet):
         self._unload = unload
         self._unload_location = unload_location
         self._kwargs = kwargs
-        self._client = connection.session.client(
-            "s3", region_name=connection.region_name, **connection._client_kwargs
-        )
         self._fs = self.__s3_file_system()
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
             self._table = self._as_arrow()
@@ -89,7 +85,7 @@ class AthenaArrowResultSet(AthenaResultSet):
     def __s3_file_system(self):
         from pyarrow import fs
 
-        connection = cast("Connection", self._connection)
+        connection = self.connection
         if "role_arn" in connection._kwargs and connection._kwargs["role_arn"]:
             fs = fs.S3FileSystem(
                 role_arn=connection._kwargs.get("role_arn", None),
@@ -189,24 +185,6 @@ class AthenaArrowResultSet(AthenaResultSet):
                 break
         return rows
 
-    def _get_content_length(self) -> int:
-        if not self.output_location:
-            raise ProgrammingError("OutputLocation is none or empty.")
-        bucket, key = parse_output_location(self.output_location)
-        try:
-            response = retry_api_call(
-                self._client.head_object,
-                config=self._retry_config,
-                logger=_logger,
-                Bucket=bucket,
-                Key=key,
-            )
-        except Exception as e:
-            _logger.exception("Failed to get content length.")
-            raise OperationalError(*e.args) from e
-        else:
-            return cast(int, response["ContentLength"])
-
     def _read_csv(self) -> "Table":
         import pyarrow as pa
         from pyarrow import csv
@@ -257,27 +235,8 @@ class AthenaArrowResultSet(AthenaResultSet):
                 ),
             )
         except Exception as e:
-            _logger.exception(f"Failed to read {bucket}{key}.")
+            _logger.exception(f"Failed to read {bucket}/{key}.")
             raise OperationalError(*e.args) from e
-
-    def _read_data_manifest(self) -> List[str]:
-        if not self.data_manifest_location:
-            raise ProgrammingError("DataManifestLocation is none or empty.")
-        bucket, key = parse_output_location(self.data_manifest_location)
-        try:
-            response = retry_api_call(
-                self._client.get_object,
-                config=self._retry_config,
-                logger=_logger,
-                Bucket=bucket,
-                Key=key,
-            )
-        except Exception as e:
-            _logger.exception(f"Failed to read {bucket}{key}.")
-            raise OperationalError(*e.args) from e
-        else:
-            manifest: str = response["Body"].read().decode("utf-8").strip()
-            return manifest.split("\n") if manifest else []
 
     def _read_parquet(self) -> "Table":
         import pyarrow as pa
@@ -296,7 +255,7 @@ class AthenaArrowResultSet(AthenaResultSet):
             )
             return dataset.read(use_threads=True)
         except Exception as e:
-            _logger.exception(f"Failed to read {bucket}{key}.")
+            _logger.exception(f"Failed to read {bucket}/{key}.")
             raise OperationalError(*e.args) from e
 
     def _as_arrow(self) -> "Table":

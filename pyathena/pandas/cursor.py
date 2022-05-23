@@ -18,8 +18,11 @@ from pyathena.converter import Converter
 from pyathena.cursor import BaseCursor
 from pyathena.error import OperationalError, ProgrammingError
 from pyathena.formatter import Formatter
-from pyathena.model import AthenaQueryExecution
-from pyathena.pandas.converter import DefaultPandasTypeConverter
+from pyathena.model import AthenaCompression, AthenaFileFormat, AthenaQueryExecution
+from pyathena.pandas.converter import (
+    DefaultPandasTypeConverter,
+    DefaultPandasUnloadTypeConverter,
+)
 from pyathena.pandas.result_set import AthenaPandasResultSet
 from pyathena.result_set import WithResultSet
 from pyathena.util import RetryConfig, synchronized
@@ -48,6 +51,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         encryption_option: Optional[str] = None,
         kms_key: Optional[str] = None,
         kill_on_interrupt: bool = True,
+        unload: bool = False,
         **kwargs,
     ) -> None:
         super(PandasCursor, self).__init__(
@@ -65,6 +69,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
             kill_on_interrupt=kill_on_interrupt,
             **kwargs,
         )
+        self._unload = unload
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaPandasResultSet] = None
 
@@ -72,7 +77,10 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
     def get_default_converter(
         unload: bool = False,
     ) -> Union[DefaultPandasTypeConverter, Any]:
-        return DefaultPandasTypeConverter()
+        if unload:
+            return DefaultPandasUnloadTypeConverter()
+        else:
+            return DefaultPandasTypeConverter()
 
     @property
     def arraysize(self) -> int:
@@ -123,6 +131,19 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         **kwargs,
     ) -> _T:
         self._reset_state()
+        if self._unload:
+            s3_staging_dir = s3_staging_dir if s3_staging_dir else self._s3_staging_dir
+            assert (
+                s3_staging_dir
+            ), "If the unload option is used, s3_staging_dir is required."
+            operation, unload_location = self._formatter.wrap_unload(
+                operation,
+                s3_staging_dir=s3_staging_dir,
+                format_=AthenaFileFormat.FILE_FORMAT_PARQUET,
+                compression=AthenaCompression.COMPRESSION_SNAPPY,
+            )
+        else:
+            unload_location = None
         self.query_id = self._execute(
             operation,
             parameters=parameters,
@@ -142,6 +163,8 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
                 keep_default_na=keep_default_na,
                 na_values=na_values,
                 quoting=quoting,
+                unload=self._unload,
+                unload_location=unload_location,
                 **kwargs,
             )
         else:

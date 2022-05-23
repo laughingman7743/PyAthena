@@ -20,7 +20,7 @@ from pyathena.common import CursorIterator
 from pyathena.converter import Converter
 from pyathena.error import DataError, OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
-from pyathena.util import RetryConfig, retry_api_call
+from pyathena.util import RetryConfig, parse_output_location, retry_api_call
 
 if TYPE_CHECKING:
     from pyathena.connection import Connection
@@ -43,6 +43,9 @@ class AthenaResultSet(CursorIterator):
         self._query_execution: Optional[AthenaQueryExecution] = query_execution
         assert self._query_execution, "Required argument `query_execution` not found."
         self._retry_config = retry_config
+        self._client = connection.session.client(
+            "s3", region_name=connection.region_name, **connection._client_kwargs
+        )
 
         self._metadata: Optional[Tuple[Dict[str, Any], ...]] = None
         self._rows: Deque[
@@ -187,6 +190,12 @@ class AthenaResultSet(CursorIterator):
             for m in self._metadata
         ]
 
+    @property
+    def connection(self) -> "Connection":
+        if self.is_closed:
+            raise ProgrammingError("AthenaResultSet is closed.")
+        return cast("Connection", self._connection)
+
     def __fetch(self, next_token: Optional[str] = None) -> Dict[str, Any]:
         if not self.query_id:
             raise ProgrammingError("QueryExecutionId is none or empty.")
@@ -201,12 +210,11 @@ class AthenaResultSet(CursorIterator):
         if next_token:
             request.update({"NextToken": next_token})
         try:
-            connection = cast("Connection", self._connection)
             response = retry_api_call(
-                connection.client.get_query_results,
+                self.connection.client.get_query_results,
                 config=self._retry_config,
                 logger=_logger,
-                **request
+                **request,
             )
         except Exception as e:
             _logger.exception("Failed to fetch result set.")
@@ -317,6 +325,43 @@ class AthenaResultSet(CursorIterator):
             if meta.get("Name", None) != data.get("VarCharValue", None):
                 return False
         return True
+
+    def _get_content_length(self) -> int:
+        if not self.output_location:
+            raise ProgrammingError("OutputLocation is none or empty.")
+        bucket, key = parse_output_location(self.output_location)
+        try:
+            response = retry_api_call(
+                self._client.head_object,
+                config=self._retry_config,
+                logger=_logger,
+                Bucket=bucket,
+                Key=key,
+            )
+        except Exception as e:
+            _logger.exception("Failed to get content length.")
+            raise OperationalError(*e.args) from e
+        else:
+            return cast(int, response["ContentLength"])
+
+    def _read_data_manifest(self) -> List[str]:
+        if not self.data_manifest_location:
+            raise ProgrammingError("DataManifestLocation is none or empty.")
+        bucket, key = parse_output_location(self.data_manifest_location)
+        try:
+            response = retry_api_call(
+                self._client.get_object,
+                config=self._retry_config,
+                logger=_logger,
+                Bucket=bucket,
+                Key=key,
+            )
+        except Exception as e:
+            _logger.exception(f"Failed to read {bucket}/{key}.")
+            raise OperationalError(*e.args) from e
+        else:
+            manifest: str = response["Body"].read().decode("utf-8").strip()
+            return manifest.split("\n") if manifest else []
 
     @property
     def is_closed(self) -> bool:
