@@ -75,6 +75,14 @@ CREATE EXTERNAL TABLE IF NOT EXISTS {{ schema }}.execute_many_pandas (
 ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
 LOCATION '{{ s3_staging_dir }}{{ schema }}/execute_many_pandas/';
 
+DROP TABLE IF EXISTS {{ schema }}.execute_many_pandas_unload;
+CREATE EXTERNAL TABLE IF NOT EXISTS {{ schema }}.execute_many_pandas_unload (
+    a INT,
+    b STRING
+)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
+LOCATION '{{ s3_staging_dir }}{{ schema }}/execute_many_pandas_unload/';
+
 DROP TABLE IF EXISTS {{ schema }}.execute_many_arrow;
 CREATE EXTERNAL TABLE IF NOT EXISTS {{ schema }}.execute_many_arrow (
     a INT,

@@ -263,8 +263,11 @@ class AthenaPandasResultSet(AthenaResultSet):
     def _as_pandas(self) -> "DataFrame":
         if self.is_unload:
             df = self._read_parquet()
-            schema = self._read_parquet_schema()
-            self._metadata = to_column_info(schema)
+            if df.empty:
+                self._metadata = tuple()
+            else:
+                schema = self._read_parquet_schema()
+                self._metadata = to_column_info(schema)
         else:
             df = self._read_csv()
         return df
