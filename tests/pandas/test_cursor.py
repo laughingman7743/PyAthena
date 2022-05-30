@@ -224,7 +224,30 @@ class TestPandasCursor:
             ("col_struct", "row", None, None, 0, 0, "NULLABLE"),
             ("col_decimal", "decimal", None, None, 10, 1, "NULLABLE"),
         ]
-        assert pandas_cursor.fetchall() == [
+        rows = [
+            tuple(
+                [
+                    row[0],
+                    row[1],
+                    row[2],
+                    row[3],
+                    row[4],
+                    row[5],
+                    row[6],
+                    row[7],
+                    row[8],
+                    row[9],
+                    row[10],
+                    row[11],
+                    [a for a in row[12]],
+                    row[13],
+                    row[14],
+                    row[15],
+                ]
+            )
+            for row in pandas_cursor.fetchall()
+        ]
+        assert rows == [
             (
                 True,
                 127,
@@ -238,7 +261,9 @@ class TestPandasCursor:
                 pd.Timestamp(2017, 1, 1, 0, 0, 0),
                 datetime(2017, 1, 2).date(),
                 b"123",
-                np.array([1, 2], dtype=np.int32),
+                # ValueError: The truth value of an array with more than one element is ambiguous.
+                # Use a.any() or a.all()
+                [a for a in np.array([1, 2], dtype=np.int32)],
                 [(1, 2), (3, 4)],
                 {"a": 1, "b": 2},
                 Decimal("0.1"),
@@ -509,7 +534,7 @@ class TestPandasCursor:
                     row["col_timestamp"],
                     row["col_date"],
                     row["col_binary"],
-                    row["col_array"],
+                    [a for a in row["col_array"]],
                     row["col_map"],
                     row["col_struct"],
                     row["col_decimal"],
@@ -531,7 +556,9 @@ class TestPandasCursor:
                 pd.Timestamp(2017, 1, 1, 0, 0, 0),
                 datetime(2017, 1, 2).date(),
                 b"123",
-                np.array([1, 2], dtype=np.int32),
+                # ValueError: The truth value of an array with more than one element is ambiguous.
+                # Use a.any() or a.all()
+                [a for a in np.array([1, 2], dtype=np.int32)],
                 [(1, 2), (3, 4)],
                 {"a": 1, "b": 2},
                 Decimal("0.1"),
