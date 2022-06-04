@@ -44,11 +44,11 @@ Extra packages:
 +---------------+--------------------------------------+------------------+
 | Package       | Install command                      | Version          |
 +===============+======================================+==================+
-| Pandas        | ``pip install PyAthena[Pandas]``     | >=1.0.0          |
+| SQLAlchemy    | ``pip install PyAthena[SQLAlchemy]`` | >=1.0.0, <2.0.0  |
++---------------+--------------------------------------+------------------+
+| Pandas        | ``pip install PyAthena[Pandas]``     | >=1.3.0          |
 +---------------+--------------------------------------+------------------+
 | Arrow         | ``pip install PyAthena[Arrow]``      | >=7.0.0          |
-+---------------+--------------------------------------+------------------+
-| SQLAlchemy    | ``pip install PyAthena[SQLAlchemy]`` | >=1.0.0, <2.0.0  |
 +---------------+--------------------------------------+------------------+
 
 Usage
@@ -548,13 +548,13 @@ If you want to change the dictionary type (e.g., use OrderedDict), you can speci
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor(cursor=DictCursor, dict_type=OrderedDict)
 
-AsynchronousCursor
-~~~~~~~~~~~~~~~~~~
+AsyncCursor
+~~~~~~~~~~~
 
-AsynchronousCursor is a simple implementation using the concurrent.futures package.
+AsyncCursor is a simple implementation using the concurrent.futures package.
 This cursor does not follow the `DB API 2.0 (PEP 249)`_.
 
-You can use the AsynchronousCursor by specifying the ``cursor_class``
+You can use the AsyncCursor by specifying the ``cursor_class``
 with the connect method or connection object.
 
 .. code:: python
@@ -605,7 +605,7 @@ If you want to change the number of workers you can specify like the following.
                      region_name="us-west-2",
                      cursor_class=AsyncCursor).cursor(max_workers=10)
 
-The execute method of the AsynchronousCursor returns the tuple of the query ID and the `future object`_.
+The execute method of the AsyncCursor returns the tuple of the query ID and the `future object`_.
 
 .. code:: python
 
@@ -659,7 +659,7 @@ It also has information on the result of query execution.
     result_set = future.result()
     print(result_set.fetchall())
 
-A query ID is required to cancel a query with the AsynchronousCursor.
+A query ID is required to cancel a query with the AsyncCursor.
 
 .. code:: python
 
@@ -676,8 +676,8 @@ NOTE: The cancel method of the `future object`_ does not cancel the query.
 
 .. _`future object`: https://docs.python.org/3/library/concurrent.futures.html#future-objects
 
-AsynchronousDictCursor
-~~~~~~~~~~~~~~~~~~~~~~
+AsyncDictCursor
+~~~~~~~~~~~~~~~
 
 AsyncDIctCursor is an AsyncCursor that can retrieve the query execution result
 as a dictionary type with column names and values.
@@ -931,6 +931,9 @@ Then you simply specify an instance of this class in the convertes argument when
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor(PandasCursor, converter=CustomPandasTypeConverter())
 
+If the unload option is enabled, the Parquet file itself has a schema, so the conversion is done to the dtypes according to that schema,
+and the ``mappings`` and ``types`` settings of the Converter class are not used.
+
 .. code:: python
 
     from pyathena import connect
@@ -959,6 +962,42 @@ NOTE: PandasCursor handles the CSV file on memory. Pay attention to the memory c
 
 .. _`pandas.DataFrame object`: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
 .. _`pandas.Timestamp`: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Timestamp.html
+
+[PandasCursor] Unload options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+PandasCursor also supports the UNLOAD option, as does `ArrowCursor`_.
+
+See `[ArrowCursor] Unload options`_ for more information.
+
+The UNLOAD option can be enabled by specifying it in the ``cursor_kwargs`` argument of the connect method or as an argument to the cursor method.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.pandas.cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PandasCursor,
+                     cursor_kwargs={
+                         "unload": True
+                     }).cursor()
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.pandas.cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PandasCursor).cursor(unload=True)
+
+SQLAlchemy allows this option to be specified in the connection string.
+
+.. code:: text
+
+    awsathena+pandas://:@athena.{region_name}.amazonaws.com:443/{schema_name}?s3_staging_dir={s3_staging_dir}&unload=true...
 
 AsyncPandasCursor
 ~~~~~~~~~~~~~~~~~
@@ -1104,7 +1143,7 @@ The DATE and TIMESTAMP of Athena's data type are returned as `pandas.Timestamp`_
     result_set = future.result()
     print(type(result_set.fetchone()[0]))  # <class 'pandas._libs.tslibs.timestamps.Timestamp'>
 
-As with AsynchronousCursor, you need a query ID to cancel a query.
+As with AsyncCursor, you need a query ID to cancel a query.
 
 .. code:: python
 
@@ -1117,6 +1156,29 @@ As with AsynchronousCursor, you need a query ID to cancel a query.
 
     query_id, future = cursor.execute("SELECT * FROM many_rows")
     cursor.cancel(query_id)
+
+As with PandasCursor, the UNLOAD option is also available.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.pandas.cursor import AsyncPandasCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=AsyncPandasCursor,
+                     cursor_kwargs={
+                         "unload": True
+                     }).cursor()
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.pandas.cursor import AsyncPandasCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=AsyncPandasCursor).cursor(unload=True)
 
 ArrowCursor
 ~~~~~~~~~~~
@@ -1305,13 +1367,15 @@ Then you simply specify an instance of this class in the convertes argument when
 If the unload option is enabled, the Parquet file itself has a schema, so the conversion is done to the Arrow type according to that schema,
 and the ``types`` setting of the Converter class is not used.
 
-Unload options
-^^^^^^^^^^^^^^
+[ArrowCursor] Unload options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ArrowCurosr supports the UNLOAD option. When this option is enabled,
 queries with SELECT statements are automatically converted to UNLOAD statements and executed to Athena,
 and the results are output in Parquet format (Snappy compressed) to ``s3_staging_dir``.
-The cursor reads the output Parquet file directly. The output of query results with the UNLOAD statement is faster than normal query execution.
+The cursor reads the output Parquet file directly.
+
+The output of query results with the UNLOAD statement is faster than normal query execution.
 In addition, the output Parquet file is split and can be read faster than a CSV file.
 We recommend trying this option if you are concerned about the time it takes to execute the query and retrieve the results.
 
@@ -1331,7 +1395,7 @@ The UNLOAD option can be enabled by specifying it in the ``cursor_kwargs`` argum
                      region_name="us-west-2",
                      cursor_class=ArrowCursor,
                      cursor_kwargs={
-                         "unload"=True
+                         "unload": True
                      }).cursor()
 
 .. code:: python
@@ -1501,7 +1565,7 @@ This object also has an as_arrow method that returns a `pyarrow.Table object`_ s
     print(table.schema)
     print(table.shape)
 
-As with AsynchronousCursor, you need a query ID to cancel a query.
+As with AsyncCursor, you need a query ID to cancel a query.
 
 .. code:: python
 
@@ -1526,7 +1590,7 @@ As with ArrowCursor, the UNLOAD option is also available.
                      region_name="us-west-2",
                      cursor_class=AsyncArrowCursor,
                      cursor_kwargs={
-                         "unload"=True
+                         "unload": True
                      }).cursor()
 
 .. code:: python
