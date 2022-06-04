@@ -9,7 +9,11 @@ from pyathena.async_cursor import AsyncCursor
 from pyathena.common import CursorIterator
 from pyathena.converter import Converter
 from pyathena.formatter import Formatter
-from pyathena.pandas.converter import DefaultPandasTypeConverter
+from pyathena.model import AthenaCompression, AthenaFileFormat
+from pyathena.pandas.converter import (
+    DefaultPandasTypeConverter,
+    DefaultPandasUnloadTypeConverter,
+)
 from pyathena.pandas.result_set import AthenaPandasResultSet
 from pyathena.util import RetryConfig
 
@@ -36,6 +40,7 @@ class AsyncPandasCursor(AsyncCursor):
         kill_on_interrupt: bool = True,
         max_workers: int = (cpu_count() or 1) * 5,
         arraysize: int = CursorIterator.DEFAULT_FETCH_SIZE,
+        unload: bool = False,
     ) -> None:
         super(AsyncPandasCursor, self).__init__(
             connection=connection,
@@ -53,12 +58,16 @@ class AsyncPandasCursor(AsyncCursor):
             max_workers=max_workers,
             arraysize=arraysize,
         )
+        self._unload = unload
 
     @staticmethod
     def get_default_converter(
         unload: bool = False,
     ) -> Union[DefaultPandasTypeConverter, Any]:
-        return DefaultPandasTypeConverter()
+        if unload:
+            return DefaultPandasUnloadTypeConverter()
+        else:
+            return DefaultPandasTypeConverter()
 
     @property
     def arraysize(self) -> int:
@@ -76,6 +85,7 @@ class AsyncPandasCursor(AsyncCursor):
         keep_default_na: bool = False,
         na_values: List[str] = None,
         quoting: int = 1,
+        unload_location: Optional[str] = None,
         kwargs: Dict[str, Any] = None,
     ) -> AthenaPandasResultSet:
         if kwargs is None:
@@ -90,6 +100,8 @@ class AsyncPandasCursor(AsyncCursor):
             keep_default_na=keep_default_na,
             na_values=na_values,
             quoting=quoting,
+            unload=self._unload,
+            unload_location=unload_location,
             **kwargs,
         )
 
@@ -106,6 +118,19 @@ class AsyncPandasCursor(AsyncCursor):
         quoting: int = 1,
         **kwargs,
     ) -> Tuple[str, "Future[Union[AthenaPandasResultSet, Any]]"]:
+        if self._unload:
+            s3_staging_dir = s3_staging_dir if s3_staging_dir else self._s3_staging_dir
+            assert (
+                s3_staging_dir
+            ), "If the unload option is used, s3_staging_dir is required."
+            operation, unload_location = self._formatter.wrap_unload(
+                operation,
+                s3_staging_dir=s3_staging_dir,
+                format_=AthenaFileFormat.FILE_FORMAT_PARQUET,
+                compression=AthenaCompression.COMPRESSION_SNAPPY,
+            )
+        else:
+            unload_location = None
         query_id = self._execute(
             operation,
             parameters=parameters,
@@ -122,6 +147,7 @@ class AsyncPandasCursor(AsyncCursor):
                 keep_default_na,
                 na_values,
                 quoting,
+                unload_location,
                 kwargs,
             ),
         )

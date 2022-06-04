@@ -13,14 +13,17 @@ from typing import (
     Union,
 )
 
+from pyathena import OperationalError
+from pyathena.arrow.util import to_column_info
 from pyathena.converter import Converter
-from pyathena.error import OperationalError, ProgrammingError
+from pyathena.error import ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
-from pyathena.util import RetryConfig, parse_output_location, retry_api_call
+from pyathena.util import RetryConfig, parse_output_location
 
 if TYPE_CHECKING:
     from pandas import DataFrame
+    from pyarrow import Schema
 
     from pyathena.connection import Connection
 
@@ -47,6 +50,8 @@ class AthenaPandasResultSet(AthenaResultSet):
         keep_default_na: bool = False,
         na_values: Optional[Iterable[str]] = ("",),
         quoting: int = 1,
+        unload: bool = False,
+        unload_location: Optional[str] = None,
         **kwargs,
     ) -> None:
         super(AthenaPandasResultSet, self).__init__(
@@ -61,21 +66,45 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._keep_default_na = keep_default_na
         self._na_values = na_values
         self._quoting = quoting
+        self._unload = unload
+        self._unload_location = unload_location
         self._kwargs = kwargs
-        self._client = connection.session.client(
-            "s3", region_name=connection.region_name, **connection._client_kwargs
-        )
-        if (
-            self.state == AthenaQueryExecution.STATE_SUCCEEDED
-            and self.output_location
-            and self.output_location.endswith((".csv", ".txt"))
-        ):
+        self._fs = self.__s3_file_system()
+        if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
             self._df = self._as_pandas()
         else:
             import pandas as pd
 
             self._df = pd.DataFrame()
         self._iterrows = enumerate(self._df.to_dict("records"))
+
+    def __s3_file_system(self):
+        from pyarrow import fs
+
+        connection = self.connection
+        if "role_arn" in connection._kwargs and connection._kwargs["role_arn"]:
+            fs = fs.S3FileSystem(
+                role_arn=connection._kwargs.get("role_arn", None),
+                session_name=connection._kwargs.get("role_session_name", None),
+                load_frequency=connection._kwargs.get("duration_seconds", None),
+                region=connection.region_name,
+            )
+        else:
+            fs = fs.S3FileSystem(
+                access_key=connection._kwargs.get("aws_access_key_id", None),
+                secret_key=connection._kwargs.get("aws_secret_access_key", None),
+                session_token=connection._kwargs.get("aws_session_token", None),
+                region=connection.region_name,
+            )
+        return fs
+
+    @property
+    def is_unload(self):
+        return (
+            self._unload
+            and self.query
+            and self.query.strip().upper().startswith("UNLOAD")
+        )
 
     @property
     def dtypes(self) -> Dict[str, Type[Any]]:
@@ -147,54 +176,101 @@ class AthenaPandasResultSet(AthenaResultSet):
                 break
         return rows
 
-    def _as_pandas(self) -> "DataFrame":
+    def _read_csv(self) -> "DataFrame":
         import pandas as pd
 
         if not self.output_location:
             raise ProgrammingError("OutputLocation is none or empty.")
-        bucket, key = parse_output_location(self.output_location)
+        if not self.output_location.endswith((".csv", ".txt")):
+            return pd.DataFrame()
+        length = self._get_content_length()
+        if length and self.output_location.endswith(".txt"):
+            sep = "\t"
+            header = None
+            description = self.description if self.description else []
+            names = [d[0] for d in description]
+        elif length and self.output_location.endswith(".csv"):
+            sep = ","
+            header = 0
+            names = None
+        else:
+            return pd.DataFrame()
         try:
-            response = retry_api_call(
-                self._client.get_object,
-                config=self._retry_config,
-                logger=_logger,
-                Bucket=bucket,
-                Key=key,
+            # TODO chunksize
+            df = pd.read_csv(
+                self.output_location,
+                sep=sep,
+                header=header,
+                names=names,
+                dtype=self.dtypes,
+                converters=self.converters,
+                parse_dates=self.parse_dates,
+                infer_datetime_format=True,
+                skip_blank_lines=False,
+                keep_default_na=self._keep_default_na,
+                na_values=self._na_values,
+                quoting=self._quoting,
+                storage_options={
+                    **self.connection._session_kwargs,
+                },
+                **self._kwargs,
+            )
+            return self._trunc_date(df)
+        except Exception as e:
+            _logger.exception(f"Failed to read {self.output_location}.")
+            raise OperationalError(*e.args) from e
+
+    def _read_parquet(self) -> "DataFrame":
+        import pandas as pd
+
+        manifests = self._read_data_manifest()
+        if not manifests:
+            return pd.DataFrame()
+        if not self._unload_location:
+            self._unload_location = "/".join(manifests[0].split("/")[:-1]) + "/"
+        try:
+            return pd.read_parquet(
+                self._unload_location,
+                engine="pyarrow",
+                storage_options={
+                    **self.connection._session_kwargs,
+                },
+                use_nullable_dtypes=False,
+                use_threads=True,
+                use_legacy_dataset=False,
+                **self._kwargs,
             )
         except Exception as e:
-            _logger.exception("Failed to download csv.")
+            _logger.exception(f"Failed to read {self.output_location}.")
             raise OperationalError(*e.args) from e
+
+    def _read_parquet_schema(self) -> "Schema":
+        from pyarrow import parquet
+
+        if not self._unload_location:
+            raise ProgrammingError("UnloadLocation is none or empty.")
+        bucket, key = parse_output_location(self._unload_location)
+        try:
+            dataset = parquet.ParquetDataset(
+                f"{bucket}/{key}", filesystem=self._fs, use_legacy_dataset=False
+            )
+            return dataset.schema
+        except Exception as e:
+            _logger.exception(f"Failed to read schema {bucket}/{key}.")
+            raise OperationalError(*e.args) from e
+        pass
+
+    def _as_pandas(self) -> "DataFrame":
+        if self.is_unload:
+            df = self._read_parquet()
+            if df.empty:
+                self._metadata = tuple()
+            else:
+                schema = self._read_parquet_schema()
+                self._metadata = to_column_info(schema)
         else:
-            length = response["ContentLength"]
-            if length:
-                if self.output_location.endswith(".txt"):
-                    sep = "\t"
-                    header = None
-                    description = self.description if self.description else []
-                    names = [d[0] for d in description]
-                else:  # csv format
-                    sep = ","
-                    header = 0
-                    names = None
-                df = pd.read_csv(
-                    response["Body"],
-                    sep=sep,
-                    header=header,
-                    names=names,
-                    dtype=self.dtypes,
-                    converters=self.converters,
-                    parse_dates=self.parse_dates,
-                    infer_datetime_format=True,
-                    skip_blank_lines=False,
-                    keep_default_na=self._keep_default_na,
-                    na_values=self._na_values,
-                    quoting=self._quoting,
-                    **self._kwargs,
-                )
-                df = self._trunc_date(df)
-            else:  # Allow empty response
-                df = pd.DataFrame()
-            return df
+            df = self._read_csv()
+        return df
 
     def as_pandas(self) -> "DataFrame":
         return self._df

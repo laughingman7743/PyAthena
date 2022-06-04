@@ -55,3 +55,14 @@ class DefaultPandasTypeConverter(Converter):
 
     def convert(self, type_: str, value: Optional[str]) -> Optional[Any]:
         pass
+
+
+class DefaultPandasUnloadTypeConverter(Converter):
+    def __init__(self) -> None:
+        super(DefaultPandasUnloadTypeConverter, self).__init__(
+            mappings=dict(),
+            default=_to_default,
+        )
+
+    def convert(self, type_: str, value: Optional[str]) -> Optional[Any]:
+        pass
