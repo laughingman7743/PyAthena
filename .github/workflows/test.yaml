@@ -54,9 +54,9 @@ jobs:
             ${{ github.workspace }}/.tox
           key: venv-${{ github.workflow }}-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock', '**/tox.ini') }}
       - name: Install dependencies
-        # Only Python 3.7 raises FileNotFoundError when using cache.
+        # Only Python 3.7, 3.9 raises FileNotFoundError when using cache.
         # [Errno 2] No such file or directory: b'/snap/bin/tox'
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true' || matrix.python-version == '3.7'
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true' || matrix.python-version == '3.7' || matrix.python-version == '3.9'
         run: poetry install --no-interaction --no-root
 
       - name: Test with tox
