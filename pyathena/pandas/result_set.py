@@ -211,7 +211,9 @@ class AthenaPandasResultSet(AthenaResultSet):
                 na_values=self._na_values,
                 quoting=self._quoting,
                 storage_options={
-                    **self.connection._session_kwargs,
+                    "client_kwargs": {
+                        **self.connection._client_kwargs,
+                    },
                 },
                 **self._kwargs,
             )
@@ -233,7 +235,9 @@ class AthenaPandasResultSet(AthenaResultSet):
                 self._unload_location,
                 engine="pyarrow",
                 storage_options={
-                    **self.connection._session_kwargs,
+                    "client_kwargs": {
+                        **self.connection._client_kwargs,
+                    },
                 },
                 use_nullable_dtypes=False,
                 use_threads=True,
