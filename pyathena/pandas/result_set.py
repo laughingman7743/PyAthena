@@ -212,6 +212,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                 quoting=self._quoting,
                 storage_options={
                     "client_kwargs": {
+                        "region_name": self.connection.region_name,
                         **self.connection._client_kwargs,
                     },
                 },
@@ -236,6 +237,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                 engine="pyarrow",
                 storage_options={
                     "client_kwargs": {
+                        "region_name": self.connection.region_name,
                         **self.connection._client_kwargs,
                     },
                 },
