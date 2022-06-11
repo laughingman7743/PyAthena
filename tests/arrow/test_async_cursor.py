@@ -268,7 +268,7 @@ class TestAsyncarrowCursor:
             CROSS JOIN many_rows b
             """
         )
-        time.sleep(randint(1, 5))
+        time.sleep(randint(5, 10))
         async_arrow_cursor.cancel(query_id)
         result_set = future.result()
         assert result_set.state == AthenaQueryExecution.STATE_CANCELLED
