@@ -89,6 +89,16 @@ class AthenaPandasResultSet(AthenaResultSet):
                 load_frequency=connection._kwargs.get("duration_seconds", None),
                 region=connection.region_name,
             )
+        elif connection.profile_name:
+            profile = connection.session._session.full_config["profiles"][
+                connection.profile_name
+            ]
+            fs = fs.S3FileSystem(
+                access_key=profile.get("aws_access_key_id", None),
+                secret_key=profile.get("aws_secret_access_key", None),
+                session_token=profile.get("aws_session_token", None),
+                region=connection.region_name,
+            )
         else:
             fs = fs.S3FileSystem(
                 access_key=connection._kwargs.get("aws_access_key_id", None),
@@ -211,6 +221,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                 na_values=self._na_values,
                 quoting=self._quoting,
                 storage_options={
+                    "profile": self.connection.profile_name,
                     "client_kwargs": {
                         "region_name": self.connection.region_name,
                         **self.connection._client_kwargs,
@@ -236,6 +247,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                 self._unload_location,
                 engine="pyarrow",
                 storage_options={
+                    "profile": self.connection.profile_name,
                     "client_kwargs": {
                         "region_name": self.connection.region_name,
                         **self.connection._client_kwargs,
