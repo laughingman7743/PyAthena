@@ -129,7 +129,9 @@ class Connection:
                     }
                 )
             self._session = Session(
-                profile_name=self.profile_name, **self._session_kwargs
+                region_name=self.region_name,
+                profile_name=self.profile_name,
+                **self._session_kwargs
             )
         self._client = self._session.client(
             "athena", region_name=self.region_name, **self._client_kwargs
@@ -150,7 +152,9 @@ class Connection:
         serial_number: Optional[str],
         duration_seconds: int,
     ) -> Dict[str, Any]:
-        session = Session(profile_name=profile_name, **self._session_kwargs)
+        session = Session(
+            region_name=region_name, profile_name=profile_name, **self._session_kwargs
+        )
         client = session.client("sts", region_name=region_name, **self._client_kwargs)
         request = {
             "RoleArn": role_arn,
