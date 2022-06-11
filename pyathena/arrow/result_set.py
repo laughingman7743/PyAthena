@@ -93,6 +93,16 @@ class AthenaArrowResultSet(AthenaResultSet):
                 load_frequency=connection._kwargs.get("duration_seconds", None),
                 region=connection.region_name,
             )
+        elif connection.profile_name:
+            profile = connection.session._session.full_config["profiles"][
+                connection.profile_name
+            ]
+            fs = fs.S3FileSystem(
+                access_key=profile.get("aws_access_key_id", None),
+                secret_key=profile.get("aws_secret_access_key", None),
+                session_token=profile.get("aws_session_token", None),
+                region=connection.region_name,
+            )
         else:
             fs = fs.S3FileSystem(
                 access_key=connection._kwargs.get("aws_access_key_id", None),
