@@ -14,7 +14,6 @@ from typing import (
 )
 
 from pyathena import OperationalError
-from pyathena.arrow.util import to_column_info
 from pyathena.converter import Converter
 from pyathena.error import ProgrammingError
 from pyathena.model import AthenaQueryExecution
@@ -23,7 +22,6 @@ from pyathena.util import RetryConfig, parse_output_location
 
 if TYPE_CHECKING:
     from pandas import DataFrame
-    from pyarrow import Schema
 
     from pyathena.connection import Connection
 
@@ -52,6 +50,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         quoting: int = 1,
         unload: bool = False,
         unload_location: Optional[str] = None,
+        engine: str = "auto",
         **kwargs,
     ) -> None:
         super(AthenaPandasResultSet, self).__init__(
@@ -68,6 +67,8 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._quoting = quoting
         self._unload = unload
         self._unload_location = unload_location
+        self._engine = engine
+        self._data_manifest: List[str] = []
         self._kwargs = kwargs
         self._fs = self.__s3_file_system()
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
@@ -78,35 +79,36 @@ class AthenaPandasResultSet(AthenaResultSet):
             self._df = pd.DataFrame()
         self._iterrows = enumerate(self._df.to_dict("records"))
 
-    def __s3_file_system(self):
-        from pyarrow import fs
+    def __get_engine(self) -> "str":
+        if self._engine == "auto":
+            import importlib
 
-        connection = self.connection
-        if "role_arn" in connection._kwargs and connection._kwargs["role_arn"]:
-            fs = fs.S3FileSystem(
-                role_arn=connection._kwargs.get("role_arn", None),
-                session_name=connection._kwargs.get("role_session_name", None),
-                load_frequency=connection._kwargs.get("duration_seconds", None),
-                region=connection.region_name,
-            )
-        elif connection.profile_name:
-            profile = connection.session._session.full_config["profiles"][
-                connection.profile_name
-            ]
-            fs = fs.S3FileSystem(
-                access_key=profile.get("aws_access_key_id", None),
-                secret_key=profile.get("aws_secret_access_key", None),
-                session_token=profile.get("aws_session_token", None),
-                region=connection.region_name,
+            error_msgs = ""
+            for engine in ["pyarrow", "fastparquet"]:
+                try:
+                    module = importlib.import_module(engine)
+                    return module.__name__
+                except ImportError as e:
+                    error_msgs += f"\n - {str(e)}"
+            raise ImportError(
+                "Unable to find a usable engine; tried using: 'pyarrow', 'fastparquet'.\n"
+                "A suitable version of pyarrow or fastparquet is required for parquet support.\n"
+                "Trying to import the above resulted in these errors:"
+                f"{error_msgs}"
             )
         else:
-            fs = fs.S3FileSystem(
-                access_key=connection._kwargs.get("aws_access_key_id", None),
-                secret_key=connection._kwargs.get("aws_secret_access_key", None),
-                session_token=connection._kwargs.get("aws_session_token", None),
-                region=connection.region_name,
-            )
-        return fs
+            return self._engine
+
+    def __s3_file_system(self):
+        from s3fs import S3FileSystem
+
+        return S3FileSystem(
+            profile=self.connection.profile_name,
+            client_kwargs={
+                "region_name": self.connection.region_name,
+                **self.connection._client_kwargs,
+            },
+        )
 
     @property
     def is_unload(self):
@@ -237,15 +239,17 @@ class AthenaPandasResultSet(AthenaResultSet):
     def _read_parquet(self) -> "DataFrame":
         import pandas as pd
 
-        manifests = self._read_data_manifest()
-        if not manifests:
+        self._data_manifest = self._read_data_manifest()
+        if not self._data_manifest:
             return pd.DataFrame()
         if not self._unload_location:
-            self._unload_location = "/".join(manifests[0].split("/")[:-1]) + "/"
+            self._unload_location = (
+                "/".join(self._data_manifest[0].split("/")[:-1]) + "/"
+            )
         try:
             return pd.read_parquet(
                 self._unload_location,
-                engine="pyarrow",
+                engine=self._engine,
                 storage_options={
                     "profile": self.connection.profile_name,
                     "client_kwargs": {
@@ -262,21 +266,43 @@ class AthenaPandasResultSet(AthenaResultSet):
             _logger.exception(f"Failed to read {self.output_location}.")
             raise OperationalError(*e.args) from e
 
-    def _read_parquet_schema(self) -> "Schema":
-        from pyarrow import parquet
+    def _read_parquet_schema(self) -> Tuple[Dict[str, Any], ...]:
+        engine = self.__get_engine()
+        if engine == "pyarrow":
+            from pyarrow import parquet
 
-        if not self._unload_location:
-            raise ProgrammingError("UnloadLocation is none or empty.")
-        bucket, key = parse_output_location(self._unload_location)
-        try:
-            dataset = parquet.ParquetDataset(
-                f"{bucket}/{key}", filesystem=self._fs, use_legacy_dataset=False
-            )
-            return dataset.schema
-        except Exception as e:
-            _logger.exception(f"Failed to read schema {bucket}/{key}.")
-            raise OperationalError(*e.args) from e
-        pass
+            from pyathena.arrow.util import to_column_info
+
+            if not self._unload_location:
+                raise ProgrammingError("UnloadLocation is none or empty.")
+            bucket, key = parse_output_location(self._unload_location)
+            try:
+                dataset = parquet.ParquetDataset(
+                    f"{bucket}/{key}", filesystem=self._fs, use_legacy_dataset=False
+                )
+                schema = dataset.schema
+                return to_column_info(schema)
+            except Exception as e:
+                _logger.exception(f"Failed to read schema {bucket}/{key}.")
+                raise OperationalError(*e.args) from e
+        elif engine == "fastparquet":
+            from fastparquet import ParquetFile
+
+            # TODO: https://github.com/python/mypy/issues/1153
+            from pyathena.fastparquet.util import to_column_info  # type: ignore
+
+            if not self._data_manifest:
+                self._data_manifest = self._read_data_manifest()
+            bucket, key = parse_output_location(self._data_manifest[0])
+            try:
+                file = ParquetFile(f"{bucket}/{key}", open_with=self._fs.open)
+                schema = file.schema.schema_elements
+                return to_column_info(schema)
+            except Exception as e:
+                _logger.exception(f"Failed to read schema {bucket}/{key}.")
+                raise OperationalError(*e.args) from e
+        else:
+            raise ProgrammingError("Engine must be one of `pyarrow`, `fastparquet`.")
 
     def _as_pandas(self) -> "DataFrame":
         if self.is_unload:
@@ -284,8 +310,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             if df.empty:
                 self._metadata = tuple()
             else:
-                schema = self._read_parquet_schema()
-                self._metadata = to_column_info(schema)
+                self._metadata = self._read_parquet_schema()
         else:
             df = self._read_csv()
         return df
@@ -299,3 +324,4 @@ class AthenaPandasResultSet(AthenaResultSet):
         super(AthenaPandasResultSet, self).close()
         self._df = pd.DataFrame()
         self._iterrows = enumerate([])
+        self._data_manifest = []
