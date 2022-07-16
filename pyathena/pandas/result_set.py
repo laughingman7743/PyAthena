@@ -291,8 +291,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                 dataset = parquet.ParquetDataset(
                     f"{bucket}/{key}", filesystem=self._fs, use_legacy_dataset=False
                 )
-                schema = dataset.schema
-                return to_column_info(schema)
+                return to_column_info(dataset.schema)
             except Exception as e:
                 _logger.exception(f"Failed to read schema {bucket}/{key}.")
                 raise OperationalError(*e.args) from e
@@ -307,8 +306,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             bucket, key = parse_output_location(self._data_manifest[0])
             try:
                 file = ParquetFile(f"{bucket}/{key}", open_with=self._fs.open)
-                schema = file.schema.schema_elements
-                return to_column_info(schema)
+                return to_column_info(file.schema)
             except Exception as e:
                 _logger.exception(f"Failed to read schema {bucket}/{key}.")
                 raise OperationalError(*e.args) from e

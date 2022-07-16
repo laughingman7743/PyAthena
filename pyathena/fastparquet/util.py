@@ -11,7 +11,7 @@ def to_column_info(schema: "SchemaHelper") -> Tuple[Dict[str, Any], ...]:
     from fastparquet.parquet_thrift import FieldRepetitionType
 
     columns = []
-    for k, v in schema[0]["children"].items():
+    for k, v in schema.schema_elements[0]["children"].items():
         type_, precision, scale = get_athena_type(v)
         if type_ == "row":
             # In the case of fastparquet, child elements of struct types are handled as fields separated by dots.
