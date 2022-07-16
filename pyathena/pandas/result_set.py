@@ -83,10 +83,12 @@ class AthenaPandasResultSet(AthenaResultSet):
 
         connection = self.connection
         if "role_arn" in connection._kwargs and connection._kwargs["role_arn"]:
+            external_id = connection._kwargs.get("external_id", None)
             fs = fs.S3FileSystem(
-                role_arn=connection._kwargs.get("role_arn", None),
-                session_name=connection._kwargs.get("role_session_name", None),
-                load_frequency=connection._kwargs.get("duration_seconds", None),
+                role_arn=connection._kwargs["role_arn"],
+                session_name=connection._kwargs["role_session_name"],
+                external_id="" if external_id is None else external_id,
+                load_frequency=connection._kwargs["duration_seconds"],
                 region=connection.region_name,
             )
         elif connection.profile_name:
