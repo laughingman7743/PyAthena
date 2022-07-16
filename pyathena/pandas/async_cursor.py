@@ -2,7 +2,7 @@
 import logging
 from concurrent.futures import Future
 from multiprocessing import cpu_count
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Tuple, Union
 
 from pyathena import ProgrammingError
 from pyathena.async_cursor import AsyncCursor
@@ -83,7 +83,7 @@ class AsyncPandasCursor(AsyncCursor):
         self,
         query_id: str,
         keep_default_na: bool = False,
-        na_values: List[str] = None,
+        na_values: Optional[Iterable[str]] = ("",),
         quoting: int = 1,
         unload_location: Optional[str] = None,
         kwargs: Dict[str, Any] = None,
@@ -114,7 +114,7 @@ class AsyncPandasCursor(AsyncCursor):
         cache_size: int = 0,
         cache_expiration_time: int = 0,
         keep_default_na: bool = False,
-        na_values: List[str] = None,
+        na_values: Optional[Iterable[str]] = ("",),
         quoting: int = 1,
         **kwargs,
     ) -> Tuple[str, "Future[Union[AthenaPandasResultSet, Any]]"]:
