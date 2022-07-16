@@ -12,9 +12,10 @@ def to_column_info(schema: "SchemaHelper") -> Tuple[Dict[str, Any], ...]:
 
     columns = []
     for k, v in schema[0]["children"].items():
-        if "." in k:
-            continue
         type_, precision, scale = get_athena_type(v)
+        if type_ == "row":
+            # In the case of fastparquet, child elements of struct types are handled as fields separated by dots.
+            continue
         columns.append(
             {
                 "Name": k,
