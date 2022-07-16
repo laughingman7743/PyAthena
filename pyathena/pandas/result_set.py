@@ -236,7 +236,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             _logger.exception(f"Failed to read {self.output_location}.")
             raise OperationalError(*e.args) from e
 
-    def _read_parquet(self) -> "DataFrame":
+    def _read_parquet(self, engine) -> "DataFrame":
         import pandas as pd
 
         self._data_manifest = self._read_data_manifest()
@@ -246,9 +246,23 @@ class AthenaPandasResultSet(AthenaResultSet):
             self._unload_location = (
                 "/".join(self._data_manifest[0].split("/")[:-1]) + "/"
             )
+
+        if engine == "pyarrow":
+            unload_location = self._unload_location
+            kwargs = {
+                "use_threads": True,
+                "use_legacy_dataset": False,
+            }
+        elif engine == "fastparquet":
+            unload_location = f"{self._unload_location}*"
+            kwargs = {}
+        else:
+            raise ProgrammingError("Engine must be one of `pyarrow`, `fastparquet`.")
+        kwargs.update(self._kwargs)
+
         try:
             return pd.read_parquet(
-                self._unload_location,
+                unload_location,
                 engine=self._engine,
                 storage_options={
                     "profile": self.connection.profile_name,
@@ -258,16 +272,13 @@ class AthenaPandasResultSet(AthenaResultSet):
                     },
                 },
                 use_nullable_dtypes=False,
-                use_threads=True,
-                use_legacy_dataset=False,
-                **self._kwargs,
+                **kwargs,
             )
         except Exception as e:
             _logger.exception(f"Failed to read {self.output_location}.")
             raise OperationalError(*e.args) from e
 
-    def _read_parquet_schema(self) -> Tuple[Dict[str, Any], ...]:
-        engine = self.__get_engine()
+    def _read_parquet_schema(self, engine) -> Tuple[Dict[str, Any], ...]:
         if engine == "pyarrow":
             from pyarrow import parquet
 
@@ -306,11 +317,12 @@ class AthenaPandasResultSet(AthenaResultSet):
 
     def _as_pandas(self) -> "DataFrame":
         if self.is_unload:
-            df = self._read_parquet()
+            engine = self.__get_engine()
+            df = self._read_parquet(engine)
             if df.empty:
                 self._metadata = tuple()
             else:
-                self._metadata = self._read_parquet_schema()
+                self._metadata = self._read_parquet_schema(engine)
         else:
             df = self._read_csv()
         return df
