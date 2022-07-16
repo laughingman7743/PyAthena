@@ -55,6 +55,7 @@ class Connection:
         profile_name: Optional[str] = None,
         role_arn: Optional[str] = None,
         role_session_name: str = "PyAthena-session-{0}".format(int(time.time())),
+        external_id: Optional[str] = None,
         serial_number: Optional[str] = None,
         duration_seconds: int = 3600,
         converter: Optional[Converter] = None,
@@ -70,6 +71,7 @@ class Connection:
             **kwargs,
             "role_arn": role_arn,
             "role_session_name": role_session_name,
+            "external_id": external_id,
             "serial_number": serial_number,
             "duration_seconds": duration_seconds,
         }
@@ -102,6 +104,7 @@ class Connection:
                     region_name=self.region_name,
                     role_arn=role_arn,
                     role_session_name=role_session_name,
+                    external_id=external_id,
                     serial_number=serial_number,
                     duration_seconds=duration_seconds,
                 )
@@ -147,8 +150,9 @@ class Connection:
         self,
         profile_name: Optional[str],
         region_name: Optional[str],
-        role_arn: Optional[str],
+        role_arn: str,
         role_session_name: str,
+        external_id: Optional[str],
         serial_number: Optional[str],
         duration_seconds: int,
     ) -> Dict[str, Any]:
@@ -161,6 +165,12 @@ class Connection:
             "RoleSessionName": role_session_name,
             "DurationSeconds": duration_seconds,
         }
+        if external_id:
+            request.update(
+                {
+                    "ExternalId": external_id,
+                }
+            )
         if serial_number:
             token_code = input("Enter the MFA code: ")
             request.update(
