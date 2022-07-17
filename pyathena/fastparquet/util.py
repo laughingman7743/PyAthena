@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Any, Dict, Tuple
 
 if TYPE_CHECKING:
-    from fastparquet.cencoding import ThriftObject
+    from fastparquet.parquet_thrift import SchemaElement
     from fastparquet.schema import SchemaHelper
 
 
@@ -14,7 +14,8 @@ def to_column_info(schema: "SchemaHelper") -> Tuple[Dict[str, Any], ...]:
     for k, v in schema.schema_elements[0]["children"].items():
         type_, precision, scale = get_athena_type(v)
         if type_ == "row":
-            # In the case of fastparquet, child elements of struct types are handled as fields separated by dots.
+            # In the case of fastparquet, child elements of struct types are handled
+            # as fields separated by dots.
             continue
         columns.append(
             {
@@ -30,7 +31,7 @@ def to_column_info(schema: "SchemaHelper") -> Tuple[Dict[str, Any], ...]:
     return tuple(columns)
 
 
-def get_athena_type(type_: "ThriftObject") -> Tuple[str, int, int]:
+def get_athena_type(type_: "SchemaElement") -> Tuple[str, int, int]:
     from fastparquet.parquet_thrift import ConvertedType, Type
 
     if type_.type in [Type.BOOLEAN]:
