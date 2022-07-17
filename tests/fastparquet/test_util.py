@@ -397,6 +397,6 @@ def test_to_column_info():
             "Nullable": "NULLABLE",
             "Precision": 10,
             "Scale": 0,
-            "Type": "row",
+            "Type": "integer",
         },
     )
