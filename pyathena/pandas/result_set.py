@@ -79,7 +79,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             self._df = pd.DataFrame()
         self._iterrows = enumerate(self._df.to_dict("records"))
 
-    def __get_engine(self) -> "str":
+    def _get_engine(self) -> "str":
         if self._engine == "auto":
             import importlib
 
@@ -315,7 +315,7 @@ class AthenaPandasResultSet(AthenaResultSet):
 
     def _as_pandas(self) -> "DataFrame":
         if self.is_unload:
-            engine = self.__get_engine()
+            engine = self._get_engine()
             df = self._read_parquet(engine)
             if df.empty:
                 self._metadata = tuple()
