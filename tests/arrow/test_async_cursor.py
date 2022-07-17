@@ -20,7 +20,7 @@ class TestAsyncarrowCursor:
     @pytest.mark.parametrize(
         "async_arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_arrow_cursor"],
     )
     def test_fetchone(self, async_arrow_cursor):
         query_id, future = async_arrow_cursor.execute("SELECT * FROM one_row")
@@ -54,7 +54,7 @@ class TestAsyncarrowCursor:
     @pytest.mark.parametrize(
         "async_arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_arrow_cursor"],
     )
     def test_fetchmany(self, async_arrow_cursor):
         query_id, future = async_arrow_cursor.execute(
@@ -67,7 +67,7 @@ class TestAsyncarrowCursor:
     @pytest.mark.parametrize(
         "async_arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_arrow_cursor"],
     )
     def test_fetchall(self, async_arrow_cursor):
         query_id, future = async_arrow_cursor.execute("SELECT * FROM one_row")
@@ -85,7 +85,7 @@ class TestAsyncarrowCursor:
     @pytest.mark.parametrize(
         "async_arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_arrow_cursor"],
     )
     def test_iterator(self, async_arrow_cursor):
         query_id, future = async_arrow_cursor.execute("SELECT * FROM one_row")
@@ -96,7 +96,7 @@ class TestAsyncarrowCursor:
     @pytest.mark.parametrize(
         "async_arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_arrow_cursor"],
     )
     def test_arraysize(self, async_arrow_cursor):
         async_arrow_cursor.arraysize = 5
@@ -118,7 +118,7 @@ class TestAsyncarrowCursor:
     @pytest.mark.parametrize(
         "async_arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_arrow_cursor"],
     )
     def test_description(self, async_arrow_cursor):
         query_id, future = async_arrow_cursor.execute(
@@ -142,7 +142,7 @@ class TestAsyncarrowCursor:
     @pytest.mark.parametrize(
         "async_arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_arrow_cursor"],
     )
     def test_query_execution(self, async_arrow_cursor):
         query = "SELECT * FROM one_row"
@@ -207,7 +207,7 @@ class TestAsyncarrowCursor:
     @pytest.mark.parametrize(
         "async_arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_arrow_cursor"],
     )
     def test_poll(self, async_arrow_cursor):
         query_id, _ = async_arrow_cursor.execute("SELECT * FROM one_row")
@@ -224,7 +224,7 @@ class TestAsyncarrowCursor:
     @pytest.mark.parametrize(
         "async_arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_arrow_cursor"],
     )
     def test_bad_query(self, async_arrow_cursor):
         query_id, future = async_arrow_cursor.execute(
@@ -237,7 +237,7 @@ class TestAsyncarrowCursor:
     @pytest.mark.parametrize(
         "async_arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_arrow_cursor"],
     )
     def test_as_arrow(self, async_arrow_cursor):
         query_id, future = async_arrow_cursor.execute("SELECT * FROM one_row")
@@ -249,7 +249,7 @@ class TestAsyncarrowCursor:
     @pytest.mark.parametrize(
         "async_arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_arrow_cursor"],
     )
     def test_many_as_arrow(self, async_arrow_cursor):
         query_id, future = async_arrow_cursor.execute("SELECT * FROM many_rows")
@@ -295,7 +295,7 @@ class TestAsyncarrowCursor:
     @pytest.mark.parametrize(
         "async_arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_arrow_cursor"],
     )
     def test_empty_result(self, async_arrow_cursor):
         table = "test_pandas_cursor_empty_result_" + "".join(
@@ -321,7 +321,7 @@ class TestAsyncarrowCursor:
                 "cursor_kwargs": {"unload": True},
             },
         ],
-        indirect=True,
+        indirect=["async_arrow_cursor"],
     )
     def test_empty_result_unload(self, async_arrow_cursor):
         query_id, future = async_arrow_cursor.execute(

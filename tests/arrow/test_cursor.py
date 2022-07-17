@@ -23,7 +23,7 @@ class TestArrowCursor:
     @pytest.mark.parametrize(
         "arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["arrow_cursor"],
     )
     def test_fetchone(self, arrow_cursor):
         arrow_cursor.execute("SELECT * FROM one_row")
@@ -35,7 +35,7 @@ class TestArrowCursor:
     @pytest.mark.parametrize(
         "arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["arrow_cursor"],
     )
     def test_fetchmany(self, arrow_cursor):
         arrow_cursor.execute("SELECT * FROM many_rows LIMIT 15")
@@ -45,7 +45,7 @@ class TestArrowCursor:
     @pytest.mark.parametrize(
         "arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["arrow_cursor"],
     )
     def test_fetchall(self, arrow_cursor):
         arrow_cursor.execute("SELECT * FROM one_row")
@@ -59,7 +59,7 @@ class TestArrowCursor:
     @pytest.mark.parametrize(
         "arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["arrow_cursor"],
     )
     def test_iterator(self, arrow_cursor):
         arrow_cursor.execute("SELECT * FROM one_row")
@@ -69,7 +69,7 @@ class TestArrowCursor:
     @pytest.mark.parametrize(
         "arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["arrow_cursor"],
     )
     def test_arraysize(self, arrow_cursor):
         arrow_cursor.arraysize = 5
@@ -163,7 +163,7 @@ class TestArrowCursor:
                 "cursor_kwargs": {"unload": True},
             },
         ],
-        indirect=True,
+        indirect=["arrow_cursor"],
     )
     def test_complex_unload(self, arrow_cursor):
         # NOT_SUPPORTED: Unsupported Hive type: time
@@ -256,7 +256,7 @@ class TestArrowCursor:
     @pytest.mark.parametrize(
         "arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["arrow_cursor"],
     )
     def test_as_arrow(self, arrow_cursor):
         table = arrow_cursor.execute("SELECT * FROM one_row").as_arrow()
@@ -288,7 +288,7 @@ class TestArrowCursor:
     @pytest.mark.parametrize(
         "arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["arrow_cursor"],
     )
     def test_many_as_arrow(self, arrow_cursor):
         table = arrow_cursor.execute("SELECT * FROM many_rows").as_arrow()
@@ -380,7 +380,7 @@ class TestArrowCursor:
                 "cursor_kwargs": {"unload": True},
             },
         ],
-        indirect=True,
+        indirect=["arrow_cursor"],
     )
     def test_complex_unload_as_arrow(self, arrow_cursor):
         # NOT_SUPPORTED: Unsupported Hive type: time
@@ -491,7 +491,7 @@ class TestArrowCursor:
     @pytest.mark.parametrize(
         "arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["arrow_cursor"],
     )
     def test_show_columns(self, arrow_cursor):
         arrow_cursor.execute("SHOW COLUMNS IN one_row")
@@ -503,7 +503,7 @@ class TestArrowCursor:
     @pytest.mark.parametrize(
         "arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["arrow_cursor"],
     )
     def test_empty_result(self, arrow_cursor):
         table = "test_arrow_cursor_empty_result_" + "".join(
@@ -528,7 +528,7 @@ class TestArrowCursor:
                 "cursor_kwargs": {"unload": True},
             },
         ],
-        indirect=True,
+        indirect=["arrow_cursor"],
     )
     def test_empty_result_unload(self, arrow_cursor):
         table = arrow_cursor.execute(
@@ -542,7 +542,7 @@ class TestArrowCursor:
     @pytest.mark.parametrize(
         "arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["arrow_cursor"],
     )
     def test_executemany(self, arrow_cursor):
         rows = [(1, "foo"), (2, "bar"), (3, "jim o'rourke")]
@@ -557,7 +557,7 @@ class TestArrowCursor:
     @pytest.mark.parametrize(
         "arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["arrow_cursor"],
     )
     def test_executemany_fetch(self, arrow_cursor):
         arrow_cursor.executemany(
