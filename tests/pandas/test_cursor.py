@@ -24,7 +24,7 @@ class TestPandasCursor:
     @pytest.mark.parametrize(
         "pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_fetchone(self, pandas_cursor):
         pandas_cursor.execute("SELECT * FROM one_row")
@@ -36,7 +36,7 @@ class TestPandasCursor:
     @pytest.mark.parametrize(
         "pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_fetchmany(self, pandas_cursor):
         pandas_cursor.execute("SELECT * FROM many_rows LIMIT 15")
@@ -46,7 +46,7 @@ class TestPandasCursor:
     @pytest.mark.parametrize(
         "pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_fetchall(self, pandas_cursor):
         pandas_cursor.execute("SELECT * FROM one_row")
@@ -57,7 +57,7 @@ class TestPandasCursor:
     @pytest.mark.parametrize(
         "pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_iterator(self, pandas_cursor):
         pandas_cursor.execute("SELECT * FROM one_row")
@@ -67,7 +67,7 @@ class TestPandasCursor:
     @pytest.mark.parametrize(
         "pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_arraysize(self, pandas_cursor):
         pandas_cursor.arraysize = 5
@@ -161,7 +161,7 @@ class TestPandasCursor:
                 "cursor_kwargs": {"unload": True},
             },
         ],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_complex_unload(self, pandas_cursor):
         # NOT_SUPPORTED: Unsupported Hive type: time
@@ -279,7 +279,7 @@ class TestPandasCursor:
     @pytest.mark.parametrize(
         "pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_as_pandas(self, pandas_cursor):
         df = pandas_cursor.execute("SELECT * FROM one_row").as_pandas()
@@ -311,7 +311,7 @@ class TestPandasCursor:
     @pytest.mark.parametrize(
         "pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_many_as_pandas(self, pandas_cursor):
         df = pandas_cursor.execute("SELECT * FROM many_rows").as_pandas()
@@ -450,7 +450,7 @@ class TestPandasCursor:
                 "cursor_kwargs": {"unload": True},
             },
         ],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_complex_unload_as_pandas(self, pandas_cursor):
         # NOT_SUPPORTED: Unsupported Hive type: time
@@ -601,7 +601,7 @@ class TestPandasCursor:
     @pytest.mark.parametrize(
         "pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_show_columns(self, pandas_cursor):
         pandas_cursor.execute("SHOW COLUMNS IN one_row")
@@ -613,7 +613,7 @@ class TestPandasCursor:
     @pytest.mark.parametrize(
         "pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_empty_result(self, pandas_cursor):
         table = "test_pandas_cursor_empty_result_" + "".join(
@@ -638,7 +638,7 @@ class TestPandasCursor:
                 "cursor_kwargs": {"unload": True},
             },
         ],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_empty_result_unload(self, pandas_cursor):
         df = pandas_cursor.execute(
@@ -652,7 +652,7 @@ class TestPandasCursor:
     @pytest.mark.parametrize(
         "pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_integer_na_values(self, pandas_cursor):
         df = pandas_cursor.execute(
@@ -679,7 +679,7 @@ class TestPandasCursor:
     @pytest.mark.parametrize(
         "pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_float_na_values(self, pandas_cursor):
         df = pandas_cursor.execute(
@@ -693,7 +693,7 @@ class TestPandasCursor:
     @pytest.mark.parametrize(
         "pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_boolean_na_values(self, pandas_cursor):
         df = pandas_cursor.execute(
@@ -707,7 +707,7 @@ class TestPandasCursor:
     @pytest.mark.parametrize(
         "pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_executemany(self, pandas_cursor):
         rows = [(1, "foo"), (2, "bar"), (3, "jim o'rourke")]
@@ -722,7 +722,7 @@ class TestPandasCursor:
     @pytest.mark.parametrize(
         "pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_executemany_fetch(self, pandas_cursor):
         pandas_cursor.executemany(
@@ -737,7 +737,7 @@ class TestPandasCursor:
     @pytest.mark.parametrize(
         "pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_not_skip_blank_lines(self, pandas_cursor):
         pandas_cursor.execute(
@@ -750,7 +750,7 @@ class TestPandasCursor:
     @pytest.mark.parametrize(
         "pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_empty_and_null_string(self, pandas_cursor):
         # TODO https://github.com/laughingman7743/PyAthena/issues/118
@@ -790,7 +790,7 @@ class TestPandasCursor:
     @pytest.mark.parametrize(
         "pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["pandas_cursor"],
     )
     def test_null_decimal_value(self, pandas_cursor):
         pandas_cursor.execute("SELECT CAST(null AS DECIMAL) AS col_decimal")

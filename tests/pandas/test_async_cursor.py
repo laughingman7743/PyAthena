@@ -23,7 +23,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_fetchone(self, async_pandas_cursor):
         query_id, future = async_pandas_cursor.execute("SELECT * FROM one_row")
@@ -57,7 +57,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_fetchmany(self, async_pandas_cursor):
         query_id, future = async_pandas_cursor.execute(
@@ -70,7 +70,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_fetchall(self, async_pandas_cursor):
         query_id, future = async_pandas_cursor.execute("SELECT * FROM one_row")
@@ -85,7 +85,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_iterator(self, async_pandas_cursor):
         query_id, future = async_pandas_cursor.execute("SELECT * FROM one_row")
@@ -96,7 +96,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_arraysize(self, async_pandas_cursor):
         async_pandas_cursor.arraysize = 5
@@ -118,7 +118,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_description(self, async_pandas_cursor):
         query_id, future = async_pandas_cursor.execute(
@@ -142,7 +142,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_query_execution(self, async_pandas_cursor):
         query = "SELECT * FROM one_row"
@@ -207,7 +207,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_poll(self, async_pandas_cursor):
         query_id, _ = async_pandas_cursor.execute("SELECT * FROM one_row")
@@ -224,7 +224,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_bad_query(self, async_pandas_cursor):
         query_id, future = async_pandas_cursor.execute(
@@ -237,7 +237,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_as_pandas(self, async_pandas_cursor):
         query_id, future = async_pandas_cursor.execute("SELECT * FROM one_row")
@@ -249,7 +249,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_many_as_pandas(self, async_pandas_cursor):
         query_id, future = async_pandas_cursor.execute("SELECT * FROM many_rows")
@@ -293,7 +293,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_empty_result(self, async_pandas_cursor):
         table = "test_pandas_cursor_empty_result_" + "".join(
@@ -319,7 +319,7 @@ class TestAsyncPandasCursor:
                 "cursor_kwargs": {"unload": True},
             },
         ],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_empty_result_unload(self, async_pandas_cursor):
         query_id, future = async_pandas_cursor.execute(
@@ -334,7 +334,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_integer_na_values(self, async_pandas_cursor):
         query_id, future = async_pandas_cursor.execute(
@@ -362,7 +362,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_float_na_values(self, async_pandas_cursor):
         query_id, future = async_pandas_cursor.execute(
@@ -377,7 +377,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_boolean_na_values(self, async_pandas_cursor):
         query_id, future = async_pandas_cursor.execute(
@@ -392,7 +392,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_not_skip_blank_lines(self, async_pandas_cursor):
         query_id, future = async_pandas_cursor.execute(
@@ -406,7 +406,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_empty_and_null_string(self, async_pandas_cursor):
         # TODO https://github.com/laughingman7743/PyAthena/issues/118
@@ -448,7 +448,7 @@ class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
         "async_pandas_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
-        indirect=True,
+        indirect=["async_pandas_cursor"],
     )
     def test_null_decimal_value(self, async_pandas_cursor):
         query_id, future = async_pandas_cursor.execute(

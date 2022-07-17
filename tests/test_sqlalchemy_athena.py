@@ -419,7 +419,7 @@ class TestSQLAlchemyAthena:
         assert result_with_limit2.fetchall() == [("a string", "b%")]
 
     @pytest.mark.parametrize(
-        "engine", [{"file_format": "parquet", "compression": "snappy"}], indirect=True
+        "engine", [{"file_format": "parquet", "compression": "snappy"}], indirect=["engine"]
     )
     def test_to_sql_parquet(self, engine):
         engine, conn = engine
@@ -480,7 +480,7 @@ class TestSQLAlchemyAthena:
                 "serdeproperties": quote_plus("'ignore.malformed.json'='1'"),
             }
         ],
-        indirect=True,
+        indirect=["engine"],
     )
     def test_to_sql_json(self, engine):
         engine, conn = engine
@@ -544,7 +544,7 @@ class TestSQLAlchemyAthena:
                 # INSERT is not supported for bucketed tables
             }
         ],
-        indirect=True,
+        indirect=["engine"],
     )
     def test_to_sql_column_options(self, engine):
         engine, conn = engine
@@ -600,24 +600,24 @@ class TestSQLAlchemyAthena:
             )
         ]
 
-    @pytest.mark.parametrize("engine", [{"verify": "false"}], indirect=True)
+    @pytest.mark.parametrize("engine", [{"verify": "false"}], indirect=["engine"])
     def test_conn_str_verify(self, engine):
         engine, conn = engine
         kwargs = conn.connection._kwargs
         assert not kwargs["verify"]
 
-    @pytest.mark.parametrize("engine", [{"duration_seconds": "1800"}], indirect=True)
+    @pytest.mark.parametrize("engine", [{"duration_seconds": "1800"}], indirect=["engine"])
     def test_conn_str_duration_seconds(self, engine):
         engine, conn = engine
         kwargs = conn.connection._kwargs
         assert kwargs["duration_seconds"] == 1800
 
-    @pytest.mark.parametrize("engine", [{"poll_interval": "5"}], indirect=True)
+    @pytest.mark.parametrize("engine", [{"poll_interval": "5"}], indirect=["engine"])
     def test_conn_str_poll_interval(self, engine):
         engine, conn = engine
         assert conn.connection.poll_interval == 5
 
-    @pytest.mark.parametrize("engine", [{"kill_on_interrupt": "false"}], indirect=True)
+    @pytest.mark.parametrize("engine", [{"kill_on_interrupt": "false"}], indirect=["engine"])
     def test_conn_str_kill_on_interrupt(self, engine):
         engine, conn = engine
         assert not conn.connection.kill_on_interrupt
@@ -718,7 +718,7 @@ class TestSQLAlchemyAthena:
                 "cluster": "col_1%2Ctest_create_table_conn_str.col_2",
             }
         ],
-        indirect=True,
+        indirect=["engine"],
     )
     def test_create_table_conn_str(self, engine):
         engine, conn = engine
