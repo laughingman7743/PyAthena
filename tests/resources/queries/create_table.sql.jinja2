@@ -75,13 +75,21 @@ CREATE EXTERNAL TABLE IF NOT EXISTS {{ schema }}.execute_many_pandas (
 ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
 LOCATION '{{ s3_staging_dir }}{{ schema }}/execute_many_pandas/';
 
-DROP TABLE IF EXISTS {{ schema }}.execute_many_pandas_unload;
-CREATE EXTERNAL TABLE IF NOT EXISTS {{ schema }}.execute_many_pandas_unload (
+DROP TABLE IF EXISTS {{ schema }}.execute_many_pandas_unload_pyarrow;
+CREATE EXTERNAL TABLE IF NOT EXISTS {{ schema }}.execute_many_pandas_unload_pyarrow (
     a INT,
     b STRING
 )
 ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
-LOCATION '{{ s3_staging_dir }}{{ schema }}/execute_many_pandas_unload/';
+LOCATION '{{ s3_staging_dir }}{{ schema }}/execute_many_pandas_unload_pyarrow/';
+
+DROP TABLE IF EXISTS {{ schema }}.execute_many_pandas_unload_fastparquet;
+CREATE EXTERNAL TABLE IF NOT EXISTS {{ schema }}.execute_many_pandas_unload_fastparquet (
+    a INT,
+    b STRING
+)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
+LOCATION '{{ s3_staging_dir }}{{ schema }}/execute_many_pandas_unload_fastparquet/';
 
 DROP TABLE IF EXISTS {{ schema }}.execute_many_arrow;
 CREATE EXTERNAL TABLE IF NOT EXISTS {{ schema }}.execute_many_arrow (
