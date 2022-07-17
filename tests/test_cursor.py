@@ -87,7 +87,9 @@ class TestCursor:
         # When using caching, the same query ID should be returned.
         assert third_query_id in [first_query_id, second_query_id]
 
-    @pytest.mark.parametrize("cursor", [{"work_group": ENV.work_group}], indirect=["cursor"])
+    @pytest.mark.parametrize(
+        "cursor", [{"work_group": ENV.work_group}], indirect=["cursor"]
+    )
     def test_cache_size_with_work_group(self, cursor):
         now = datetime.utcnow()
         cursor.execute("SELECT %(now)s as date", {"now": now})
@@ -531,12 +533,16 @@ class TestCursor:
         cursor.execute("SHOW PARTITIONS partition_table")
         assert sorted(cursor.fetchall()) == [("b={0}".format(i),) for i in range(10)]
 
-    @pytest.mark.parametrize("cursor", [{"work_group": ENV.work_group}], indirect=["cursor"])
+    @pytest.mark.parametrize(
+        "cursor", [{"work_group": ENV.work_group}], indirect=["cursor"]
+    )
     def test_workgroup(self, cursor):
         cursor.execute("SELECT * FROM one_row")
         assert cursor.work_group == ENV.work_group
 
-    @pytest.mark.parametrize("cursor", [{"work_group": ENV.work_group}], indirect=["cursor"])
+    @pytest.mark.parametrize(
+        "cursor", [{"work_group": ENV.work_group}], indirect=["cursor"]
+    )
     def test_no_s3_staging_dir(self, cursor):
         cursor._s3_staging_dir = None
         cursor.execute("SELECT * FROM one_row")

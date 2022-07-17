@@ -419,7 +419,9 @@ class TestSQLAlchemyAthena:
         assert result_with_limit2.fetchall() == [("a string", "b%")]
 
     @pytest.mark.parametrize(
-        "engine", [{"file_format": "parquet", "compression": "snappy"}], indirect=["engine"]
+        "engine",
+        [{"file_format": "parquet", "compression": "snappy"}],
+        indirect=["engine"],
     )
     def test_to_sql_parquet(self, engine):
         engine, conn = engine
@@ -606,7 +608,9 @@ class TestSQLAlchemyAthena:
         kwargs = conn.connection._kwargs
         assert not kwargs["verify"]
 
-    @pytest.mark.parametrize("engine", [{"duration_seconds": "1800"}], indirect=["engine"])
+    @pytest.mark.parametrize(
+        "engine", [{"duration_seconds": "1800"}], indirect=["engine"]
+    )
     def test_conn_str_duration_seconds(self, engine):
         engine, conn = engine
         kwargs = conn.connection._kwargs
@@ -617,7 +621,9 @@ class TestSQLAlchemyAthena:
         engine, conn = engine
         assert conn.connection.poll_interval == 5
 
-    @pytest.mark.parametrize("engine", [{"kill_on_interrupt": "false"}], indirect=["engine"])
+    @pytest.mark.parametrize(
+        "engine", [{"kill_on_interrupt": "false"}], indirect=["engine"]
+    )
     def test_conn_str_kill_on_interrupt(self, engine):
         engine, conn = engine
         assert not conn.connection.kill_on_interrupt

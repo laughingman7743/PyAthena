@@ -20,9 +20,7 @@ def test_to_column_info():
             pa.field("col_date", pa.date32()),
             pa.field("col_binary", pa.binary()),
             pa.field("col_array", pa.list_(pa.field("array_element", pa.int32()))),
-            pa.field(
-                "col_map", pa.map_(pa.int32(), pa.field("entries", pa.int32()))
-            ),
+            pa.field("col_map", pa.map_(pa.int32(), pa.field("entries", pa.int32()))),
             pa.field(
                 "col_struct",
                 pa.struct([pa.field("a", pa.int32()), pa.field("b", pa.int32())]),

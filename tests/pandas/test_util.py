@@ -312,14 +312,12 @@ def test_generate_ddl():
         generate_ddl(df, "test_table", "s3://bucket/path/to/")
 
     # time
-    df = pd.DataFrame(
-        {"col_time": [datetime(2020, 1, 1, 0, 0, 0).time()]}, index=["i"]
-    )
+    df = pd.DataFrame({"col_time": [datetime(2020, 1, 1, 0, 0, 0).time()]}, index=["i"])
     with pytest.raises(ValueError):
         generate_ddl(df, "test_table", "s3://bucket/path/to/")
 
 
-def test_to_sql( cursor):
+def test_to_sql(cursor):
     df = pd.DataFrame(
         {
             "col_int": np.int32([1]),
@@ -487,9 +485,7 @@ def test_to_sql_with_partitions(cursor):
         compression="snappy",
     )
     cursor.execute("SHOW PARTITIONS {0}".format(table_name))
-    assert sorted(cursor.fetchall()) == [
-        ("col_int={0}".format(i),) for i in range(10)
-    ]
+    assert sorted(cursor.fetchall()) == [("col_int={0}".format(i),) for i in range(10)]
     cursor.execute("SELECT COUNT(*) FROM {0}".format(table_name))
     assert cursor.fetchall() == [(10,)]
 
