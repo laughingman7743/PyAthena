@@ -128,6 +128,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         keep_default_na: bool = False,
         na_values: Optional[Iterable[str]] = ("",),
         quoting: int = 1,
+        chunksize: Optional[int] = None,
         **kwargs,
     ) -> _T:
         self._reset_state()
@@ -165,6 +166,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
                 quoting=quoting,
                 unload=self._unload,
                 unload_location=unload_location,
+                chunksize=chunksize,
                 **kwargs,
             )
         else:

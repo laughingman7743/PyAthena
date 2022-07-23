@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 import logging
+from collections import abc
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Dict,
     Iterable,
+    Iterator,
     List,
     Optional,
     Tuple,
@@ -22,10 +24,58 @@ from pyathena.util import RetryConfig, parse_output_location
 
 if TYPE_CHECKING:
     from pandas import DataFrame
+    from pandas.io.parsers import TextFileReader
 
     from pyathena.connection import Connection
 
 _logger = logging.getLogger(__name__)  # type: ignore
+
+
+def _no_trunc_date(df: "DataFrame") -> "DataFrame":
+    return df
+
+
+class DataFrameIterator(abc.Iterator):  # type: ignore
+    def __init__(
+        self,
+        reader: Union["TextFileReader", "DataFrame"],
+        trunc_date: Callable[["DataFrame"], "DataFrame"],
+    ) -> None:
+        from pandas import DataFrame
+
+        if isinstance(reader, DataFrame):
+            self._reader = iter([reader])
+        else:
+            self._reader = reader
+        self._trunc_date = trunc_date
+
+    def __next__(self):
+        try:
+            df = next(self._reader)
+            return self._trunc_date(df)
+        except StopIteration:
+            self.close()
+            raise
+
+    def __iter__(self):
+        return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
+    def close(self) -> None:
+        from pandas.io.parsers import TextFileReader
+
+        if isinstance(self._reader, TextFileReader):
+            self._reader.close()
+
+    def iterrows(self) -> Iterator[Any]:
+        for df in self:
+            for row in enumerate(df.to_dict("records")):
+                yield row
 
 
 class AthenaPandasResultSet(AthenaResultSet):
@@ -51,6 +101,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         unload: bool = False,
         unload_location: Optional[str] = None,
         engine: str = "auto",
+        chunksize: Optional[int] = None,
         **kwargs,
     ) -> None:
         super(AthenaPandasResultSet, self).__init__(
@@ -68,16 +119,22 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._unload = unload
         self._unload_location = unload_location
         self._engine = engine
+        self._chunksize = chunksize
         self._data_manifest: List[str] = []
         self._kwargs = kwargs
         self._fs = self.__s3_file_system()
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
-            self._df = self._as_pandas()
+            df = self._as_pandas()
+            if self.is_unload:
+                trunc_date = _no_trunc_date
+            else:
+                trunc_date = self._trunc_date
+            self._df_iter = DataFrameIterator(df, trunc_date)
         else:
             import pandas as pd
 
-            self._df = pd.DataFrame()
-        self._iterrows = enumerate(self._df.to_dict("records"))
+            self._df_iter = DataFrameIterator(pd.DataFrame(), _no_trunc_date)
+        self._iterrows = self._df_iter.iterrows()
 
     def _get_engine(self) -> "str":
         if self._engine == "auto":
@@ -188,7 +245,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                 break
         return rows
 
-    def _read_csv(self) -> "DataFrame":
+    def _read_csv(self) -> Union["TextFileReader", "DataFrame"]:
         import pandas as pd
 
         if not self.output_location:
@@ -208,8 +265,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         else:
             return pd.DataFrame()
         try:
-            # TODO chunksize
-            df = pd.read_csv(
+            return pd.read_csv(
                 self.output_location,
                 sep=sep,
                 header=header,
@@ -229,9 +285,9 @@ class AthenaPandasResultSet(AthenaResultSet):
                         **self.connection._client_kwargs,
                     },
                 },
+                chunksize=self._chunksize,
                 **self._kwargs,
             )
-            return self._trunc_date(df)
         except Exception as e:
             _logger.exception(f"Failed to read {self.output_location}.")
             raise OperationalError(*e.args) from e
@@ -313,7 +369,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         else:
             raise ProgrammingError("Engine must be one of `pyarrow`, `fastparquet`.")
 
-    def _as_pandas(self) -> "DataFrame":
+    def _as_pandas(self) -> Union["TextFileReader", "DataFrame"]:
         if self.is_unload:
             engine = self._get_engine()
             df = self._read_parquet(engine)
@@ -325,13 +381,16 @@ class AthenaPandasResultSet(AthenaResultSet):
             df = self._read_csv()
         return df
 
-    def as_pandas(self) -> "DataFrame":
-        return self._df
+    def as_pandas(self) -> Union[DataFrameIterator, "DataFrame"]:
+        if self._chunksize is None:
+            return next(self._df_iter)
+        else:
+            return self._df_iter
 
     def close(self) -> None:
         import pandas as pd
 
         super(AthenaPandasResultSet, self).close()
-        self._df = pd.DataFrame()
+        self._df_iter = DataFrameIterator(pd.DataFrame(), _no_trunc_date)
         self._iterrows = enumerate([])
         self._data_manifest = []
