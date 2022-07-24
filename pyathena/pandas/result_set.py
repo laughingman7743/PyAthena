@@ -40,14 +40,14 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
         self,
         reader: Union["TextFileReader", "DataFrame"],
         trunc_date: Callable[["DataFrame"], "DataFrame"],
-        chunksize: Optional[int] = None,
     ) -> None:
-        if chunksize is None:
+        from pandas import DataFrame
+
+        if isinstance(reader, DataFrame):
             self._reader = iter([reader])
         else:
             self._reader = reader
         self._trunc_date = trunc_date
-        self.chunksize = chunksize
 
     def __next__(self):
         try:
@@ -67,7 +67,9 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
         self.close()
 
     def close(self) -> None:
-        if self.chunksize is not None:
+        from pandas.io.parsers import TextFileReader
+
+        if isinstance(self._reader, TextFileReader):
             self._reader.close()
 
     def iterrows(self) -> Iterator[Any]:
@@ -76,10 +78,12 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
                 yield row
 
     def get_chunk(self, size=None):
-        if self.chunksize is None:
-            return next(self._reader)
-        else:
+        from pandas.io.parsers import TextFileReader
+
+        if isinstance(self._reader, TextFileReader):
             return self._reader.get_chunk(size)
+        else:
+            return next(self._reader)
 
 
 class AthenaPandasResultSet(AthenaResultSet):
@@ -133,7 +137,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                 trunc_date = _no_trunc_date
             else:
                 trunc_date = self._trunc_date
-            self._df_iter = DataFrameIterator(df, trunc_date, chunksize)
+            self._df_iter = DataFrameIterator(df, trunc_date)
         else:
             import pandas as pd
 
