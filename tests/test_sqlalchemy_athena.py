@@ -17,7 +17,6 @@ from sqlalchemy.sql.ddl import CreateTable
 from sqlalchemy.sql.schema import Column, MetaData, Table
 from sqlalchemy.sql.selectable import TextualSelect
 
-from pyathena.sqlalchemy_athena import AthenaDialect
 from tests.conftest import ENV
 
 
@@ -643,7 +642,8 @@ class TestSQLAlchemyAthena:
         table.create(bind=conn)
         assert insp.has_table(table_name, schema=ENV.schema)
 
-    def test_create_table_location(self):
+    def test_create_table_location(self, engine):
+        engine, conn = engine
         table_name = "test_create_table_location"
         column_name = "col"
         table = Table(
@@ -654,7 +654,7 @@ class TestSQLAlchemyAthena:
             awsathena_file_format="PARQUET",
             awsathena_compression="SNAPPY",
         )
-        actual = CreateTable(table).compile(dialect=AthenaDialect())
+        actual = CreateTable(table).compile(bind=conn)
         # If there is no `/` at the end of the `awsathena_location`, it will be appended.
         assert str(actual) == textwrap.dedent(
             f"""
@@ -681,7 +681,7 @@ class TestSQLAlchemyAthena:
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_bucket_count=5,
         )
-        ddl = CreateTable(table).compile(dialect=AthenaDialect())
+        ddl = CreateTable(table).compile(bind=conn)
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -736,7 +736,7 @@ class TestSQLAlchemyAthena:
             Column("col_2", types.Integer),
             Column("col_3", types.String),
         )
-        ddl = CreateTable(table).compile(dialect=AthenaDialect())
+        ddl = CreateTable(table).compile(bind=conn)
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -788,7 +788,7 @@ class TestSQLAlchemyAthena:
                 "escapeChar": "\\\\",
             },
         )
-        ddl = CreateTable(table).compile(dialect=AthenaDialect())
+        ddl = CreateTable(table).compile(bind=conn)
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -837,7 +837,7 @@ class TestSQLAlchemyAthena:
             awsathena_file_format="INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'",
         )
-        ddl = CreateTable(table).compile(dialect=AthenaDialect())
+        ddl = CreateTable(table).compile(bind=conn)
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -891,7 +891,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
                 "ignore.malformed.json": "1",
             },
         )
-        ddl = CreateTable(table).compile(dialect=AthenaDialect())
+        ddl = CreateTable(table).compile(bind=conn)
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -932,7 +932,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             awsathena_file_format="PARQUET",
             awsathena_compression="ZSTD",
         )
-        ddl = CreateTable(table).compile(dialect=AthenaDialect())
+        ddl = CreateTable(table).compile(bind=conn)
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -980,7 +980,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
                 "orc.compress": "ZLIB",
             },
         )
-        ddl = CreateTable(table).compile(dialect=AthenaDialect())
+        ddl = CreateTable(table).compile(bind=conn)
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -1042,7 +1042,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
                 ),
             },
         )
-        ddl = CreateTable(table).compile(dialect=AthenaDialect())
+        ddl = CreateTable(table).compile(bind=conn)
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -1122,7 +1122,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             awsathena_file_format="PARQUET",
             comment=table_comment,
         )
-        ddl = CreateTable(table).compile(dialect=AthenaDialect())
+        ddl = CreateTable(table).compile(bind=conn)
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -1175,7 +1175,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             awsathena_file_format="PARQUET",
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
         )
-        ddl = CreateTable(table).compile(dialect=AthenaDialect())
+        ddl = CreateTable(table).compile(bind=conn)
         # The table will be created, but Athena does not support primary keys.
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
@@ -1205,7 +1205,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             awsathena_file_format="PARQUET",
             awsathena_compression="SNAPPY",
         )
-        ddl = CreateTable(table).compile(dialect=AthenaDialect())
+        ddl = CreateTable(table).compile(bind=conn)
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -1285,7 +1285,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             awsathena_compression="SNAPPY",
             comment=table_comment,
         )
-        ddl = CreateTable(table).compile(dialect=AthenaDialect())
+        ddl = CreateTable(table).compile(bind=conn)
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
@@ -1331,7 +1331,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
                 "projection.dt.format": "yyyy-MM-dd",
             },
         )
-        ddl = CreateTable(table).compile(dialect=AthenaDialect())
+        ddl = CreateTable(table).compile(bind=conn)
         table.create(bind=conn)
         actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
