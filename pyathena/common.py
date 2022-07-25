@@ -142,6 +142,7 @@ class BaseCursor(metaclass=ABCMeta):
         table_name: str,
         catalog_name: Optional[str] = None,
         schema_name: Optional[str] = None,
+        logging_: bool = True,
     ) -> AthenaTableMetadata:
         request = {
             "CatalogName": catalog_name if catalog_name else self._catalog_name,
@@ -156,7 +157,8 @@ class BaseCursor(metaclass=ABCMeta):
                 **request
             )
         except Exception as e:
-            _logger.exception("Failed to get table metadata.")
+            if logging_:
+                _logger.exception("Failed to get table metadata.")
             raise OperationalError(*e.args) from e
         else:
             return AthenaTableMetadata(response)
@@ -166,11 +168,13 @@ class BaseCursor(metaclass=ABCMeta):
         table_name: str,
         catalog_name: Optional[str] = None,
         schema_name: Optional[str] = None,
+        logging_: bool = True,
     ) -> AthenaTableMetadata:
         return self._get_table_metadata(
             table_name=table_name,
             catalog_name=catalog_name,
             schema_name=schema_name,
+            logging_=logging_,
         )
 
     def _batch_get_query_execution(
