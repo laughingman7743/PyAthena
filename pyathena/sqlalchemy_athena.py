@@ -545,7 +545,7 @@ class AthenaDialect(DefaultDialect):
         ),
     ]
 
-    _connect_options = dict()
+    _connect_options = dict()  # type: ignore
     _pattern_column_type = re.compile(r"^([a-zA-Z]+)(?:$|[\(|<](.+)[\)|>]$)")
 
     @classmethod
