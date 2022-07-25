@@ -255,7 +255,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             }
         elif engine == "fastparquet":
             unload_location = f"{self._unload_location}*"
-            kwargs = {}
+            kwargs = dict()
         else:
             raise ProgrammingError("Engine must be one of `pyarrow`, `fastparquet`.")
         kwargs.update(self._kwargs)
