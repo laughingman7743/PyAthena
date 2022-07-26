@@ -7,7 +7,7 @@ from pyathena.error import *  # noqa
 if TYPE_CHECKING:
     from pyathena.connection import Connection
 
-__version__: str = "2.10.0"
+__version__: str = "2.11.0"
 
 # Globals https://www.python.org/dev/peps/pep-0249/#globals
 apilevel: str = "2.0"
