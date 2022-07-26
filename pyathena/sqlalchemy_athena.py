@@ -608,7 +608,9 @@ class AthenaDialect(DefaultDialect):
         schema = schema if schema else raw_connection.schema_name
         with raw_connection.connection.cursor() as cursor:
             try:
-                return cursor.get_table_metadata(table_name, schema_name=schema)
+                return cursor.get_table_metadata(
+                    table_name, schema_name=schema, logging_=False
+                )
             except pyathena.error.OperationalError as exc:
                 cause = exc.__cause__
                 if (
