@@ -52,6 +52,8 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         kms_key: Optional[str] = None,
         kill_on_interrupt: bool = True,
         unload: bool = False,
+        engine: str = "auto",
+        chunksize: Optional[int] = None,
         **kwargs,
     ) -> None:
         super(PandasCursor, self).__init__(
@@ -70,6 +72,8 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
             **kwargs,
         )
         self._unload = unload
+        self._engine = engine
+        self._chunksize = chunksize
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaPandasResultSet] = None
 
@@ -128,7 +132,6 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         keep_default_na: bool = False,
         na_values: Optional[Iterable[str]] = ("",),
         quoting: int = 1,
-        chunksize: Optional[int] = None,
         **kwargs,
     ) -> _T:
         self._reset_state()
@@ -166,7 +169,8 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
                 quoting=quoting,
                 unload=self._unload,
                 unload_location=unload_location,
-                chunksize=chunksize,
+                engine=kwargs.pop("engine", self._engine),
+                chunksize=kwargs.pop("chunksize", self._chunksize),
                 **kwargs,
             )
         else:
