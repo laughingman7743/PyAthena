@@ -41,6 +41,8 @@ class AsyncPandasCursor(AsyncCursor):
         max_workers: int = (cpu_count() or 1) * 5,
         arraysize: int = CursorIterator.DEFAULT_FETCH_SIZE,
         unload: bool = False,
+        engine: str = "auto",
+        chunksize: Optional[int] = None,
     ) -> None:
         super(AsyncPandasCursor, self).__init__(
             connection=connection,
@@ -59,6 +61,8 @@ class AsyncPandasCursor(AsyncCursor):
             arraysize=arraysize,
         )
         self._unload = unload
+        self._engine = engine
+        self._chunksize = chunksize
 
     @staticmethod
     def get_default_converter(
@@ -102,6 +106,8 @@ class AsyncPandasCursor(AsyncCursor):
             quoting=quoting,
             unload=self._unload,
             unload_location=unload_location,
+            engine=kwargs.pop("engine", self._engine),
+            chunksize=kwargs.pop("chunksize", self._chunksize),
             **kwargs,
         )
 

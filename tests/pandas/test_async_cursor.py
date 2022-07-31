@@ -21,17 +21,20 @@ from tests.conftest import connect
 
 class TestAsyncPandasCursor:
     @pytest.mark.parametrize(
-        "async_pandas_cursor, parquet_engine",
+        "async_pandas_cursor, parquet_engine, chunksize",
         [
-            ({"cursor_kwargs": {"unload": False}}, "auto"),
-            ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
+            ({"cursor_kwargs": {"unload": False}}, "auto", None),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
+            ({"cursor_kwargs": {"unload": True}}, "auto", None),
+            ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
+            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
-    def test_fetchone(self, async_pandas_cursor, parquet_engine):
+    def test_fetchone(self, async_pandas_cursor, parquet_engine, chunksize):
         query_id, future = async_pandas_cursor.execute(
-            "SELECT * FROM one_row", engine=parquet_engine
+            "SELECT * FROM one_row", engine=parquet_engine, chunksize=chunksize
         )
         result_set = future.result()
         assert result_set.rownumber == 0
@@ -61,34 +64,65 @@ class TestAsyncPandasCursor:
         assert result_set.kms_key is None
 
     @pytest.mark.parametrize(
-        "async_pandas_cursor, parquet_engine",
+        "async_pandas_cursor, parquet_engine, chunksize",
         [
-            ({"cursor_kwargs": {"unload": False}}, "auto"),
-            ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
+            ({"cursor_kwargs": {"unload": False}}, "auto", None),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
+            ({"cursor_kwargs": {"unload": True}}, "auto", None),
+            ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
+            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
-    def test_fetchmany(self, async_pandas_cursor, parquet_engine):
+    def test_fetchmany(self, async_pandas_cursor, parquet_engine, chunksize):
         query_id, future = async_pandas_cursor.execute(
-            "SELECT * FROM many_rows LIMIT 15", engine=parquet_engine
+            "SELECT * FROM many_rows LIMIT 15",
+            engine=parquet_engine,
+            chunksize=chunksize,
         )
         result_set = future.result()
         assert len(result_set.fetchmany(10)) == 10
         assert len(result_set.fetchmany(10)) == 5
 
     @pytest.mark.parametrize(
-        "async_pandas_cursor, parquet_engine",
+        "async_pandas_cursor, chunksize",
         [
-            ({"cursor_kwargs": {"unload": False}}, "auto"),
-            ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
+            ({}, None),
+            ({}, 1_000),
+            ({}, 1_000_000),
         ],
         indirect=["async_pandas_cursor"],
     )
-    def test_fetchall(self, async_pandas_cursor, parquet_engine):
+    def test_get_chunk(self, async_pandas_cursor, chunksize):
         query_id, future = async_pandas_cursor.execute(
-            "SELECT * FROM one_row", engine=parquet_engine
+            "SELECT * FROM many_rows LIMIT 15", chunksize=chunksize
+        )
+        df = future.result().as_pandas()
+        if chunksize:
+            assert len(df.get_chunk(10)) == 10
+            assert len(df.get_chunk(10)) == 5
+            pytest.raises(StopIteration, lambda: df.get_chunk(10))
+        else:
+            assert len(df) == 15
+
+    @pytest.mark.parametrize(
+        "async_pandas_cursor, parquet_engine, chunksize",
+        [
+            ({"cursor_kwargs": {"unload": False}}, "auto", None),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
+            ({"cursor_kwargs": {"unload": True}}, "auto", None),
+            ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
+            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
+        ],
+        indirect=["async_pandas_cursor"],
+    )
+    def test_fetchall(self, async_pandas_cursor, parquet_engine, chunksize):
+        query_id, future = async_pandas_cursor.execute(
+            "SELECT * FROM one_row",
+            engine=parquet_engine,
+            chunksize=chunksize,
         )
         result_set = future.result()
         assert result_set.fetchall() == [(1,)]
@@ -99,35 +133,45 @@ class TestAsyncPandasCursor:
         assert result_set.fetchall() == [(i,) for i in range(10000)]
 
     @pytest.mark.parametrize(
-        "async_pandas_cursor, parquet_engine",
+        "async_pandas_cursor, parquet_engine, chunksize",
         [
-            ({"cursor_kwargs": {"unload": False}}, "auto"),
-            ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
+            ({"cursor_kwargs": {"unload": False}}, "auto", None),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
+            ({"cursor_kwargs": {"unload": True}}, "auto", None),
+            ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
+            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
-    def test_iterator(self, async_pandas_cursor, parquet_engine):
+    def test_iterator(self, async_pandas_cursor, parquet_engine, chunksize):
         query_id, future = async_pandas_cursor.execute(
-            "SELECT * FROM one_row", engine=parquet_engine
+            "SELECT * FROM one_row",
+            engine=parquet_engine,
+            chunksize=chunksize,
         )
         result_set = future.result()
         assert list(result_set) == [(1,)]
         pytest.raises(StopIteration, result_set.__next__)
 
     @pytest.mark.parametrize(
-        "async_pandas_cursor, parquet_engine",
+        "async_pandas_cursor, parquet_engine, chunksize",
         [
-            ({"cursor_kwargs": {"unload": False}}, "auto"),
-            ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
+            ({"cursor_kwargs": {"unload": False}}, "auto", None),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
+            ({"cursor_kwargs": {"unload": True}}, "auto", None),
+            ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
+            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
-    def test_arraysize(self, async_pandas_cursor, parquet_engine):
+    def test_arraysize(self, async_pandas_cursor, parquet_engine, chunksize):
         async_pandas_cursor.arraysize = 5
         query_id, future = async_pandas_cursor.execute(
-            "SELECT * FROM many_rows LIMIT 20", engine=parquet_engine
+            "SELECT * FROM many_rows LIMIT 20",
+            engine=parquet_engine,
+            chunksize=chunksize,
         )
         result_set = future.result()
         assert len(result_set.fetchmany()) == 5
@@ -142,17 +186,22 @@ class TestAsyncPandasCursor:
             async_pandas_cursor.arraysize = -1
 
     @pytest.mark.parametrize(
-        "async_pandas_cursor, parquet_engine",
+        "async_pandas_cursor, parquet_engine, chunksize",
         [
-            ({"cursor_kwargs": {"unload": False}}, "auto"),
-            ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
+            ({"cursor_kwargs": {"unload": False}}, "auto", None),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
+            ({"cursor_kwargs": {"unload": True}}, "auto", None),
+            ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
+            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
-    def test_description(self, async_pandas_cursor, parquet_engine):
+    def test_description(self, async_pandas_cursor, parquet_engine, chunksize):
         query_id, future = async_pandas_cursor.execute(
-            "SELECT 1 AS foobar FROM one_row", engine=parquet_engine
+            "SELECT 1 AS foobar FROM one_row",
+            engine=parquet_engine,
+            chunksize=chunksize,
         )
         result_set = future.result()
         assert result_set.fetchall() == [(1,)]
@@ -170,17 +219,22 @@ class TestAsyncPandasCursor:
         assert result_set.description == description
 
     @pytest.mark.parametrize(
-        "async_pandas_cursor, parquet_engine",
+        "async_pandas_cursor, parquet_engine, chunksize",
         [
-            ({"cursor_kwargs": {"unload": False}}, "auto"),
-            ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
+            ({"cursor_kwargs": {"unload": False}}, "auto", None),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
+            ({"cursor_kwargs": {"unload": True}}, "auto", None),
+            ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
+            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
-    def test_query_execution(self, async_pandas_cursor, parquet_engine):
+    def test_query_execution(self, async_pandas_cursor, parquet_engine, chunksize):
         query = "SELECT * FROM one_row"
-        query_id, future = async_pandas_cursor.execute(query, engine=parquet_engine)
+        query_id, future = async_pandas_cursor.execute(
+            query, engine=parquet_engine, chunksize=chunksize
+        )
         result_set = future.result()
 
         future = async_pandas_cursor.query_execution(query_id)
@@ -239,17 +293,22 @@ class TestAsyncPandasCursor:
         )
 
     @pytest.mark.parametrize(
-        "async_pandas_cursor, parquet_engine",
+        "async_pandas_cursor, parquet_engine, chunksize",
         [
-            ({"cursor_kwargs": {"unload": False}}, "auto"),
-            ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
+            ({"cursor_kwargs": {"unload": False}}, "auto", None),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
+            ({"cursor_kwargs": {"unload": True}}, "auto", None),
+            ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
+            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
-    def test_poll(self, async_pandas_cursor, parquet_engine):
+    def test_poll(self, async_pandas_cursor, parquet_engine, chunksize):
         query_id, _ = async_pandas_cursor.execute(
-            "SELECT * FROM one_row", engine=parquet_engine
+            "SELECT * FROM one_row",
+            engine=parquet_engine,
+            chunksize=chunksize,
         )
         future = async_pandas_cursor.poll(query_id)
         query_execution = future.result()
@@ -262,49 +321,70 @@ class TestAsyncPandasCursor:
         ]
 
     @pytest.mark.parametrize(
-        "async_pandas_cursor, parquet_engine",
+        "async_pandas_cursor, parquet_engine, chunksize",
         [
-            ({"cursor_kwargs": {"unload": False}}, "auto"),
-            ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
+            ({"cursor_kwargs": {"unload": False}}, "auto", None),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
+            ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
+            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
-    def test_bad_query(self, async_pandas_cursor, parquet_engine):
+    def test_bad_query(self, async_pandas_cursor, parquet_engine, chunksize):
         query_id, future = async_pandas_cursor.execute(
             "SELECT does_not_exist FROM this_really_does_not_exist",
             engine=parquet_engine,
+            chunksize=chunksize,
         )
         result_set = future.result()
         assert result_set.state == AthenaQueryExecution.STATE_FAILED
         assert result_set.state_change_reason is not None
 
     @pytest.mark.parametrize(
-        "async_pandas_cursor, parquet_engine",
+        "async_pandas_cursor, parquet_engine, chunksize",
         [
-            ({"cursor_kwargs": {"unload": False}}, "auto"),
-            ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
+            ({"cursor_kwargs": {"unload": False}}, "auto", None),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
+            ({"cursor_kwargs": {"unload": True}}, "auto", None),
+            ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
+            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
-    def test_as_pandas(self, async_pandas_cursor, parquet_engine):
+    def test_as_pandas(self, async_pandas_cursor, parquet_engine, chunksize):
         query_id, future = async_pandas_cursor.execute(
-            "SELECT * FROM one_row", engine=parquet_engine
+            "SELECT * FROM one_row",
+            engine=parquet_engine,
+            chunksize=chunksize,
         )
         df = future.result().as_pandas()
+        if chunksize:
+            df = pd.concat((d for d in df), ignore_index=True)
         assert df.shape[0] == 1
         assert df.shape[1] == 1
         assert [(row["number_of_rows"],) for _, row in df.iterrows()] == [(1,)]
 
     @pytest.mark.parametrize(
-        "async_pandas_cursor",
-        [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
+        "async_pandas_cursor, parquet_engine, chunksize",
+        [
+            ({"cursor_kwargs": {"unload": False}}, "auto", None),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
+            ({"cursor_kwargs": {"unload": True}}, "auto", None),
+            ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
+            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
+        ],
         indirect=["async_pandas_cursor"],
     )
-    def test_many_as_pandas(self, async_pandas_cursor):
-        query_id, future = async_pandas_cursor.execute("SELECT * FROM many_rows")
+    def test_many_as_pandas(self, async_pandas_cursor, parquet_engine, chunksize):
+        query_id, future = async_pandas_cursor.execute(
+            "SELECT * FROM many_rows", engine=parquet_engine, chunksize=chunksize
+        )
         df = future.result().as_pandas()
+        if chunksize:
+            df = pd.concat((d for d in df), ignore_index=True)
         assert df.shape[0] == 10000
         assert df.shape[1] == 1
         assert [(row["a"],) for _, row in df.iterrows()] == [(i,) for i in range(10000)]
@@ -342,15 +422,40 @@ class TestAsyncPandasCursor:
         conn.close()
 
     @pytest.mark.parametrize(
-        "async_pandas_cursor, parquet_engine",
+        "async_pandas_cursor, parquet_engine, chunksize",
         [
-            ({"cursor_kwargs": {"unload": False}}, "auto"),
-            ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
+            ({"cursor_kwargs": {"unload": False}}, "auto", None),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
+            ({"cursor_kwargs": {"unload": True}}, "auto", None),
+            ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
+            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
-    def test_empty_result_ddl(self, async_pandas_cursor, parquet_engine):
+    def test_show_columns(self, async_pandas_cursor, parquet_engine, chunksize):
+        query_id, future = async_pandas_cursor.execute(
+            "SHOW COLUMNS IN one_row", engine=parquet_engine, chunksize=chunksize
+        )
+        result_set = future.result()
+        assert result_set.description == [
+            ("field", "string", None, None, 0, 0, "UNKNOWN")
+        ]
+        assert result_set.fetchall() == [("number_of_rows      ",)]
+
+    @pytest.mark.parametrize(
+        "async_pandas_cursor, parquet_engine, chunksize",
+        [
+            ({"cursor_kwargs": {"unload": False}}, "auto", None),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000),
+            ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
+            ({"cursor_kwargs": {"unload": True}}, "auto", None),
+            ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
+            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
+        ],
+        indirect=["async_pandas_cursor"],
+    )
+    def test_empty_result_ddl(self, async_pandas_cursor, parquet_engine, chunksize):
         table = "test_pandas_cursor_empty_result_" + "".join(
             [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]
         )
@@ -363,14 +468,18 @@ class TestAsyncPandasCursor:
             LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table}/'
             """,
             engine=parquet_engine,
+            chunksize=chunksize,
         )
         df = future.result().as_pandas()
+        if chunksize:
+            df = pd.concat((d for d in df), ignore_index=True)
         assert df.shape[0] == 0
         assert df.shape[1] == 0
 
     @pytest.mark.parametrize(
         "async_pandas_cursor, parquet_engine",
         [
+            ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
             ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
@@ -391,6 +500,7 @@ class TestAsyncPandasCursor:
         "async_pandas_cursor, parquet_engine",
         [
             ({"cursor_kwargs": {"unload": False}}, "auto"),
+            ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
             ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
@@ -424,6 +534,7 @@ class TestAsyncPandasCursor:
         "async_pandas_cursor, parquet_engine",
         [
             ({"cursor_kwargs": {"unload": False}}, "auto"),
+            ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
             ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
@@ -444,6 +555,7 @@ class TestAsyncPandasCursor:
         "async_pandas_cursor, parquet_engine",
         [
             ({"cursor_kwargs": {"unload": False}}, "auto"),
+            ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
             ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
@@ -476,6 +588,7 @@ class TestAsyncPandasCursor:
         "async_pandas_cursor, parquet_engine",
         [
             ({"cursor_kwargs": {"unload": False}}, "auto"),
+            ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
             ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
@@ -495,6 +608,7 @@ class TestAsyncPandasCursor:
         "async_pandas_cursor, parquet_engine",
         [
             ({"cursor_kwargs": {"unload": False}}, "auto"),
+            ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
             ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
@@ -543,6 +657,7 @@ class TestAsyncPandasCursor:
         "async_pandas_cursor, parquet_engine",
         [
             ({"cursor_kwargs": {"unload": False}}, "auto"),
+            ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
             ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],

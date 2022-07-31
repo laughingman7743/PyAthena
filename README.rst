@@ -382,7 +382,7 @@ The ``pyathena.pandas.util`` package also has helper methods.
 If you want to use the query results output to S3 directly, you can use `PandasCursor`_.
 This cursor fetches query results faster than the default cursor. (See `benchmark results`_.)
 
-.. _`pandas.read_sql_query`: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_sql_query.html
+.. _`pandas.read_sql_query`: https://pandas.pydata.org/docs/reference/api/pandas.read_sql_query.html
 .. _`benchmark results`: benchmarks/
 
 To SQL
@@ -474,7 +474,7 @@ It is also possible to use `ProcessPoolExecutor`_.
            schema="YOUR_SCHEMA", index=False, if_exists="replace",
            chunksize=1, executor_class=ProcessPoolExecutor, max_workers=5)
 
-.. _`pandas.DataFrame.to_sql`: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_sql.html
+.. _`pandas.DataFrame.to_sql`: https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_sql.html
 .. _`ThreadPoolExecutor`: https://docs.python.org/3/library/concurrent.futures.html#threadpoolexecutor
 .. _`ProcessPoolExecutor`: https://docs.python.org/3/library/concurrent.futures.html#processpoolexecutor
 
@@ -968,17 +968,112 @@ you can do so by using the ``keep_default_na``, ``na_values`` and ``quoting`` ar
 
 NOTE: PandasCursor handles the CSV file on memory. Pay attention to the memory capacity.
 
-.. _`pandas.DataFrame object`: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-.. _`pandas.Timestamp`: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Timestamp.html
+.. _`pandas.DataFrame object`: https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html
+.. _`pandas.Timestamp`: https://pandas.pydata.org/docs/reference/api/pandas.Timestamp.html
+
+[PandasCursor] Chunksize options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The Pandas cursor can read the CSV file for each specified number of rows by using the chunksize option.
+This option should reduce memory usage.
+
+The chunksize option can be enabled by specifying an integer value in the ``cursor_kwargs`` argument of the connect method or as an argument to the cursor method.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.pandas.cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PandasCursor,
+                     cursor_kwargs={
+                         "chunksize": 1_000_000
+                     }).cursor()
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.pandas.cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PandasCursor).cursor(chunksize=1_000_000)
+
+It can also be specified in the execution method when executing the query.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.pandas.cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PandasCursor).cursor()
+    cursor.execute("SELECT * FROM many_rows", chunksize=1_000_000)
+
+SQLAlchemy allows this option to be specified in the connection string.
+
+.. code:: text
+
+    awsathena+pandas://:@athena.{region_name}.amazonaws.com:443/{schema_name}?s3_staging_dir={s3_staging_dir}&chunksize=1000000...
+
+When this option is used, the object returned by the as_pandas method is a ``DataFrameIterator`` object.
+This object has exactly the same interface as the ``TextFileReader`` object and can be handled in the same way.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.pandas.cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PandasCursor).cursor()
+    df_iter = cursor.execute("SELECT * FROM many_rows", chunksize=1_000_000).as_pandas()
+    for df in df_iter:
+        print(df.describe())
+        print(df.head())
+
+You can also concatenate them into a single `pandas.DataFrame object`_ using `pandas.concat`_.
+
+.. code:: python
+
+    import pandas
+    from pyathena import connect
+    from pyathena.pandas.cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PandasCursor).cursor()
+    df_iter = cursor.execute("SELECT * FROM many_rows", chunksize=1_000_000).as_pandas()
+    df = pandas.concat((df for df in df_iter), ignore_index=True)
+
+You can use the ``get_chunk`` method to retrieve a `pandas.DataFrame object`_ for each specified number of rows.
+When all rows have been read, calling the ``get_chunk`` method will raise ``StopIteration``.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.pandas.cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PandasCursor).cursor()
+    df_iter = cursor.execute("SELECT * FROM many_rows LIMIT 15", chunksize=1_000_000).as_pandas()
+    df_iter.get_chunk(10)
+    df_iter.get_chunk(10)
+    df_iter.get_chunk(10)  # raise StopIteration
+
+.. _`pandas.concat`: https://pandas.pydata.org/docs/reference/api/pandas.concat.html
 
 [PandasCursor] Unload options
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-PandasCursor also supports the UNLOAD option, as does `ArrowCursor`_.
+PandasCursor also supports the unload option, as does `ArrowCursor`_.
 
 See `[ArrowCursor] Unload options`_ for more information.
 
-The UNLOAD option can be enabled by specifying it in the ``cursor_kwargs`` argument of the connect method or as an argument to the cursor method.
+The unload option can be enabled by specifying it in the ``cursor_kwargs`` argument of the connect method or as an argument to the cursor method.
 
 .. code:: python
 
@@ -1165,7 +1260,7 @@ As with AsyncCursor, you need a query ID to cancel a query.
     query_id, future = cursor.execute("SELECT * FROM many_rows")
     cursor.cancel(query_id)
 
-As with PandasCursor, the UNLOAD option is also available.
+As with PandasCursor, the unload option is also available.
 
 .. code:: python
 
@@ -1378,21 +1473,21 @@ and the ``types`` setting of the Converter class is not used.
 [ArrowCursor] Unload options
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-ArrowCurosr supports the UNLOAD option. When this option is enabled,
-queries with SELECT statements are automatically converted to UNLOAD statements and executed to Athena,
+ArrowCurosr supports the unload option. When this option is enabled,
+queries with SELECT statements are automatically converted to unload statements and executed to Athena,
 and the results are output in Parquet format (Snappy compressed) to ``s3_staging_dir``.
 The cursor reads the output Parquet file directly.
 
-The output of query results with the UNLOAD statement is faster than normal query execution.
+The output of query results with the unload statement is faster than normal query execution.
 In addition, the output Parquet file is split and can be read faster than a CSV file.
 We recommend trying this option if you are concerned about the time it takes to execute the query and retrieve the results.
 
-However, UNLOAD has some limitations. Please refer to the `official UNLOAD documentation`_ for more information on limitations.
-As per the limitations of the official documentation, the results of UNLOAD will be written to multiple files in parallel,
+However, unload has some limitations. Please refer to the `official unload documentation`_ for more information on limitations.
+As per the limitations of the official documentation, the results of unload will be written to multiple files in parallel,
 and the contents of each file will be in sort order, but the relative order of the files to each other will not be sorted.
 Note that specifying ORDER BY with this option enabled does not guarantee the sort order of the data.
 
-The UNLOAD option can be enabled by specifying it in the ``cursor_kwargs`` argument of the connect method or as an argument to the cursor method.
+The unload option can be enabled by specifying it in the ``cursor_kwargs`` argument of the connect method or as an argument to the cursor method.
 
 .. code:: python
 
@@ -1421,7 +1516,7 @@ SQLAlchemy allows this option to be specified in the connection string.
 
     awsathena+arrow://:@athena.{region_name}.amazonaws.com:443/{schema_name}?s3_staging_dir={s3_staging_dir}&unload=true...
 
-If a ``NOT_SUPPORTED`` occurs, a type not supported by UNLOAD is included in the result of the SELECT.
+If a ``NOT_SUPPORTED`` occurs, a type not supported by unload is included in the result of the SELECT.
 Try converting to another type, such as ``SELECT CAST(1 AS VARCHAR) AS name``.
 
 .. code:: text
@@ -1436,7 +1531,7 @@ Try adding an alias to the SELECTed column, such as ``SELECT 1 AS name``.
     pyathena.error.OperationalError: SYNTAX_ERROR: line 1:1: Column name not specified at position 1
 
 .. _`pyarrow.Table object`: https://arrow.apache.org/docs/python/generated/pyarrow.Table.html
-.. _`official UNLOAD documentation`: https://docs.aws.amazon.com/athena/latest/ug/unload.html
+.. _`official unload documentation`: https://docs.aws.amazon.com/athena/latest/ug/unload.html
 
 AsyncArrowCursor
 ~~~~~~~~~~~~~~~~
