@@ -780,7 +780,7 @@ class AthenaPandasDialect(AthenaDialect):
         if "engine" in opts:
             cursor_kwargs.update({"engine": opts.pop("engine")})
         if "chunksize" in opts:
-            cursor_kwargs.update({"chunksize": int(opts.pop("chunksize"))})
+            cursor_kwargs.update({"chunksize": int(opts.pop("chunksize"))})  # type: ignore
         if cursor_kwargs:
             opts.update({"cursor_kwargs": cursor_kwargs})
         return [[], opts]
