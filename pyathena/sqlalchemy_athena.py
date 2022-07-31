@@ -774,6 +774,15 @@ class AthenaPandasDialect(AthenaDialect):
 
         opts = super()._create_connect_args(url)
         opts.update({"cursor_class": PandasCursor})
+        cursor_kwargs = dict()
+        if "unload" in opts:
+            cursor_kwargs.update({"unload": bool(strtobool(opts.pop("unload")))})
+        if "engine" in opts:
+            cursor_kwargs.update({"engine": opts.pop("engine")})
+        if "chunksize" in opts:
+            cursor_kwargs.update({"chunksize": int(opts.pop("chunksize"))})
+        if cursor_kwargs:
+            opts.update({"cursor_kwargs": cursor_kwargs})
         return [[], opts]
 
 
