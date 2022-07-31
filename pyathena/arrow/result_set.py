@@ -96,9 +96,7 @@ class AthenaArrowResultSet(AthenaResultSet):
                 region=connection.region_name,
             )
         elif connection.profile_name:
-            profile = connection.session._session.full_config["profiles"][
-                connection.profile_name
-            ]
+            profile = connection.session._session.full_config["profiles"][connection.profile_name]
             fs = fs.S3FileSystem(
                 access_key=profile.get("aws_access_key_id", None),
                 secret_key=profile.get("aws_secret_access_key", None),
@@ -116,11 +114,7 @@ class AthenaArrowResultSet(AthenaResultSet):
 
     @property
     def is_unload(self):
-        return (
-            self._unload
-            and self.query
-            and self.query.strip().upper().startswith("UNLOAD")
-        )
+        return self._unload and self.query and self.query.strip().upper().startswith("UNLOAD")
 
     @property
     def timestamp_parsers(self) -> List[str]:
@@ -222,9 +216,7 @@ class AthenaArrowResultSet(AthenaResultSet):
                 escape_char=False,
             )
         elif length and self.output_location.endswith(".csv"):
-            read_opts = csv.ReadOptions(
-                skip_rows=0, block_size=self._block_size, use_threads=True
-            )
+            read_opts = csv.ReadOptions(skip_rows=0, block_size=self._block_size, use_threads=True)
             parse_opts = csv.ParseOptions(
                 delimiter=",",
                 quote_char='"',

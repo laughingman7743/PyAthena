@@ -82,9 +82,7 @@ class TestAsyncCursor:
         query_id, future = async_cursor.execute("SELECT 1 AS foobar FROM one_row")
         result_set = future.result()
         assert result_set.fetchall() == [(1,)]
-        assert result_set.description == [
-            ("foobar", "integer", None, None, 10, 0, "UNKNOWN")
-        ]
+        assert result_set.description == [("foobar", "integer", None, None, 10, 0, "UNKNOWN")]
 
         future = async_cursor.description(query_id)
         description = future.result()
@@ -132,10 +130,7 @@ class TestAsyncCursor:
             result_set.engine_execution_time_in_millis
             == query_execution.engine_execution_time_in_millis
         )
-        assert (
-            result_set.query_queue_time_in_millis
-            == query_execution.query_queue_time_in_millis
-        )
+        assert result_set.query_queue_time_in_millis == query_execution.query_queue_time_in_millis
         assert (
             result_set.total_execution_time_in_millis
             == query_execution.total_execution_time_in_millis
@@ -149,9 +144,7 @@ class TestAsyncCursor:
             == query_execution.service_processing_time_in_millis
         )
         assert result_set.output_location == query_execution.output_location
-        assert (
-            result_set.data_manifest_location == query_execution.data_manifest_location
-        )
+        assert result_set.data_manifest_location == query_execution.data_manifest_location
         assert result_set.encryption_option == query_execution.encryption_option
         assert result_set.kms_key == query_execution.kms_key
         assert result_set.work_group == query_execution.work_group
@@ -202,9 +195,7 @@ class TestAsyncCursor:
     def test_no_ops(self):
         conn = connect()
         cursor = conn.cursor(AsyncCursor)
-        pytest.raises(
-            NotSupportedError, lambda: cursor.executemany("SELECT * FROM one_row", [])
-        )
+        pytest.raises(NotSupportedError, lambda: cursor.executemany("SELECT * FROM one_row", []))
         cursor.close()
         conn.close()
 
@@ -229,8 +220,6 @@ class TestAsyncDictCursor:
         query_id, future = async_dict_cursor.execute("SELECT * FROM one_row")
         result_set = future.result()
         assert result_set.fetchall() == [{"number_of_rows": 1}]
-        query_id, future = async_dict_cursor.execute(
-            "SELECT a FROM many_rows ORDER BY a"
-        )
+        query_id, future = async_dict_cursor.execute("SELECT a FROM many_rows ORDER BY a")
         result_set = future.result()
         assert result_set.fetchall() == [{"a": i} for i in range(10000)]

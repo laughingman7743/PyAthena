@@ -290,9 +290,7 @@ class AthenaResultSet(CursorIterator):
         return [
             tuple(
                 [
-                    self._converter.convert(
-                        meta.get("Type", None), row.get("VarCharValue", None)
-                    )
+                    self._converter.convert(meta.get("Type", None), row.get("VarCharValue", None))
                     for meta, row in zip(metadata, rows[i].get("Data", []))
                 ]
             )
@@ -308,11 +306,7 @@ class AthenaResultSet(CursorIterator):
             raise DataError("KeyError `Rows`")
         processed_rows = []
         if len(rows) > 0:
-            offset = (
-                1
-                if not self._next_token and self._is_first_row_column_labels(rows)
-                else 0
-            )
+            offset = 1 if not self._next_token and self._is_first_row_column_labels(rows) else 0
             metadata = cast(Tuple[Any, ...], self._metadata)
             processed_rows = self._get_rows(offset, metadata, rows)
         self._rows.extend(processed_rows)

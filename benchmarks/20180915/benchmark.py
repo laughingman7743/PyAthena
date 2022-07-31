@@ -69,9 +69,7 @@ def run_pyathena_cursor(query):
 
 def run_pyathenajdbc_cursor(query):
     LOGGER.info("PyAthenaJDBC Cursor ===========================")
-    cursor = jdbc_connect(
-        s3_staging_dir=S3_STAGING_DIR, region_name=REGION_NAME
-    ).cursor()
+    cursor = jdbc_connect(s3_staging_dir=S3_STAGING_DIR, region_name=REGION_NAME).cursor()
     avgs = []
     for i in range(0, COUNT):
         start = time.time()

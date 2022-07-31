@@ -185,22 +185,14 @@ class TestAthenaTableMetadata:
         assert actual.comment is None
         assert actual.location == "s3://bucket/path/to"
         assert actual.input_format == "org.apache.hadoop.mapred.TextInputFormat"
+        assert actual.output_format == "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
         assert (
-            actual.output_format
-            == "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
-        )
-        assert (
-            actual.serde_serialization_lib
-            == "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
+            actual.serde_serialization_lib == "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
         )
         assert actual.compression == "SNAPPY"
+        assert actual.row_format == "SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'"
         assert (
-            actual.row_format
-            == "SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'"
-        )
-        assert (
-            actual.file_format
-            == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
+            actual.file_format == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
         )
 
@@ -212,10 +204,7 @@ class TestAthenaTableMetadata:
         assert actual.comment is None
         assert actual.location == "s3://bucket/path/to"
         assert actual.input_format == "org.apache.hadoop.mapred.TextInputFormat"
-        assert (
-            actual.output_format
-            == "org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat"
-        )
+        assert actual.output_format == "org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat"
         assert actual.serde_serialization_lib == "org.openx.data.jsonserde.JsonSerDe"
         assert actual.compression == "GZIP"
         assert actual.serde_properties == {
@@ -226,55 +215,42 @@ class TestAthenaTableMetadata:
             assert not key.startswith("serde.param.")
         assert actual.row_format == "SERDE 'org.openx.data.jsonserde.JsonSerDe'"
         assert (
-            actual.file_format
-            == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
+            actual.file_format == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat'"
         )
 
     def test_init_json_hcatalog(self):
         response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
-        response["TableMetadata"][
-            "Parameters"
-        ] = ATHENA_TABLE_METADATA_PARAMETERS_JSON_HCATALOG
+        response["TableMetadata"]["Parameters"] = ATHENA_TABLE_METADATA_PARAMETERS_JSON_HCATALOG
         actual = AthenaTableMetadata(response)
         assert actual.parameters == ATHENA_TABLE_METADATA_PARAMETERS_JSON_HCATALOG
         assert actual.comment is None
         assert actual.location == "s3://bucket/path/to"
         assert actual.input_format == "org.apache.hadoop.mapred.TextInputFormat"
-        assert (
-            actual.output_format
-            == "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
-        )
-        assert (
-            actual.serde_serialization_lib == "org.apache.hive.hcatalog.data.JsonSerDe"
-        )
+        assert actual.output_format == "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
+        assert actual.serde_serialization_lib == "org.apache.hive.hcatalog.data.JsonSerDe"
         assert actual.compression == "SNAPPY"
         assert not actual.serde_properties
         for key in actual.table_properties.keys():
             assert not key.startswith("serde.param.")
         assert actual.row_format == "SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'"
         assert (
-            actual.file_format
-            == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
+            actual.file_format == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
         )
 
     def test_init_parquet(self):
         response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
-        response["TableMetadata"][
-            "Parameters"
-        ] = ATHENA_TABLE_METADATA_PARAMETERS_PARQUET
+        response["TableMetadata"]["Parameters"] = ATHENA_TABLE_METADATA_PARAMETERS_PARQUET
         actual = AthenaTableMetadata(response)
         assert actual.parameters == ATHENA_TABLE_METADATA_PARAMETERS_PARQUET
         assert actual.comment is None
         assert actual.location == "s3://bucket/path/to"
         assert (
-            actual.input_format
-            == "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+            actual.input_format == "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
         )
         assert (
-            actual.output_format
-            == "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+            actual.output_format == "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
         )
         assert (
             actual.serde_serialization_lib
@@ -304,21 +280,15 @@ class TestAthenaTableMetadata:
         assert actual.comment is None
         assert actual.location == "s3://bucket/path/to"
         assert actual.input_format == "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat"
-        assert (
-            actual.output_format == "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat"
-        )
-        assert (
-            actual.serde_serialization_lib
-            == "org.apache.hadoop.hive.ql.io.orc.OrcSerde"
-        )
+        assert actual.output_format == "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat"
+        assert actual.serde_serialization_lib == "org.apache.hadoop.hive.ql.io.orc.OrcSerde"
         assert actual.compression == "SNAPPY"
         assert not actual.serde_properties
         for key in actual.table_properties.keys():
             assert not key.startswith("serde.param.")
         assert actual.row_format == "SERDE 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
         assert (
-            actual.file_format
-            == "INPUTFORMAT 'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' "
+            actual.file_format == "INPUTFORMAT 'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'"
         )
 
@@ -329,25 +299,14 @@ class TestAthenaTableMetadata:
         assert actual.parameters == ATHENA_TABLE_METADATA_PARAMETERS_AVRO
         assert actual.comment is None
         assert actual.location == "s3://bucket/path/to"
-        assert (
-            actual.input_format
-            == "org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat"
-        )
-        assert (
-            actual.output_format
-            == "org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat"
-        )
-        assert (
-            actual.serde_serialization_lib
-            == "org.apache.hadoop.hive.serde2.avro.AvroSerDe"
-        )
+        assert actual.input_format == "org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat"
+        assert actual.output_format == "org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat"
+        assert actual.serde_serialization_lib == "org.apache.hadoop.hive.serde2.avro.AvroSerDe"
         assert actual.compression is None
         assert not actual.serde_properties
         for key in actual.table_properties.keys():
             assert not key.startswith("serde.param.")
-        assert (
-            actual.row_format == "SERDE 'org.apache.hadoop.hive.serde2.avro.AvroSerDe'"
-        )
+        assert actual.row_format == "SERDE 'org.apache.hadoop.hive.serde2.avro.AvroSerDe'"
         assert (
             actual.file_format
             == "INPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat' "
@@ -390,22 +349,12 @@ class TestAthenaRowFormatSerde:
         assert not AthenaRowFormatSerde.is_parquet("foobar")
 
     def test_is_orc(self):
-        assert AthenaRowFormatSerde.is_orc(
-            "SERDE 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
-        )
-        assert AthenaRowFormatSerde.is_orc(
-            "SerDe 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
-        )
-        assert AthenaRowFormatSerde.is_orc(
-            "Serde 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
-        )
-        assert AthenaRowFormatSerde.is_orc(
-            "serde 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
-        )
+        assert AthenaRowFormatSerde.is_orc("SERDE 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'")
+        assert AthenaRowFormatSerde.is_orc("SerDe 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'")
+        assert AthenaRowFormatSerde.is_orc("Serde 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'")
+        assert AthenaRowFormatSerde.is_orc("serde 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'")
         assert not AthenaRowFormatSerde.is_orc("")
-        assert not AthenaRowFormatSerde.is_orc(
-            "org.apache.hadoop.hive.ql.io.orc.OrcSerde"
-        )
+        assert not AthenaRowFormatSerde.is_orc("org.apache.hadoop.hive.ql.io.orc.OrcSerde")
         assert not AthenaRowFormatSerde.is_orc("foobar")
 
 

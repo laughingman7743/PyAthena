@@ -87,9 +87,7 @@ class TestCursor:
         # When using caching, the same query ID should be returned.
         assert third_query_id in [first_query_id, second_query_id]
 
-    @pytest.mark.parametrize(
-        "cursor", [{"work_group": ENV.work_group}], indirect=["cursor"]
-    )
+    @pytest.mark.parametrize("cursor", [{"work_group": ENV.work_group}], indirect=["cursor"])
     def test_cache_size_with_work_group(self, cursor):
         now = datetime.utcnow()
         cursor.execute("SELECT %(now)s as date", {"now": now})
@@ -190,9 +188,7 @@ class TestCursor:
 
     def test_description(self, cursor):
         cursor.execute("SELECT 1 AS foobar FROM one_row")
-        assert cursor.description == [
-            ("foobar", "integer", None, None, 10, 0, "UNKNOWN")
-        ]
+        assert cursor.description == [("foobar", "integer", None, None, 10, 0, "UNKNOWN")]
 
     def test_description_initial(self, cursor):
         assert cursor.description is None
@@ -221,12 +217,8 @@ class TestCursor:
         assert cursor.fetchall() == [(None,)]
 
     def test_no_params(self, cursor):
-        pytest.raises(
-            DatabaseError, lambda: cursor.execute("SELECT %(param)s FROM one_row")
-        )
-        pytest.raises(
-            KeyError, lambda: cursor.execute("SELECT %(param)s FROM one_row", {"a": 1})
-        )
+        pytest.raises(DatabaseError, lambda: cursor.execute("SELECT %(param)s FROM one_row"))
+        pytest.raises(KeyError, lambda: cursor.execute("SELECT %(param)s FROM one_row", {"a": 1}))
 
     def test_contain_special_character_query(self, cursor):
         cursor.execute(
@@ -336,9 +328,7 @@ class TestCursor:
         cursor.execute("SELECT null FROM many_rows")
         assert cursor.fetchall() == [(None,)] * 10000
         cursor.execute("SELECT IF(a % 11 = 0, null, a) FROM many_rows")
-        assert cursor.fetchall() == [
-            (None if a % 11 == 0 else a,) for a in range(10000)
-        ]
+        assert cursor.fetchall() == [(None if a % 11 == 0 else a,) for a in range(10000)]
 
     def test_query_id(self, cursor):
         assert cursor.query_id is None
@@ -352,9 +342,7 @@ class TestCursor:
     def test_output_location(self, cursor):
         assert cursor.output_location is None
         cursor.execute("SELECT * from one_row")
-        assert cursor.output_location == "{0}{1}.csv".format(
-            ENV.s3_staging_dir, cursor.query_id
-        )
+        assert cursor.output_location == "{0}{1}.csv".format(ENV.s3_staging_dir, cursor.query_id)
 
     def test_query_execution_initial(self, cursor):
         assert not cursor.has_result_set
@@ -519,9 +507,7 @@ class TestCursor:
         conn.close()
 
     def test_show_partition(self, cursor):
-        location = "{0}{1}/{2}/".format(
-            ENV.s3_staging_dir, ENV.schema, "partition_table"
-        )
+        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, ENV.schema, "partition_table")
         for i in range(10):
             cursor.execute(
                 """
@@ -533,16 +519,12 @@ class TestCursor:
         cursor.execute("SHOW PARTITIONS partition_table")
         assert sorted(cursor.fetchall()) == [("b={0}".format(i),) for i in range(10)]
 
-    @pytest.mark.parametrize(
-        "cursor", [{"work_group": ENV.work_group}], indirect=["cursor"]
-    )
+    @pytest.mark.parametrize("cursor", [{"work_group": ENV.work_group}], indirect=["cursor"])
     def test_workgroup(self, cursor):
         cursor.execute("SELECT * FROM one_row")
         assert cursor.work_group == ENV.work_group
 
-    @pytest.mark.parametrize(
-        "cursor", [{"work_group": ENV.work_group}], indirect=["cursor"]
-    )
+    @pytest.mark.parametrize("cursor", [{"work_group": ENV.work_group}], indirect=["cursor"])
     def test_no_s3_staging_dir(self, cursor):
         cursor._s3_staging_dir = None
         cursor.execute("SELECT * FROM one_row")

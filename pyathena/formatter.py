@@ -49,9 +49,7 @@ class Formatter(metaclass=ABCMeta):
         self.mappings.update(mappings)
 
     @abstractmethod
-    def format(
-        self, operation: str, parameters: Optional[Dict[str, Any]] = None
-    ) -> str:
+    def format(self, operation: str, parameters: Optional[Dict[str, Any]] = None) -> str:
         raise NotImplementedError  # pragma: no cover
 
     @staticmethod
@@ -109,9 +107,7 @@ def _format_none(formatter: Formatter, escaper: Callable[[str], str], val: Any) 
     return "null"
 
 
-def _format_default(
-    formatter: Formatter, escaper: Callable[[str], str], val: Any
-) -> Any:
+def _format_default(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
     return val
 
 
@@ -119,9 +115,7 @@ def _format_date(formatter: Formatter, escaper: Callable[[str], str], val: Any) 
     return "DATE '{0}'".format(val.strftime("%Y-%m-%d"))
 
 
-def _format_datetime(
-    formatter: Formatter, escaper: Callable[[str], str], val: Any
-) -> Any:
+def _format_datetime(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
     return "TIMESTAMP '{0}'".format(val.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3])
 
 
@@ -159,15 +153,11 @@ def _format_seq(formatter: Formatter, escaper: Callable[[str], str], val: Any) -
     return "({0})".format(", ".join(results))
 
 
-def _format_decimal(
-    formatter: Formatter, escaper: Callable[[str], str], val: Any
-) -> Any:
+def _format_decimal(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
     return "DECIMAL {0}".format(escaper("{0:f}".format(val)))
 
 
-_DEFAULT_FORMATTERS: Dict[
-    Type[Any], Callable[[Formatter, Callable[[str], str], Any], Any]
-] = {
+_DEFAULT_FORMATTERS: Dict[Type[Any], Callable[[Formatter, Callable[[str], str], Any], Any]] = {
     type(None): _format_none,
     date: _format_date,
     datetime: _format_datetime,
@@ -188,9 +178,7 @@ class DefaultParameterFormatter(Formatter):
             mappings=deepcopy(_DEFAULT_FORMATTERS), default=None
         )
 
-    def format(
-        self, operation: str, parameters: Optional[Dict[str, Any]] = None
-    ) -> str:
+    def format(self, operation: str, parameters: Optional[Dict[str, Any]] = None) -> str:
         if not operation or not operation.strip():
             raise ProgrammingError("Query is none or empty.")
         operation = operation.strip()
@@ -216,8 +204,7 @@ class DefaultParameterFormatter(Formatter):
                     kwargs.update({k: func(self, escaper, v)})
             else:
                 raise ProgrammingError(
-                    "Unsupported parameter "
-                    + "(Support for dict only): {0}".format(parameters)
+                    "Unsupported parameter " + "(Support for dict only): {0}".format(parameters)
                 )
 
         return (operation % kwargs).strip() if kwargs is not None else operation.strip()

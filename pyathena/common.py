@@ -98,7 +98,7 @@ class BaseCursor(metaclass=ABCMeta):
         encryption_option: Optional[str],
         kms_key: Optional[str],
         kill_on_interrupt: bool,
-        **kwargs
+        **kwargs,
     ) -> None:
         super(BaseCursor, self).__init__()
         self._connection = connection
@@ -129,7 +129,7 @@ class BaseCursor(metaclass=ABCMeta):
                 self._connection.client.get_query_execution,
                 config=self._retry_config,
                 logger=_logger,
-                **request
+                **request,
             )
         except Exception as e:
             _logger.exception("Failed to get query execution.")
@@ -154,7 +154,7 @@ class BaseCursor(metaclass=ABCMeta):
                 self._connection.client.get_table_metadata,
                 config=self._retry_config,
                 logger=_logger,
-                **request
+                **request,
             )
         except Exception as e:
             if logging_:
@@ -177,9 +177,7 @@ class BaseCursor(metaclass=ABCMeta):
             logging_=logging_,
         )
 
-    def _batch_get_query_execution(
-        self, query_ids: List[str]
-    ) -> List[AthenaQueryExecution]:
+    def _batch_get_query_execution(self, query_ids: List[str]) -> List[AthenaQueryExecution]:
         try:
             response = retry_api_call(
                 self.connection._client.batch_get_query_execution,
@@ -210,7 +208,7 @@ class BaseCursor(metaclass=ABCMeta):
                 self.connection._client.list_query_executions,
                 config=self._retry_config,
                 logger=_logger,
-                **request
+                **request,
             )
         except Exception as e:
             _logger.exception("Failed to list query executions.")
@@ -242,7 +240,7 @@ class BaseCursor(metaclass=ABCMeta):
                 self.connection._client.list_table_metadata,
                 config=self._retry_config,
                 logger=_logger,
-                **request
+                **request,
             )
         except Exception as e:
             _logger.exception("Failed to list table metadata.")
@@ -316,16 +314,10 @@ class BaseCursor(metaclass=ABCMeta):
             request["QueryExecutionContext"].update({"Catalog": self._catalog_name})
         if self._s3_staging_dir or s3_staging_dir:
             request["ResultConfiguration"].update(
-                {
-                    "OutputLocation": s3_staging_dir
-                    if s3_staging_dir
-                    else self._s3_staging_dir
-                }
+                {"OutputLocation": s3_staging_dir if s3_staging_dir else self._s3_staging_dir}
             )
         if self._work_group or work_group:
-            request.update(
-                {"WorkGroup": work_group if work_group else self._work_group}
-            )
+            request.update({"WorkGroup": work_group if work_group else self._work_group})
         if self._encryption_option:
             enc_conf = {
                 "EncryptionOption": self._encryption_option,
@@ -342,14 +334,10 @@ class BaseCursor(metaclass=ABCMeta):
         next_token: Optional[str] = None,
     ) -> Dict[str, Any]:
         request: Dict[str, Any] = {
-            "MaxResults": max_results
-            if max_results
-            else self.LIST_QUERY_EXECUTIONS_MAX_RESULTS
+            "MaxResults": max_results if max_results else self.LIST_QUERY_EXECUTIONS_MAX_RESULTS
         }
         if self._work_group or work_group:
-            request.update(
-                {"WorkGroup": work_group if work_group else self._work_group}
-            )
+            request.update({"WorkGroup": work_group if work_group else self._work_group})
         if next_token:
             request.update({"NextToken": next_token})
         return request
@@ -363,9 +351,7 @@ class BaseCursor(metaclass=ABCMeta):
         next_token: Optional[str] = None,
     ) -> Dict[str, Any]:
         request: Dict[str, Any] = {
-            "MaxResults": max_results
-            if max_results
-            else self.LIST_TABLE_METADATA_MAX_RESULTS,
+            "MaxResults": max_results if max_results else self.LIST_TABLE_METADATA_MAX_RESULTS,
             "CatalogName": catalog_name if catalog_name else self._catalog_name,
             "DatabaseName": schema_name if schema_name else self._schema_name,
         }
@@ -386,9 +372,7 @@ class BaseCursor(metaclass=ABCMeta):
         if cache_size == 0 and cache_expiration_time > 0:
             cache_size = sys.maxsize
         if cache_expiration_time > 0:
-            expiration_time = datetime.now(timezone.utc) - timedelta(
-                seconds=cache_expiration_time
-            )
+            expiration_time = datetime.now(timezone.utc) - timedelta(seconds=cache_expiration_time)
         else:
             expiration_time = datetime.now(timezone.utc)
         try:
@@ -424,9 +408,7 @@ class BaseCursor(metaclass=ABCMeta):
                 if query_id or next_token is None:
                     break
         except Exception:
-            _logger.warning(
-                "Failed to check the cache. Moving on without cache.", exc_info=True
-            )
+            _logger.warning("Failed to check the cache. Moving on without cache.", exc_info=True)
         return query_id
 
     def _execute(
@@ -441,9 +423,7 @@ class BaseCursor(metaclass=ABCMeta):
         query = self._formatter.format(operation, parameters)
         _logger.debug(query)
 
-        request = self._build_start_query_execution_request(
-            query, work_group, s3_staging_dir
-        )
+        request = self._build_start_query_execution_request(query, work_group, s3_staging_dir)
         query_id = self._find_previous_query_id(
             query,
             work_group,
@@ -456,7 +436,7 @@ class BaseCursor(metaclass=ABCMeta):
                     self._connection.client.start_query_execution,
                     config=self._retry_config,
                     logger=_logger,
-                    **request
+                    **request,
                 ).get("QueryExecutionId", None)
             except Exception as e:
                 _logger.exception("Failed to execute query.")
@@ -492,7 +472,7 @@ class BaseCursor(metaclass=ABCMeta):
                 self._connection.client.stop_query_execution,
                 config=self._retry_config,
                 logger=_logger,
-                **request
+                **request,
             )
         except Exception as e:
             _logger.exception("Failed to cancel query.")

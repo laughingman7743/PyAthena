@@ -122,17 +122,13 @@ class Converter(metaclass=ABCMeta):
     def get(self, type_: str) -> Callable[[Optional[str]], Optional[Any]]:
         return self.mappings.get(type_, self._default)
 
-    def set(
-        self, type_: str, converter: Callable[[Optional[str]], Optional[Any]]
-    ) -> None:
+    def set(self, type_: str, converter: Callable[[Optional[str]], Optional[Any]]) -> None:
         self.mappings[type_] = converter
 
     def remove(self, type_: str) -> None:
         self.mappings.pop(type_, None)
 
-    def update(
-        self, mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]]
-    ) -> None:
+    def update(self, mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]]) -> None:
         self.mappings.update(mappings)
 
     @abstractmethod

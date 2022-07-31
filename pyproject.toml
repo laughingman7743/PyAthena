@@ -54,16 +54,13 @@ fastparquet = ">=0.4.0"
 s3fs = ">=2021.09.0"
 aiobotocore = "*"
 Jinja2 = ">=3.1.0"
+isort = ">=5.10.1"
 black = ">=22.3.0"
 mypy = ">=0.900"
-flake8 = "*"
+flake8 = ">=5.0.0"
 pytest = ">=3.5"
 pytest-cov = "*"
-pytest-flake8 = ">=1.0.1"
-pytest-black = "*"
-pytest-isort = "*"
 pytest-xdist = "*"
-pytest-mypy = "*"
 
 [tool.poetry.extras]
 pandas = ["pandas", "s3fs"]
@@ -78,12 +75,17 @@ fastparquet = ["fastparquet"]
 "awsathena.arrow" = "pyathena.sqlalchemy_athena:AthenaArrowDialect"
 
 [tool.pytest.ini_options]
-flake8-max-line-length = 100
-norecursedirs = "benchmarks"
+norecursedirs = ["benchmarks", ".poetry", ".tox"]
+
+[tool.black]
+line-length = 100
+target-version = ['py37']
+exclude = '(\.poetry|\.tox)'
 
 [tool.isort]
 profile = "black"
 multi_line_output = 3
+skip_glob = [".poetry/*", ".tox/*"]
 
 [tool.mypy]
 python_version = 3.7
@@ -98,10 +100,7 @@ warn_no_return = true
 warn_return_any = true
 warn_unreachable = true
 warn_unused_configs = true
-
-[[tool.mypy.overrides]]
-module = ["benchmarks.*", "tests.*"]
-ignore_errors = true
+exclude = ["benchmarks.*", "tests.*", ".poetry.*", ".tox.*"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

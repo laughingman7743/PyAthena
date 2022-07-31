@@ -32,7 +32,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         encryption_option: Optional[str] = None,
         kms_key: Optional[str] = None,
         kill_on_interrupt: bool = True,
-        **kwargs
+        **kwargs,
     ) -> None:
         super(Cursor, self).__init__(
             connection=connection,
@@ -47,7 +47,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
             encryption_option=encryption_option,
             kms_key=kms_key,
             kill_on_interrupt=kill_on_interrupt,
-            **kwargs
+            **kwargs,
         )
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaResultSet] = None

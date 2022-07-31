@@ -294,9 +294,7 @@ class TestArrowCursor:
         table = arrow_cursor.execute("SELECT * FROM many_rows").as_arrow()
         assert table.shape[0] == 10000
         assert table.shape[1] == 1
-        assert [row for row in zip(*table.to_pydict().values())] == [
-            (i,) for i in range(10000)
-        ]
+        assert [row for row in zip(*table.to_pydict().values())] == [(i,) for i in range(10000)]
 
     def test_complex_as_arrow(self, arrow_cursor):
         table = arrow_cursor.execute(
@@ -424,9 +422,7 @@ class TestArrowCursor:
                 pa.field("col_date", pa.date32()),
                 pa.field("col_binary", pa.binary()),
                 pa.field("col_array", pa.list_(pa.field("array_element", pa.int32()))),
-                pa.field(
-                    "col_map", pa.map_(pa.int32(), pa.field("entries", pa.int32()))
-                ),
+                pa.field("col_map", pa.map_(pa.int32(), pa.field("entries", pa.int32()))),
                 pa.field(
                     "col_struct",
                     pa.struct([pa.field("a", pa.int32()), pa.field("b", pa.int32())]),
@@ -495,9 +491,7 @@ class TestArrowCursor:
     )
     def test_show_columns(self, arrow_cursor):
         arrow_cursor.execute("SHOW COLUMNS IN one_row")
-        assert arrow_cursor.description == [
-            ("field", "string", None, None, 0, 0, "UNKNOWN")
-        ]
+        assert arrow_cursor.description == [("field", "string", None, None, 0, 0, "UNKNOWN")]
         assert arrow_cursor.fetchall() == [("number_of_rows      ",)]
 
     @pytest.mark.parametrize(
@@ -560,9 +554,7 @@ class TestArrowCursor:
         indirect=["arrow_cursor"],
     )
     def test_executemany_fetch(self, arrow_cursor):
-        arrow_cursor.executemany(
-            "SELECT %(x)d AS x FROM one_row", [{"x": i} for i in range(1, 2)]
-        )
+        arrow_cursor.executemany("SELECT %(x)d AS x FROM one_row", [{"x": i} for i in range(1, 2)])
         # Operations that have result sets are not allowed with executemany.
         pytest.raises(ProgrammingError, arrow_cursor.fetchall)
         pytest.raises(ProgrammingError, arrow_cursor.fetchmany)

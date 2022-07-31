@@ -177,19 +177,13 @@ class AthenaPandasResultSet(AthenaResultSet):
 
     @property
     def is_unload(self):
-        return (
-            self._unload
-            and self.query
-            and self.query.strip().upper().startswith("UNLOAD")
-        )
+        return self._unload and self.query and self.query.strip().upper().startswith("UNLOAD")
 
     @property
     def dtypes(self) -> Dict[str, Type[Any]]:
         description = self.description if self.description else []
         return {
-            d[0]: self._converter.types[d[1]]
-            for d in description
-            if d[1] in self._converter.types
+            d[0]: self._converter.types[d[1]] for d in description if d[1] in self._converter.types
         }
 
     @property
@@ -198,9 +192,7 @@ class AthenaPandasResultSet(AthenaResultSet):
     ) -> Dict[Optional[Any], Callable[[Optional[str]], Optional[Any]]]:
         description = self.description if self.description else []
         return {
-            d[0]: self._converter.get(d[1])
-            for d in description
-            if d[1] in self._converter.mappings
+            d[0]: self._converter.get(d[1]) for d in description if d[1] in self._converter.mappings
         }
 
     @property
@@ -307,9 +299,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         if not self._data_manifest:
             return pd.DataFrame()
         if not self._unload_location:
-            self._unload_location = (
-                "/".join(self._data_manifest[0].split("/")[:-1]) + "/"
-            )
+            self._unload_location = "/".join(self._data_manifest[0].split("/")[:-1]) + "/"
 
         if engine == "pyarrow":
             unload_location = self._unload_location

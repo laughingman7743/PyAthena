@@ -126,9 +126,7 @@ class TestAsyncPandasCursor:
         )
         result_set = future.result()
         assert result_set.fetchall() == [(1,)]
-        query_id, future = async_pandas_cursor.execute(
-            "SELECT a FROM many_rows ORDER BY a"
-        )
+        query_id, future = async_pandas_cursor.execute("SELECT a FROM many_rows ORDER BY a")
         result_set = future.result()
         assert result_set.fetchall() == [(i,) for i in range(10000)]
 
@@ -206,13 +204,9 @@ class TestAsyncPandasCursor:
         result_set = future.result()
         assert result_set.fetchall() == [(1,)]
         if async_pandas_cursor._unload:
-            assert result_set.description == [
-                ("foobar", "integer", None, None, 10, 0, "NULLABLE")
-            ]
+            assert result_set.description == [("foobar", "integer", None, None, 10, 0, "NULLABLE")]
         else:
-            assert result_set.description == [
-                ("foobar", "integer", None, None, 10, 0, "UNKNOWN")
-            ]
+            assert result_set.description == [("foobar", "integer", None, None, 10, 0, "UNKNOWN")]
 
         future = async_pandas_cursor.description(query_id)
         description = future.result()
@@ -271,10 +265,7 @@ class TestAsyncPandasCursor:
             result_set.engine_execution_time_in_millis
             == query_execution.engine_execution_time_in_millis
         )
-        assert (
-            result_set.query_queue_time_in_millis
-            == query_execution.query_queue_time_in_millis
-        )
+        assert result_set.query_queue_time_in_millis == query_execution.query_queue_time_in_millis
         assert (
             result_set.total_execution_time_in_millis
             == query_execution.total_execution_time_in_millis
@@ -288,9 +279,7 @@ class TestAsyncPandasCursor:
             == query_execution.service_processing_time_in_millis
         )
         assert result_set.output_location == query_execution.output_location
-        assert (
-            result_set.data_manifest_location == query_execution.data_manifest_location
-        )
+        assert result_set.data_manifest_location == query_execution.data_manifest_location
 
     @pytest.mark.parametrize(
         "async_pandas_cursor, parquet_engine, chunksize",
@@ -415,9 +404,7 @@ class TestAsyncPandasCursor:
     def test_no_ops(self):
         conn = connect()
         cursor = conn.cursor(AsyncPandasCursor)
-        pytest.raises(
-            NotSupportedError, lambda: cursor.executemany("SELECT * FROM one_row", [])
-        )
+        pytest.raises(NotSupportedError, lambda: cursor.executemany("SELECT * FROM one_row", []))
         cursor.close()
         conn.close()
 
@@ -438,9 +425,7 @@ class TestAsyncPandasCursor:
             "SHOW COLUMNS IN one_row", engine=parquet_engine, chunksize=chunksize
         )
         result_set = future.result()
-        assert result_set.description == [
-            ("field", "string", None, None, 0, 0, "UNKNOWN")
-        ]
+        assert result_set.description == [("field", "string", None, None, 0, 0, "UNKNOWN")]
         assert result_set.fetchall() == [("number_of_rows      ",)]
 
     @pytest.mark.parametrize(
@@ -633,9 +618,7 @@ class TestAsyncPandasCursor:
                 result_set.fetchall(),
                 [(np.nan, "a"), ("N/A", "a"), ("NULL", "a"), (np.nan, "a")],
             )
-        query_id, future = async_pandas_cursor.execute(
-            query, na_values=None, engine=parquet_engine
-        )
+        query_id, future = async_pandas_cursor.execute(query, na_values=None, engine=parquet_engine)
         result_set = future.result()
         if async_pandas_cursor._unload:
             # NULL and empty characters are correctly converted when the UNLOAD option is enabled.
