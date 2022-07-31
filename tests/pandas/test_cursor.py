@@ -34,9 +34,7 @@ class TestPandasCursor:
         indirect=["pandas_cursor"],
     )
     def test_fetchone(self, pandas_cursor, parquet_engine, chunksize):
-        pandas_cursor.execute(
-            "SELECT * FROM one_row", engine=parquet_engine, chunksize=chunksize
-        )
+        pandas_cursor.execute("SELECT * FROM one_row", engine=parquet_engine, chunksize=chunksize)
         assert pandas_cursor.rownumber == 0
         assert pandas_cursor.fetchone() == (1,)
         assert pandas_cursor.rownumber == 1
@@ -97,13 +95,9 @@ class TestPandasCursor:
         indirect=["pandas_cursor"],
     )
     def test_fetchall(self, pandas_cursor, parquet_engine, chunksize):
-        pandas_cursor.execute(
-            "SELECT * FROM one_row", engine=parquet_engine, chunksize=chunksize
-        )
+        pandas_cursor.execute("SELECT * FROM one_row", engine=parquet_engine, chunksize=chunksize)
         assert pandas_cursor.fetchall() == [(1,)]
-        pandas_cursor.execute(
-            "SELECT a FROM many_rows ORDER BY a", engine=parquet_engine
-        )
+        pandas_cursor.execute("SELECT a FROM many_rows ORDER BY a", engine=parquet_engine)
         assert pandas_cursor.fetchall() == [(i,) for i in range(10000)]
 
     @pytest.mark.parametrize(
@@ -119,9 +113,7 @@ class TestPandasCursor:
         indirect=["pandas_cursor"],
     )
     def test_iterator(self, pandas_cursor, parquet_engine, chunksize):
-        pandas_cursor.execute(
-            "SELECT * FROM one_row", engine=parquet_engine, chunksize=chunksize
-        )
+        pandas_cursor.execute("SELECT * FROM one_row", engine=parquet_engine, chunksize=chunksize)
         assert list(pandas_cursor) == [(1,)]
         pytest.raises(StopIteration, pandas_cursor.__next__)
 
@@ -976,12 +968,8 @@ class TestPandasCursor:
         indirect=["pandas_cursor"],
     )
     def test_show_columns(self, pandas_cursor, parquet_engine, chunksize):
-        pandas_cursor.execute(
-            "SHOW COLUMNS IN one_row", engine=parquet_engine, chunksize=chunksize
-        )
-        assert pandas_cursor.description == [
-            ("field", "string", None, None, 0, 0, "UNKNOWN")
-        ]
+        pandas_cursor.execute("SHOW COLUMNS IN one_row", engine=parquet_engine, chunksize=chunksize)
+        assert pandas_cursor.description == [("field", "string", None, None, 0, 0, "UNKNOWN")]
         assert pandas_cursor.fetchall() == [("number_of_rows      ",)]
 
     @pytest.mark.parametrize(
@@ -1153,9 +1141,7 @@ class TestPandasCursor:
         indirect=["pandas_cursor"],
     )
     def test_executemany_fetch(self, pandas_cursor, parquet_engine):
-        pandas_cursor.executemany(
-            "SELECT %(x)d AS x FROM one_row", [{"x": i} for i in range(1, 2)]
-        )
+        pandas_cursor.executemany("SELECT %(x)d AS x FROM one_row", [{"x": i} for i in range(1, 2)])
         # Operations that have result sets are not allowed with executemany.
         pytest.raises(ProgrammingError, pandas_cursor.fetchall)
         pytest.raises(ProgrammingError, pandas_cursor.fetchmany)
@@ -1237,9 +1223,7 @@ class TestPandasCursor:
         indirect=["pandas_cursor"],
     )
     def test_null_decimal_value(self, pandas_cursor, parquet_engine):
-        pandas_cursor.execute(
-            "SELECT CAST(null AS DECIMAL) AS col_decimal", engine=parquet_engine
-        )
+        pandas_cursor.execute("SELECT CAST(null AS DECIMAL) AS col_decimal", engine=parquet_engine)
         if parquet_engine == "fastparquet":
             rows = [
                 tuple(

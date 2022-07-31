@@ -65,7 +65,7 @@ class Connection:
         cursor_kwargs: Optional[Dict[str, Any]] = None,
         kill_on_interrupt: bool = True,
         session: Optional[Session] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         self._kwargs = {
             **kwargs,
@@ -134,7 +134,7 @@ class Connection:
             self._session = Session(
                 region_name=self.region_name,
                 profile_name=self.profile_name,
-                **self._session_kwargs
+                **self._session_kwargs,
             )
         self._client = self._session.client(
             "athena", region_name=self.region_name, **self._client_kwargs
@@ -204,9 +204,7 @@ class Connection:
 
     @property
     def _session_kwargs(self) -> Dict[str, Any]:
-        return {
-            k: v for k, v in self._kwargs.items() if k in self._SESSION_PASSING_ARGS
-        }
+        return {k: v for k, v in self._kwargs.items() if k in self._SESSION_PASSING_ARGS}
 
     @property
     def _client_kwargs(self) -> Dict[str, Any]:
@@ -250,7 +248,7 @@ class Connection:
             encryption_option=kwargs.pop("encryption_option", self.encryption_option),
             kms_key=kwargs.pop("kms_key", self.kms_key),
             kill_on_interrupt=kwargs.pop("kill_on_interrupt", self.kill_on_interrupt),
-            **kwargs
+            **kwargs,
         )
 
     def close(self) -> None:

@@ -75,9 +75,7 @@ class AthenaStatementCompiler(SQLCompiler):
             type_clause = "CHAR"
         else:
             type_clause = cast.typeclause._compiler_dispatch(self, **kwargs)
-        return (
-            f"CAST({cast.clause._compiler_dispatch(self, **kwargs)} AS {type_clause})"
-        )
+        return f"CAST({cast.clause._compiler_dispatch(self, **kwargs)} AS {type_clause})"
 
     def limit_clause(self, select, **kw):
         text = []
@@ -85,14 +83,10 @@ class AthenaStatementCompiler(SQLCompiler):
         if hasattr(select, "_simple_int_clause"):
             offset_clause = select._offset_clause
             if offset_clause is not None and select._simple_int_clause(offset_clause):
-                text.append(
-                    f" OFFSET {self.process(offset_clause.render_literal_execute(), **kw)}"
-                )
+                text.append(f" OFFSET {self.process(offset_clause.render_literal_execute(), **kw)}")
             limit_clause = select._limit_clause
             if limit_clause is not None and select._simple_int_clause(limit_clause):
-                text.append(
-                    f" LIMIT {self.process(limit_clause.render_literal_execute(), **kw)}"
-                )
+                text.append(f" LIMIT {self.process(limit_clause.render_literal_execute(), **kw)}")
         else:
             # SQLAlchemy < 1.4
             if select._offset_clause is not None:
@@ -269,11 +263,7 @@ class AthenaDDLCompiler(DDLCompiler):
         if serde_properties:
             text.append("WITH SERDEPROPERTIES (")
             if isinstance(serde_properties, dict):
-                text.append(
-                    ",\n".join(
-                        [f"\t'{k}' = '{v}'" for k, v in serde_properties.items()]
-                    )
-                )
+                text.append(",\n".join([f"\t'{k}' = '{v}'" for k, v in serde_properties.items()]))
             else:
                 text.append(serde_properties)
             text.append(")")
@@ -336,9 +326,7 @@ class AthenaDDLCompiler(DDLCompiler):
         if table_properties:
             if isinstance(table_properties, dict):
                 table_properties = [
-                    ",\n".join(
-                        [f"\t'{k}' = '{v}'" for k, v in table_properties.items()]
-                    )
+                    ",\n".join([f"\t'{k}' = '{v}'" for k, v in table_properties.items()])
                 ]
             else:
                 table_properties = [table_properties]
@@ -379,9 +367,7 @@ class AthenaDDLCompiler(DDLCompiler):
             # use the int keyword to represent an integer
             type_ = "INT"
         else:
-            type_ = self.dialect.type_compiler.process(
-                column.type, type_expression=column
-            )
+            type_ = self.dialect.type_compiler.process(column.type, type_expression=column)
         text = [f"{self.preparer.format_column(column)} {type_}"]
         if column.comment:
             text.append(f"{self._get_comment_specification(column.comment)}")
@@ -466,9 +452,7 @@ class AthenaDDLCompiler(DDLCompiler):
         text.append("(")
         text = [" ".join(text)]
 
-        columns, partitions, buckets = self._prepared_columns(
-            table, create.columns, connect_opts
-        )
+        columns, partitions, buckets = self._prepared_columns(table, create.columns, connect_opts)
         text.append(",\n".join(columns))
         text.append(")")
 
@@ -588,9 +572,7 @@ class AthenaDialect(DefaultDialect):
         if "poll_interval" in opts:
             opts.update({"poll_interval": float(url.query["poll_interval"])})
         if "kill_on_interrupt" in opts:
-            opts.update(
-                {"kill_on_interrupt": bool(strtobool(url.query["kill_on_interrupt"]))}
-            )
+            opts.update({"kill_on_interrupt": bool(strtobool(url.query["kill_on_interrupt"]))})
         return opts
 
     @reflection.cache
@@ -608,9 +590,7 @@ class AthenaDialect(DefaultDialect):
         schema = schema if schema else raw_connection.schema_name
         with raw_connection.connection.cursor() as cursor:
             try:
-                return cursor.get_table_metadata(
-                    table_name, schema_name=schema, logging_=False
-                )
+                return cursor.get_table_metadata(table_name, schema_name=schema, logging_=False)
             except pyathena.error.OperationalError as exc:
                 cause = exc.__cause__
                 if (

@@ -63,7 +63,7 @@ def retry_api_call(
     config: RetryConfig,
     logger: logging.Logger = None,
     *args,
-    **kwargs
+    **kwargs,
 ) -> Any:
     retry = tenacity.Retrying(
         retry=retry_if_exception(

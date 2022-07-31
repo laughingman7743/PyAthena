@@ -62,8 +62,7 @@ class TestSQLAlchemyAthena:
             == "SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'"
         )
         assert (
-            dialect_opts["file_format"]
-            == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
+            dialect_opts["file_format"] == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
         )
         assert dialect_opts["serdeproperties"] == {
@@ -92,8 +91,7 @@ class TestSQLAlchemyAthena:
             == "SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'"
         )
         assert (
-            dialect_opts["file_format"]
-            == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
+            dialect_opts["file_format"] == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
         )
         assert dialect_opts["serdeproperties"] == {
@@ -106,9 +104,7 @@ class TestSQLAlchemyAthena:
     def test_reflect_table_include_columns(self, engine):
         engine, conn = engine
         one_row_complex = Table("one_row_complex", MetaData())
-        version = float(
-            re.search(r"^([\d]+\.[\d]+)\..+", sqlalchemy.__version__).group(1)
-        )
+        version = float(re.search(r"^([\d]+\.[\d]+)\..+", sqlalchemy.__version__).group(1))
         if version <= 1.2:
             engine.dialect.reflecttable(
                 conn, one_row_complex, include_columns=["col_int"], exclude_columns=[]
@@ -235,21 +231,15 @@ class TestSQLAlchemyAthena:
 
     def test_char_length(self, engine):
         engine, conn = engine
-        one_row_complex = Table(
-            "one_row_complex", MetaData(schema=ENV.schema), autoload_with=conn
-        )
+        one_row_complex = Table("one_row_complex", MetaData(schema=ENV.schema), autoload_with=conn)
         result = conn.execute(
-            sqlalchemy.select(
-                [sqlalchemy.func.char_length(one_row_complex.c.col_string)]
-            )
+            sqlalchemy.select([sqlalchemy.func.char_length(one_row_complex.c.col_string)])
         ).scalar()
         assert result == len("a string")
 
     def test_reflect_select(self, engine):
         engine, conn = engine
-        one_row_complex = Table(
-            "one_row_complex", MetaData(schema=ENV.schema), autoload_with=conn
-        )
+        one_row_complex = Table("one_row_complex", MetaData(schema=ENV.schema), autoload_with=conn)
         assert len(one_row_complex.c) == 16
         assert isinstance(one_row_complex.c.col_string, Column)
         rows = conn.execute(one_row_complex.select()).fetchall()
@@ -303,9 +293,7 @@ class TestSQLAlchemyAthena:
 
     def test_reserved_words(self):
         """Presto uses double quotes, not backticks"""
-        fake_table = Table(
-            "select", MetaData(), Column("current_timestamp", types.String())
-        )
+        fake_table = Table("select", MetaData(), Column("current_timestamp", types.String()))
         query = str(fake_table.select(fake_table.c.current_timestamp == "a"))
         assert '"select"' in query
         assert '"current_timestamp"' in query
@@ -334,9 +322,7 @@ class TestSQLAlchemyAthena:
         assert isinstance(dialect._get_column_type("binary"), types.BINARY)
         assert isinstance(dialect._get_column_type("array<integer>"), types.String)
         assert isinstance(dialect._get_column_type("map<int, int>"), types.String)
-        assert isinstance(
-            dialect._get_column_type("struct<a: int, b: int>"), types.String
-        )
+        assert isinstance(dialect._get_column_type("struct<a: int, b: int>"), types.String)
         decimal_with_args = dialect._get_column_type("decimal(10,1)")
         assert isinstance(decimal_with_args, types.DECIMAL)
         assert decimal_with_args.precision == 10
@@ -355,9 +341,7 @@ class TestSQLAlchemyAthena:
         result = engine.execute(query)
         assert result.fetchall() == [(datetime(2019, 10, 30),)]
 
-        query_with_limit = (
-            sqlalchemy.sql.select(["*"]).select_from(table_expression).limit(1)
-        )
+        query_with_limit = sqlalchemy.sql.select(["*"]).select_from(table_expression).limit(1)
         result_with_limit = engine.execute(query_with_limit)
         assert result_with_limit.fetchall() == [(datetime(2019, 10, 30),)]
 
@@ -374,9 +358,7 @@ class TestSQLAlchemyAthena:
         result = engine.execute(query, word="cat")
         assert result.fetchall() == [("cat",)]
 
-        query_with_limit = (
-            sqlalchemy.select(["*"]).select_from(table_expression).limit(1)
-        )
+        query_with_limit = sqlalchemy.select(["*"]).select_from(table_expression).limit(1)
         result_with_limit = engine.execute(query_with_limit, word="cat")
         assert result_with_limit.fetchall() == [("cat",)]
 
@@ -393,9 +375,7 @@ class TestSQLAlchemyAthena:
         result1 = engine.execute(query1, word="cat")
         assert result1.fetchall() == [(datetime(2019, 10, 30), "cat")]
 
-        query_with_limit1 = (
-            sqlalchemy.select(["*"]).select_from(table_expression1).limit(1)
-        )
+        query_with_limit1 = sqlalchemy.select(["*"]).select_from(table_expression1).limit(1)
         result_with_limit1 = engine.execute(query_with_limit1, word="cat")
         assert result_with_limit1.fetchall() == [(datetime(2019, 10, 30), "cat")]
 
@@ -411,9 +391,7 @@ class TestSQLAlchemyAthena:
         result2 = engine.execute(query2, param="b%")
         assert result2.fetchall() == [("a string", "b%")]
 
-        query_with_limit2 = (
-            sqlalchemy.select(["*"]).select_from(table_expression2).limit(1)
-        )
+        query_with_limit2 = sqlalchemy.select(["*"]).select_from(table_expression2).limit(1)
         result_with_limit2 = engine.execute(query_with_limit2, param="b%")
         assert result_with_limit2.fetchall() == [("a string", "b%")]
 
@@ -607,9 +585,7 @@ class TestSQLAlchemyAthena:
         kwargs = conn.connection._kwargs
         assert not kwargs["verify"]
 
-    @pytest.mark.parametrize(
-        "engine", [{"duration_seconds": "1800"}], indirect=["engine"]
-    )
+    @pytest.mark.parametrize("engine", [{"duration_seconds": "1800"}], indirect=["engine"])
     def test_conn_str_duration_seconds(self, engine):
         engine, conn = engine
         kwargs = conn.connection._kwargs
@@ -620,9 +596,7 @@ class TestSQLAlchemyAthena:
         engine, conn = engine
         assert conn.connection.poll_interval == 5
 
-    @pytest.mark.parametrize(
-        "engine", [{"kill_on_interrupt": "false"}], indirect=["engine"]
-    )
+    @pytest.mark.parametrize("engine", [{"kill_on_interrupt": "false"}], indirect=["engine"])
     def test_conn_str_kill_on_interrupt(self, engine):
         engine, conn = engine
         assert not conn.connection.kill_on_interrupt
@@ -707,8 +681,7 @@ class TestSQLAlchemyAthena:
             == "SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'"
         )
         assert (
-            dialect_opts["file_format"]
-            == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
+            dialect_opts["file_format"] == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
         )
         # TODO The metadata retrieved from the API does not seem to include bucketing information.
@@ -806,13 +779,9 @@ class TestSQLAlchemyAthena:
             """
         )
         dialect_opts = actual.dialect_options["awsathena"]
+        assert dialect_opts["row_format"] == "SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde'"
         assert (
-            dialect_opts["row_format"]
-            == "SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde'"
-        )
-        assert (
-            dialect_opts["file_format"]
-            == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
+            dialect_opts["file_format"] == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
         )
         assert dialect_opts["serdeproperties"]["separatorChar"] == ","
@@ -858,12 +827,9 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             """
         )
         dialect_opts = actual.dialect_options["awsathena"]
+        assert dialect_opts["row_format"] == "SERDE 'com.amazonaws.glue.serde.GrokSerDe'"
         assert (
-            dialect_opts["row_format"] == "SERDE 'com.amazonaws.glue.serde.GrokSerDe'"
-        )
-        assert (
-            dialect_opts["file_format"]
-            == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
+            dialect_opts["file_format"] == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'"
         )
         assert (
@@ -908,12 +874,9 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             """
         )
         dialect_opts = actual.dialect_options["awsathena"]
+        assert dialect_opts["row_format"] == "SERDE 'org.openx.data.jsonserde.JsonSerDe'"
         assert (
-            dialect_opts["row_format"] == "SERDE 'org.openx.data.jsonserde.JsonSerDe'"
-        )
-        assert (
-            dialect_opts["file_format"]
-            == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
+            dialect_opts["file_format"] == "INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat'"
         )
         assert dialect_opts["serdeproperties"]["ignore.malformed.json"] == "1"
@@ -1001,10 +964,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         )
         dialect_opts = actual.dialect_options["awsathena"]
         assert dialect_opts["compression"] == "ZLIB"
-        assert (
-            dialect_opts["row_format"]
-            == "SERDE 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
-        )
+        assert dialect_opts["row_format"] == "SERDE 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
         assert (
             dialect_opts["file_format"]
             == "INPUTFORMAT 'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' "
@@ -1074,10 +1034,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             """
         )
         dialect_opts = actual.dialect_options["awsathena"]
-        assert (
-            dialect_opts["row_format"]
-            == "SERDE 'org.apache.hadoop.hive.serde2.avro.AvroSerDe'"
-        )
+        assert dialect_opts["row_format"] == "SERDE 'org.apache.hadoop.hive.serde2.avro.AvroSerDe'"
         assert (
             dialect_opts["file_format"]
             == "INPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat' "
@@ -1144,9 +1101,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         # The AWS API seems to return comments with squashed whitespace and line breaks.
         # assert actual.comment == table.comment
         assert actual.comment
-        assert actual.comment == "\n{}\n".format(
-            re.sub(r"\s+", " ", table_comment.strip())
-        )
+        assert actual.comment == "\n{}\n".format(re.sub(r"\s+", " ", table_comment.strip()))
 
     def test_create_table_with_special_character_comments(self, engine):
         engine, conn = engine

@@ -43,17 +43,11 @@ class AthenaQueryExecution:
             raise DataError("KeyError `Status`")
         self._state: Optional[str] = status.get("State", None)
         self._state_change_reason: Optional[str] = status.get("StateChangeReason", None)
-        self._completion_date_time: Optional[datetime] = status.get(
-            "CompletionDateTime", None
-        )
-        self._submission_date_time: Optional[datetime] = status.get(
-            "SubmissionDateTime", None
-        )
+        self._completion_date_time: Optional[datetime] = status.get("CompletionDateTime", None)
+        self._submission_date_time: Optional[datetime] = status.get("SubmissionDateTime", None)
 
         statistics = query_execution.get("Statistics", {})
-        self._data_scanned_in_bytes: Optional[int] = statistics.get(
-            "DataScannedInBytes", None
-        )
+        self._data_scanned_in_bytes: Optional[int] = statistics.get("DataScannedInBytes", None)
         self._engine_execution_time_in_millis: Optional[int] = statistics.get(
             "EngineExecutionTimeInMillis", None
         )
@@ -69,17 +63,13 @@ class AthenaQueryExecution:
         self._service_processing_time_in_millis: Optional[int] = statistics.get(
             "ServiceProcessingTimeInMillis", None
         )
-        self._data_manifest_location: Optional[str] = statistics.get(
-            "DataManifestLocation", None
-        )
+        self._data_manifest_location: Optional[str] = statistics.get("DataManifestLocation", None)
 
         result_conf = query_execution.get("ResultConfiguration", {})
         self._output_location: Optional[str] = result_conf.get("OutputLocation", None)
 
         encryption_conf = result_conf.get("EncryptionConfiguration", {})
-        self._encryption_option: Optional[str] = encryption_conf.get(
-            "EncryptionOption", None
-        )
+        self._encryption_option: Optional[str] = encryption_conf.get("EncryptionOption", None)
         self._kms_key: Optional[str] = encryption_conf.get("KmsKey", None)
 
         self._work_group: Optional[str] = query_execution.get("WorkGroup", None)
@@ -207,9 +197,7 @@ class AthenaTableMetadata:
 
         self._name: Optional[str] = table_metadata.get("Name", None)
         self._create_time: Optional[datetime] = table_metadata.get("CreateTime", None)
-        self._last_access_time: Optional[datetime] = table_metadata.get(
-            "LastAccessTime", None
-        )
+        self._last_access_time: Optional[datetime] = table_metadata.get("LastAccessTime", None)
         self._table_type: Optional[str] = table_metadata.get("TableType", None)
 
         columns = table_metadata.get("Columns", [])
@@ -310,11 +298,7 @@ class AthenaTableMetadata:
 
     @property
     def table_properties(self) -> Dict[str, str]:
-        return {
-            k: v
-            for k, v in self._parameters.items()
-            if not k.startswith("serde.param.")
-        }
+        return {k: v for k, v in self._parameters.items() if not k.startswith("serde.param.")}
 
 
 class AthenaFileFormat:
@@ -342,16 +326,12 @@ class AthenaRowFormatSerde:
 
     ROW_FORMAT_SERDE_CSV: str = "org.apache.hadoop.hive.serde2.OpenCSVSerde"
     ROW_FORMAT_SERDE_REGEX: str = "org.apache.hadoop.hive.serde2.RegexSerDe"
-    ROW_FORMAT_SERDE_LAZY_SIMPLE: str = (
-        "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
-    )
+    ROW_FORMAT_SERDE_LAZY_SIMPLE: str = "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
     ROW_FORMAT_SERDE_CLOUD_TRAIL: str = "com.amazon.emr.hive.serde.CloudTrailSerde"
     ROW_FORMAT_SERDE_GROK: str = "com.amazonaws.glue.serde.GrokSerDe"
     ROW_FORMAT_SERDE_JSON: str = "org.openx.data.jsonserde.JsonSerDe"
     ROW_FORMAT_SERDE_JSON_HCATALOG: str = "org.apache.hive.hcatalog.data.JsonSerDe"
-    ROW_FORMAT_SERDE_PARQUET: str = (
-        "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
-    )
+    ROW_FORMAT_SERDE_PARQUET: str = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
     ROW_FORMAT_SERDE_ORC: str = "org.apache.hadoop.hive.ql.io.orc.OrcSerde"
     ROW_FORMAT_SERDE_AVRO: str = "org.apache.hadoop.hive.serde2.avro.AvroSerDe"
 
