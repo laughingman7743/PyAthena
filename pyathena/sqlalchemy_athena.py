@@ -795,8 +795,9 @@ class AthenaArrowDialect(AthenaDialect):
 
         opts = super()._create_connect_args(url)
         opts.update({"cursor_class": ArrowCursor})
+        cursor_kwargs = dict()
         if "unload" in opts:
-            opts.update(
-                {"cursor_kwargs": {"unload": bool(strtobool(url.query["unload"]))}}
-            )
+            cursor_kwargs.update({"unload": bool(strtobool(opts.pop("unload")))})
+        if cursor_kwargs:
+            opts.update({"cursor_kwargs": cursor_kwargs})
         return [[], opts]
