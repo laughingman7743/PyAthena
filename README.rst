@@ -939,9 +939,6 @@ Then you simply specify an instance of this class in the convertes argument when
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor(PandasCursor, converter=CustomPandasTypeConverter())
 
-If the unload option is enabled, the Parquet file itself has a schema, so the conversion is done to the dtypes according to that schema,
-and the ``mappings`` and ``types`` settings of the Converter class are not used.
-
 .. code:: python
 
     from pyathena import connect
@@ -950,6 +947,9 @@ and the ``mappings`` and ``types`` settings of the Converter class are not used.
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
                      converter=CustomPandasTypeConverter()).cursor(PandasCursor)
+
+If the unload option is enabled, the Parquet file itself has a schema, so the conversion is done to the dtypes according to that schema,
+and the ``mappings`` and ``types`` settings of the Converter class are not used.
 
 If you want to change the NaN behavior of pandas.Dataframe,
 you can do so by using the ``keep_default_na``, ``na_values`` and ``quoting`` arguments of the cursor object's execute method.
