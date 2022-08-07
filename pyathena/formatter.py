@@ -84,23 +84,19 @@ class Formatter(metaclass=ABCMeta):
 
 
 def _escape_presto(val: str) -> str:
-    """ParamEscaper
-
-    https://github.com/dropbox/PyHive/blob/master/pyhive/common.py"""
-    return "'{0}'".format(val.replace("'", "''"))
+    escaped = val.replace("'", "''")
+    return f"'{escaped}'"
 
 
 def _escape_hive(val: str) -> str:
-    """HiveParamEscaper
-
-    https://github.com/dropbox/PyHive/blob/master/pyhive/hive.py"""
-    return "'{0}'".format(
+    escaped = (
         val.replace("\\", "\\\\")
         .replace("'", "\\'")
         .replace("\r", "\\r")
         .replace("\n", "\\n")
         .replace("\t", "\\t")
     )
+    return f"'{escaped}'"
 
 
 def _format_none(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
@@ -112,11 +108,11 @@ def _format_default(formatter: Formatter, escaper: Callable[[str], str], val: An
 
 
 def _format_date(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
-    return "DATE '{0}'".format(val.strftime("%Y-%m-%d"))
+    return f"DATE '{val:%Y-%m-%d}'"
 
 
 def _format_datetime(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
-    return "TIMESTAMP '{0}'".format(val.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3])
+    return f"""TIMESTAMP '{val.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]}'"""
 
 
 def _format_bool(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
@@ -132,7 +128,7 @@ def _format_seq(formatter: Formatter, escaper: Callable[[str], str], val: Any) -
     for v in val:
         func = formatter.get(v)
         if not func:
-            raise TypeError("{0} is not defined formatter.".format(type(v)))
+            raise TypeError(f"{type(v)} is not defined formatter.")
         formatted = func(formatter, escaper, v)
         if not isinstance(
             formatted,
@@ -146,15 +142,16 @@ def _format_seq(formatter: Formatter, escaper: Callable[[str], str], val: Any) -
                     Decimal,
                 ),
             ):
-                formatted = "{0:f}".format(formatted)
+                formatted = f"{formatted:f}"
             else:
-                formatted = "{0}".format(formatted)
+                formatted = f"{formatted}"
         results.append(formatted)
-    return "({0})".format(", ".join(results))
+    return f"""({", ".join(results)})"""
 
 
 def _format_decimal(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
-    return "DECIMAL {0}".format(escaper("{0:f}".format(val)))
+    escaped = escaper(f"{val:f}")
+    return f"DECIMAL {escaped}"
 
 
 _DEFAULT_FORMATTERS: Dict[Type[Any], Callable[[Formatter, Callable[[str], str], Any], Any]] = {
@@ -200,11 +197,11 @@ class DefaultParameterFormatter(Formatter):
                 for k, v in parameters.items():
                     func = self.get(v)
                     if not func:
-                        raise TypeError("{0} is not defined formatter.".format(type(v)))
+                        raise TypeError(f"{type(v)} is not defined formatter.")
                     kwargs.update({k: func(self, escaper, v)})
             else:
                 raise ProgrammingError(
-                    "Unsupported parameter " + "(Support for dict only): {0}".format(parameters)
+                    f"Unsupported parameter (Support for dict only): {parameters}"
                 )
 
         return (operation % kwargs).strip() if kwargs is not None else operation.strip()

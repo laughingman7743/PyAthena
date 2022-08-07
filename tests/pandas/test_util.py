@@ -345,8 +345,8 @@ def test_to_sql(cursor):
             "col_binary",
         ]
     ]
-    table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
-    location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, ENV.schema, table_name)
+    table_name = f"""to_sql_{str(uuid.uuid4()).replace("-", "")}"""
+    location = f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/"
     to_sql(
         df,
         table_name,
@@ -378,7 +378,7 @@ def test_to_sql(cursor):
         compression="snappy",
     )
 
-    cursor.execute("SELECT * FROM {0}".format(table_name))
+    cursor.execute(f"SELECT * FROM {table_name}")
     assert cursor.fetchall() == [
         (
             1,
@@ -414,7 +414,7 @@ def test_to_sql(cursor):
         if_exists="append",
         compression="snappy",
     )
-    cursor.execute("SELECT * FROM {0}".format(table_name))
+    cursor.execute(f"SELECT * FROM {table_name}")
     assert cursor.fetchall() == [
         (
             1,
@@ -443,8 +443,8 @@ def test_to_sql(cursor):
 
 def test_to_sql_with_index(cursor):
     df = pd.DataFrame({"col_int": np.int32([1])})
-    table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
-    location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, ENV.schema, table_name)
+    table_name = f"""to_sql_{str(uuid.uuid4()).replace("-", "")}"""
+    location = f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/"
     to_sql(
         df,
         table_name,
@@ -456,7 +456,7 @@ def test_to_sql_with_index(cursor):
         index=True,
         index_label="col_index",
     )
-    cursor.execute("SELECT * FROM {0}".format(table_name))
+    cursor.execute(f"SELECT * FROM {table_name}")
     assert cursor.fetchall() == [(0, 1)]
     assert [(d[0], d[1]) for d in cursor.description] == [
         ("col_index", "bigint"),
@@ -472,8 +472,8 @@ def test_to_sql_with_partitions(cursor):
             "col_string": ["a" for _ in range(10)],
         }
     )
-    table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
-    location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, ENV.schema, table_name)
+    table_name = f"""to_sql_{str(uuid.uuid4()).replace("-", "")}"""
+    location = f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/"
     to_sql(
         df,
         table_name,
@@ -484,9 +484,9 @@ def test_to_sql_with_partitions(cursor):
         if_exists="fail",
         compression="snappy",
     )
-    cursor.execute("SHOW PARTITIONS {0}".format(table_name))
-    assert sorted(cursor.fetchall()) == [("col_int={0}".format(i),) for i in range(10)]
-    cursor.execute("SELECT COUNT(*) FROM {0}".format(table_name))
+    cursor.execute(f"SHOW PARTITIONS {table_name}")
+    assert sorted(cursor.fetchall()) == [(f"col_int={i}",) for i in range(10)]
+    cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
     assert cursor.fetchall() == [(10,)]
 
 
@@ -498,8 +498,8 @@ def test_to_sql_with_multiple_partitions(cursor):
             "col_string": ["a" for _ in range(5)] + ["b" for _ in range(5)],
         }
     )
-    table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
-    location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, ENV.schema, table_name)
+    table_name = f"""to_sql_{str(uuid.uuid4()).replace("-", "")}"""
+    location = f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/"
     to_sql(
         df,
         table_name,
@@ -510,18 +510,18 @@ def test_to_sql_with_multiple_partitions(cursor):
         if_exists="fail",
         compression="snappy",
     )
-    cursor.execute("SHOW PARTITIONS {0}".format(table_name))
-    assert sorted(cursor.fetchall()), [
-        ("col_int={0}/col_string=a".format(i),) for i in range(5)
-    ] + [("col_int={0}/col_string=b".format(i),) for i in range(5, 10)]
-    cursor.execute("SELECT COUNT(*) FROM {0}".format(table_name))
+    cursor.execute(f"SHOW PARTITIONS {table_name}")
+    assert sorted(cursor.fetchall()), [(f"col_int={i}/col_string=a",) for i in range(5)] + [
+        (f"col_int={i}/col_string=b",) for i in range(5, 10)
+    ]
+    cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
     assert cursor.fetchall() == [(10,)]
 
 
 def test_to_sql_invalid_args(cursor):
     df = pd.DataFrame({"col_int": np.int32([1])})
-    table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
-    location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, ENV.schema, table_name)
+    table_name = f"""to_sql_{str(uuid.uuid4()).replace("-", "")}"""
+    location = f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/"
     # invalid if_exists
     with pytest.raises(ValueError):
         to_sql(

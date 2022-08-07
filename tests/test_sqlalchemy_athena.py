@@ -402,7 +402,7 @@ class TestSQLAlchemyAthena:
     )
     def test_to_sql_parquet(self, engine):
         engine, conn = engine
-        table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
+        table_name = f"""to_sql_{str(uuid.uuid4()).replace("-", "")}"""
         df = pd.DataFrame(
             {
                 "col_int": np.int32([1]),
@@ -463,7 +463,7 @@ class TestSQLAlchemyAthena:
     )
     def test_to_sql_json(self, engine):
         engine, conn = engine
-        table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
+        table_name = f"""to_sql_{str(uuid.uuid4()).replace("-", "")}"""
         df = pd.DataFrame(
             {
                 "col_int": np.int32([1]),
@@ -527,7 +527,7 @@ class TestSQLAlchemyAthena:
     )
     def test_to_sql_column_options(self, engine):
         engine, conn = engine
-        table_name = "to_sql_{0}".format(str(uuid.uuid4()).replace("-", ""))
+        table_name = f"""to_sql_{str(uuid.uuid4()).replace("-", "")}"""
         df = pd.DataFrame(
             {
                 "col_bigint": np.int64([12345]),
@@ -1101,7 +1101,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         # The AWS API seems to return comments with squashed whitespace and line breaks.
         # assert actual.comment == table.comment
         assert actual.comment
-        assert actual.comment == "\n{}\n".format(re.sub(r"\s+", " ", table_comment.strip()))
+        assert actual.comment.strip() == re.sub(r"\s+", " ", table_comment.strip())
 
     def test_create_table_with_special_character_comments(self, engine):
         engine, conn = engine
