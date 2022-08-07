@@ -65,9 +65,8 @@ class AsyncCursor(BaseCursor):
     def arraysize(self, value: int) -> None:
         if value <= 0 or value > CursorIterator.DEFAULT_FETCH_SIZE:
             raise ProgrammingError(
-                "MaxResults is more than maximum allowed length {0}.".format(
-                    CursorIterator.DEFAULT_FETCH_SIZE
-                )
+                "MaxResults is more than maximum allowed length "
+                f"{CursorIterator.DEFAULT_FETCH_SIZE}."
             )
         self._arraysize = value
 

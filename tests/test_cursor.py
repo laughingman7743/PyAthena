@@ -70,7 +70,7 @@ class TestCursor:
     def test_cache_size(self, cursor):
         # To test caching, we need to make sure the query is unique, otherwise
         # we might accidentally pick up the cache results from another CI run.
-        query = "SELECT * FROM one_row -- {0}".format(str(datetime.utcnow()))
+        query = f"SELECT * FROM one_row -- {str(datetime.utcnow())}"
 
         cursor.execute(query)
         first_query_id = cursor.query_id
@@ -103,7 +103,7 @@ class TestCursor:
         assert third_query_id in [first_query_id, second_query_id]
 
     def test_cache_expiration_time(self, cursor):
-        query = "SELECT * FROM one_row -- {0}".format(str(datetime.utcnow()))
+        query = f"SELECT * FROM one_row -- {str(datetime.utcnow())}"
 
         cursor.execute(query)
         query_id_1 = cursor.query_id
@@ -119,7 +119,7 @@ class TestCursor:
 
     def test_cache_expiration_time_with_cache_size(self, cursor):
         # Cache miss
-        query = "SELECT * FROM one_row -- {0}".format(str(datetime.utcnow()))
+        query = f"SELECT * FROM one_row -- {str(datetime.utcnow())}"
 
         cursor.execute(query)
         query_id_1 = cursor.query_id
@@ -136,7 +136,7 @@ class TestCursor:
         assert query_id_3 not in [query_id_1, query_id_2]
 
         # Cache miss
-        query = "SELECT * FROM one_row -- {0}".format(str(datetime.utcnow()))
+        query = f"SELECT * FROM one_row -- {str(datetime.utcnow())}"
 
         cursor.execute(query)
         query_id_4 = cursor.query_id
@@ -154,7 +154,7 @@ class TestCursor:
         assert query_id_6 not in [query_id_4, query_id_5]
 
         # Cache hit
-        query = "SELECT * FROM one_row -- {0}".format(str(datetime.utcnow()))
+        query = f"SELECT * FROM one_row -- {str(datetime.utcnow())}"
 
         cursor.execute(query)
         query_id_7 = cursor.query_id
@@ -342,7 +342,7 @@ class TestCursor:
     def test_output_location(self, cursor):
         assert cursor.output_location is None
         cursor.execute("SELECT * from one_row")
-        assert cursor.output_location == "{0}{1}.csv".format(ENV.s3_staging_dir, cursor.query_id)
+        assert cursor.output_location == f"{ENV.s3_staging_dir}{cursor.query_id}.csv"
 
     def test_query_execution_initial(self, cursor):
         assert not cursor.has_result_set
@@ -507,7 +507,7 @@ class TestCursor:
         conn.close()
 
     def test_show_partition(self, cursor):
-        location = "{0}{1}/{2}/".format(ENV.s3_staging_dir, ENV.schema, "partition_table")
+        location = f"{ENV.s3_staging_dir}{ENV.schema}/partition_table/"
         for i in range(10):
             cursor.execute(
                 """
@@ -517,7 +517,7 @@ class TestCursor:
                 {"b": i, "location": location},
             )
         cursor.execute("SHOW PARTITIONS partition_table")
-        assert sorted(cursor.fetchall()) == [("b={0}".format(i),) for i in range(10)]
+        assert sorted(cursor.fetchall()) == [(f"b={i}",) for i in range(10)]
 
     @pytest.mark.parametrize("cursor", [{"work_group": ENV.work_group}], indirect=["cursor"])
     def test_workgroup(self, cursor):

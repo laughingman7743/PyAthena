@@ -54,7 +54,7 @@ class Connection:
         kms_key: Optional[str] = None,
         profile_name: Optional[str] = None,
         role_arn: Optional[str] = None,
-        role_session_name: str = "PyAthena-session-{0}".format(int(time.time())),
+        role_session_name: str = f"PyAthena-session-{int(time.time())}",
         external_id: Optional[str] = None,
         serial_number: Optional[str] = None,
         duration_seconds: int = 3600,
