@@ -21,6 +21,16 @@ class AthenaQueryExecution:
     STATEMENT_TYPE_DML: str = "DML"
     STATEMENT_TYPE_UTILITY: str = "UTILITY"
 
+    ENCRYPTION_OPTION_SSE_S3: str = "SSE_S3"
+    ENCRYPTION_OPTION_SSE_KMS: str = "SSE_KMS"
+    ENCRYPTION_OPTION_CSE_KMS: str = "CSE_KMS"
+
+    ERROR_CATEGORY_SYSTEM: int = 1
+    ERROR_CATEGORY_USER: int = 2
+    ERROR_CATEGORY_OTHER: int = 3
+
+    S3_ACL_OPTION_BUCKET_OWNER_FULL_CONTROL = "BUCKET_OWNER_FULL_CONTROL"
+
     def __init__(self, response: Dict[str, Any]) -> None:
         query_execution = response.get("QueryExecution", None)
         if not query_execution:
@@ -28,23 +38,30 @@ class AthenaQueryExecution:
 
         query_execution_context = query_execution.get("QueryExecutionContext", {})
         self._database: Optional[str] = query_execution_context.get("Database", None)
+        self._catalog: Optional[str] = query_execution_context.get("Catalog", None)
 
         self._query_id: Optional[str] = query_execution.get("QueryExecutionId", None)
         if not self._query_id:
             raise DataError("KeyError `QueryExecutionId`")
-
         self._query: Optional[str] = query_execution.get("Query", None)
         if not self._query:
             raise DataError("KeyError `Query`")
         self._statement_type: Optional[str] = query_execution.get("StatementType", None)
+        self._work_group: Optional[str] = query_execution.get("WorkGroup", None)
+        self._execution_parameters: List[str] = query_execution.get("ExecutionParameters", [])
 
         status = query_execution.get("Status", None)
         if not status:
             raise DataError("KeyError `Status`")
         self._state: Optional[str] = status.get("State", None)
         self._state_change_reason: Optional[str] = status.get("StateChangeReason", None)
-        self._completion_date_time: Optional[datetime] = status.get("CompletionDateTime", None)
         self._submission_date_time: Optional[datetime] = status.get("SubmissionDateTime", None)
+        self._completion_date_time: Optional[datetime] = status.get("CompletionDateTime", None)
+        athena_error = status.get("AthenaError", {})
+        self._error_category: Optional[int] = athena_error.get("ErrorCategory", None)
+        self._error_type: Optional[int] = athena_error.get("ErrorType", None)
+        self._retryable: Optional[bool] = athena_error.get("Retryable", None)
+        self._error_message: Optional[str] = athena_error.get("ErrorMessage", None)
 
         statistics = query_execution.get("Statistics", {})
         self._data_scanned_in_bytes: Optional[int] = statistics.get("DataScannedInBytes", None)
@@ -67,16 +84,28 @@ class AthenaQueryExecution:
 
         result_conf = query_execution.get("ResultConfiguration", {})
         self._output_location: Optional[str] = result_conf.get("OutputLocation", None)
-
         encryption_conf = result_conf.get("EncryptionConfiguration", {})
         self._encryption_option: Optional[str] = encryption_conf.get("EncryptionOption", None)
         self._kms_key: Optional[str] = encryption_conf.get("KmsKey", None)
+        self._expected_bucket_owner: Optional[str] = result_conf.get("ExpectedBucketOwner", None)
+        acl_conf = result_conf.get("AclConfiguration", {})
+        self._s3_acl_option: Optional[str] = acl_conf.get("S3AclOption", None)
 
-        self._work_group: Optional[str] = query_execution.get("WorkGroup", None)
+        engine_version = query_execution.get("EngineVersion", {})
+        self._selected_engine_version: Optional[str] = engine_version.get(
+            "SelectedEngineVersion", None
+        )
+        self._effective_engine_version: Optional[str] = engine_version.get(
+            "EffectiveEngineVersion", None
+        )
 
     @property
     def database(self) -> Optional[str]:
         return self._database
+
+    @property
+    def catalog(self) -> Optional[str]:
+        return self._catalog
 
     @property
     def query_id(self) -> Optional[str]:
@@ -91,6 +120,14 @@ class AthenaQueryExecution:
         return self._statement_type
 
     @property
+    def work_group(self) -> Optional[str]:
+        return self._work_group
+
+    @property
+    def execution_parameters(self) -> List[str]:
+        return self._execution_parameters
+
+    @property
     def state(self) -> Optional[str]:
         return self._state
 
@@ -99,12 +136,28 @@ class AthenaQueryExecution:
         return self._state_change_reason
 
     @property
+    def submission_date_time(self) -> Optional[datetime]:
+        return self._submission_date_time
+
+    @property
     def completion_date_time(self) -> Optional[datetime]:
         return self._completion_date_time
 
     @property
-    def submission_date_time(self) -> Optional[datetime]:
-        return self._submission_date_time
+    def error_category(self) -> Optional[int]:
+        return self._error_category
+
+    @property
+    def error_type(self) -> Optional[int]:
+        return self._error_type
+
+    @property
+    def retryable(self) -> Optional[bool]:
+        return self._retryable
+
+    @property
+    def error_message(self) -> Optional[str]:
+        return self._error_message
 
     @property
     def data_scanned_in_bytes(self) -> Optional[int]:
@@ -147,8 +200,20 @@ class AthenaQueryExecution:
         return self._kms_key
 
     @property
-    def work_group(self) -> Optional[str]:
-        return self._work_group
+    def expected_bucket_owner(self) -> Optional[str]:
+        return self._expected_bucket_owner
+
+    @property
+    def s3_acl_option(self) -> Optional[str]:
+        return self._s3_acl_option
+
+    @property
+    def selected_engine_version(self) -> Optional[str]:
+        return self._selected_engine_version
+
+    @property
+    def effective_engine_version(self) -> Optional[str]:
+        return self._effective_engine_version
 
 
 class AthenaDatabase:

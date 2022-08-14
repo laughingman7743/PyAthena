@@ -29,27 +29,6 @@ class TestAsyncarrowCursor:
         assert result_set.fetchone() == (1,)
         assert result_set.rownumber == 1
         assert result_set.fetchone() is None
-        assert result_set.query_id
-        assert result_set.query
-        assert result_set.state == AthenaQueryExecution.STATE_SUCCEEDED
-        assert result_set.state_change_reason is None
-        assert result_set.completion_date_time
-        assert isinstance(result_set.completion_date_time, datetime)
-        assert result_set.submission_date_time
-        assert isinstance(result_set.submission_date_time, datetime)
-        assert result_set.data_scanned_in_bytes
-        assert result_set.engine_execution_time_in_millis
-        assert result_set.query_queue_time_in_millis
-        assert result_set.total_execution_time_in_millis
-        # assert result_set.query_planning_time_in_millis  # TODO flaky test
-        # assert result_set.service_processing_time_in_millis  # TODO flaky test
-        assert result_set.output_location
-        if async_arrow_cursor._unload:
-            assert result_set.data_manifest_location
-        else:
-            assert result_set.data_manifest_location is None
-        assert result_set.encryption_option is None
-        assert result_set.kms_key is None
 
     @pytest.mark.parametrize(
         "async_arrow_cursor",
@@ -142,18 +121,22 @@ class TestAsyncarrowCursor:
         future = async_arrow_cursor.query_execution(query_id)
         query_execution = future.result()
 
+        assert query_execution.database == ENV.schema
+        assert query_execution.catalog
         assert query_execution.query_id
         if async_arrow_cursor._unload:
             assert query_execution.query.startswith("UNLOAD")
             assert query in query_execution.query
         else:
             assert query_execution.query == query
+        assert query_execution.statement_type == AthenaQueryExecution.STATEMENT_TYPE_DML
+        assert query_execution.work_group == ENV.default_work_group
         assert query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED
         assert query_execution.state_change_reason is None
-        assert query_execution.completion_date_time
-        assert isinstance(query_execution.completion_date_time, datetime)
         assert query_execution.submission_date_time
         assert isinstance(query_execution.submission_date_time, datetime)
+        assert query_execution.completion_date_time
+        assert isinstance(query_execution.completion_date_time, datetime)
         assert query_execution.data_scanned_in_bytes
         assert query_execution.engine_execution_time_in_millis
         assert query_execution.query_queue_time_in_millis
@@ -161,13 +144,21 @@ class TestAsyncarrowCursor:
         # assert query_execution.query_planning_time_in_millis  # TODO flaky test
         # assert query_execution.service_processing_time_in_millis  # TODO flaky test
         assert query_execution.output_location
+        assert query_execution.encryption_option is None
+        assert query_execution.kms_key is None
+        assert query_execution.selected_engine_version
+        assert query_execution.effective_engine_version
 
+        assert result_set.database == query_execution.database
+        assert result_set.catalog == query_execution.catalog
         assert result_set.query_id == query_execution.query_id
         assert result_set.query == query_execution.query
+        assert result_set.statement_type == query_execution.statement_type
+        assert result_set.work_group == query_execution.work_group
         assert result_set.state == query_execution.state
         assert result_set.state_change_reason == query_execution.state_change_reason
-        assert result_set.completion_date_time == query_execution.completion_date_time
         assert result_set.submission_date_time == query_execution.submission_date_time
+        assert result_set.completion_date_time == query_execution.completion_date_time
         assert result_set.data_scanned_in_bytes == query_execution.data_scanned_in_bytes
         assert (
             result_set.engine_execution_time_in_millis
@@ -188,6 +179,10 @@ class TestAsyncarrowCursor:
         )
         assert result_set.output_location == query_execution.output_location
         assert result_set.data_manifest_location == query_execution.data_manifest_location
+        assert result_set.encryption_option == query_execution.encryption_option
+        assert result_set.kms_key == query_execution.kms_key
+        assert result_set.selected_engine_version == query_execution.selected_engine_version
+        assert result_set.effective_engine_version == query_execution.effective_engine_version
 
     @pytest.mark.parametrize(
         "async_arrow_cursor",
@@ -218,6 +213,8 @@ class TestAsyncarrowCursor:
         result_set = future.result()
         assert result_set.state == AthenaQueryExecution.STATE_FAILED
         assert result_set.state_change_reason is not None
+        assert result_set.error_category is not None
+        assert result_set.error_type is not None
 
     @pytest.mark.parametrize(
         "async_arrow_cursor",
@@ -255,7 +252,6 @@ class TestAsyncarrowCursor:
         async_arrow_cursor.cancel(query_id)
         result_set = future.result()
         assert result_set.state == AthenaQueryExecution.STATE_CANCELLED
-        # assert result_set.state_change_reason  # TODO flaky test
         assert result_set.description is None
         assert result_set.fetchone() is None
         assert result_set.fetchmany() == []

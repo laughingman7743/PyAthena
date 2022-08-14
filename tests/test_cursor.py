@@ -26,15 +26,17 @@ class TestCursor:
         assert cursor.rownumber == 1
         assert cursor.fetchone() is None
         assert cursor.database == ENV.schema
+        assert cursor.catalog
         assert cursor.query_id
         assert cursor.query
         assert cursor.statement_type == AthenaQueryExecution.STATEMENT_TYPE_DML
+        assert cursor.work_group == ENV.default_work_group
         assert cursor.state == AthenaQueryExecution.STATE_SUCCEEDED
         assert cursor.state_change_reason is None
-        assert cursor.completion_date_time
-        assert isinstance(cursor.completion_date_time, datetime)
         assert cursor.submission_date_time
         assert isinstance(cursor.submission_date_time, datetime)
+        assert cursor.completion_date_time
+        assert isinstance(cursor.completion_date_time, datetime)
         assert cursor.data_scanned_in_bytes
         assert cursor.engine_execution_time_in_millis
         assert cursor.query_queue_time_in_millis
@@ -45,7 +47,8 @@ class TestCursor:
         assert cursor.data_manifest_location is None
         assert cursor.encryption_option is None
         assert cursor.kms_key is None
-        assert cursor.work_group == ENV.default_work_group
+        assert cursor.selected_engine_version
+        assert cursor.effective_engine_version
 
     def test_fetchmany(self, cursor):
         cursor.execute("SELECT * FROM many_rows LIMIT 15")
@@ -347,22 +350,28 @@ class TestCursor:
     def test_query_execution_initial(self, cursor):
         assert not cursor.has_result_set
         assert cursor.rownumber is None
+        assert cursor.database is None
+        assert cursor.catalog is None
         assert cursor.query_id is None
         assert cursor.query is None
+        assert cursor.statement_type is None
+        assert cursor.work_group is None
         assert cursor.state is None
         assert cursor.state_change_reason is None
-        assert cursor.completion_date_time is None
         assert cursor.submission_date_time is None
+        assert cursor.completion_date_time is None
         assert cursor.data_scanned_in_bytes is None
         assert cursor.engine_execution_time_in_millis is None
         assert cursor.query_queue_time_in_millis is None
         assert cursor.total_execution_time_in_millis is None
         assert cursor.query_planning_time_in_millis is None
+        assert cursor.service_processing_time_in_millis is None
         assert cursor.output_location is None
         assert cursor.data_manifest_location is None
         assert cursor.encryption_option is None
         assert cursor.kms_key is None
-        assert cursor.work_group is None
+        assert cursor.selected_engine_version is None
+        assert cursor.effective_engine_version is None
 
     def test_complex(self, cursor):
         cursor.execute(
