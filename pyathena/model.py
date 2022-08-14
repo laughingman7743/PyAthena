@@ -151,6 +151,29 @@ class AthenaQueryExecution:
         return self._work_group
 
 
+class AthenaDatabase:
+    def __init__(self, response):
+        database = response.get("Database", None)
+        if not database:
+            raise DataError("KeyError `Database`")
+
+        self._name: Optional[str] = database.get("Name", None)
+        self._description: Optional[str] = database.get("Description", None)
+        self._parameters: Dict[str, str] = database.get("Parameters", {})
+
+    @property
+    def name(self) -> Optional[str]:
+        return self._name
+
+    @property
+    def description(self) -> Optional[str]:
+        return self._description
+
+    @property
+    def parameters(self) -> Dict[str, str]:
+        return self._parameters
+
+
 class AthenaTableMetadataColumn:
     def __init__(self, response):
         self._name: Optional[str] = response.get("Name", None)
