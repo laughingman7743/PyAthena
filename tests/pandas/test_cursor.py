@@ -13,7 +13,6 @@ import pandas as pd
 import pytest
 
 from pyathena.error import DatabaseError, ProgrammingError
-from pyathena.model import AthenaQueryExecution
 from pyathena.pandas.cursor import PandasCursor
 from pyathena.pandas.result_set import AthenaPandasResultSet
 from tests import ENV
@@ -492,27 +491,6 @@ class TestPandasCursor:
         assert df.shape[0] == 1
         assert df.shape[1] == 1
         assert [(row["number_of_rows"],) for _, row in df.iterrows()] == [(1,)]
-        assert pandas_cursor.query_id
-        assert pandas_cursor.query
-        assert pandas_cursor.state == AthenaQueryExecution.STATE_SUCCEEDED
-        assert pandas_cursor.state_change_reason is None
-        assert pandas_cursor.completion_date_time
-        assert isinstance(pandas_cursor.completion_date_time, datetime)
-        assert pandas_cursor.submission_date_time
-        assert isinstance(pandas_cursor.submission_date_time, datetime)
-        assert pandas_cursor.data_scanned_in_bytes
-        assert pandas_cursor.engine_execution_time_in_millis
-        assert pandas_cursor.query_queue_time_in_millis
-        assert pandas_cursor.total_execution_time_in_millis
-        # assert pandas_cursor.query_planning_time_in_millis  # TODO flaky test
-        # assert pandas_cursor.service_processing_time_in_millis  # TODO flaky test
-        assert pandas_cursor.output_location
-        if pandas_cursor._unload:
-            assert pandas_cursor.data_manifest_location
-        else:
-            assert pandas_cursor.data_manifest_location is None
-        assert pandas_cursor.encryption_option is None
-        assert pandas_cursor.kms_key is None
 
     @pytest.mark.parametrize(
         "pandas_cursor, parquet_engine, chunksize",

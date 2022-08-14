@@ -14,7 +14,6 @@ import pytest
 from pyathena.arrow.cursor import ArrowCursor
 from pyathena.arrow.result_set import AthenaArrowResultSet
 from pyathena.error import DatabaseError, ProgrammingError
-from pyathena.model import AthenaQueryExecution
 from tests import ENV
 from tests.conftest import connect
 
@@ -263,27 +262,6 @@ class TestArrowCursor:
         assert table.shape[0] == 1
         assert table.shape[1] == 1
         assert [row for row in zip(*table.to_pydict().values())] == [(1,)]
-        assert arrow_cursor.query_id
-        assert arrow_cursor.query
-        assert arrow_cursor.state == AthenaQueryExecution.STATE_SUCCEEDED
-        assert arrow_cursor.state_change_reason is None
-        assert arrow_cursor.completion_date_time
-        assert isinstance(arrow_cursor.completion_date_time, datetime)
-        assert arrow_cursor.submission_date_time
-        assert isinstance(arrow_cursor.submission_date_time, datetime)
-        assert arrow_cursor.data_scanned_in_bytes
-        assert arrow_cursor.engine_execution_time_in_millis
-        assert arrow_cursor.query_queue_time_in_millis
-        assert arrow_cursor.total_execution_time_in_millis
-        # assert arrow_cursor.query_planning_time_in_millis  # TODO flaky test
-        # assert arrow_cursor.service_processing_time_in_millis  # TODO flaky test
-        assert arrow_cursor.output_location
-        if arrow_cursor._unload:
-            assert arrow_cursor.data_manifest_location
-        else:
-            assert arrow_cursor.data_manifest_location is None
-        assert arrow_cursor.encryption_option is None
-        assert arrow_cursor.kms_key is None
 
     @pytest.mark.parametrize(
         "arrow_cursor",
