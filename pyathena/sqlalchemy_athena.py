@@ -842,13 +842,20 @@ class AthenaDialect(DefaultDialect):
         return opts
 
     @reflection.cache
-    def get_schema_names(self, connection, **kw):
-        query = """
-                SELECT schema_name
-                FROM information_schema.schemata
-                WHERE schema_name NOT IN ('information_schema')
-                """
-        return [row.schema_name for row in connection.execute(query).fetchall()]
+    def _get_schemas(self, connection, **kw):
+        raw_connection = self._raw_connection(connection)
+        catalog = raw_connection.catalog_name
+        with raw_connection.connection.cursor() as cursor:
+            try:
+                return cursor.list_databases(catalog)
+            except pyathena.error.OperationalError as exc:
+                cause = exc.__cause__
+                if (
+                    isinstance(cause, botocore.exceptions.ClientError)
+                    and cause.response["Error"]["Code"] == "InvalidRequestException"
+                ):
+                    return []
+                raise
 
     @reflection.cache
     def _get_table(self, connection, table_name, schema=None, **kw):
@@ -872,6 +879,10 @@ class AthenaDialect(DefaultDialect):
         schema = schema if schema else raw_connection.schema_name
         with raw_connection.connection.cursor() as cursor:
             return cursor.list_table_metadata(schema_name=schema)
+
+    def get_schema_names(self, connection, **kw):
+        schemas = self._get_schemas(connection, **kw)
+        return [s.name for s in schemas]
 
     def get_table_names(self, connection, schema=None, **kw):
         tables = self._get_tables(connection, schema, **kw)
