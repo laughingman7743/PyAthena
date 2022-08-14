@@ -64,6 +64,12 @@ class AthenaResultSet(CursorIterator):
         return self._query_execution.database
 
     @property
+    def catalog(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
+        return self._query_execution.catalog
+
+    @property
     def query_id(self) -> Optional[str]:
         if not self._query_execution:
             return None
@@ -82,6 +88,18 @@ class AthenaResultSet(CursorIterator):
         return self._query_execution.statement_type
 
     @property
+    def work_group(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
+        return self._query_execution.work_group
+
+    @property
+    def execution_parameters(self) -> List[str]:
+        if not self._query_execution:
+            return []
+        return self._query_execution.execution_parameters
+
+    @property
     def state(self) -> Optional[str]:
         if not self._query_execution:
             return None
@@ -94,16 +112,40 @@ class AthenaResultSet(CursorIterator):
         return self._query_execution.state_change_reason
 
     @property
+    def submission_date_time(self) -> Optional[datetime]:
+        if not self._query_execution:
+            return None
+        return self._query_execution.submission_date_time
+
+    @property
     def completion_date_time(self) -> Optional[datetime]:
         if not self._query_execution:
             return None
         return self._query_execution.completion_date_time
 
     @property
-    def submission_date_time(self) -> Optional[datetime]:
+    def error_category(self) -> Optional[int]:
         if not self._query_execution:
             return None
-        return self._query_execution.submission_date_time
+        return self._query_execution.error_category
+
+    @property
+    def error_type(self) -> Optional[int]:
+        if not self._query_execution:
+            return None
+        return self._query_execution.error_type
+
+    @property
+    def retryable(self) -> Optional[bool]:
+        if not self._query_execution:
+            return None
+        return self._query_execution.retryable
+
+    @property
+    def error_message(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
+        return self._query_execution.error_message
 
     @property
     def data_scanned_in_bytes(self) -> Optional[int]:
@@ -166,10 +208,28 @@ class AthenaResultSet(CursorIterator):
         return self._query_execution.kms_key
 
     @property
-    def work_group(self) -> Optional[str]:
+    def expected_bucket_owner(self) -> Optional[str]:
         if not self._query_execution:
             return None
-        return self._query_execution.work_group
+        return self._query_execution.expected_bucket_owner
+
+    @property
+    def s3_acl_option(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
+        return self._query_execution.s3_acl_option
+
+    @property
+    def selected_engine_version(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
+        return self._query_execution.selected_engine_version
+
+    @property
+    def effective_engine_version(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
+        return self._query_execution.effective_engine_version
 
     @property
     def description(
@@ -440,6 +500,13 @@ class WithResultSet:
         result_set = cast(AthenaResultSet, self.result_set)
         return result_set.database
 
+    @property
+    def catalog(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.catalog
+
     @property  # type: ignore
     @abstractmethod
     def query_id(self) -> Optional[str]:
@@ -465,6 +532,20 @@ class WithResultSet:
         return result_set.statement_type
 
     @property
+    def work_group(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.work_group
+
+    @property
+    def execution_parameters(self) -> List[str]:
+        if not self.has_result_set:
+            return []
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.execution_parameters
+
+    @property
     def state(self) -> Optional[str]:
         if not self.has_result_set:
             return None
@@ -479,6 +560,13 @@ class WithResultSet:
         return result_set.state_change_reason
 
     @property
+    def submission_date_time(self) -> Optional[datetime]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.submission_date_time
+
+    @property
     def completion_date_time(self) -> Optional[datetime]:
         if not self.has_result_set:
             return None
@@ -486,11 +574,32 @@ class WithResultSet:
         return result_set.completion_date_time
 
     @property
-    def submission_date_time(self) -> Optional[datetime]:
+    def error_category(self) -> Optional[int]:
         if not self.has_result_set:
             return None
         result_set = cast(AthenaResultSet, self.result_set)
-        return result_set.submission_date_time
+        return result_set.error_category
+
+    @property
+    def error_type(self) -> Optional[int]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.error_type
+
+    @property
+    def retryable(self) -> Optional[bool]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.retryable
+
+    @property
+    def error_message(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.error_message
 
     @property
     def data_scanned_in_bytes(self) -> Optional[int]:
@@ -563,8 +672,29 @@ class WithResultSet:
         return result_set.kms_key
 
     @property
-    def work_group(self) -> Optional[str]:
+    def expected_bucket_owner(self) -> Optional[str]:
         if not self.has_result_set:
             return None
         result_set = cast(AthenaResultSet, self.result_set)
-        return result_set.work_group
+        return result_set.expected_bucket_owner
+
+    @property
+    def s3_acl_option(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.s3_acl_option
+
+    @property
+    def selected_engine_version(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.selected_engine_version
+
+    @property
+    def effective_engine_version(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.effective_engine_version
