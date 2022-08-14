@@ -1218,6 +1218,17 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         ).scalar()
         assert actual == "1"
 
+    def test_cast_as_binary(self, engine):
+        engine, conn = engine
+        one_row_complex = Table("one_row_complex", MetaData(schema=ENV.schema), autoload_with=conn)
+        actual = conn.execute(
+            sqlalchemy.select(
+                [expression.cast(one_row_complex.c.col_string, types.BINARY)],
+                from_obj=one_row_complex,
+            )
+        ).scalar()
+        assert actual == b"a string"
+
     def test_create_table_with_partition(self, engine):
         engine, conn = engine
         table_name = "test_create_table_with_partition"
