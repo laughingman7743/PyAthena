@@ -1223,11 +1223,15 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         one_row_complex = Table("one_row_complex", MetaData(schema=ENV.schema), autoload_with=conn)
         actual = conn.execute(
             sqlalchemy.select(
-                [expression.cast(one_row_complex.c.col_string, types.BINARY)],
+                [
+                    expression.cast(one_row_complex.c.col_string, types.BINARY),
+                    expression.cast(one_row_complex.c.col_varchar, types.VARBINARY),
+                ],
                 from_obj=one_row_complex,
             )
-        ).scalar()
-        assert actual == b"a string"
+        ).one()
+        assert actual[0] == b"a string"
+        assert actual[1] == b"varchar"
 
     def test_create_table_with_partition(self, engine):
         engine, conn = engine
