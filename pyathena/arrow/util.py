@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from typing import TYPE_CHECKING, Any, Dict, Tuple, cast
 
