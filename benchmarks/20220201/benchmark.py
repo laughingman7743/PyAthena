@@ -42,7 +42,7 @@ def run_pyathen_pandas_cursor(query):
         result = cursor.execute(query).fetchall()
         end = time.time()
         elapsed = end - start
-        LOGGER.info("loop:{0}\tcount:{1}\telasped:{2}".format(i, len(result), elapsed))
+        LOGGER.info("loop:{0}\tcount:{1}\telapsed:{2}".format(i, len(result), elapsed))
         avgs.append(elapsed)
     avg = sum(avgs) / COUNT
     LOGGER.info("Avg: {0}".format(avg))
