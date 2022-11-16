@@ -80,7 +80,7 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
             raise ProgrammingError("arraysize must be a positive integer value.")
         self._arraysize = value
 
-    @property
+    @property  # type: ignore
     def result_set(self) -> Optional[AthenaArrowResultSet]:
         return self._result_set
 
