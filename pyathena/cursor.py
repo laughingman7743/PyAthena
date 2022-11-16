@@ -130,7 +130,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         return result_set.fetchone()
 
     def fetchmany(
-        self, size: int = None
+        self, size: Optional[int] = None
     ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not self.has_result_set:
             raise ProgrammingError("No result set.")

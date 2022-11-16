@@ -19,7 +19,7 @@ class Formatter(metaclass=ABCMeta):
     def __init__(
         self,
         mappings: Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], Any]],
-        default: Callable[[_T, Callable[[str], str], Any], Any] = None,
+        default: Optional[Callable[[_T, Callable[[str], str], Any], Any]] = None,
     ) -> None:
         self._mappings = mappings
         self._default = default

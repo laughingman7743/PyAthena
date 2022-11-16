@@ -90,7 +90,7 @@ class AsyncPandasCursor(AsyncCursor):
         na_values: Optional[Iterable[str]] = ("",),
         quoting: int = 1,
         unload_location: Optional[str] = None,
-        kwargs: Dict[str, Any] = None,
+        kwargs: Optional[Dict[str, Any]] = None,
     ) -> AthenaPandasResultSet:
         if kwargs is None:
             kwargs = dict()
