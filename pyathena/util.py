@@ -3,7 +3,7 @@ import functools
 import logging
 import re
 import threading
-from typing import Any, Callable, Iterable, Pattern, Tuple
+from typing import Any, Callable, Iterable, Optional, Pattern, Tuple
 
 import tenacity
 from tenacity import after_log, retry_if_exception, stop_after_attempt, wait_exponential
@@ -61,7 +61,7 @@ class RetryConfig:
 def retry_api_call(
     func: Callable[..., Any],
     config: RetryConfig,
-    logger: logging.Logger = None,
+    logger: Optional[logging.Logger] = None,
     *args,
     **kwargs,
 ) -> Any:
