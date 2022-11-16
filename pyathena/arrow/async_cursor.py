@@ -83,7 +83,7 @@ class AsyncArrowCursor(AsyncCursor):
         self,
         query_id: str,
         unload_location: Optional[str] = None,
-        kwargs: Dict[str, Any] = None,
+        kwargs: Optional[Dict[str, Any]] = None,
     ) -> AthenaArrowResultSet:
         if kwargs is None:
             kwargs = dict()

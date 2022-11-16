@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 _logger = logging.getLogger(__name__)  # type: ignore
 
 
-def get_chunks(df: "DataFrame", chunksize: int = None) -> Iterator["DataFrame"]:
+def get_chunks(df: "DataFrame", chunksize: Optional[int] = None) -> Iterator["DataFrame"]:
     rows = len(df)
     if rows == 0:
         return
@@ -109,7 +109,7 @@ def to_parquet(
     retry_config: RetryConfig,
     session_kwargs: Dict[str, Any],
     client_kwargs: Dict[str, Any],
-    compression: str = None,
+    compression: Optional[str] = None,
     flavor: str = "spark",
 ) -> str:
     import pyarrow as pa
@@ -138,10 +138,10 @@ def to_sql(
     schema: str = "default",
     index: bool = False,
     index_label: Optional[str] = None,
-    partitions: List[str] = None,
+    partitions: Optional[List[str]] = None,
     chunksize: Optional[int] = None,
     if_exists: str = "fail",
-    compression: str = None,
+    compression: Optional[str] = None,
     flavor: str = "spark",
     type_mappings: Callable[["Series"], str] = to_sql_type_mappings,
     executor_class: Type[Union[ThreadPoolExecutor, ProcessPoolExecutor]] = ThreadPoolExecutor,

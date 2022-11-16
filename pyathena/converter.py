@@ -99,7 +99,7 @@ class Converter(metaclass=ABCMeta):
         self,
         mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]],
         default: Callable[[Optional[str]], Optional[Any]] = _to_default,
-        types: Dict[str, Type[Any]] = None,
+        types: Optional[Dict[str, Type[Any]]] = None,
     ) -> None:
         if mappings:
             self._mappings = mappings
