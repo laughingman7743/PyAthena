@@ -167,11 +167,20 @@ class AthenaPandasResultSet(AthenaResultSet):
     def __s3_file_system(self):
         from s3fs import S3FileSystem
 
+        creds = self.connection.session.get_credentials().get_frozen_credentials()
+        client_kwargs = self.connection._client_kwargs
+        client_kwargs.update(
+            {
+                "aws_access_key_id": creds.access_key,
+                "aws_secret_access_key": creds.secret_key,
+                "aws_session_token": creds.token,
+            }
+        )
         return S3FileSystem(
             profile=self.connection.profile_name,
             client_kwargs={
                 "region_name": self.connection.region_name,
-                **self.connection._client_kwargs,
+                **client_kwargs,
             },
         )
 
