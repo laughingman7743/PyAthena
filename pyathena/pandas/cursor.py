@@ -25,7 +25,7 @@ from pyathena.pandas.converter import (
 )
 from pyathena.pandas.result_set import AthenaPandasResultSet
 from pyathena.result_set import WithResultSet
-from pyathena.util import RetryConfig, synchronized
+from pyathena.util import RetryConfig
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -120,7 +120,6 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         if self.result_set and not self.result_set.is_closed:
             self.result_set.close()
 
-    @synchronized
     def execute(
         self: _T,
         operation: str,
@@ -183,13 +182,11 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         # Operations that have result sets are not allowed with executemany.
         self._reset_state()
 
-    @synchronized
     def cancel(self) -> None:
         if not self.query_id:
             raise ProgrammingError("QueryExecutionId is none or empty.")
         self._cancel(self.query_id)
 
-    @synchronized
     def fetchone(
         self,
     ) -> Optional[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
@@ -198,7 +195,6 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         result_set = cast(AthenaPandasResultSet, self.result_set)
         return result_set.fetchone()
 
-    @synchronized
     def fetchmany(
         self, size: Optional[int] = None
     ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
@@ -207,7 +203,6 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         result_set = cast(AthenaPandasResultSet, self.result_set)
         return result_set.fetchmany(size)
 
-    @synchronized
     def fetchall(
         self,
     ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
@@ -216,7 +211,6 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         result_set = cast(AthenaPandasResultSet, self.result_set)
         return result_set.fetchall()
 
-    @synchronized
     def as_pandas(self) -> "DataFrame":
         if not self.has_result_set:
             raise ProgrammingError("No result set.")

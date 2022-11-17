@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
-import functools
 import logging
 import re
-import threading
 from typing import Any, Callable, Iterable, Optional, Pattern, Tuple
 
 import tenacity
@@ -23,20 +21,6 @@ def parse_output_location(output_location: str) -> Tuple[str, str]:
         return match.group("bucket"), match.group("key")
     else:
         raise DataError("Unknown `output_location` format.")
-
-
-def synchronized(wrapped: Callable[..., Any]) -> Any:
-    """The missing @synchronized decorator
-
-    https://git.io/vydTA"""
-    _lock = threading.RLock()
-
-    @functools.wraps(wrapped)
-    def _wrapper(*args, **kwargs):
-        with _lock:
-            return wrapped(*args, **kwargs)
-
-    return _wrapper
 
 
 class RetryConfig:
