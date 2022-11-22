@@ -12,9 +12,9 @@ import pytest
 import sqlalchemy
 from sqlalchemy import types
 from sqlalchemy.exc import NoSuchTableError
-from sqlalchemy.sql import expression
+from sqlalchemy.sql import expression, select
 from sqlalchemy.sql.ddl import CreateTable
-from sqlalchemy.sql.schema import Column, MetaData, Table
+from sqlalchemy.sql.schema import Column, MetaData, Table, Integer, String
 from sqlalchemy.sql.selectable import TextualSelect
 
 from tests.conftest import ENV
@@ -1331,3 +1331,35 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         assert tblproperties["projection.dt.type"] == "date"
         assert tblproperties["projection.dt.range"] == "NOW-1YEARS,NOW"
         assert tblproperties["projection.dt.format"] == "yyyy-MM-dd"
+
+    def test_insert_from_select_cte_follows_insert_one(self, engine):
+        engine, conn = engine
+        dialect = engine.dialect
+        metadata = MetaData(schema=ENV.schema)
+        my_table = Table('mytable', metadata,
+              Column('myid', Integer),
+              Column('name', String(30)),
+              Column('description', String(30)))
+        my_other_table = Table('myothertable', metadata,
+              Column('otherid', Integer, primary_key=True),
+              Column('othername', String(30)))
+
+
+        cte = select([my_table.c.name]).where(my_table.c.name == 'bar').cte()
+
+        sel = select([my_table.c.myid, my_table.c.name]).where(
+            my_table.c.name == cte.c.name)
+
+        ins = my_other_table.insert().\
+            from_select(("otherid", "othername"), sel)
+        self.assert_compile(
+            ins,
+            "INSERT INTO myothertable (otherid, othername) "
+            "WITH anon_1 AS "
+            "(SELECT mytable.name AS name FROM mytable "
+            "WHERE mytable.name = :name_1) "
+            "SELECT mytable.myid, mytable.name FROM mytable, anon_1 "
+            "WHERE mytable.name = anon_1.name",
+            checkparams={"name_1": "bar"},
+            dialect=dialect
+        )
