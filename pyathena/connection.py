@@ -5,7 +5,9 @@ import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 from boto3.session import Session
+from botocore import config
 
+import pyathena
 from pyathena.common import BaseCursor
 from pyathena.converter import Converter
 from pyathena.cursor import Cursor
@@ -35,7 +37,6 @@ class Connection:
         "aws_access_key_id",
         "aws_secret_access_key",
         "aws_session_token",
-        "config",
         "api_version",
         "use_ssl",
         "verify",
@@ -65,6 +66,7 @@ class Connection:
         cursor_kwargs: Optional[Dict[str, Any]] = None,
         kill_on_interrupt: bool = True,
         session: Optional[Session] = None,
+        config: Optional[config.Config] = config.Config(),
         **kwargs,
     ) -> None:
         self._kwargs = {
@@ -136,8 +138,11 @@ class Connection:
                 profile_name=self.profile_name,
                 **self._session_kwargs,
             )
+
+        self.config: Optional[config.Config] = config
+        self.config.user_agent_extra = "PyAthena/" + pyathena.__version__ + " " + str(config.user_agent_extra or '')
         self._client = self._session.client(
-            "athena", region_name=self.region_name, **self._client_kwargs
+            "athena", region_name=self.region_name, config=self.config, **self._client_kwargs
         )
         self._converter = converter
         self._formatter = formatter if formatter else DefaultParameterFormatter()
@@ -159,7 +164,7 @@ class Connection:
         session = Session(
             region_name=region_name, profile_name=profile_name, **self._session_kwargs
         )
-        client = session.client("sts", region_name=region_name, **self._client_kwargs)
+        client = session.client("sts", region_name=region_name, config=self.config, **self._client_kwargs)
         request = {
             "RoleArn": role_arn,
             "RoleSessionName": role_session_name,
@@ -191,7 +196,7 @@ class Connection:
         duration_seconds: int,
     ) -> Dict[str, Any]:
         session = Session(profile_name=profile_name, **self._session_kwargs)
-        client = session.client("sts", region_name=region_name, **self._client_kwargs)
+        client = session.client("sts", region_name=region_name, config=self.config, **self._client_kwargs)
         token_code = input("Enter the MFA code: ")
         request = {
             "DurationSeconds": duration_seconds,
