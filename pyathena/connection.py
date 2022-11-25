@@ -5,7 +5,7 @@ import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 from boto3.session import Session
-from botocore import config
+from botocore.config import Config
 
 import pyathena
 from pyathena.common import BaseCursor
@@ -66,7 +66,7 @@ class Connection:
         cursor_kwargs: Optional[Dict[str, Any]] = None,
         kill_on_interrupt: bool = True,
         session: Optional[Session] = None,
-        config: Optional[config.Config] = config.Config(),
+        config: Optional[Config] = None,
         **kwargs,
     ) -> None:
         self._kwargs = {
@@ -139,11 +139,10 @@ class Connection:
                 **self._session_kwargs,
             )
 
-        self.config: Optional[config.Config] = config
+        self.config: Optional[Config] = config if config else Config()
         self.config.user_agent_extra = (
-            "PyAthena/"
-            + pyathena.__version__
-            + (" " + config.user_agent_extra if config.user_agent_extra else "")
+            f"PyAthena/{pyathena.__version__}"
+            f"{' ' + self.config.user_agent_extra if self.config.user_agent_extra else ''}"
         )
         self._client = self._session.client(
             "athena", region_name=self.region_name, config=self.config, **self._client_kwargs
