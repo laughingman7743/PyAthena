@@ -141,7 +141,9 @@ class Connection:
 
         self.config: Optional[config.Config] = config
         self.config.user_agent_extra = (
-            "PyAthena/" + pyathena.__version__ + " " + str(config.user_agent_extra or "")
+            "PyAthena/"
+            + pyathena.__version__
+            + (" " + config.user_agent_extra if config.user_agent_extra else "")
         )
         self._client = self._session.client(
             "athena", region_name=self.region_name, config=self.config, **self._client_kwargs
