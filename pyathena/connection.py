@@ -140,7 +140,9 @@ class Connection:
             )
 
         self.config: Optional[config.Config] = config
-        self.config.user_agent_extra = "PyAthena/" + pyathena.__version__ + " " + str(config.user_agent_extra or '')
+        self.config.user_agent_extra = (
+            "PyAthena/" + pyathena.__version__ + " " + str(config.user_agent_extra or "")
+        )
         self._client = self._session.client(
             "athena", region_name=self.region_name, config=self.config, **self._client_kwargs
         )
@@ -164,7 +166,9 @@ class Connection:
         session = Session(
             region_name=region_name, profile_name=profile_name, **self._session_kwargs
         )
-        client = session.client("sts", region_name=region_name, config=self.config, **self._client_kwargs)
+        client = session.client(
+            "sts", region_name=region_name, config=self.config, **self._client_kwargs
+        )
         request = {
             "RoleArn": role_arn,
             "RoleSessionName": role_session_name,
@@ -196,7 +200,9 @@ class Connection:
         duration_seconds: int,
     ) -> Dict[str, Any]:
         session = Session(profile_name=profile_name, **self._session_kwargs)
-        client = session.client("sts", region_name=region_name, config=self.config, **self._client_kwargs)
+        client = session.client(
+            "sts", region_name=region_name, config=self.config, **self._client_kwargs
+        )
         token_code = input("Enter the MFA code: ")
         request = {
             "DurationSeconds": duration_seconds,
