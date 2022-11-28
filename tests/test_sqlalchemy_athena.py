@@ -1352,14 +1352,12 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
 
         ins = my_other_table.insert().\
             from_select(("otherid", "othername"), sel)
-        self.assert_compile(
-            ins,
-            "INSERT INTO myothertable (otherid, othername) "
-            "WITH anon_1 AS "
-            "(SELECT mytable.name AS name FROM mytable "
-            "WHERE mytable.name = :name_1) "
-            "SELECT mytable.myid, mytable.name FROM mytable, anon_1 "
-            "WHERE mytable.name = anon_1.name",
-            checkparams={"name_1": "bar"},
-            dialect=dialect
-        )
+        expected_query = """INSERT INTO myothertable (otherid, othername)
+            WITH anon_1 AS
+            (SELECT mytable.name AS name FROM mytable
+            WHERE mytable.name = "bar")
+            SELECT mytable.myid, mytable.name FROM mytable, anon_1
+            WHERE mytable.name = anon_1.name
+        """
+        ins_stmt_string =  str(ins.compile(compile_kwargs={"literal_binds": True}, dialect=dialect))
+        assert "".join(ins_stmt_string.split()) == "".join(expected_query.split())
