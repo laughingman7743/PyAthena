@@ -1361,3 +1361,57 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         """
         ins_stmt_string =  str(ins.compile(compile_kwargs={"literal_binds": True}, dialect=dialect))
         assert "".join(ins_stmt_string.split()) == "".join(expected_query.split())
+
+    def test_insert_from_select_cte_follows_insert_one(self, engine):
+        engine, conn = engine
+        metadata = MetaData(schema=ENV.schema)
+        table_name = "select_cte_insert_one_1"
+        table = Table(
+            table_name,
+            metadata,
+            Column("id", types.Integer),
+            Column("name", types.String(30)),
+            Column("description", types.String(30)),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            awsathena_file_format="PARQUET",
+            awsathena_compression="SNAPPY",
+        )
+        other_table_name = "select_cte_insert_one_2"
+        other_table = Table(
+            other_table_name,
+            metadata,
+            Column("id", types.Integer, primary_key=True),
+            Column("name", types.String(30)),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{other_table_name}/",
+            awsathena_file_format="PARQUET",
+            awsathena_compression="SNAPPY",
+        )
+
+        cte = sqlalchemy.select([table.c.name]).where(table.c.name == "bar").cte()
+        sel = sqlalchemy.select([table.c.id, table.c.name]).where(table.c.name == cte.c.name)
+        ins = other_table.insert().from_select(("id", "name"), sel)
+
+        table.create(bind=conn)
+        other_table.create(bind=conn)
+        conn.execute(
+            table.insert(),
+            [
+                {"id": 1, "name": "foo", "description": "description foo"},
+                {"id": 2, "name": "bar", "description": "description bar"},
+            ],
+        )
+        conn.execute(ins)
+        actual = conn.execute(sqlalchemy.select([other_table])).fetchall()
+
+        expected_query = f"""INSERT INTO "{ENV.schema}".{other_table_name} (id, name)
+            WITH anon_1 AS
+                (SELECT "{ENV.schema}".{table_name}.name AS name
+                FROM "{ENV.schema}".{table_name}
+                WHERE "{ENV.schema}".{table_name}.name = :name_1)
+            SELECT "{ENV.schema}".{table_name}.id, "{ENV.schema}".{table_name}.name
+                FROM "{ENV.schema}".{table_name}, anon_1
+                WHERE "{ENV.schema}".{table_name}.name = anon_1.name
+            """
+        assert "".join(str(ins).split()) == "".join(expected_query.split())
+
+        assert actual == [(2, "bar")]
