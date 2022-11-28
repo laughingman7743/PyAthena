@@ -1331,3 +1331,61 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         assert tblproperties["projection.dt.type"] == "date"
         assert tblproperties["projection.dt.range"] == "NOW-1YEARS,NOW"
         assert tblproperties["projection.dt.format"] == "yyyy-MM-dd"
+
+    def test_insert_from_select_cte_follows_insert_one(self, engine):
+        engine, conn = engine
+        metadata = MetaData(schema=ENV.schema)
+        table_name = "select_cte_insert_one_1"
+        table = Table(
+            table_name,
+            metadata,
+            Column("id", types.Integer),
+            Column("name", types.String(30)),
+            Column("description", types.String(30)),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            awsathena_file_format="PARQUET",
+            awsathena_compression="SNAPPY",
+        )
+        other_table_name = "select_cte_insert_one_2"
+        other_table = Table(
+            other_table_name,
+            metadata,
+            Column("id", types.Integer, primary_key=True),
+            Column("name", types.String(30)),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{other_table_name}/",
+            awsathena_file_format="PARQUET",
+            awsathena_compression="SNAPPY",
+        )
+
+        cte = sqlalchemy.select([table.c.name]).where(table.c.name == "bar").cte()
+        sel = sqlalchemy.select([table.c.id, table.c.name]).where(table.c.name == cte.c.name)
+        ins = other_table.insert().from_select(("id", "name"), sel)
+
+        table.create(bind=conn)
+        other_table.create(bind=conn)
+        conn.execute(
+            table.insert(),
+            [
+                {"id": 1, "name": "foo", "description": "description foo"},
+                {"id": 2, "name": "bar", "description": "description bar"},
+            ],
+        )
+        conn.execute(ins)
+        actual = conn.execute(sqlalchemy.select([other_table])).fetchall()
+
+        assert (
+            str(ins)
+            == textwrap.dedent(
+                f"""
+                WITH anon_1 AS \n\
+                (SELECT {ENV.schema}.{table_name}.name AS name \n\
+                FROM {ENV.schema}.{table_name} \n\
+                WHERE {ENV.schema}.{table_name}.name = :name_1)
+                 INSERT INTO {ENV.schema}.{other_table_name} (id, name) \
+SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
+                FROM {ENV.schema}.{table_name}, anon_1 \n\
+                WHERE {ENV.schema}.{table_name}.name = anon_1.name \n\
+                """
+            ).strip()
+        )
+        assert actual == [(2, "bar")]
