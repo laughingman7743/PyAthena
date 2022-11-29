@@ -92,6 +92,7 @@ class Connection:
         self.encryption_option = encryption_option
         self.kms_key = kms_key
         self.profile_name = profile_name
+        self.config: Optional[Config] = config if config else Config()
 
         assert (
             self.s3_staging_dir or self.work_group
@@ -139,7 +140,6 @@ class Connection:
                 **self._session_kwargs,
             )
 
-        self.config: Optional[Config] = config if config else Config()
         self.config.user_agent_extra = (
             f"PyAthena/{pyathena.__version__}"
             f"{' ' + self.config.user_agent_extra if self.config.user_agent_extra else ''}"
