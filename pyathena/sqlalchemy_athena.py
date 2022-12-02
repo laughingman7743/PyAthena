@@ -762,6 +762,7 @@ class AthenaDialect(DefaultDialect):
     ddl_compiler = AthenaDDLCompiler
     type_compiler = AthenaTypeCompiler
     default_paramstyle = pyathena.paramstyle
+    cte_follows_insert = True
     supports_alter = False
     supports_pk_autoincrement = False
     supports_default_values = False
