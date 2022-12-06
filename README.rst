@@ -1473,7 +1473,7 @@ and the ``types`` setting of the Converter class is not used.
 [ArrowCursor] Unload options
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-ArrowCurosr supports the unload option. When this option is enabled,
+ArrowCursor supports the unload option. When this option is enabled,
 queries with SELECT statements are automatically converted to unload statements and executed to Athena,
 and the results are output in Parquet format (Snappy compressed) to ``s3_staging_dir``.
 The cursor reads the output Parquet file directly.
