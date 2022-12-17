@@ -110,7 +110,7 @@ Resources:
         PublishCloudWatchMetricsEnabled: false
         RequesterPaysEnabled: false
         EngineVersion:
-          SelectedEngineVersion: "Athena engine version 2"
+          SelectedEngineVersion: "Athena engine version 3"
         ResultConfiguration:
           OutputLocation: !Sub "s3://${BucketName}/workgroup=pyathena-test/"
 
