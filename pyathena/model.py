@@ -81,6 +81,8 @@ class AthenaQueryExecution:
             "ServiceProcessingTimeInMillis", None
         )
         self._data_manifest_location: Optional[str] = statistics.get("DataManifestLocation", None)
+        reuse_info = statistics.get("ResultReuseInformation", {})
+        self._reused_previous_result: Optional[bool] = reuse_info.get("ReusedPreviousResult", None)
 
         result_conf = query_execution.get("ResultConfiguration", {})
         self._output_location: Optional[str] = result_conf.get("OutputLocation", None)
@@ -98,6 +100,11 @@ class AthenaQueryExecution:
         self._effective_engine_version: Optional[str] = engine_version.get(
             "EffectiveEngineVersion", None
         )
+
+        reuse_conf = query_execution.get("ResultReuseConfiguration", {})
+        reuse_age_conf = reuse_conf.get("ResultReuseByAgeConfiguration", {})
+        self._result_reuse_enabled: Optional[bool] = reuse_age_conf.get("Enabled", None)
+        self._result_reuse_minutes: Optional[int] = reuse_age_conf.get("MaxAgeInMinutes", None)
 
     @property
     def database(self) -> Optional[str]:
@@ -192,6 +199,10 @@ class AthenaQueryExecution:
         return self._data_manifest_location
 
     @property
+    def reused_previous_result(self) -> Optional[bool]:
+        return self._reused_previous_result
+
+    @property
     def encryption_option(self) -> Optional[str]:
         return self._encryption_option
 
@@ -214,6 +225,14 @@ class AthenaQueryExecution:
     @property
     def effective_engine_version(self) -> Optional[str]:
         return self._effective_engine_version
+
+    @property
+    def result_reuse_enabled(self) -> Optional[bool]:
+        return self._result_reuse_enabled
+
+    @property
+    def result_reuse_minutes(self) -> Optional[int]:
+        return self._result_reuse_minutes
 
 
 class AthenaDatabase:

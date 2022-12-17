@@ -32,6 +32,8 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         encryption_option: Optional[str] = None,
         kms_key: Optional[str] = None,
         kill_on_interrupt: bool = True,
+        result_reuse_enable: bool = False,
+        result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
         **kwargs,
     ) -> None:
         super(Cursor, self).__init__(
@@ -47,6 +49,8 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
             encryption_option=encryption_option,
             kms_key=kms_key,
             kill_on_interrupt=kill_on_interrupt,
+            result_reuse_enable=result_reuse_enable,
+            result_reuse_minutes=result_reuse_minutes,
             **kwargs,
         )
         self._query_id: Optional[str] = None
@@ -85,6 +89,8 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
+        result_reuse_enable: Optional[bool] = None,
+        result_reuse_minutes: Optional[int] = None,
     ) -> _T:
         self._reset_state()
         self.query_id = self._execute(
@@ -94,6 +100,8 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
             s3_staging_dir=s3_staging_dir,
             cache_size=cache_size,
             cache_expiration_time=cache_expiration_time,
+            result_reuse_enable=result_reuse_enable,
+            result_reuse_minutes=result_reuse_minutes,
         )
         query_execution = self._poll(self.query_id)
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:

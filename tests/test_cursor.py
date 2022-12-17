@@ -175,6 +175,38 @@ class TestCursor:
         assert query_id_7 != query_id_8
         assert query_id_9 in [query_id_7, query_id_8]
 
+    @pytest.mark.parametrize(
+        "cursor",
+        [{"work_group": ENV.work_group, "result_reuse_enable": True, "result_reuse_minutes": 5}],
+        indirect=["cursor"],
+    )
+    def test_cursor_query_result_reuse(self, cursor):
+        now = datetime.utcnow()
+        cursor.execute("SELECT %(now)s as date", {"now": now})
+        assert not cursor.reused_previous_result
+        assert cursor.result_reuse_enabled
+        assert cursor.result_reuse_minutes == 5
+        cursor.execute("SELECT %(now)s as date", {"now": now})
+        assert cursor.reused_previous_result
+        assert cursor.result_reuse_enabled
+        assert cursor.result_reuse_minutes == 5
+
+    @pytest.mark.parametrize("cursor", [{"work_group": ENV.work_group}], indirect=["cursor"])
+    def test_execute_query_result_reuse(self, cursor):
+        now = datetime.utcnow()
+        cursor.execute(
+            "SELECT %(now)s as date", {"now": now}, result_reuse_enable=True, result_reuse_minutes=5
+        )
+        assert not cursor.reused_previous_result
+        assert cursor.result_reuse_enabled
+        assert cursor.result_reuse_minutes == 5
+        cursor.execute(
+            "SELECT %(now)s as date", {"now": now}, result_reuse_enable=True, result_reuse_minutes=5
+        )
+        assert cursor.reused_previous_result
+        assert cursor.result_reuse_enabled
+        assert cursor.result_reuse_minutes == 5
+
     def test_arraysize(self, cursor):
         cursor.arraysize = 5
         cursor.execute("SELECT * FROM many_rows LIMIT 20")

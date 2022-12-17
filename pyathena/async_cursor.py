@@ -37,6 +37,8 @@ class AsyncCursor(BaseCursor):
         kill_on_interrupt: bool = True,
         max_workers: int = (cpu_count() or 1) * 5,
         arraysize: int = CursorIterator.DEFAULT_FETCH_SIZE,
+        result_reuse_enable: bool = False,
+        result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
     ) -> None:
         super(AsyncCursor, self).__init__(
             connection=connection,
@@ -51,6 +53,8 @@ class AsyncCursor(BaseCursor):
             encryption_option=encryption_option,
             kms_key=kms_key,
             kill_on_interrupt=kill_on_interrupt,
+            result_reuse_enable=result_reuse_enable,
+            result_reuse_minutes=result_reuse_minutes,
         )
         self._max_workers = max_workers
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
@@ -108,6 +112,8 @@ class AsyncCursor(BaseCursor):
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
+        result_reuse_enable: Optional[bool] = None,
+        result_reuse_minutes: Optional[int] = None,
     ) -> Tuple[str, "Future[Union[AthenaResultSet, Any]]"]:
         query_id = self._execute(
             operation,
@@ -116,6 +122,8 @@ class AsyncCursor(BaseCursor):
             s3_staging_dir=s3_staging_dir,
             cache_size=cache_size,
             cache_expiration_time=cache_expiration_time,
+            result_reuse_enable=result_reuse_enable,
+            result_reuse_minutes=result_reuse_minutes,
         )
         return query_id, self._executor.submit(self._collect_result_set, query_id)
 

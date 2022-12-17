@@ -196,6 +196,12 @@ class AthenaResultSet(CursorIterator):
         return self._query_execution.data_manifest_location
 
     @property
+    def reused_previous_result(self) -> Optional[bool]:
+        if not self._query_execution:
+            return None
+        return self._query_execution.reused_previous_result
+
+    @property
     def encryption_option(self) -> Optional[str]:
         if not self._query_execution:
             return None
@@ -230,6 +236,18 @@ class AthenaResultSet(CursorIterator):
         if not self._query_execution:
             return None
         return self._query_execution.effective_engine_version
+
+    @property
+    def result_reuse_enabled(self) -> Optional[bool]:
+        if not self._query_execution:
+            return None
+        return self._query_execution.result_reuse_enabled
+
+    @property
+    def result_reuse_minutes(self) -> Optional[int]:
+        if not self._query_execution:
+            return None
+        return self._query_execution.result_reuse_minutes
 
     @property
     def description(
@@ -658,6 +676,13 @@ class WithResultSet:
         return result_set.data_manifest_location
 
     @property
+    def reused_previous_result(self) -> Optional[bool]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.reused_previous_result
+
+    @property
     def encryption_option(self) -> Optional[str]:
         if not self.has_result_set:
             return None
@@ -698,3 +723,17 @@ class WithResultSet:
             return None
         result_set = cast(AthenaResultSet, self.result_set)
         return result_set.effective_engine_version
+
+    @property
+    def result_reuse_enabled(self) -> Optional[bool]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.result_reuse_enabled
+
+    @property
+    def result_reuse_minutes(self) -> Optional[int]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.result_reuse_minutes

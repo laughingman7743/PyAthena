@@ -43,6 +43,8 @@ class AsyncPandasCursor(AsyncCursor):
         unload: bool = False,
         engine: str = "auto",
         chunksize: Optional[int] = None,
+        result_reuse_enable: bool = False,
+        result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
     ) -> None:
         super(AsyncPandasCursor, self).__init__(
             connection=connection,
@@ -59,6 +61,8 @@ class AsyncPandasCursor(AsyncCursor):
             kill_on_interrupt=kill_on_interrupt,
             max_workers=max_workers,
             arraysize=arraysize,
+            result_reuse_enable=result_reuse_enable,
+            result_reuse_minutes=result_reuse_minutes,
         )
         self._unload = unload
         self._engine = engine
@@ -119,6 +123,8 @@ class AsyncPandasCursor(AsyncCursor):
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
+        result_reuse_enable: Optional[bool] = None,
+        result_reuse_minutes: Optional[int] = None,
         keep_default_na: bool = False,
         na_values: Optional[Iterable[str]] = ("",),
         quoting: int = 1,
@@ -142,6 +148,8 @@ class AsyncPandasCursor(AsyncCursor):
             s3_staging_dir=s3_staging_dir,
             cache_size=cache_size,
             cache_expiration_time=cache_expiration_time,
+            result_reuse_enable=result_reuse_enable,
+            result_reuse_minutes=result_reuse_minutes,
         )
         return (
             query_id,
