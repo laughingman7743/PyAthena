@@ -231,17 +231,24 @@ class S3FileSystem(AbstractFileSystem):
         if not refresh:
             caches = self._ls_from_cache(path)
             if caches is not None:
-                cache = [c for c in caches if c["name"] == path]
+                if isinstance(caches, list):
+                    cache = next((c for c in caches if c["name"] == path), None)
+                elif ("name" in caches) and (caches["name"] == path):
+                    cache = caches
+                else:
+                    cache = None
+
                 if cache:
-                    return cache[0]
-                return S3Object(
-                    bucket=bucket,
-                    key=path,
-                    size=0,
-                    type=S3ObjectType.S3_OBJECT_TYPE_DIRECTORY,
-                    storage_class=S3StorageClass.S3_STORAGE_CLASS_DIRECTORY,
-                    etag=None,
-                ).to_dict()
+                    return cache
+                else:
+                    return S3Object(
+                        bucket=bucket,
+                        key=path,
+                        size=0,
+                        type=S3ObjectType.S3_OBJECT_TYPE_DIRECTORY,
+                        storage_class=S3StorageClass.S3_STORAGE_CLASS_DIRECTORY,
+                        etag=None,
+                    ).to_dict()
         if key:
             info = self._head_object(path, refresh=refresh)
             if info:
