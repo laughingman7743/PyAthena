@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
+from multiprocessing import cpu_count
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -54,6 +55,9 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         unload: bool = False,
         engine: str = "auto",
         chunksize: Optional[int] = None,
+        block_size: Optional[int] = None,
+        cache_type: Optional[str] = None,
+        max_workers: int = (cpu_count() or 1) * 5,
         **kwargs,
     ) -> None:
         super(PandasCursor, self).__init__(
@@ -74,6 +78,9 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         self._unload = unload
         self._engine = engine
         self._chunksize = chunksize
+        self._block_size = block_size
+        self._cache_type = cache_type
+        self._max_workers = max_workers
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaPandasResultSet] = None
 
@@ -168,6 +175,9 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
                 unload_location=unload_location,
                 engine=kwargs.pop("engine", self._engine),
                 chunksize=kwargs.pop("chunksize", self._chunksize),
+                block_size=kwargs.pop("block_size", self._block_size),
+                cache_type=kwargs.pop("cache_type", self._cache_type),
+                max_workers=kwargs.pop("max_workers", self._max_workers),
                 **kwargs,
             )
         else:

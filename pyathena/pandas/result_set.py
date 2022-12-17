@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 from collections import abc
+from multiprocessing import cpu_count
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -110,6 +111,9 @@ class AthenaPandasResultSet(AthenaResultSet):
         unload_location: Optional[str] = None,
         engine: str = "auto",
         chunksize: Optional[int] = None,
+        block_size: Optional[int] = None,
+        cache_type: Optional[str] = None,
+        max_workers: int = (cpu_count() or 1) * 5,
         **kwargs,
     ) -> None:
         super(AthenaPandasResultSet, self).__init__(
@@ -128,6 +132,9 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._unload_location = unload_location
         self._engine = engine
         self._chunksize = chunksize
+        self._block_size = block_size
+        self._cache_type = cache_type
+        self._max_workers = max_workers
         self._data_manifest: List[str] = []
         self._kwargs = kwargs
         self._fs = self.__s3_file_system()
@@ -165,14 +172,13 @@ class AthenaPandasResultSet(AthenaResultSet):
             return self._engine
 
     def __s3_file_system(self):
-        from s3fs import S3FileSystem
+        from pyathena.filesystem.s3 import S3FileSystem
 
         return S3FileSystem(
-            profile=self.connection.profile_name,
-            client_kwargs={
-                "region_name": self.connection.region_name,
-                **self.connection._client_kwargs,
-            },
+            connection=self.connection,
+            default_block_size=self._block_size,
+            default_cache_type=self._cache_type,
+            max_workers=self._max_workers,
         )
 
     @property
@@ -279,11 +285,10 @@ class AthenaPandasResultSet(AthenaResultSet):
                 na_values=self._na_values,
                 quoting=self._quoting,
                 storage_options={
-                    "profile": self.connection.profile_name,
-                    "client_kwargs": {
-                        "region_name": self.connection.region_name,
-                        **self.connection._client_kwargs,
-                    },
+                    "connection": self.connection,
+                    "default_block_size": self._block_size,
+                    "default_cache_type": self._cache_type,
+                    "max_workers": self._max_workers,
                 },
                 chunksize=self._chunksize,
                 **self._kwargs,
@@ -319,11 +324,10 @@ class AthenaPandasResultSet(AthenaResultSet):
                 unload_location,
                 engine=self._engine,
                 storage_options={
-                    "profile": self.connection.profile_name,
-                    "client_kwargs": {
-                        "region_name": self.connection.region_name,
-                        **self.connection._client_kwargs,
-                    },
+                    "connection": self.connection,
+                    "default_block_size": self._block_size,
+                    "default_cache_type": self._cache_type,
+                    "max_workers": self._max_workers,
                 },
                 use_nullable_dtypes=False,
                 **kwargs,
