@@ -35,3 +35,40 @@ class TestS3Object:
         assert actual.type == S3ObjectType.S3_OBJECT_TYPE_FILE
         assert actual.storage_class == S3StorageClass.S3_STORAGE_CLASS_STANDARD
         assert actual.etag == "etag"
+
+    def test_to_dict(self):
+        actual = S3Object(
+            bucket="test-bucket",
+            key=None,
+            size=0,
+            type=S3ObjectType.S3_OBJECT_TYPE_DIRECTORY,
+            storage_class=S3StorageClass.S3_STORAGE_CLASS_DIRECTORY,
+            etag=None,
+        )
+        assert actual.to_dict() == {
+            "bucket": "test-bucket",
+            "key": None,
+            "name": "test-bucket",
+            "size": 0,
+            "type": S3ObjectType.S3_OBJECT_TYPE_DIRECTORY,
+            "storage_class": S3StorageClass.S3_STORAGE_CLASS_DIRECTORY,
+            "etag": None,
+        }
+
+        actual = S3Object(
+            bucket="test-bucket",
+            key="path/to/object",
+            size=100,
+            type=S3ObjectType.S3_OBJECT_TYPE_FILE,
+            storage_class=S3StorageClass.S3_STORAGE_CLASS_STANDARD,
+            etag="etag",
+        )
+        assert actual.to_dict() == {
+            "bucket": "test-bucket",
+            "key": "path/to/object",
+            "name": "test-bucket/path/to/object",
+            "size": 100,
+            "type": S3ObjectType.S3_OBJECT_TYPE_FILE,
+            "storage_class": S3StorageClass.S3_STORAGE_CLASS_STANDARD,
+            "etag": "etag",
+        }
