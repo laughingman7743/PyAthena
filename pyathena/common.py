@@ -23,6 +23,10 @@ class CursorIterator(metaclass=ABCMeta):
     # https://docs.aws.amazon.com/athena/latest/APIReference/API_GetQueryResults.html
     # Valid Range: Minimum value of 1. Maximum value of 1000.
     DEFAULT_FETCH_SIZE: int = 1000
+    # https://docs.aws.amazon.com/athena/latest/APIReference/API_ResultReuseByAgeConfiguration.html
+    # Specifies, in minutes, the maximum age of a previous query result
+    # that Athena should consider for reuse. The default is 60.
+    DEFAULT_RESULT_REUSE_MINUTES = 60
 
     def __init__(self, **kwargs) -> None:
         super(CursorIterator, self).__init__()
@@ -99,6 +103,8 @@ class BaseCursor(metaclass=ABCMeta):
         encryption_option: Optional[str],
         kms_key: Optional[str],
         kill_on_interrupt: bool,
+        result_reuse_enable: bool,
+        result_reuse_minutes: int,
         **kwargs,
     ) -> None:
         super(BaseCursor, self).__init__()
@@ -114,6 +120,8 @@ class BaseCursor(metaclass=ABCMeta):
         self._encryption_option = encryption_option
         self._kms_key = kms_key
         self._kill_on_interrupt = kill_on_interrupt
+        self._result_reuse_enable = result_reuse_enable
+        self._result_reuse_minutes = result_reuse_minutes
 
     @staticmethod
     def get_default_converter(unload: bool = False) -> Union[DefaultTypeConverter, Any]:
@@ -128,6 +136,8 @@ class BaseCursor(metaclass=ABCMeta):
         query: str,
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
+        result_reuse_enable: Optional[bool] = None,
+        result_reuse_minutes: Optional[int] = None,
     ) -> Dict[str, Any]:
         request: Dict[str, Any] = {
             "QueryString": query,
@@ -151,6 +161,16 @@ class BaseCursor(metaclass=ABCMeta):
             if self._kms_key:
                 enc_conf.update({"KmsKey": self._kms_key})
             request["ResultConfiguration"].update({"EncryptionConfiguration": enc_conf})
+        if self._result_reuse_enable or result_reuse_enable:
+            reuse_conf = {
+                "Enabled": result_reuse_enable
+                if result_reuse_enable is not None
+                else self._result_reuse_enable,
+                "MaxAgeInMinutes": result_reuse_minutes
+                if result_reuse_minutes is not None
+                else self._result_reuse_minutes,
+            }
+            request["ResultReuseConfiguration"] = {"ResultReuseByAgeConfiguration": reuse_conf}
         return request
 
     def _build_list_query_executions_request(
@@ -478,11 +498,19 @@ class BaseCursor(metaclass=ABCMeta):
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
+        result_reuse_enable: Optional[bool] = None,
+        result_reuse_minutes: Optional[int] = None,
     ) -> str:
         query = self._formatter.format(operation, parameters)
         _logger.debug(query)
 
-        request = self._build_start_query_execution_request(query, work_group, s3_staging_dir)
+        request = self._build_start_query_execution_request(
+            query=query,
+            work_group=work_group,
+            s3_staging_dir=s3_staging_dir,
+            result_reuse_enable=result_reuse_enable,
+            result_reuse_minutes=result_reuse_minutes,
+        )
         query_id = self._find_previous_query_id(
             query,
             work_group,
@@ -511,6 +539,8 @@ class BaseCursor(metaclass=ABCMeta):
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
+        result_reuse_enable: Optional[bool] = None,
+        result_reuse_minutes: Optional[int] = None,
     ):
         raise NotImplementedError  # pragma: no cover
 

@@ -41,6 +41,8 @@ class AsyncArrowCursor(AsyncCursor):
         max_workers: int = (cpu_count() or 1) * 5,
         arraysize: int = CursorIterator.DEFAULT_FETCH_SIZE,
         unload: bool = False,
+        result_reuse_enable: bool = False,
+        result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
     ) -> None:
         super(AsyncArrowCursor, self).__init__(
             connection=connection,
@@ -57,6 +59,8 @@ class AsyncArrowCursor(AsyncCursor):
             kill_on_interrupt=kill_on_interrupt,
             max_workers=max_workers,
             arraysize=arraysize,
+            result_reuse_enable=result_reuse_enable,
+            result_reuse_minutes=result_reuse_minutes,
         )
         self._unload = unload
 
@@ -107,6 +111,8 @@ class AsyncArrowCursor(AsyncCursor):
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
+        result_reuse_enable: Optional[bool] = None,
+        result_reuse_minutes: Optional[int] = None,
         **kwargs,
     ) -> Tuple[str, "Future[Union[AthenaArrowResultSet, Any]]"]:
         if self._unload:
@@ -127,6 +133,8 @@ class AsyncArrowCursor(AsyncCursor):
             s3_staging_dir=s3_staging_dir,
             cache_size=cache_size,
             cache_expiration_time=cache_expiration_time,
+            result_reuse_enable=result_reuse_enable,
+            result_reuse_minutes=result_reuse_minutes,
         )
         return (
             query_id,

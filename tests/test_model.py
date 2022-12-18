@@ -24,6 +24,9 @@ ATHENA_QUERY_EXECUTION_RESPONSE = {
             "ExpectedBucketOwner": "test-bucket-owner",
             "AclConfiguration": {"S3AclOption": "BUCKET_OWNER_FULL_CONTROL"},
         },
+        "ResultReuseConfiguration": {
+            "ResultReuseByAgeConfiguration": {"Enabled": True, "MaxAgeInMinutes": 5}
+        },
         "QueryExecutionContext": {"Database": "test_database", "Catalog": "test_catalog"},
         "Status": {
             "State": "SUCCEEDED",
@@ -45,6 +48,7 @@ ATHENA_QUERY_EXECUTION_RESPONSE = {
             "QueryQueueTimeInMillis": 34567890,
             "QueryPlanningTimeInMillis": 567890,
             "ServiceProcessingTimeInMillis": 67890,
+            "ResultReuseInformation": {"ReusedPreviousResult": True},
         },
         "WorkGroup": "test_work_group",
         "EngineVersion": {
@@ -161,12 +165,15 @@ class TestAthenaQueryExecution:
         assert actual.service_processing_time_in_millis == 67890
         assert actual.output_location == "s3://bucket/path/to/output/"
         assert actual.data_manifest_location == "s3://bucket/path/to/data_manifest/"
+        assert actual.reused_previous_result
         assert actual.encryption_option == "test_encryption_option"
         assert actual.kms_key == "test_kms_key"
         assert actual.expected_bucket_owner == "test-bucket-owner"
         assert actual.s3_acl_option == AthenaQueryExecution.S3_ACL_OPTION_BUCKET_OWNER_FULL_CONTROL
         assert actual.selected_engine_version == "Athena engine version 2"
         assert actual.effective_engine_version == "Athena engine version 2"
+        assert actual.result_reuse_enabled
+        assert actual.result_reuse_minutes == 5
 
 
 class TestAthenaTableMetadata:

@@ -8,7 +8,7 @@ from boto3.session import Session
 from botocore.config import Config
 
 import pyathena
-from pyathena.common import BaseCursor
+from pyathena.common import BaseCursor, CursorIterator
 from pyathena.converter import Converter
 from pyathena.cursor import Cursor
 from pyathena.error import NotSupportedError
@@ -67,6 +67,8 @@ class Connection:
         kill_on_interrupt: bool = True,
         session: Optional[Session] = None,
         config: Optional[Config] = None,
+        result_reuse_enable: bool = False,
+        result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
         **kwargs,
     ) -> None:
         self._kwargs = {
@@ -153,6 +155,8 @@ class Connection:
         self.cursor_class = cursor_class
         self.cursor_kwargs = cursor_kwargs if cursor_kwargs else dict()
         self.kill_on_interrupt = kill_on_interrupt
+        self.result_reuse_enable = result_reuse_enable
+        self.result_reuse_minutes = result_reuse_minutes
 
     def _assume_role(
         self,
@@ -260,6 +264,8 @@ class Connection:
             encryption_option=kwargs.pop("encryption_option", self.encryption_option),
             kms_key=kwargs.pop("kms_key", self.kms_key),
             kill_on_interrupt=kwargs.pop("kill_on_interrupt", self.kill_on_interrupt),
+            result_reuse_enable=kwargs.pop("result_reuse_enable", self.result_reuse_enable),
+            result_reuse_minutes=kwargs.pop("result_reuse_minutes", self.result_reuse_minutes),
             **kwargs,
         )
 
