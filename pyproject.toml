@@ -61,10 +61,10 @@ pytest-cov = "*"
 pytest-xdist = "*"
 
 [tool.poetry.extras]
-pandas = ["pandas", "fsspec"]
+pandas = ["pandas"]
 sqlalchemy = ["sqlalchemy"]
 arrow = ["pyarrow"]
-fastparquet = ["fastparquet", "fsspec"]
+fastparquet = ["fastparquet"]
 
 [tool.poetry.plugins."sqlalchemy.dialects"]
 "awsathena" = "pyathena.sqlalchemy_athena:AthenaDialect"
