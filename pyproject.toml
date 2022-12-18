@@ -37,7 +37,7 @@ sqlalchemy = {version = "<2.0.0,>=1.0.0", optional = true}
 pandas = {version = ">=1.3.0", optional = true}
 pyarrow = {version = ">=7.0.0", optional = true}
 fastparquet = {version = ">=0.4.0", optional = true}
-fsspec = {version = "*", optional = true}
+fsspec = {version = "*"}
 
 [tool.poetry.dev-dependencies]
 tox = "*"
