@@ -1708,6 +1708,51 @@ As with ArrowCursor, the UNLOAD option is also available.
 Quickly re-run queries
 ~~~~~~~~~~~~~~~~~~~~~~
 
+Result reuse configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Athena engine version 3 allows you to `reuse the results of previous queries`_.
+
+It is available by specifying the arguments ``result_reuse_enable`` and ``result_reuse_minutes`` in the connection object.
+
+.. code:: python
+
+    from pyathena import connect
+
+    conn = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                   region_name="us-west-2",
+                   work_group="YOUR_WORK_GROUP",
+                   result_reuse_enable=True,
+                   result_reuse_minutes=60)
+
+You can also specify ``result_reuse_enable`` and ``result_reuse_minutes`` when executing a query.
+
+.. code:: python
+
+    from pyathena import connect
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor()
+    cursor.execute("SELECT * FROM one_row",
+                   work_group="YOUR_WORK_GROUP",
+                   result_reuse_enable=True,
+                   result_reuse_minutes=60)
+
+If the following error occurs, please use a workgroup configured with Athena engine version 3.
+
+.. code:: text
+
+    pyathena.error.DatabaseError: An error occurred (InvalidRequestException) when calling the StartQueryExecution operation: This functionality is not enabled in the selected engine version. Please check the engine version settings or contact AWS support for further assistance.
+
+If for some reason you cannot use the reuse feature of Athena engine version 3, please use the `Cache configuration`_ implemented by PyAthena.
+
+.. _`reuse the results of previous queries`: https://docs.aws.amazon.com/athena/latest/ug/reusing-query-results.html
+
+Cache configuration
+^^^^^^^^^^^^^^^^^^^
+
+**Please use the Result reuse configuration.**
+
 You can attempt to re-use the results from a previously executed query to help save time and money in the cases where your underlying data isn't changing.
 Set the ``cache_size`` or ``cache_expiration_time`` parameter of ``cursor.execute()`` to a number larger than 0 to enable caching.
 
