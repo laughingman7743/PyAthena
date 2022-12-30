@@ -142,10 +142,14 @@ class Connection:
                 **self._session_kwargs,
             )
 
-        self.config.user_agent_extra = (
-            f"PyAthena/{pyathena.__version__}"
-            f"{' ' + self.config.user_agent_extra if self.config.user_agent_extra else ''}"
-        )
+        user_agent_extra = f"PyAthena/{pyathena.__version__}"
+        if not self.config.user_agent_extra or (
+            user_agent_extra not in self.config.user_agent_extra
+        ):
+            self.config.user_agent_extra = (
+                f"{user_agent_extra}"
+                f"{' ' + self.config.user_agent_extra if self.config.user_agent_extra else ''}"
+            )
         self._client = self._session.client(
             "athena", region_name=self.region_name, config=self.config, **self._client_kwargs
         )
