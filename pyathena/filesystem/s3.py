@@ -379,7 +379,7 @@ class S3FileSystem(AbstractFileSystem):
         version_id: Optional[str] = None,
         kwargs: Optional[Dict[Any, Any]] = None,
     ) -> Tuple[int, bytes]:
-        range_ = f"bytes={ranges[0]}-{ranges[1]}"
+        range_ = f"bytes={ranges[0]}-{ranges[1] - 1}"
         request = {"Bucket": bucket, "Key": key, "Range": range_}
         if version_id:
             request.update({"versionId": version_id})
