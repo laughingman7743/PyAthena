@@ -888,8 +888,11 @@ class AthenaDialect(DefaultDialect):
         return [s.name for s in schemas]
 
     def get_table_names(self, connection, schema=None, **kw):
+        # Tables created by Athena are always classified as `EXTERNAL_TABLE`, but Athena can also query tables
+        # classified as `MANAGED_TABLE`. Managed Tables are created by default when creating tables via Spark when
+        # Glue has been enabled as the Hive Metastore for Elastic Map Reduce (EMR) clusters.
         tables = self._get_tables(connection, schema, **kw)
-        return [t.name for t in tables]
+        return [t.name for t in tables if t.table_type in ["EXTERNAL_TABLE", "MANAGED_TABLE"]]
 
     def get_view_names(self, connection, schema=None, **kw):
         tables = self._get_tables(connection, schema, **kw)
