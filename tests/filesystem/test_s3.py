@@ -13,7 +13,7 @@ from tests.conftest import connect
 
 class TestS3FileSystem:
 
-    s3_test_file_key = ENV.s3_staging_key + "/S3FileSystem__test_read.dat"
+    s3_test_file_key = f"{ENV.s3_staging_key}{ENV.schema}/S3FileSystem__test_read.dat"
 
     def test_parse_path(self):
         actual = S3FileSystem.parse_path("s3://bucket")
