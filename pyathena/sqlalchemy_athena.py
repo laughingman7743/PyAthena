@@ -301,7 +301,6 @@ RESERVED_WORDS = list(sorted(set(DDL_RESERVED_WORDS + SELECT_STATEMENT_RESERVED_
 
 
 class AthenaDMLIdentifierPreparer(IdentifierPreparer):
-
     reserved_words = RESERVED_WORDS
 
 
@@ -755,7 +754,6 @@ class AthenaDDLCompiler(DDLCompiler):
 
 
 class AthenaDialect(DefaultDialect):
-
     name = "awsathena"
     preparer = AthenaDMLIdentifierPreparer
     statement_compiler = AthenaStatementCompiler

@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
 
 from pyathena.arrow.converter import (
     DefaultArrowTypeConverter,
@@ -21,7 +23,6 @@ if TYPE_CHECKING:
     from pyathena.connection import Connection
 
 _logger = logging.getLogger(__name__)  # type: ignore
-_T = TypeVar("_T", bound="ArrowCursor")
 
 
 class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
@@ -109,7 +110,7 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
             self.result_set.close()
 
     def execute(
-        self: _T,
+        self,
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
         work_group: Optional[str] = None,
@@ -119,7 +120,7 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         result_reuse_enable: Optional[bool] = None,
         result_reuse_minutes: Optional[int] = None,
         **kwargs,
-    ) -> _T:
+    ) -> ArrowCursor:
         self._reset_state()
         if self._unload:
             s3_staging_dir = s3_staging_dir if s3_staging_dir else self._s3_staging_dir

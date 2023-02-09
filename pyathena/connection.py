@@ -22,7 +22,6 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class Connection:
-
     _ENV_S3_STAGING_DIR: str = "AWS_ATHENA_S3_STAGING_DIR"
     _ENV_WORK_GROUP: str = "AWS_ATHENA_WORK_GROUP"
     _SESSION_PASSING_ARGS: List[str] = [

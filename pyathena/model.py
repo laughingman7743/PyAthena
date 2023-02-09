@@ -10,7 +10,6 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class AthenaQueryExecution:
-
     STATE_QUEUED: str = "QUEUED"
     STATE_RUNNING: str = "RUNNING"
     STATE_SUCCEEDED: str = "SUCCEEDED"
@@ -409,7 +408,6 @@ class AthenaTableMetadata:
 
 
 class AthenaFileFormat:
-
     FILE_FORMAT_SEQUENCEFILE: str = "SEQUENCEFILE"
     FILE_FORMAT_TEXTFILE: str = "TEXTFILE"
     FILE_FORMAT_RCFILE: str = "RCFILE"
@@ -428,7 +426,6 @@ class AthenaFileFormat:
 
 
 class AthenaRowFormatSerde:
-
     PATTERN_ROW_FORMAT_SERDE: Pattern[str] = re.compile(r"^(?i:serde) '(?P<serde>.+)'$")
 
     ROW_FORMAT_SERDE_CSV: str = "org.apache.hadoop.hive.serde2.OpenCSVSerde"
@@ -462,7 +459,6 @@ class AthenaRowFormatSerde:
 
 
 class AthenaCompression:
-
     COMPRESSION_BZIP2: str = "BZIP2"
     COMPRESSION_DEFLATE: str = "DEFLATE"
     COMPRESSION_GZIP: str = "GZIP"

@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
 
 from pyathena.common import BaseCursor, CursorIterator
 from pyathena.converter import Converter
@@ -14,7 +16,6 @@ if TYPE_CHECKING:
     from pyathena.connection import Connection
 
 _logger = logging.getLogger(__name__)  # type: ignore
-_T = TypeVar("_T", bound="Cursor")
 
 
 class Cursor(BaseCursor, CursorIterator, WithResultSet):
@@ -82,7 +83,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
             self.result_set.close()
 
     def execute(
-        self: _T,
+        self,
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
         work_group: Optional[str] = None,
@@ -91,7 +92,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         cache_expiration_time: int = 0,
         result_reuse_enable: Optional[bool] = None,
         result_reuse_minutes: Optional[int] = None,
-    ) -> _T:
+    ) -> Cursor:
         self._reset_state()
         self.query_id = self._execute(
             operation,
