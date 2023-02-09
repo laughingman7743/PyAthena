@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 from io import BytesIO
+from itertools import chain
+from typing import Dict
 
 import boto3
 import pytest
 
-from pyathena.filesystem.s3 import S3FileSystem
+from pyathena.filesystem.s3 import S3File, S3FileSystem
 from tests import ENV
 from tests.conftest import connect
 
@@ -12,6 +14,7 @@ from tests.conftest import connect
 class TestS3FileSystem:
 
     s3_test_file_key = ENV.s3_staging_key + "/S3FileSystem__test_read.dat"
+    s3_test_csv_key = ENV.s3_staging_key + "/S3FileSystem__test_read.csv"
 
     def test_parse_path(self):
         actual = S3FileSystem.parse_path("s3://bucket")
@@ -112,25 +115,43 @@ class TestS3FileSystem:
             S3FileSystem.parse_path("s3a://bucket/path/to/obj?foo=bar")
 
     @pytest.fixture(scope="class")
-    def fs(self):
+    def fs(self) -> Dict[str, S3FileSystem]:
         client = boto3.client("s3")
         client.upload_fileobj(
             BytesIO(b"0123456789"),
             ENV.s3_staging_bucket,
             self.s3_test_file_key,
         )
-        fs = S3FileSystem(connect())
+        fs = {
+            "default": S3FileSystem(connect()),
+            "small_batches": S3FileSystem(connect(), default_block_size=3),
+        }
         return fs
 
     @pytest.mark.parametrize(
-        ["start", "end", "target_data"],
-        [(0, 5, b"01234"), (2, 7, b"23456")],
+        ["start", "end", "batch_mode", "target_data"],
+        list(
+            chain(
+                *[
+                    [
+                        (0, 5, x, b"01234"),
+                        (2, 7, x, b"23456"),
+                        (0, 10, x, b"0123456789"),
+                    ]
+                    for x in ("default", "small_batches")
+                ]
+            )
+        ),
     )
-    def test_read(self, fs, start, end, target_data):
+    def test_read(self, fs, start, end, batch_mode, target_data):
         # lowest level access: use _get_object
-        data = fs._get_object(ENV.s3_staging_bucket, self.s3_test_file_key, ranges=(start, end))
+        data = fs[batch_mode]._get_object(
+            ENV.s3_staging_bucket, self.s3_test_file_key, ranges=(start, end)
+        )
         assert data == (start, target_data), data
-        with fs.open(f"s3://{ENV.s3_staging_bucket}/{self.s3_test_file_key}", "rb") as file:
+        with fs[batch_mode].open(
+            f"s3://{ENV.s3_staging_bucket}/{self.s3_test_file_key}", "rb"
+        ) as file:
             # mid-level access: use _fetch_range
             data = file._fetch_range(start, end)
             assert data == target_data, data
@@ -138,3 +159,50 @@ class TestS3FileSystem:
             file.seek(start)
             data = file.read(end - start)
             assert data == target_data, data
+
+
+class TestS3File:
+    @pytest.mark.parametrize(
+        ["objects", "target"],
+        [
+            ([(0, b"")], b""),
+            ([(0, b"foo")], b"foo"),
+            ([(0, b"foo"), (1, b"bar")], b"foobar"),
+            ([(1, b"foo"), (0, b"bar")], b"barfoo"),
+            ([(1, b""), (0, b"bar")], b"bar"),
+            ([(1, b"foo"), (0, b"")], b"foo"),
+            ([(2, b"foo"), (1, b"bar"), (3, b"baz")], b"barfoobaz"),
+        ],
+    )
+    def test_merge_objects(self, objects, target):
+        assert S3File._merge_objects(objects) == target
+
+    @pytest.mark.parametrize(
+        ["start", "end", "max_workers", "worker_block_size", "ranges"],
+        [
+            (42, 1337, 1, 999, [(42, 1337)]),  # single worker
+            (42, 1337, 2, 999, [(42, 42 + 999), (42 + 999, 1337)]),  # more workers
+            (
+                42,
+                1337,
+                2,
+                333,
+                [
+                    (42, 42 + 333),
+                    (42 + 333, 42 + 666),
+                    (42 + 666, 42 + 999),
+                    (42 + 999, 1337),
+                ],
+            ),
+            (42, 1337, 2, 1295, [(42, 1337)]),  # single block
+            (42, 1337, 2, 1296, [(42, 1337)]),  # single block
+            (42, 1337, 2, 1294, [(42, 1336), (1336, 1337)]),  # single block too small
+        ],
+    )
+    def test_get_ranges(self, start, end, max_workers, worker_block_size, ranges):
+        assert (
+            S3File._get_ranges(
+                start, end, max_workers=max_workers, worker_block_size=worker_block_size
+            )
+            == ranges
+        )
