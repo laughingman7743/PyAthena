@@ -169,7 +169,7 @@ class TestCursor:
         for _ in range(5):
             cursor.execute("SELECT %(now)s as date", {"now": datetime.utcnow()})
 
-        cursor.execute(query, cache_size=100, cache_expiration_time=3600)  # 1 hours
+        cursor.execute(query, cache_size=1000, cache_expiration_time=3600)  # 1 hours
         query_id_9 = cursor.query_id
 
         assert query_id_7 != query_id_8
