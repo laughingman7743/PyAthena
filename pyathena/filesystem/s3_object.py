@@ -7,13 +7,11 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class S3ObjectType:
-
     S3_OBJECT_TYPE_DIRECTORY: str = "directory"
     S3_OBJECT_TYPE_FILE: str = "file"
 
 
 class S3StorageClass:
-
     S3_STORAGE_CLASS_STANDARD = "STANDARD"
     S3_STORAGE_CLASS_REDUCED_REDUNDANCY = "REDUCED_REDUNDANCY"
     S3_STORAGE_CLASS_STANDARD_IA = "STANDARD_IA"
@@ -30,7 +28,6 @@ class S3StorageClass:
 
 @dataclass
 class S3Object:
-
     bucket: str
     key: Optional[str]
     size: int

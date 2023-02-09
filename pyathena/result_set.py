@@ -455,7 +455,6 @@ class AthenaResultSet(CursorIterator):
 
 
 class AthenaDictResultSet(AthenaResultSet):
-
     # You can override this to use OrderedDict or other dict-like types.
     dict_type: Type[Any] = dict
 

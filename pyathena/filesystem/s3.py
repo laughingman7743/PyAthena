@@ -20,7 +20,6 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class S3FileSystem(AbstractFileSystem):
-
     DEFAULT_BLOCK_SIZE: int = 5 * 2**20  # 5MB
     PATTERN_PATH: Pattern[str] = re.compile(
         r"(^s3://|^s3a://|^)(?P<bucket>[a-zA-Z0-9.\-_]+)(/(?P<key>[^?]+)|/)?"

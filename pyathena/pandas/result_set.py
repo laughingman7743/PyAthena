@@ -88,7 +88,6 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
 
 
 class AthenaPandasResultSet(AthenaResultSet):
-
     _parse_dates: List[str] = [
         "date",
         "time",
