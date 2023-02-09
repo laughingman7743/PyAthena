@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import logging
 import textwrap
 import uuid
@@ -6,20 +8,19 @@ from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Callable, Dict, Optional, Type, TypeVar
+from typing import Any, Callable, Dict, Optional, Type
 
 from pyathena.error import ProgrammingError
 from pyathena.model import AthenaCompression, AthenaFileFormat
 
 _logger = logging.getLogger(__name__)  # type: ignore
-_T = TypeVar("_T", bound="Formatter")
 
 
 class Formatter(metaclass=ABCMeta):
     def __init__(
         self,
-        mappings: Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], Any]],
-        default: Optional[Callable[[_T, Callable[[str], str], Any], Any]] = None,
+        mappings: Dict[Type[Any], Callable[[Formatter, Callable[[str], str], Any], Any]],
+        default: Optional[Callable[[Formatter, Callable[[str], str], Any], Any]] = None,
     ) -> None:
         self._mappings = mappings
         self._default = default
@@ -27,16 +28,16 @@ class Formatter(metaclass=ABCMeta):
     @property
     def mappings(
         self,
-    ) -> Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], Any]]:
+    ) -> Dict[Type[Any], Callable[[Formatter, Callable[[str], str], Any], Any]]:
         return self._mappings
 
-    def get(self, type_) -> Optional[Callable[[_T, Callable[[str], str], Any], Any]]:
+    def get(self, type_) -> Optional[Callable[[Formatter, Callable[[str], str], Any], Any]]:
         return self.mappings.get(type(type_), self._default)
 
     def set(
         self,
         type_: Type[Any],
-        formatter: Callable[[_T, Callable[[str], str], Any], Any],
+        formatter: Callable[[Formatter, Callable[[str], str], Any], Any],
     ) -> None:
         self.mappings[type_] = formatter
 
@@ -44,7 +45,7 @@ class Formatter(metaclass=ABCMeta):
         self.mappings.pop(type_, None)
 
     def update(
-        self, mappings: Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], Any]]
+        self, mappings: Dict[Type[Any], Callable[[Formatter, Callable[[str], str], Any], Any]]
     ) -> None:
         self.mappings.update(mappings)
 

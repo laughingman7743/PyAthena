@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import logging
 from multiprocessing import cpu_count
 from typing import (
@@ -9,7 +11,6 @@ from typing import (
     List,
     Optional,
     Tuple,
-    TypeVar,
     Union,
     cast,
 )
@@ -34,7 +35,6 @@ if TYPE_CHECKING:
     from pyathena.connection import Connection
 
 _logger = logging.getLogger(__name__)  # type: ignore
-_T = TypeVar("_T", bound="PandasCursor")
 
 
 class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
@@ -132,7 +132,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
             self.result_set.close()
 
     def execute(
-        self: _T,
+        self,
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
         work_group: Optional[str] = None,
@@ -145,7 +145,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         na_values: Optional[Iterable[str]] = ("",),
         quoting: int = 1,
         **kwargs,
-    ) -> _T:
+    ) -> PandasCursor:
         self._reset_state()
         if self._unload:
             s3_staging_dir = s3_staging_dir if s3_staging_dir else self._s3_staging_dir
