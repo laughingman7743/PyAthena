@@ -451,7 +451,9 @@ class S3File(AbstractBufferedFile):
         raise NotImplementedError  # pragma: no cover
 
     def _fetch_range(self, start, end):
-        ranges = self._get_ranges(start, end)
+        ranges = self._get_ranges(
+            start, end, max_workers=self.max_workers, worker_block_size=self.worker_block_size
+        )
         if len(ranges) > 1:
             object_ = self._merge_objects(
                 list(
@@ -471,23 +473,27 @@ class S3File(AbstractBufferedFile):
             )[1]
         return object_
 
-    def _get_ranges(self, start: int, end: int) -> List[Tuple[int, int]]:
+    @staticmethod
+    def _get_ranges(
+        start: int, end: int, max_workers: int, worker_block_size: int
+    ) -> List[Tuple[int, int]]:
         ranges = []
         range_size = end - start
-        if self.max_workers > 1 and range_size > (self.worker_block_size + 1):
+        if max_workers > 1 and range_size > worker_block_size:
             range_start = start
             while True:
-                range_end = range_start + self.worker_block_size
+                range_end = range_start + worker_block_size
                 if range_end > end:
                     ranges.append((range_start, end))
                     break
                 else:
                     ranges.append((range_start, range_end))
-                    range_start += self.worker_block_size + 1
+                    range_start += worker_block_size
         else:
             ranges.append((start, end))
         return ranges
 
-    def _merge_objects(self, objects: List[Tuple[int, bytes]]) -> bytes:
+    @staticmethod
+    def _merge_objects(objects: List[Tuple[int, bytes]]) -> bytes:
         objects.sort(key=lambda x: x[0])
         return b"".join([obj for start, obj in objects])
