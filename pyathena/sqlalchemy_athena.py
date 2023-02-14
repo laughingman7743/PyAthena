@@ -890,8 +890,8 @@ class AthenaDialect(DefaultDialect):
         # but Athena can also query tables classified as `MANAGED_TABLE`.
         # Managed Tables are created by default when creating tables via Spark when
         # Glue has been enabled as the Hive Metastore for Elastic Map Reduce (EMR) clusters.
-        # With Athena Federation, tables in the database that are connected to Athena via lambda function,
-        # is classified as `EXTERNAL` and fully queryable
+        # With Athena Federation, tables in the database that are connected to Athena via lambda
+        # function, is classified as `EXTERNAL` and fully queryable
         tables = self._get_tables(connection, schema, **kw)
         return [
             t.name
