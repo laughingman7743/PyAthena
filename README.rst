@@ -50,7 +50,7 @@ Extra packages:
 +---------------+---------------------------------------+------------------+
 | Package       | Install command                       | Version          |
 +===============+=======================================+==================+
-| SQLAlchemy    | ``pip install PyAthena[SQLAlchemy]``  | >=1.0.0, <2.0.0  |
+| SQLAlchemy    | ``pip install PyAthena[SQLAlchemy]``  | >=1.0.0          |
 +---------------+---------------------------------------+------------------+
 | Pandas        | ``pip install PyAthena[Pandas]``      | >=1.3.0          |
 +---------------+---------------------------------------+------------------+
@@ -119,8 +119,8 @@ if ``%`` character is contained in your query, it must be escaped with ``%%`` li
 SQLAlchemy
 ~~~~~~~~~~
 
-Install SQLAlchemy with ``pip install "SQLAlchemy>=1.0.0, <2.0.0"`` or ``pip install PyAthena[SQLAlchemy]``.
-Supported SQLAlchemy is 1.0.0 or higher and less than 2.0.0.
+Install SQLAlchemy with ``pip install "SQLAlchemy>=1.0.0"`` or ``pip install PyAthena[SQLAlchemy]``.
+Supported SQLAlchemy is 1.0.0 or higher.
 
 .. code:: python
 
