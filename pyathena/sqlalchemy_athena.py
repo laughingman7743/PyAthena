@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import re
 from distutils.util import strtobool
+from typing import cast
 
 import botocore
 from sqlalchemy import exc, schema, types, util
@@ -706,7 +707,8 @@ class AthenaDDLCompiler(DDLCompiler):
     def visit_create_table(self, create, **kwargs):
         table = create.element
         table_dialect_opts = table.dialect_options["awsathena"]
-        connect_opts = self.dialect._connect_options
+        dialect = cast(AthenaDialect, self.dialect)
+        connect_opts = dialect._connect_options
 
         text = ["\nCREATE EXTERNAL TABLE"]
         if create.if_not_exists:
@@ -738,7 +740,8 @@ class AthenaDDLCompiler(DDLCompiler):
 
     def post_create_table(self, table):
         dialect_opts = table.dialect_options["awsathena"]
-        connect_opts = self.dialect._connect_options
+        dialect = cast(AthenaDialect, self.dialect)
+        connect_opts = dialect._connect_options
         text = [
             self._get_row_format_specification(dialect_opts, connect_opts),
             self._get_serde_properties_specification(dialect_opts, connect_opts),
