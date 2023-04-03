@@ -27,10 +27,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+      - name: Install poetry
+        run: |
+          pip install --upgrade pip pipx
+          pipx install poetry
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'poetry'
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1-node16
         with:
@@ -38,26 +43,7 @@ jobs:
           role-session-name: PyAthenaTestSession
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: 1.3.2
-          virtualenvs-create: true
-          virtualenvs-in-project: false
-          virtualenvs-path: ${{ github.workspace }}/.poetry
-          installer-parallel: true
-      - name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ${{ github.workspace }}/.poetry
-            ${{ github.workspace }}/.tox
-          key: venv-${{ github.workflow }}-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock', '**/tox.ini') }}
       - name: Install dependencies
-        # Raises FileNotFoundError when using cache.
-        # [Errno 2] No such file or directory: b'/snap/bin/tox'
-        # if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: poetry install --no-interaction --no-root
 
       - name: Test with tox
