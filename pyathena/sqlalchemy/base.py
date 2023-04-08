@@ -301,6 +301,31 @@ SELECT_STATEMENT_RESERVED_WORDS = {
 }
 RESERVED_WORDS = set(sorted(DDL_RESERVED_WORDS | SELECT_STATEMENT_RESERVED_WORDS))
 
+ischema_names = {
+    "boolean": types.BOOLEAN,
+    "float": types.FLOAT,
+    "double": types.FLOAT,
+    "real": types.FLOAT,
+    "tinyint": types.INTEGER,
+    "smallint": types.INTEGER,
+    "integer": types.INTEGER,
+    "int": types.INTEGER,
+    "bigint": types.BIGINT,
+    "decimal": types.DECIMAL,
+    "char": types.CHAR,
+    "varchar": types.VARCHAR,
+    "string": types.String,
+    "date": types.DATE,
+    "timestamp": types.TIMESTAMP,
+    "binary": types.BINARY,
+    "varbinary": types.BINARY,
+    "array": types.String,
+    "map": types.String,
+    "struct": types.String,
+    "row": types.String,
+    "json": types.String,
+}
+
 
 class AthenaDMLIdentifierPreparer(IdentifierPreparer):
     reserved_words = RESERVED_WORDS
@@ -791,6 +816,8 @@ class AthenaDialect(DefaultDialect):
         ),
     ]
 
+    ischema_names = ischema_names
+
     _connect_options = dict()  # type: ignore
     _pattern_column_type = re.compile(r"^([a-zA-Z]+)(?:$|[\(|<](.+)[\)|>]$)")
 
@@ -959,41 +986,20 @@ class AthenaDialect(DefaultDialect):
             name = type_.lower()
             length = None
 
-        args = []
-        if name in ["boolean"]:
-            col_type = types.BOOLEAN
-        elif name in ["float", "double", "real"]:
-            col_type = types.FLOAT
-        elif name in ["tinyint", "smallint", "integer", "int"]:
-            col_type = types.INTEGER
-        elif name in ["bigint"]:
-            col_type = types.BIGINT
-        elif name in ["decimal"]:
-            col_type = types.DECIMAL
-            if length:
-                precision, scale = length.split(",")
-                args = [int(precision), int(scale)]
-        elif name in ["char"]:
-            col_type = types.CHAR
-            if length:
-                args = [int(length)]
-        elif name in ["varchar"]:
-            col_type = types.VARCHAR
-            if length:
-                args = [int(length)]
-        elif name in ["string"]:
-            col_type = types.String
-        elif name in ["date"]:
-            col_type = types.DATE
-        elif name in ["timestamp"]:
-            col_type = types.TIMESTAMP
-        elif name in ["binary", "varbinary"]:
-            col_type = types.BINARY
-        elif name in ["array", "map", "struct", "row", "json"]:
-            col_type = types.String
+        if name in self.ischema_names:
+            col_type = self.ischema_names[name]
         else:
             util.warn(f"Did not recognize type '{type_}'")
             col_type = types.NullType
+
+        args = []
+        if length:
+            if col_type is types.DECIMAL:
+                precision, scale = length.split(",")
+                args = [int(precision), int(scale)]
+            elif col_type is types.CHAR or col_type is types.VARCHAR:
+                args = [int(length)]
+
         return col_type(*args)
 
     def get_foreign_keys(self, connection, table_name, schema=None, **kw):
