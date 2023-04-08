@@ -17,6 +17,7 @@ from sqlalchemy.sql.compiler import (
 
 import pyathena
 from pyathena.model import AthenaFileFormat, AthenaRowFormatSerde
+from pyathena.sqlalchemy.util import HashableDict
 
 # https://docs.aws.amazon.com/athena/latest/ug/reserved-words.html#list-of-ddl-reserved-words
 DDL_RESERVED_WORDS = {
@@ -303,11 +304,6 @@ RESERVED_WORDS = set(sorted(DDL_RESERVED_WORDS | SELECT_STATEMENT_RESERVED_WORDS
 
 class AthenaDMLIdentifierPreparer(IdentifierPreparer):
     reserved_words = RESERVED_WORDS
-
-
-class HashableDict(dict):  # type: ignore
-    def __hash__(self):
-        return hash(tuple(sorted(self.items())))
 
 
 class AthenaDDLIdentifierPreparer(IdentifierPreparer):
@@ -1023,46 +1019,3 @@ class AthenaDialect(DefaultDialect):
     def _check_unicode_description(self, connection):
         # Requests gives back Unicode strings
         return True  # pragma: no cover
-
-
-class AthenaRestDialect(AthenaDialect):
-    driver = "rest"
-    supports_statement_cache = True
-
-
-class AthenaPandasDialect(AthenaDialect):
-    driver = "pandas"
-    supports_statement_cache = True
-
-    def create_connect_args(self, url):
-        from pyathena.pandas.cursor import PandasCursor
-
-        opts = super()._create_connect_args(url)
-        opts.update({"cursor_class": PandasCursor})
-        cursor_kwargs = dict()
-        if "unload" in opts:
-            cursor_kwargs.update({"unload": bool(strtobool(opts.pop("unload")))})
-        if "engine" in opts:
-            cursor_kwargs.update({"engine": opts.pop("engine")})
-        if "chunksize" in opts:
-            cursor_kwargs.update({"chunksize": int(opts.pop("chunksize"))})  # type: ignore
-        if cursor_kwargs:
-            opts.update({"cursor_kwargs": cursor_kwargs})
-        return [[], opts]
-
-
-class AthenaArrowDialect(AthenaDialect):
-    driver = "arrow"
-    supports_statement_cache = True
-
-    def create_connect_args(self, url):
-        from pyathena.arrow.cursor import ArrowCursor
-
-        opts = super()._create_connect_args(url)
-        opts.update({"cursor_class": ArrowCursor})
-        cursor_kwargs = dict()
-        if "unload" in opts:
-            cursor_kwargs.update({"unload": bool(strtobool(opts.pop("unload")))})
-        if cursor_kwargs:
-            opts.update({"cursor_kwargs": cursor_kwargs})
-        return [[], opts]
