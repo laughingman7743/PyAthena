@@ -698,15 +698,9 @@ class AthenaDDLCompiler(DDLCompiler):
                     ):
                         buckets.append(f"\t{self.preparer.format_column(column)}")
             except exc.CompileError as ce:
-                util.raise_(
-                    exc.CompileError(
-                        util.u(
-                            f"(in table '{table.description}', column '{column.name}'): "
-                            f"{ce.args[0]}"
-                        )
-                    ),
-                    from_=ce,
-                )
+                raise exc.CompileError(
+                    f"(in table '{table.description}', column '{column.name}'): {ce.args[0]}"
+                ) from ce
         return columns, partitions, buckets
 
     def visit_create_table(self, create, **kwargs):
