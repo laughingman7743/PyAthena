@@ -454,12 +454,14 @@ class AthenaDDLCompiler(DDLCompiler):
         dialect,
         statement,
         schema_translate_map=None,
+        render_schema_translate=False,
         compile_kwargs=util.immutabledict(),
     ):
         self._preparer = AthenaDDLIdentifierPreparer(dialect)
         super(AthenaDDLCompiler, self).__init__(
             dialect=dialect,
             statement=statement,
+            render_schema_translate=render_schema_translate,
             schema_translate_map=schema_translate_map,
             compile_kwargs=compile_kwargs,
         )
