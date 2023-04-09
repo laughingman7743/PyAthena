@@ -18,7 +18,7 @@ import pyathena
 from pyathena.model import AthenaFileFormat, AthenaRowFormatSerde
 
 # https://docs.aws.amazon.com/athena/latest/ug/reserved-words.html#list-of-ddl-reserved-words
-DDL_RESERVED_WORDS = [
+DDL_RESERVED_WORDS = {
     "ALL",
     "ALTER",
     "AND",
@@ -156,9 +156,9 @@ DDL_RESERVED_WORDS = [
     "WHERE",
     "WINDOW",
     "WITH",
-]
+}
 # https://docs.aws.amazon.com/athena/latest/ug/reserved-words.html#list-of-reserved-words-sql-select
-SELECT_STATEMENT_RESERVED_WORDS = [
+SELECT_STATEMENT_RESERVED_WORDS = {
     "ALL",
     "ALTER",
     "AND",
@@ -296,8 +296,8 @@ SELECT_STATEMENT_RESERVED_WORDS = [
     "WHERE",
     "WINDOW",
     "WITH",
-]
-RESERVED_WORDS = list(sorted(set(DDL_RESERVED_WORDS + SELECT_STATEMENT_RESERVED_WORDS)))
+}
+RESERVED_WORDS = set(sorted(DDL_RESERVED_WORDS | SELECT_STATEMENT_RESERVED_WORDS))
 
 
 class AthenaDMLIdentifierPreparer(IdentifierPreparer):
