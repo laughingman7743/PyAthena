@@ -278,7 +278,6 @@ class AthenaPandasResultSet(AthenaResultSet):
                 dtype=self.dtypes,
                 converters=self.converters,
                 parse_dates=self.parse_dates,
-                infer_datetime_format=True,
                 skip_blank_lines=False,
                 keep_default_na=self._keep_default_na,
                 na_values=self._na_values,
