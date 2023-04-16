@@ -868,7 +868,7 @@ class AthenaDialect(DefaultDialect):
     def _get_schemas(self, connection, **kw):
         raw_connection = self._raw_connection(connection)
         catalog = raw_connection.catalog_name
-        with raw_connection.connection.cursor() as cursor:
+        with raw_connection.driver_connection.cursor() as cursor:
             try:
                 return cursor.list_databases(catalog)
             except pyathena.error.OperationalError as exc:
@@ -884,7 +884,7 @@ class AthenaDialect(DefaultDialect):
     def _get_table(self, connection, table_name, schema=None, **kw):
         raw_connection = self._raw_connection(connection)
         schema = schema if schema else raw_connection.schema_name
-        with raw_connection.connection.cursor() as cursor:
+        with raw_connection.driver_connection.cursor() as cursor:
             try:
                 return cursor.get_table_metadata(table_name, schema_name=schema, logging_=False)
             except pyathena.error.OperationalError as exc:
@@ -900,7 +900,7 @@ class AthenaDialect(DefaultDialect):
     def _get_tables(self, connection, schema=None, **kw):
         raw_connection = self._raw_connection(connection)
         schema = schema if schema else raw_connection.schema_name
-        with raw_connection.connection.cursor() as cursor:
+        with raw_connection.driver_connection.cursor() as cursor:
             return cursor.list_table_metadata(schema_name=schema)
 
     def get_schema_names(self, connection, **kw):
