@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import re
+import sys
 import textwrap
 import uuid
 from datetime import date, datetime
@@ -23,7 +24,7 @@ from tests.conftest import ENV
 class TestSQLAlchemyAthena:
     def test_basic_query(self, engine):
         engine, conn = engine
-        rows = conn.execute("SELECT * FROM one_row").fetchall()
+        rows = conn.execute(sqlalchemy.text("SELECT * FROM one_row")).fetchall()
         assert len(rows) == 1
         assert rows[0].number_of_rows == 1
         assert len(rows[0]) == 1
@@ -142,12 +143,8 @@ class TestSQLAlchemyAthena:
     def test_unicode(self, engine):
         engine, conn = engine
         unicode_str = "密林"
-        one_row = Table("one_row", MetaData(schema=ENV.schema))
         returned_str = conn.execute(
-            sqlalchemy.select(
-                [expression.bindparam("あまぞん", unicode_str, type_=types.String())],
-                from_obj=one_row,
-            )
+            sqlalchemy.select(expression.bindparam("あまぞん", unicode_str, type_=types.String()))
         ).scalar()
         assert returned_str == unicode_str
 
@@ -233,7 +230,7 @@ class TestSQLAlchemyAthena:
         engine, conn = engine
         one_row_complex = Table("one_row_complex", MetaData(schema=ENV.schema), autoload_with=conn)
         result = conn.execute(
-            sqlalchemy.select([sqlalchemy.func.char_length(one_row_complex.c.col_string)])
+            sqlalchemy.select(sqlalchemy.func.char_length(one_row_complex.c.col_string))
         ).scalar()
         assert result == len("a string")
 
@@ -294,7 +291,7 @@ class TestSQLAlchemyAthena:
     def test_reserved_words(self):
         """Presto uses double quotes, not backticks"""
         fake_table = Table("select", MetaData(), Column("current_timestamp", types.String()))
-        query = str(fake_table.select(fake_table.c.current_timestamp == "a"))
+        query = str(fake_table.select().where(fake_table.c.current_timestamp == "a"))
         assert '"select"' in query
         assert '"current_timestamp"' in query
         assert "`select`" not in query
@@ -330,71 +327,76 @@ class TestSQLAlchemyAthena:
 
     def test_contain_percents_character_query(self, engine):
         engine, conn = engine
-        select = sqlalchemy.sql.text(
+        select = sqlalchemy.text(
             """
             SELECT date_parse('20191030', '%Y%m%d')
             """
         )
         table_expression = TextualSelect(select, []).cte()
 
-        query = sqlalchemy.select(["*"]).select_from(table_expression)
-        result = engine.execute(query)
+        query = sqlalchemy.select("*").select_from(table_expression)
+        result = conn.execute(query)
         assert result.fetchall() == [(datetime(2019, 10, 30),)]
 
-        query_with_limit = sqlalchemy.sql.select(["*"]).select_from(table_expression).limit(1)
-        result_with_limit = engine.execute(query_with_limit)
+        query_with_limit = sqlalchemy.select("*").select_from(table_expression).limit(1)
+        result_with_limit = conn.execute(query_with_limit)
         assert result_with_limit.fetchall() == [(datetime(2019, 10, 30),)]
 
     def test_query_with_parameter(self, engine):
         engine, conn = engine
-        select = sqlalchemy.sql.text(
+        select = sqlalchemy.text(
             """
             SELECT :word
             """
         )
-        table_expression = TextualSelect(select, []).cte()
+        table_expression = TextualSelect(select.bindparams(word="cat"), []).cte()
 
-        query = sqlalchemy.select(["*"]).select_from(table_expression)
-        result = engine.execute(query, word="cat")
+        query = sqlalchemy.select("*").select_from(table_expression)
+        result = conn.execute(query)
         assert result.fetchall() == [("cat",)]
 
-        query_with_limit = sqlalchemy.select(["*"]).select_from(table_expression).limit(1)
-        result_with_limit = engine.execute(query_with_limit, word="cat")
+        query_with_limit = sqlalchemy.select("*").select_from(table_expression).limit(1)
+        result_with_limit = conn.execute(query_with_limit)
         assert result_with_limit.fetchall() == [("cat",)]
 
     def test_contain_percents_character_query_with_parameter(self, engine):
         engine, conn = engine
-        select1 = sqlalchemy.sql.text(
+        select1 = sqlalchemy.text(
             """
             SELECT date_parse('20191030', '%Y%m%d'), :word
             """
         )
-        table_expression1 = TextualSelect(select1, []).cte()
+        table_expression1 = TextualSelect(select1.bindparams(word="cat"), []).cte()
 
-        query1 = sqlalchemy.select(["*"]).select_from(table_expression1)
-        result1 = engine.execute(query1, word="cat")
+        query1 = sqlalchemy.select("*").select_from(table_expression1)
+        result1 = conn.execute(query1)
         assert result1.fetchall() == [(datetime(2019, 10, 30), "cat")]
 
-        query_with_limit1 = sqlalchemy.select(["*"]).select_from(table_expression1).limit(1)
-        result_with_limit1 = engine.execute(query_with_limit1, word="cat")
+        query_with_limit1 = sqlalchemy.select("*").select_from(table_expression1).limit(1)
+        result_with_limit1 = conn.execute(query_with_limit1)
         assert result_with_limit1.fetchall() == [(datetime(2019, 10, 30), "cat")]
 
-        select2 = sqlalchemy.sql.text(
+        select2 = sqlalchemy.text(
             """
             SELECT col_string, :param FROM one_row_complex
             WHERE col_string LIKE 'a%' OR col_string LIKE :param
             """
         )
-        table_expression2 = TextualSelect(select2, []).cte()
+        table_expression2 = TextualSelect(select2.bindparams(param="b%"), []).cte()
 
-        query2 = sqlalchemy.select(["*"]).select_from(table_expression2)
-        result2 = engine.execute(query2, param="b%")
+        query2 = sqlalchemy.select("*").select_from(table_expression2)
+        result2 = conn.execute(query2)
         assert result2.fetchall() == [("a string", "b%")]
 
-        query_with_limit2 = sqlalchemy.select(["*"]).select_from(table_expression2).limit(1)
-        result_with_limit2 = engine.execute(query_with_limit2, param="b%")
+        query_with_limit2 = sqlalchemy.select("*").select_from(table_expression2).limit(1)
+        result_with_limit2 = conn.execute(query_with_limit2)
         assert result_with_limit2.fetchall() == [("a string", "b%")]
 
+    @pytest.mark.skipif(
+        # TODO: Python 3.7 EOL 2023-06-27
+        sys.version_info < (3, 8),
+        reason="TypeError: __init__() got multiple values for argument 'schema'",
+    )
     @pytest.mark.parametrize(
         "engine",
         [{"file_format": "parquet", "compression": "snappy"}],
@@ -451,6 +453,11 @@ class TestSQLAlchemyAthena:
             )
         ]
 
+    @pytest.mark.skipif(
+        # TODO: Python 3.7 EOL 2023-06-27
+        sys.version_info < (3, 8),
+        reason="TypeError: __init__() got multiple values for argument 'schema'",
+    )
     @pytest.mark.parametrize(
         "engine",
         [
@@ -512,6 +519,11 @@ class TestSQLAlchemyAthena:
             )
         ]
 
+    @pytest.mark.skipif(
+        # TODO: Python 3.7 EOL 2023-06-27
+        sys.version_info < (3, 8),
+        reason="TypeError: __init__() got multiple values for argument 'schema'",
+    )
     @pytest.mark.parametrize(
         "engine",
         [
@@ -704,7 +716,7 @@ class TestSQLAlchemyAthena:
         table_name = "test_create_table_conn_str"
         table = Table(
             table_name,
-            MetaData(schema=ENV.schema, bind=conn),
+            MetaData(schema=ENV.schema),
             Column("col_1", types.String(10)),
             Column("col_2", types.Integer),
             Column("col_3", types.String),
@@ -1202,19 +1214,13 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         # varchar without length
         one_row = Table("one_row", MetaData(schema=ENV.schema), autoload_with=conn)
         actual = conn.execute(
-            sqlalchemy.select(
-                [expression.cast(one_row.c.number_of_rows, types.VARCHAR)],
-                from_obj=one_row,
-            )
+            sqlalchemy.select(expression.cast(one_row.c.number_of_rows, types.VARCHAR))
         ).scalar()
         assert actual == "1"
 
         # varchar with length
         actual = conn.execute(
-            sqlalchemy.select(
-                [expression.cast(one_row.c.number_of_rows, types.VARCHAR(10))],
-                from_obj=one_row,
-            )
+            sqlalchemy.select(expression.cast(one_row.c.number_of_rows, types.VARCHAR(10)))
         ).scalar()
         assert actual == "1"
 
@@ -1223,11 +1229,8 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         one_row_complex = Table("one_row_complex", MetaData(schema=ENV.schema), autoload_with=conn)
         actual = conn.execute(
             sqlalchemy.select(
-                [
-                    expression.cast(one_row_complex.c.col_string, types.BINARY),
-                    expression.cast(one_row_complex.c.col_varchar, types.VARBINARY),
-                ],
-                from_obj=one_row_complex,
+                expression.cast(one_row_complex.c.col_string, types.BINARY),
+                expression.cast(one_row_complex.c.col_varchar, types.VARBINARY),
             )
         ).one()
         assert actual[0] == b"a string"
@@ -1357,8 +1360,8 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             awsathena_compression="SNAPPY",
         )
 
-        cte = sqlalchemy.select([table.c.name]).where(table.c.name == "bar").cte()
-        sel = sqlalchemy.select([table.c.id, table.c.name]).where(table.c.name == cte.c.name)
+        cte = sqlalchemy.select(table.c.name).where(table.c.name == "bar").cte()
+        sel = sqlalchemy.select(table.c.id, table.c.name).where(table.c.name == cte.c.name)
         ins = other_table.insert().from_select(("id", "name"), sel)
 
         table.create(bind=conn)
@@ -1371,7 +1374,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             ],
         )
         conn.execute(ins)
-        actual = conn.execute(sqlalchemy.select([other_table])).fetchall()
+        actual = conn.execute(sqlalchemy.select(other_table)).fetchall()
 
         assert (
             str(ins)
