@@ -264,21 +264,19 @@ class TestPandasCursor:
             ("col_boolean", "boolean", None, None, 0, 0, "NULLABLE"),
             (
                 "col_tinyint",
-                # If unloaded, it will be an integer instead of tinyint
-                "integer",
+                "tinyint",
                 None,
                 None,
-                10,
+                3,
                 0,
                 "NULLABLE",
             ),
             (
                 "col_smallint",
-                # If unloaded, it will be an integer instead of smallint
-                "integer",
+                "smallint",
                 None,
                 None,
-                10,
+                5,
                 0,
                 "NULLABLE",
             ),
@@ -380,7 +378,6 @@ class TestPandasCursor:
             ("col_boolean", "boolean", None, None, 0, 0, "NULLABLE"),
             (
                 "col_tinyint",
-                # If unloaded, it will be an integer instead of tinyint
                 "integer",
                 None,
                 None,
@@ -390,7 +387,6 @@ class TestPandasCursor:
             ),
             (
                 "col_smallint",
-                # If unloaded, it will be an integer instead of smallint
                 "integer",
                 None,
                 None,
@@ -708,8 +704,8 @@ class TestPandasCursor:
         assert dtypes == tuple(
             [
                 np.bool_,
-                np.int32,
-                np.int32,
+                np.int8,
+                np.int16,
                 np.int32,
                 np.int64,
                 np.float32,
@@ -833,8 +829,8 @@ class TestPandasCursor:
         assert dtypes == tuple(
             [
                 np.bool_,
-                np.int32,
-                np.int32,
+                np.int8,
+                np.int16,
                 np.int32,
                 np.int64,
                 np.float32,
