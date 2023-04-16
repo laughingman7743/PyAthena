@@ -822,7 +822,7 @@ class AthenaDialect(DefaultDialect):
     _pattern_column_type = re.compile(r"^([a-zA-Z]+)(?:$|[\(|<](.+)[\)|>]$)")
 
     @classmethod
-    def dbapi(cls):
+    def import_dbapi(cls):
         return pyathena
 
     def _raw_connection(self, connection):
