@@ -328,7 +328,6 @@ class AthenaPandasResultSet(AthenaResultSet):
                     "default_cache_type": self._cache_type,
                     "max_workers": self._max_workers,
                 },
-                use_nullable_dtypes=False,
                 **kwargs,
             )
         except Exception as e:
