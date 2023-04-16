@@ -193,21 +193,19 @@ class TestArrowCursor:
             ("col_boolean", "boolean", None, None, 0, 0, "NULLABLE"),
             (
                 "col_tinyint",
-                # If unloaded, it will be an integer instead of tinyint
-                "integer",
+                "tinyint",
                 None,
                 None,
-                10,
+                3,
                 0,
                 "NULLABLE",
             ),
             (
                 "col_smallint",
-                # If unloaded, it will be an integer instead of smallint
-                "integer",
+                "smallint",
                 None,
                 None,
-                10,
+                5,
                 0,
                 "NULLABLE",
             ),
@@ -388,8 +386,8 @@ class TestArrowCursor:
         assert table.schema == pa.schema(
             [
                 pa.field("col_boolean", pa.bool_()),
-                pa.field("col_tinyint", pa.int32()),
-                pa.field("col_smallint", pa.int32()),
+                pa.field("col_tinyint", pa.int8()),
+                pa.field("col_smallint", pa.int16()),
                 pa.field("col_int", pa.int32()),
                 pa.field("col_bigint", pa.int64()),
                 pa.field("col_float", pa.float32()),
