@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from pyathena.connection import Connection
 
 __version__: str = "2.19.2"
+user_agent_extra: str = f"PyAthena/{__version__}"
 
 # Globals https://www.python.org/dev/peps/pep-0249/#globals
 apilevel: str = "2.0"

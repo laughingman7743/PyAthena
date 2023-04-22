@@ -160,6 +160,14 @@ class TestS3FileSystem:
             data = file.read(end - start)
             assert data == target_data, data
 
+    def test_compatibility_with_s3fs(self):
+        import pandas
+
+        df = pandas.read_csv(
+            f"s3://{ENV.s3_staging_bucket}/{self.s3_test_file_key}", header=None, names=["col"]
+        )
+        assert [(row["col"],) for _, row in df.iterrows()] == [(123456789,)]
+
 
 class TestS3File:
     @pytest.mark.parametrize(
