@@ -16,7 +16,7 @@ from fsspec.spec import AbstractBufferedFile
 
 import pyathena
 from pyathena.filesystem.s3_object import S3Object, S3ObjectType, S3StorageClass
-from pyathena.util import retry_api_call
+from pyathena.util import RetryConfig, retry_api_call
 
 if TYPE_CHECKING:
     from pyathena.connection import Connection
@@ -51,9 +51,10 @@ class S3FileSystem(AbstractFileSystem):
                 config=connection.config,
                 **connection._client_kwargs,
             )
+            self._retry_config = connection.retry_config
         else:
             self._client = self._get_client_compatible_with_s3fs(**kwargs)
-        self._retry_config = connection.retry_config
+            self._retry_config = RetryConfig()
         self.default_block_size = (
             default_block_size if default_block_size else self.DEFAULT_BLOCK_SIZE
         )
