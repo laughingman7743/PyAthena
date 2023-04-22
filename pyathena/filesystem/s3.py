@@ -65,6 +65,13 @@ class S3FileSystem(AbstractFileSystem):
         """
         https://github.com/fsspec/s3fs/blob/2023.4.0/s3fs/core.py#L457-L535
         """
+        from pyathena.connection import Connection
+
+        creds = dict(
+            aws_access_key_id=kwargs.pop("key", kwargs.pop("username", None)),
+            aws_secret_access_key=kwargs.pop("secret", kwargs.pop("password", None)),
+            aws_session_token=kwargs.pop("token", None),
+        )
         config_kwargs = deepcopy(kwargs.pop("config_kwargs", {}))
         user_agent_extra = config_kwargs.pop("user_agent_extra", None)
         if user_agent_extra:
@@ -84,9 +91,13 @@ class S3FileSystem(AbstractFileSystem):
             config_kwargs.update({"read_timeout": read_timeout})
 
         client_kwargs = deepcopy(kwargs.pop("client_kwargs", {}))
+        client_kwargs.update(**creds)
         use_ssl = kwargs.pop("use_ssl", None)
         if use_ssl:
             client_kwargs.update({"use_ssl": use_ssl})
+        endpoint_url = kwargs.pop("endpoint_url", None)
+        if endpoint_url:
+            client_kwargs.update({"endpoint_url": endpoint_url})
         anon = kwargs.pop("anon", False)
         if anon:
             client_kwargs = {
@@ -96,9 +107,9 @@ class S3FileSystem(AbstractFileSystem):
             }
             config_kwargs.update({"signature_version": UNSIGNED})
 
-        config = Config(**client_kwargs)
+        config = Config(**config_kwargs)
         session = Session(
-            **{k: v for k, v in kwargs.items() if k in Connection._SESSION_PASSING_ARGS}
+            **creds, **{k: v for k, v in kwargs.items() if k in Connection._SESSION_PASSING_ARGS}
         )
         return session.client(
             "s3",
