@@ -3,15 +3,20 @@ import itertools
 import logging
 import re
 from concurrent.futures.thread import ThreadPoolExecutor
+from copy import deepcopy
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Pattern, Tuple, cast
 
 import botocore.exceptions
+from boto3 import Session
+from botocore import UNSIGNED
+from botocore.client import BaseClient, Config
 from fsspec import AbstractFileSystem
 from fsspec.spec import AbstractBufferedFile
 
+import pyathena
 from pyathena.filesystem.s3_object import S3Object, S3ObjectType, S3StorageClass
-from pyathena.util import retry_api_call
+from pyathena.util import RetryConfig, retry_api_call
 
 if TYPE_CHECKING:
     from pyathena.connection import Connection
@@ -31,7 +36,7 @@ class S3FileSystem(AbstractFileSystem):
 
     def __init__(
         self,
-        connection: "Connection",
+        connection: Optional["Connection"] = None,
         default_block_size: Optional[int] = None,
         default_cache_type: Optional[str] = None,
         max_workers: int = (cpu_count() or 1) * 5,
@@ -39,15 +44,67 @@ class S3FileSystem(AbstractFileSystem):
         **kwargs,
     ) -> None:
         super(S3FileSystem, self).__init__(*args, **kwargs)
-        self._client = connection.session.client(
-            "s3", region_name=connection.region_name, **connection._client_kwargs
-        )
-        self._retry_config = connection.retry_config
+        if connection:
+            self._client = connection.session.client(
+                "s3",
+                region_name=connection.region_name,
+                config=connection.config,
+                **connection._client_kwargs,
+            )
+            self._retry_config = connection.retry_config
+        else:
+            self._client = self._get_client_compatible_with_s3fs(**kwargs)
+            self._retry_config = RetryConfig()
         self.default_block_size = (
             default_block_size if default_block_size else self.DEFAULT_BLOCK_SIZE
         )
         self.default_cache_type = default_cache_type if default_cache_type else "bytes"
         self.max_workers = max_workers
+
+    def _get_client_compatible_with_s3fs(self, **kwargs) -> BaseClient:
+        """
+        https://github.com/fsspec/s3fs/blob/2023.4.0/s3fs/core.py#L457-L535
+        """
+        config_kwargs = deepcopy(kwargs.pop("config_kwargs", {}))
+        user_agent_extra = config_kwargs.pop("user_agent_extra", None)
+        if user_agent_extra:
+            if pyathena.user_agent_extra not in user_agent_extra:
+                config_kwargs.update(
+                    {"user_agent_extra": f"{pyathena.user_agent_extra} {user_agent_extra}"}
+                )
+            else:
+                config_kwargs.update({"user_agent_extra": user_agent_extra})
+        else:
+            config_kwargs.update({"user_agent_extra": pyathena.user_agent_extra})
+        connect_timeout = kwargs.pop("connect_timeout", None)
+        if connect_timeout:
+            config_kwargs.update({"connect_timeout": connect_timeout})
+        read_timeout = kwargs.pop("read_timeout", None)
+        if read_timeout:
+            config_kwargs.update({"read_timeout": read_timeout})
+
+        client_kwargs = deepcopy(kwargs.pop("client_kwargs", {}))
+        use_ssl = kwargs.pop("use_ssl", None)
+        if use_ssl:
+            client_kwargs.update({"use_ssl": use_ssl})
+        anon = kwargs.pop("anon", False)
+        if anon:
+            client_kwargs = {
+                k: v
+                for k, v in client_kwargs.items()
+                if k not in ["aws_access_key_id", "aws_secret_access_key", "aws_session_token"]
+            }
+            config_kwargs.update({"signature_version": UNSIGNED})
+
+        config = Config(**client_kwargs)
+        session = Session(
+            **{k: v for k, v in kwargs.items() if k in Connection._SESSION_PASSING_ARGS}
+        )
+        return session.client(
+            "s3",
+            config=config,
+            **{k: v for k, v in client_kwargs.items() if k in Connection._CLIENT_PASSING_ARGS},
+        )
 
     @staticmethod
     def parse_path(path: str) -> Tuple[str, Optional[str], Optional[str]]:
