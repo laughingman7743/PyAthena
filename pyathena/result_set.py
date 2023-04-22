@@ -44,7 +44,10 @@ class AthenaResultSet(CursorIterator):
         assert self._query_execution, "Required argument `query_execution` not found."
         self._retry_config = retry_config
         self._client = connection.session.client(
-            "s3", region_name=connection.region_name, **connection._client_kwargs
+            "s3",
+            region_name=connection.region_name,
+            config=connection.config,
+            **connection._client_kwargs,
         )
 
         self._metadata: Optional[Tuple[Dict[str, Any], ...]] = None

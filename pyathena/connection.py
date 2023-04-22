@@ -41,6 +41,8 @@ class Connection:
         "use_ssl",
         "verify",
         "endpoint_url",
+        "region_name",
+        "config",
     ]
 
     def __init__(
@@ -142,12 +144,11 @@ class Connection:
                 **self._session_kwargs,
             )
 
-        user_agent_extra = f"PyAthena/{pyathena.__version__}"
         if not self.config.user_agent_extra or (
-            user_agent_extra not in self.config.user_agent_extra
+            pyathena.user_agent_extra not in self.config.user_agent_extra
         ):
             self.config.user_agent_extra = (
-                f"{user_agent_extra}"
+                f"{pyathena.user_agent_extra}"
                 f"{' ' + self.config.user_agent_extra if self.config.user_agent_extra else ''}"
             )
         self._client = self._session.client(
