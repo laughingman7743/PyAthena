@@ -61,6 +61,9 @@ class S3FileSystem(AbstractFileSystem):
         self.default_cache_type = default_cache_type if default_cache_type else "bytes"
         self.max_workers = max_workers
 
+        requester_pays = kwargs.pop("requester_pays", False)
+        self.request_kwargs = {"RequestPayer": "requester"} if requester_pays else {}
+
     def _get_client_compatible_with_s3fs(self, **kwargs) -> BaseClient:
         """
         https://github.com/fsspec/s3fs/blob/2023.4.0/s3fs/core.py#L457-L535
@@ -158,6 +161,7 @@ class S3FileSystem(AbstractFileSystem):
                     logger=_logger,
                     Bucket=bucket,
                     Key=key,
+                    **self.request_kwargs,
                 )
             except botocore.exceptions.ClientError as e:
                 if e.response["Error"]["Code"] in ["NoSuchKey", "NoSuchBucket", "404"]:
@@ -235,6 +239,7 @@ class S3FileSystem(AbstractFileSystem):
                     config=self._retry_config,
                     logger=_logger,
                     **request,
+                    **self.request_kwargs,
                 )
                 files.extend(
                     S3Object(
@@ -326,6 +331,7 @@ class S3FileSystem(AbstractFileSystem):
             Prefix=f"{key.rstrip('/')}/" if key else "",
             Delimiter="/",
             MaxKeys=1,
+            **self.request_kwargs,
         )
         if (
             response.get("KeyCount", 0) > 0
@@ -456,6 +462,7 @@ class S3FileSystem(AbstractFileSystem):
             logger=_logger,
             **request,
             **kwargs,
+            **self.request_kwargs,
         )
         return ranges[0], cast(bytes, response["Body"].read())
 
