@@ -17,7 +17,7 @@ from sqlalchemy.sql.compiler import (
 
 import pyathena
 from pyathena.model import AthenaFileFormat, AthenaRowFormatSerde
-from pyathena.sqlalchemy.util import HashableDict
+from pyathena.sqlalchemy.util import _HashableDict
 
 # https://docs.aws.amazon.com/athena/latest/ug/reserved-words.html#list-of-ddl-reserved-words
 DDL_RESERVED_WORDS = {
@@ -937,8 +937,8 @@ class AthenaDialect(DefaultDialect):
             "awsathena_compression": metadata.compression,
             "awsathena_row_format": metadata.row_format,
             "awsathena_file_format": metadata.file_format,
-            "awsathena_serdeproperties": HashableDict(metadata.serde_properties),
-            "awsathena_tblproperties": HashableDict(metadata.table_properties),
+            "awsathena_serdeproperties": _HashableDict(metadata.serde_properties),
+            "awsathena_tblproperties": _HashableDict(metadata.table_properties),
         }
 
     def has_table(self, connection, table_name, schema=None, **kw):
