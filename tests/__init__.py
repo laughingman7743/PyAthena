@@ -3,6 +3,19 @@ import os
 import random
 import string
 
+from sqlalchemy.dialects import registry
+
+registry.register("awsathena", "pyathena.sqlalchemy.base", "AthenaDialect")
+registry.register("awsathena.rest", "pyathena.sqlalchemy.rest", "AthenaRestDialect")
+registry.register("awsathena.pandas", "pyathena.sqlalchemy.pandas", "AthenaPandasDialect")
+registry.register("awsathena.arrow", "pyathena.sqlalchemy.arrow", "AthenaArrowDialect")
+
+
+SQLALCHEMY_CONNECTION_STRING = (
+    "awsathena+rest://athena.{region_name}.amazonaws.com:443/"
+    "{schema_name}?s3_staging_dir={s3_staging_dir}&location={location}"
+)
+
 
 class Env:
     def __init__(self):

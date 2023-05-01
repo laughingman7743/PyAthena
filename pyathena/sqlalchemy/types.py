@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
 
 class AthenaTimestamp(TypeEngine[datetime]):
+    render_literal_cast = True
     render_bind_cast = True
 
     @staticmethod
@@ -24,6 +25,7 @@ class AthenaTimestamp(TypeEngine[datetime]):
 
 
 class AthenaDate(TypeEngine[date]):
+    render_literal_cast = True
     render_bind_cast = True
 
     @staticmethod

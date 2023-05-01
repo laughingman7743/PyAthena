@@ -108,6 +108,10 @@ warn_unreachable = true
 warn_unused_configs = true
 exclude = ["benchmarks.*", "tests.*", ".poetry.*", ".tox.*"]
 
+[tool.sqla_testing]
+requirement_cls = "pyathena.sqlalchemy.requirements:Requirements"
+profile_file = "tests/sqlalchemy/profiles.txt"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
