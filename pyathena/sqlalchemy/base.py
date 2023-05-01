@@ -1,7 +1,21 @@
 # -*- coding: utf-8 -*-
 import re
 from distutils.util import strtobool
-from typing import cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Pattern,
+    Set,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 import botocore
 from sqlalchemy import exc, schema, types, util
@@ -19,8 +33,38 @@ import pyathena
 from pyathena.model import AthenaFileFormat, AthenaRowFormatSerde
 from pyathena.sqlalchemy.util import _HashableDict
 
+if TYPE_CHECKING:
+    from types import ModuleType
+
+    from sqlalchemy import (
+        URL,
+        Cast,
+        CheckConstraint,
+        ClauseElement,
+        Column,
+        Connection,
+        Dialect,
+        ExecutableDDLElement,
+        ForeignKeyConstraint,
+        FunctionElement,
+        GenerativeSelect,
+        PoolProxiedConnection,
+        PrimaryKeyConstraint,
+        Table,
+        UniqueConstraint,
+    )
+    from sqlalchemy.engine.interfaces import (
+        ReflectedForeignKeyConstraint,
+        ReflectedIndex,
+        ReflectedPrimaryKeyConstraint,
+        SchemaTranslateMapType,
+    )
+    from sqlalchemy.sql.base import _DialectArgDict
+    from sqlalchemy.sql.ddl import CreateColumn, CreateTable
+    from sqlalchemy.sql.schema import SchemaItem
+
 # https://docs.aws.amazon.com/athena/latest/ug/reserved-words.html#list-of-ddl-reserved-words
-DDL_RESERVED_WORDS = {
+DDL_RESERVED_WORDS: Set[str] = {
     "ALL",
     "ALTER",
     "AND",
@@ -160,7 +204,7 @@ DDL_RESERVED_WORDS = {
     "WITH",
 }
 # https://docs.aws.amazon.com/athena/latest/ug/reserved-words.html#list-of-reserved-words-sql-select
-SELECT_STATEMENT_RESERVED_WORDS = {
+SELECT_STATEMENT_RESERVED_WORDS: Set[str] = {
     "ALL",
     "ALTER",
     "AND",
@@ -299,9 +343,9 @@ SELECT_STATEMENT_RESERVED_WORDS = {
     "WINDOW",
     "WITH",
 }
-RESERVED_WORDS = set(sorted(DDL_RESERVED_WORDS | SELECT_STATEMENT_RESERVED_WORDS))
+RESERVED_WORDS: Set[str] = set(sorted(DDL_RESERVED_WORDS | SELECT_STATEMENT_RESERVED_WORDS))
 
-ischema_names = {
+ischema_names: Dict[str, Type[Any]] = {
     "boolean": types.BOOLEAN,
     "float": types.FLOAT,
     "double": types.FLOAT,
@@ -328,18 +372,18 @@ ischema_names = {
 
 
 class AthenaDMLIdentifierPreparer(IdentifierPreparer):
-    reserved_words = RESERVED_WORDS
+    reserved_words: Set[str] = RESERVED_WORDS
 
 
 class AthenaDDLIdentifierPreparer(IdentifierPreparer):
     def __init__(
         self,
-        dialect,
-        initial_quote="`",
-        final_quote=None,
-        escape_quote="`",
-        quote_case_sensitive_collations=True,
-        omit_schema=False,
+        dialect: "Dialect",
+        initial_quote: str = "`",
+        final_quote: Optional[str] = None,
+        escape_quote: str = "`",
+        quote_case_sensitive_collations: bool = True,
+        omit_schema: bool = False,
     ):
         super(AthenaDDLIdentifierPreparer, self).__init__(
             dialect=dialect,
@@ -352,10 +396,10 @@ class AthenaDDLIdentifierPreparer(IdentifierPreparer):
 
 
 class AthenaStatementCompiler(SQLCompiler):
-    def visit_char_length_func(self, fn, **kw):
+    def visit_char_length_func(self, fn: "FunctionElement[Any]", **kw):
         return f"length{self.function_argspec(fn, **kw)}"
 
-    def visit_cast(self, cast, **kwargs):
+    def visit_cast(self, cast: "Cast[Any]", **kwargs):
         if isinstance(cast.type, types.VARCHAR) and cast.type.length is None:
             type_clause = "VARCHAR"
         elif isinstance(cast.type, types.CHAR) and cast.type.length is None:
@@ -366,7 +410,7 @@ class AthenaStatementCompiler(SQLCompiler):
             type_clause = cast.typeclause._compiler_dispatch(self, **kwargs)
         return f"CAST({cast.clause._compiler_dispatch(self, **kwargs)} AS {type_clause})"
 
-    def limit_clause(self, select, **kw):
+    def limit_clause(self, select: "GenerativeSelect", **kw):
         text = []
         # https://docs.sqlalchemy.org/en/14/core/connections.html#example-rendering-limit-offset-with-post-compile-parameters
         if hasattr(select, "_simple_int_clause"):
@@ -386,16 +430,16 @@ class AthenaStatementCompiler(SQLCompiler):
 
 
 class AthenaTypeCompiler(GenericTypeCompiler):
-    def visit_FLOAT(self, type_, **kw):
+    def visit_FLOAT(self, type_: Type[Any], **kw) -> str:
         return self.visit_REAL(type_, **kw)
 
-    def visit_REAL(self, type_, **kw):
+    def visit_REAL(self, type_: Type[Any], **kw) -> str:
         return "DOUBLE"
 
-    def visit_NUMERIC(self, type_, **kw):
+    def visit_NUMERIC(self, type_: Type[Any], **kw) -> str:
         return self.visit_DECIMAL(type_, **kw)
 
-    def visit_DECIMAL(self, type_, **kw):
+    def visit_DECIMAL(self, type_: Type[Any], **kw) -> str:
         if type_.precision is None:
             return "DECIMAL"
         elif type_.scale is None:
@@ -403,81 +447,81 @@ class AthenaTypeCompiler(GenericTypeCompiler):
         else:
             return f"DECIMAL({type_.precision}, {type_.scale})"
 
-    def visit_INTEGER(self, type_, **kw):
+    def visit_INTEGER(self, type_: Type[Any], **kw) -> str:
         return "INTEGER"
 
-    def visit_SMALLINT(self, type_, **kw):
+    def visit_SMALLINT(self, type_: Type[Any], **kw) -> str:
         return "SMALLINT"
 
-    def visit_BIGINT(self, type_, **kw):
+    def visit_BIGINT(self, type_: Type[Any], **kw) -> str:
         return "BIGINT"
 
-    def visit_TIMESTAMP(self, type_, **kw):
+    def visit_TIMESTAMP(self, type_: Type[Any], **kw) -> str:
         return "TIMESTAMP"
 
-    def visit_DATETIME(self, type_, **kw):
+    def visit_DATETIME(self, type_: Type[Any], **kw) -> str:
         return self.visit_TIMESTAMP(type_, **kw)
 
-    def visit_DATE(self, type_, **kw):
+    def visit_DATE(self, type_: Type[Any], **kw) -> str:
         return "DATE"
 
-    def visit_TIME(self, type_, **kw):
+    def visit_TIME(self, type_: Type[Any], **kw) -> str:
         raise exc.CompileError(f"Data type `{type_}` is not supported")
 
-    def visit_CLOB(self, type_, **kw):
+    def visit_CLOB(self, type_: Type[Any], **kw) -> str:
         return self.visit_BINARY(type_, **kw)
 
-    def visit_NCLOB(self, type_, **kw):
+    def visit_NCLOB(self, type_: Type[Any], **kw) -> str:
         return self.visit_BINARY(type_, **kw)
 
-    def visit_CHAR(self, type_, **kw):
+    def visit_CHAR(self, type_: Type[Any], **kw) -> str:
         if type_.length:
-            return self._render_string_type(type_, "CHAR")
+            return cast(str, self._render_string_type(type_, "CHAR"))
         return "STRING"
 
-    def visit_NCHAR(self, type_, **kw):
+    def visit_NCHAR(self, type_: Type[Any], **kw) -> str:
         return self.visit_CHAR(type_, **kw)
 
-    def visit_VARCHAR(self, type_, **kw):
+    def visit_VARCHAR(self, type_: Type[Any], **kw) -> str:
         if type_.length:
-            return self._render_string_type(type_, "VARCHAR")
+            return cast(str, self._render_string_type(type_, "VARCHAR"))
         return "STRING"
 
-    def visit_NVARCHAR(self, type_, **kw):
+    def visit_NVARCHAR(self, type_: Type[Any], **kw) -> str:
         return self.visit_VARCHAR(type_, **kw)
 
-    def visit_TEXT(self, type_, **kw):
+    def visit_TEXT(self, type_: Type[Any], **kw) -> str:
         return "STRING"
 
-    def visit_BLOB(self, type_, **kw):
+    def visit_BLOB(self, type_: Type[Any], **kw) -> str:
         return self.visit_BINARY(type_, **kw)
 
-    def visit_BINARY(self, type_, **kw):
+    def visit_BINARY(self, type_: Type[Any], **kw) -> str:
         return "BINARY"
 
-    def visit_VARBINARY(self, type_, **kw):
+    def visit_VARBINARY(self, type_: Type[Any], **kw) -> str:
         return self.visit_BINARY(type_, **kw)
 
-    def visit_BOOLEAN(self, type_, **kw):
+    def visit_BOOLEAN(self, type_: Type[Any], **kw) -> str:
         return "BOOLEAN"
 
 
 class AthenaDDLCompiler(DDLCompiler):
     @property
-    def preparer(self):
+    def preparer(self) -> IdentifierPreparer:
         return self._preparer
 
     @preparer.setter
-    def preparer(self, value):
+    def preparer(self, value: IdentifierPreparer):
         pass
 
     def __init__(
         self,
-        dialect,
-        statement,
-        schema_translate_map=None,
-        render_schema_translate=False,
-        compile_kwargs=util.immutabledict(),
+        dialect: "Dialect",
+        statement: "ExecutableDDLElement",
+        schema_translate_map: Optional["SchemaTranslateMapType"] = None,
+        render_schema_translate: bool = False,
+        compile_kwargs: Mapping[str, Any] = util.immutabledict(),
     ):
         self._preparer = AthenaDDLIdentifierPreparer(dialect)
         super(AthenaDDLCompiler, self).__init__(
@@ -488,67 +532,81 @@ class AthenaDDLCompiler(DDLCompiler):
             compile_kwargs=compile_kwargs,
         )
 
-    def _escape_comment(self, value):
+    def _escape_comment(self, value: str) -> str:
         value = value.replace("\\", "\\\\").replace("'", r"\'")
         # DDL statements raise a KeyError if the placeholders aren't escaped
         if self.dialect.identifier_preparer._double_percents:
             value = value.replace("%", "%%")
         return f"'{value}'"
 
-    def _get_comment_specification(self, comment):
+    def _get_comment_specification(self, comment: str) -> str:
         return f"COMMENT {self._escape_comment(comment)}"
 
-    def _get_bucket_count(self, dialect_opts, connect_opts):
+    def _get_bucket_count(
+        self, dialect_opts: "_DialectArgDict", connect_opts: Dict[str, Any]
+    ) -> Optional[str]:
         if dialect_opts["bucket_count"]:
             bucket_count = dialect_opts["bucket_count"]
         elif connect_opts:
             bucket_count = connect_opts.get("bucket_count")
         else:
             bucket_count = None
-        return bucket_count
+        return cast(str, bucket_count) if bucket_count is not None else None
 
-    def _get_file_format(self, dialect_opts, connect_opts):
+    def _get_file_format(
+        self, dialect_opts: "_DialectArgDict", connect_opts: Dict[str, Any]
+    ) -> Optional[str]:
         if dialect_opts["file_format"]:
             file_format = dialect_opts["file_format"]
         elif connect_opts:
             file_format = connect_opts.get("file_format")
         else:
             file_format = None
-        return file_format
+        return cast(Optional[str], file_format)
 
-    def _get_file_format_specification(self, dialect_opts, connect_opts):
+    def _get_file_format_specification(
+        self, dialect_opts: "_DialectArgDict", connect_opts: Dict[str, Any]
+    ) -> str:
         file_format = self._get_file_format(dialect_opts, connect_opts)
         text = []
         if file_format:
             text.append(f"STORED AS {file_format}")
         return "\n".join(text)
 
-    def _get_row_format(self, dialect_opts, connect_opts):
+    def _get_row_format(
+        self, dialect_opts: "_DialectArgDict", connect_opts: Dict[str, Any]
+    ) -> Optional[str]:
         if dialect_opts["row_format"]:
             row_format = dialect_opts["row_format"]
         elif connect_opts:
             row_format = connect_opts.get("row_format")
         else:
             row_format = None
-        return row_format
+        return cast(Optional[str], row_format)
 
-    def _get_row_format_specification(self, dialect_opts, connect_opts):
+    def _get_row_format_specification(
+        self, dialect_opts: "_DialectArgDict", connect_opts: Dict[str, Any]
+    ) -> str:
         row_format = self._get_row_format(dialect_opts, connect_opts)
         text = []
         if row_format:
             text.append(f"ROW FORMAT {row_format}")
         return "\n".join(text)
 
-    def _get_serde_properties(self, dialect_opts, connect_opts):
+    def _get_serde_properties(
+        self, dialect_opts: "_DialectArgDict", connect_opts: Dict[str, Any]
+    ) -> Optional[str]:
         if dialect_opts["serdeproperties"]:
             serde_properties = dialect_opts["serdeproperties"]
         elif connect_opts:
             serde_properties = connect_opts.get("serdeproperties")
         else:
             serde_properties = None
-        return serde_properties
+        return cast(Optional[str], serde_properties)
 
-    def _get_serde_properties_specification(self, dialect_opts, connect_opts):
+    def _get_serde_properties_specification(
+        self, dialect_opts: "_DialectArgDict", connect_opts: Dict[str, Any]
+    ) -> str:
         serde_properties = self._get_serde_properties(dialect_opts, connect_opts)
         text = []
         if serde_properties:
@@ -560,15 +618,17 @@ class AthenaDDLCompiler(DDLCompiler):
             text.append(")")
         return "\n".join(text)
 
-    def _get_table_location(self, table, dialect_opts, connect_opts):
+    def _get_table_location(
+        self, table, dialect_opts: "_DialectArgDict", connect_opts: Dict[str, Any]
+    ) -> Optional[str]:
         if dialect_opts["location"]:
-            location = dialect_opts["location"]
+            location = cast(str, dialect_opts["location"])
             location += "/" if not location.endswith("/") else ""
         elif connect_opts:
             base_location = (
-                connect_opts["location"]
+                cast(str, connect_opts["location"])
                 if "location" in connect_opts
-                else connect_opts.get("s3_staging_dir")
+                else cast(str, connect_opts.get("s3_staging_dir"))
             )
             schema = table.schema if table.schema else connect_opts["schema_name"]
             location = f"{base_location}{schema}/{table.name}/"
@@ -576,7 +636,9 @@ class AthenaDDLCompiler(DDLCompiler):
             location = None
         return location
 
-    def _get_table_location_specification(self, table, dialect_opts, connect_opts):
+    def _get_table_location_specification(
+        self, table, dialect_opts: "_DialectArgDict", connect_opts: Dict[str, Any]
+    ) -> str:
         location = self._get_table_location(table, dialect_opts, connect_opts)
         text = []
         if location:
@@ -594,33 +656,37 @@ class AthenaDDLCompiler(DDLCompiler):
                 )
         return "\n".join(text)
 
-    def _get_table_properties(self, dialect_opts, connect_opts):
+    def _get_table_properties(
+        self, dialect_opts: "_DialectArgDict", connect_opts: Dict[str, Any]
+    ) -> Optional[Union[Dict[str, str], str]]:
         if dialect_opts["tblproperties"]:
-            table_properties = dialect_opts["tblproperties"]
+            table_properties = cast(str, dialect_opts["tblproperties"])
         elif connect_opts:
-            table_properties = connect_opts.get("tblproperties")
+            table_properties = cast(str, connect_opts.get("tblproperties"))
         else:
             table_properties = None
         return table_properties
 
-    def _get_compression(self, dialect_opts, connect_opts):
+    def _get_compression(
+        self, dialect_opts: "_DialectArgDict", connect_opts: Dict[str, Any]
+    ) -> Optional[str]:
         if dialect_opts["compression"]:
-            compression = dialect_opts["compression"]
+            compression = cast(str, dialect_opts["compression"])
         elif connect_opts:
-            compression = connect_opts.get("compression")
+            compression = cast(str, connect_opts.get("compression"))
         else:
             compression = None
         return compression
 
-    def _get_table_properties_specification(self, dialect_opts, connect_opts):
-        table_properties = self._get_table_properties(dialect_opts, connect_opts)
-        if table_properties:
-            if isinstance(table_properties, dict):
-                table_properties = [
-                    ",\n".join([f"\t'{k}' = '{v}'" for k, v in table_properties.items()])
-                ]
+    def _get_table_properties_specification(
+        self, dialect_opts: "_DialectArgDict", connect_opts: Dict[str, Any]
+    ) -> str:
+        properties = self._get_table_properties(dialect_opts, connect_opts)
+        if properties:
+            if isinstance(properties, dict):
+                table_properties = [",\n".join([f"\t'{k}' = '{v}'" for k, v in properties.items()])]
             else:
-                table_properties = [table_properties]
+                table_properties = [properties]
         else:
             table_properties = []
 
@@ -643,15 +709,14 @@ class AthenaDDLCompiler(DDLCompiler):
                 else:
                     table_properties.append(f"\t'write.compress' = '{compression}'")
 
-        table_properties = ",\n".join(table_properties)
         text = []
         if table_properties:
             text.append("TBLPROPERTIES (")
-            text.append(table_properties)
+            text.append(",\n".join(table_properties))
             text.append(")")
         return "\n".join(text)
 
-    def get_column_specification(self, column, **kwargs):
+    def get_column_specification(self, column: "Column[Any]", **kwargs) -> str:
         if isinstance(column.type, (types.Integer, types.INTEGER, types.INT)):
             # https://docs.aws.amazon.com/athena/latest/ug/create-table.html
             # In Data Definition Language (DDL) queries like CREATE TABLE,
@@ -664,38 +729,44 @@ class AthenaDDLCompiler(DDLCompiler):
             text.append(f"{self._get_comment_specification(column.comment)}")
         return " ".join(text)
 
-    def visit_check_constraint(self, constraint, **kw):
+    def visit_check_constraint(self, constraint: "CheckConstraint", **kw) -> Optional[str]:
         return None
 
-    def visit_column_check_constraint(self, constraint, **kw):
+    def visit_column_check_constraint(self, constraint: "CheckConstraint", **kw) -> Optional[str]:
         return None
 
-    def visit_foreign_key_constraint(self, constraint, **kw):
+    def visit_foreign_key_constraint(
+        self, constraint: "ForeignKeyConstraint", **kw
+    ) -> Optional[str]:
         return None
 
-    def visit_primary_key_constraint(self, constraint, **kw):
+    def visit_primary_key_constraint(
+        self, constraint: "PrimaryKeyConstraint", **kw
+    ) -> Optional[str]:
         return None
 
-    def visit_unique_constraint(self, constraint, **kw):
+    def visit_unique_constraint(self, constraint: "UniqueConstraint", **kw) -> Optional[str]:
         return None
 
-    def _get_connect_option_partitions(self, connect_opts):
+    def _get_connect_option_partitions(self, connect_opts: Dict[str, Any]) -> List[str]:
         if connect_opts:
-            partition = connect_opts.get("partition")
+            partition = cast(str, connect_opts.get("partition"))
             partitions = partition.split(",") if partition else []
         else:
             partitions = []
         return partitions
 
-    def _get_connect_option_buckets(self, connect_opts):
+    def _get_connect_option_buckets(self, connect_opts: Dict[str, Any]) -> List[str]:
         if connect_opts:
-            bucket = connect_opts.get("cluster")
+            bucket = cast(str, connect_opts.get("cluster"))
             buckets = bucket.split(",") if bucket else []
         else:
             buckets = []
         return buckets
 
-    def _prepared_columns(self, table, create_columns, connect_opts):
+    def _prepared_columns(
+        self, table, create_columns: List["CreateColumn"], connect_opts: Dict[str, Any]
+    ) -> Tuple[List[str], List[str], List[str]]:
         columns, partitions, buckets = [], [], []
         conn_partitions = self._get_connect_option_partitions(connect_opts)
         conn_buckets = self._get_connect_option_buckets(connect_opts)
@@ -725,7 +796,7 @@ class AthenaDDLCompiler(DDLCompiler):
                 ) from ce
         return columns, partitions, buckets
 
-    def visit_create_table(self, create, **kwargs):
+    def visit_create_table(self, create: "CreateTable", **kwargs) -> str:
         table = create.element
         table_dialect_opts = table.dialect_options["awsathena"]
         dialect = cast(AthenaDialect, self.dialect)
@@ -759,8 +830,8 @@ class AthenaDDLCompiler(DDLCompiler):
         text.append(f"{self.post_create_table(table)}\n")
         return "\n".join(text)
 
-    def post_create_table(self, table):
-        dialect_opts = table.dialect_options["awsathena"]
+    def post_create_table(self, table: "Table") -> str:
+        dialect_opts: "_DialectArgDict" = table.dialect_options["awsathena"]
         dialect = cast(AthenaDialect, self.dialect)
         connect_opts = dialect._connect_options
         text = [
@@ -774,27 +845,29 @@ class AthenaDDLCompiler(DDLCompiler):
 
 
 class AthenaDialect(DefaultDialect):
-    name = "awsathena"
-    preparer = AthenaDMLIdentifierPreparer
-    statement_compiler = AthenaStatementCompiler
-    ddl_compiler = AthenaDDLCompiler
-    type_compiler = AthenaTypeCompiler
-    default_paramstyle = pyathena.paramstyle
-    cte_follows_insert = True
-    supports_alter = False
-    supports_pk_autoincrement = False
-    supports_default_values = False
-    supports_empty_insert = False
-    supports_multivalues_insert = True
-    supports_native_decimal = True
-    supports_native_boolean = True
-    supports_unicode_statements = True
-    supports_unicode_binds = True
-    supports_statement_cache = True
-    returns_unicode_strings = True
-    description_encoding = None
-    postfetch_lastrowid = False
-    construct_arguments = [
+    name: str = "awsathena"
+    preparer: Type[IdentifierPreparer] = AthenaDMLIdentifierPreparer
+    statement_compiler: Type[SQLCompiler] = AthenaStatementCompiler
+    ddl_compiler: Type[DDLCompiler] = AthenaDDLCompiler
+    type_compiler: Type[GenericTypeCompiler] = AthenaTypeCompiler
+    default_paramstyle: str = pyathena.paramstyle
+    cte_follows_insert: bool = True
+    supports_alter: bool = False
+    supports_pk_autoincrement: Optional[bool] = False
+    supports_default_values: bool = False
+    supports_empty_insert: bool = False
+    supports_multivalues_insert: bool = True
+    supports_native_decimal: bool = True
+    supports_native_boolean: bool = True
+    supports_unicode_statements: Optional[bool] = True
+    supports_unicode_binds: Optional[bool] = True
+    supports_statement_cache: bool = True
+    returns_unicode_strings: Optional[bool] = True
+    description_encoding: Optional[bool] = None
+    postfetch_lastrowid: bool = False
+    construct_arguments: Optional[
+        List[Tuple[Type[Union["SchemaItem", "ClauseElement"]], Mapping[str, Any]]]
+    ] = [
         (
             schema.Table,
             {
@@ -816,35 +889,37 @@ class AthenaDialect(DefaultDialect):
         ),
     ]
 
-    ischema_names = ischema_names
+    ischema_names: Dict[str, Type[Any]] = ischema_names
 
-    _connect_options = dict()  # type: ignore
-    _pattern_column_type = re.compile(r"^([a-zA-Z]+)(?:$|[\(|<](.+)[\)|>]$)")
+    _connect_options: Dict[str, Any] = dict()  # type: ignore
+    _pattern_column_type: Pattern[str] = re.compile(r"^([a-zA-Z]+)(?:$|[\(|<](.+)[\)|>]$)")
 
     @classmethod
-    def import_dbapi(cls):
+    def import_dbapi(cls) -> "ModuleType":
         return pyathena
 
-    def _raw_connection(self, connection):
+    def _raw_connection(self, connection: Union[Engine, "Connection"]) -> "PoolProxiedConnection":
         if isinstance(connection, Engine):
             return connection.raw_connection()
         return connection.connection
 
-    def create_connect_args(self, url):
+    def create_connect_args(self, url: "URL") -> Tuple[Tuple[str], MutableMapping[str, Any]]:
         # Connection string format:
         #   awsathena+rest://
         #   {aws_access_key_id}:{aws_secret_access_key}@athena.{region_name}.amazonaws.com:443/
         #   {schema_name}?s3_staging_dir={s3_staging_dir}&...
         self._connect_options = self._create_connect_args(url)
-        return [[], self._connect_options]
+        return cast(Tuple[str], tuple()), self._connect_options
 
-    def _create_connect_args(self, url):
-        opts = {
+    def _create_connect_args(self, url: "URL") -> Dict[str, Any]:
+        opts: Dict[str, Any] = {
             "aws_access_key_id": url.username if url.username else None,
             "aws_secret_access_key": url.password if url.password else None,
             "region_name": re.sub(
                 r"^athena\.([a-z0-9-]+)\.amazonaws\.(com|com.cn)$", r"\1", url.host
-            ),
+            )
+            if url.host
+            else None,
             "schema_name": url.database if url.database else "default",
         }
         opts.update(url.query)
@@ -857,18 +932,18 @@ class AthenaDialect(DefaultDialect):
                 pass
             opts.update({"verify": verify})
         if "duration_seconds" in opts:
-            opts.update({"duration_seconds": int(url.query["duration_seconds"])})
+            opts.update({"duration_seconds": int(opts["duration_seconds"])})
         if "poll_interval" in opts:
-            opts.update({"poll_interval": float(url.query["poll_interval"])})
+            opts.update({"poll_interval": float(opts["poll_interval"])})
         if "kill_on_interrupt" in opts:
-            opts.update({"kill_on_interrupt": bool(strtobool(url.query["kill_on_interrupt"]))})
+            opts.update({"kill_on_interrupt": bool(strtobool(opts["kill_on_interrupt"]))})
         return opts
 
     @reflection.cache
     def _get_schemas(self, connection, **kw):
         raw_connection = self._raw_connection(connection)
-        catalog = raw_connection.catalog_name
-        with raw_connection.driver_connection.cursor() as cursor:
+        catalog = raw_connection.catalog_name  # type: ignore
+        with raw_connection.driver_connection.cursor() as cursor:  # type: ignore
             try:
                 return cursor.list_databases(catalog)
             except pyathena.error.OperationalError as exc:
@@ -881,10 +956,10 @@ class AthenaDialect(DefaultDialect):
                 raise
 
     @reflection.cache
-    def _get_table(self, connection, table_name, schema=None, **kw):
+    def _get_table(self, connection, table_name: str, schema: Optional[str] = None, **kw):
         raw_connection = self._raw_connection(connection)
-        schema = schema if schema else raw_connection.schema_name
-        with raw_connection.driver_connection.cursor() as cursor:
+        schema = schema if schema else raw_connection.schema_name  # type: ignore
+        with raw_connection.driver_connection.cursor() as cursor:  # type: ignore
             try:
                 return cursor.get_table_metadata(table_name, schema_name=schema, logging_=False)
             except pyathena.error.OperationalError as exc:
@@ -897,17 +972,17 @@ class AthenaDialect(DefaultDialect):
                 raise
 
     @reflection.cache
-    def _get_tables(self, connection, schema=None, **kw):
+    def _get_tables(self, connection, schema: Optional[str] = None, **kw):
         raw_connection = self._raw_connection(connection)
-        schema = schema if schema else raw_connection.schema_name
-        with raw_connection.driver_connection.cursor() as cursor:
+        schema = schema if schema else raw_connection.schema_name  # type: ignore
+        with raw_connection.driver_connection.cursor() as cursor:  # type: ignore
             return cursor.list_table_metadata(schema_name=schema)
 
     def get_schema_names(self, connection, **kw):
         schemas = self._get_schemas(connection, **kw)
         return [s.name for s in schemas]
 
-    def get_table_names(self, connection, schema=None, **kw):
+    def get_table_names(self, connection: "Connection", schema: Optional[str] = None, **kw):
         # Tables created by Athena are always classified as `EXTERNAL_TABLE`,
         # but Athena can also query tables classified as `MANAGED_TABLE`.
         # Managed Tables are created by default when creating tables via Spark when
@@ -921,15 +996,19 @@ class AthenaDialect(DefaultDialect):
             if t.table_type in ["EXTERNAL_TABLE", "MANAGED_TABLE", "EXTERNAL"]
         ]
 
-    def get_view_names(self, connection, schema=None, **kw):
+    def get_view_names(self, connection: "Connection", schema: Optional[str] = None, **kw):
         tables = self._get_tables(connection, schema, **kw)
         return [t.name for t in tables if t.table_type == "VIRTUAL_VIEW"]
 
-    def get_table_comment(self, connection, table_name, schema=None, **kw):
+    def get_table_comment(
+        self, connection: "Connection", table_name: str, schema: Optional[str] = None, **kw
+    ):
         metadata = self._get_table(connection, table_name, schema=schema, **kw)
         return {"text": metadata.comment}
 
-    def get_table_options(self, connection, table_name, schema=None, **kw):
+    def get_table_options(
+        self, connection: "Connection", table_name: str, schema: Optional[str] = None, **kw
+    ):
         metadata = self._get_table(connection, table_name, schema=schema, **kw)
         # TODO The metadata retrieved from the API does not seem to include bucketing information.
         return {
@@ -941,7 +1020,9 @@ class AthenaDialect(DefaultDialect):
             "awsathena_tblproperties": _HashableDict(metadata.table_properties),
         }
 
-    def has_table(self, connection, table_name, schema=None, **kw):
+    def has_table(
+        self, connection: "Connection", table_name: str, schema: Optional[str] = None, **kw
+    ):
         try:
             columns = self.get_columns(connection, table_name, schema)
             return True if columns else False
@@ -949,7 +1030,9 @@ class AthenaDialect(DefaultDialect):
             return False
 
     @reflection.cache
-    def get_columns(self, connection, table_name, schema=None, **kw):
+    def get_columns(
+        self, connection: "Connection", table_name: str, schema: Optional[str] = None, **kw
+    ):
         metadata = self._get_table(connection, table_name, schema=schema, **kw)
         columns = [
             {
@@ -977,7 +1060,7 @@ class AthenaDialect(DefaultDialect):
         ]
         return columns
 
-    def _get_column_type(self, type_):
+    def _get_column_type(self, type_: str):
         match = self._pattern_column_type.match(type_)
         if match:
             name = match.group(1).lower()
@@ -1002,26 +1085,34 @@ class AthenaDialect(DefaultDialect):
 
         return col_type(*args)
 
-    def get_foreign_keys(self, connection, table_name, schema=None, **kw):
+    def get_foreign_keys(
+        self, connection: "Connection", table_name: str, schema: Optional[str] = None, **kw
+    ) -> List["ReflectedForeignKeyConstraint"]:
         # Athena has no support for foreign keys.
         return []  # pragma: no cover
 
-    def get_pk_constraint(self, connection, table_name, schema=None, **kw):
+    def get_pk_constraint(
+        self, connection: "Connection", table_name: str, schema: Optional[str] = None, **kw
+    ) -> "ReflectedPrimaryKeyConstraint":
         # Athena has no support for primary keys.
-        return []  # pragma: no cover
+        return {"name": None, "constrained_columns": []}  # pragma: no cover
 
-    def get_indexes(self, connection, table_name, schema=None, **kw):
+    def get_indexes(
+        self, connection: "Connection", table_name: str, schema: Optional[str] = None, **kw
+    ) -> List["ReflectedIndex"]:
         # Athena has no support for indexes.
         return []  # pragma: no cover
 
-    def do_rollback(self, dbapi_connection):
+    def do_rollback(self, dbapi_connection: "PoolProxiedConnection") -> None:
         # No transactions for Athena
         pass  # pragma: no cover
 
-    def _check_unicode_returns(self, connection, additional_tests=None):
+    def _check_unicode_returns(
+        self, connection: "Connection", additional_tests: Optional[List[Any]] = None
+    ) -> bool:
         # Requests gives back Unicode strings
         return True  # pragma: no cover
 
-    def _check_unicode_description(self, connection):
+    def _check_unicode_description(self, connection: "Connection") -> bool:
         # Requests gives back Unicode strings
         return True  # pragma: no cover
