@@ -124,23 +124,21 @@ Supported SQLAlchemy is 1.0.0 or higher.
 
 .. code:: python
 
-    from urllib.parse import quote_plus
+    from sqlalchemy import func, select
     from sqlalchemy.engine import create_engine
-    from sqlalchemy.sql.expression import select
-    from sqlalchemy.sql.functions import func
     from sqlalchemy.sql.schema import Table, MetaData
 
     conn_str = "awsathena+rest://{aws_access_key_id}:{aws_secret_access_key}@athena.{region_name}.amazonaws.com:443/"\
                "{schema_name}?s3_staging_dir={s3_staging_dir}"
     engine = create_engine(conn_str.format(
-        aws_access_key_id=quote_plus("YOUR_ACCESS_KEY_ID"),
-        aws_secret_access_key=quote_plus("YOUR_SECRET_ACCESS_KEY"),
+        aws_access_key_id="YOUR_ACCESS_KEY_ID",
+        aws_secret_access_key="YOUR_SECRET_ACCESS_KEY",
         region_name="us-west-2",
         schema_name="default",
-        s3_staging_dir=quote_plus("s3://YOUR_S3_BUCKET/path/to/")))
+        s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/"))
     with engine.connect() as connection:
         many_rows = Table("many_rows", MetaData(), autoload_with=connection)
-        result = connection.execute(select([func.count("*")], from_obj=many_rows))
+        result = connection.execute(select(func.count()).select_from(many_rows))
         print(result.scalar())
 
 The connection string has the following format:
@@ -154,8 +152,6 @@ If you do not specify ``aws_access_key_id`` and ``aws_secret_access_key`` using 
 .. code:: text
 
     awsathena+rest://:@athena.{region_name}.amazonaws.com:443/{schema_name}?s3_staging_dir={s3_staging_dir}&...
-
-NOTE: ``s3_staging_dir`` requires quote. If ``aws_access_key_id``, ``aws_secret_access_key`` and other parameter contain special characters, quote is also required.
 
 Dialect & driver
 ^^^^^^^^^^^^^^^^
@@ -394,7 +390,6 @@ You can use `pandas.DataFrame.to_sql`_ to write records stored in DataFrame to A
 .. code:: python
 
     import pandas as pd
-    from urllib.parse import quote_plus
     from sqlalchemy import create_engine
 
     conn_str = "awsathena+rest://:@athena.{region_name}.amazonaws.com:443/"\
@@ -402,8 +397,8 @@ You can use `pandas.DataFrame.to_sql`_ to write records stored in DataFrame to A
     engine = create_engine(conn_str.format(
         region_name="us-west-2",
         schema_name="YOUR_SCHEMA",
-        s3_staging_dir=quote_plus("s3://YOUR_S3_BUCKET/path/to/"),
-        location=quote_plus("s3://YOUR_S3_BUCKET/path/to/")))
+        s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+        location="s3://YOUR_S3_BUCKET/path/to/"))
 
     df = pd.DataFrame({"a": [1, 2, 3, 4, 5]})
     df.to_sql("YOUR_TABLE", engine, schema="YOUR_SCHEMA", index=False, if_exists="replace", method="multi")
