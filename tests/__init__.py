@@ -21,6 +21,9 @@ class Env:
         self.schema = "pyathena_test_" + "".join(
             [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]
         )
+        self.s3_filesystem_test_file_key = (
+            f"{self.s3_staging_key}{self.schema}/S3FileSystem__test_read.dat"
+        )
 
 
 ENV = Env()
