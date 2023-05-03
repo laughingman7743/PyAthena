@@ -402,7 +402,9 @@ class AthenaStatementCompiler(SQLCompiler):
         return f"length{self.function_argspec(fn, **kw)}"
 
     def visit_cast(self, cast: "Cast[Any]", **kwargs):
-        if isinstance(cast.type, types.VARCHAR) and cast.type.length is None:
+        if (isinstance(cast.type, types.VARCHAR) and cast.type.length is None) or isinstance(
+            cast.type, types.String
+        ):
             type_clause = "VARCHAR"
         elif isinstance(cast.type, types.CHAR) and cast.type.length is None:
             type_clause = "CHAR"
@@ -506,6 +508,15 @@ class AthenaTypeCompiler(GenericTypeCompiler):
 
     def visit_BOOLEAN(self, type_: Type[Any], **kw) -> str:
         return "BOOLEAN"
+
+    def visit_string(self, type_, **kw):
+        return "STRING"
+
+    def visit_unicode(self, type_, **kw):
+        return "STRING"
+
+    def visit_unicode_text(self, type_, **kw):
+        return "STRING"
 
 
 class AthenaDDLCompiler(DDLCompiler):
@@ -800,11 +811,19 @@ class AthenaDDLCompiler(DDLCompiler):
 
     def visit_create_table(self, create: "CreateTable", **kwargs) -> str:
         table = create.element
-        table_dialect_opts = table.dialect_options["awsathena"]
+        dialect_opts = table.dialect_options["awsathena"]
         dialect = cast(AthenaDialect, self.dialect)
         connect_opts = dialect._connect_options
 
-        text = ["\nCREATE EXTERNAL TABLE"]
+        table_properties = self._get_table_properties_specification(
+            dialect_opts, connect_opts
+        ).lower()
+        if ("table_type" in table_properties) and ("iceberg" in table_properties):
+            # https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html
+            text = ["\nCREATE TABLE"]
+        else:
+            text = ["\nCREATE EXTERNAL TABLE"]
+
         if create.if_not_exists:
             text.append("IF NOT EXISTS")
         text.append(self.preparer.format_table(table))
@@ -823,7 +842,7 @@ class AthenaDDLCompiler(DDLCompiler):
             text.append(",\n".join(partitions))
             text.append(")")
 
-        bucket_count = self._get_bucket_count(table_dialect_opts, connect_opts)
+        bucket_count = self._get_bucket_count(dialect_opts, connect_opts)
         if buckets and bucket_count:
             text.append("CLUSTERED BY (")
             text.append(",\n".join(buckets))
