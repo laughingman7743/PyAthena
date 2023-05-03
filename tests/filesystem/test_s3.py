@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-from io import BytesIO
 from itertools import chain
 from typing import Dict
 
-import boto3
 import pytest
 
 from pyathena.filesystem.s3 import S3File, S3FileSystem
@@ -12,8 +10,6 @@ from tests.conftest import connect
 
 
 class TestS3FileSystem:
-    s3_test_file_key = f"{ENV.s3_staging_key}{ENV.schema}/S3FileSystem__test_read.dat"
-
     def test_parse_path(self):
         actual = S3FileSystem.parse_path("s3://bucket")
         assert actual[0] == "bucket"
@@ -114,12 +110,6 @@ class TestS3FileSystem:
 
     @pytest.fixture(scope="class")
     def fs(self) -> Dict[str, S3FileSystem]:
-        client = boto3.client("s3")
-        client.upload_fileobj(
-            BytesIO(b"0123456789"),
-            ENV.s3_staging_bucket,
-            self.s3_test_file_key,
-        )
         fs = {
             "default": S3FileSystem(connect()),
             "small_batches": S3FileSystem(connect(), default_block_size=3),
@@ -144,11 +134,11 @@ class TestS3FileSystem:
     def test_read(self, fs, start, end, batch_mode, target_data):
         # lowest level access: use _get_object
         data = fs[batch_mode]._get_object(
-            ENV.s3_staging_bucket, self.s3_test_file_key, ranges=(start, end)
+            ENV.s3_staging_bucket, ENV.s3_filesystem_test_file_key, ranges=(start, end)
         )
         assert data == (start, target_data), data
         with fs[batch_mode].open(
-            f"s3://{ENV.s3_staging_bucket}/{self.s3_test_file_key}", "rb"
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_filesystem_test_file_key}", "rb"
         ) as file:
             # mid-level access: use _fetch_range
             data = file._fetch_range(start, end)
@@ -162,7 +152,9 @@ class TestS3FileSystem:
         import pandas
 
         df = pandas.read_csv(
-            f"s3://{ENV.s3_staging_bucket}/{self.s3_test_file_key}", header=None, names=["col"]
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_filesystem_test_file_key}",
+            header=None,
+            names=["col"],
         )
         assert [(row["col"],) for _, row in df.iterrows()] == [(123456789,)]
 

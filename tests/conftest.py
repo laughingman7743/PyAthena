@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import contextlib
+from io import BytesIO
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -9,6 +10,21 @@ import sqlalchemy
 
 from tests import ENV
 from tests.util import read_query
+
+
+def pytest_sessionstart(session):
+    _upload_rows()
+    with contextlib.closing(connect()) as conn:
+        with conn.cursor() as cursor:
+            _create_database(cursor)
+            _create_table(cursor)
+
+
+def pytest_sessionfinish(session):
+    with contextlib.closing(connect()) as conn:
+        with conn.cursor() as cursor:
+            _drop_database(cursor)
+    _delete_rows()
 
 
 def connect(schema_name="default", **kwargs):
@@ -51,29 +67,17 @@ def create_engine(**kwargs):
     )
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _setup_session(request):
-    request.addfinalizer(_teardown_session)
-    _upload_rows()
-    with contextlib.closing(connect()) as conn:
-        with conn.cursor() as cursor:
-            _create_database(cursor)
-            _create_table(cursor)
-
-
-def _teardown_session():
-    with contextlib.closing(connect()) as conn:
-        with conn.cursor() as cursor:
-            _drop_database(cursor)
-    _delete_rows()
-
-
 def _upload_rows():
     client = boto3.client("s3")
     rows = Path(__file__).parent.resolve() / "resources" / "rows"
     for row in rows.iterdir():
         key = f"{ENV.s3_staging_key}{ENV.schema}/{row.stem}/{row.name}"
         client.upload_file(str(row), ENV.s3_staging_bucket, key)
+    client.upload_fileobj(
+        BytesIO(b"0123456789"),
+        ENV.s3_staging_bucket,
+        ENV.s3_filesystem_test_file_key,
+    )
 
 
 def _delete_rows():
@@ -82,6 +86,7 @@ def _delete_rows():
     for row in rows.iterdir():
         key = f"{ENV.s3_staging_key}{ENV.schema}/{row.stem}/{row.name}"
         client.delete_object(Bucket=ENV.s3_staging_bucket, Key=key)
+    client.delete_object(Bucket=ENV.s3_staging_bucket, Key=ENV.s3_filesystem_test_file_key)
 
 
 def _create_database(cursor):
