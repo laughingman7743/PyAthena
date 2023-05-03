@@ -372,10 +372,12 @@ ischema_names: Dict[str, Type[Any]] = {
 
 
 class AthenaDMLIdentifierPreparer(IdentifierPreparer):
-    reserved_words: Set[str] = RESERVED_WORDS
+    reserved_words: Set[str] = SELECT_STATEMENT_RESERVED_WORDS
 
 
 class AthenaDDLIdentifierPreparer(IdentifierPreparer):
+    reserved_words = DDL_RESERVED_WORDS
+
     def __init__(
         self,
         dialect: "Dialect",
