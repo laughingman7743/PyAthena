@@ -36,7 +36,7 @@ Requirements
 
 * Python
 
-  - CPython 3.7 3.8 3.9 3.10, 3.11
+  - CPython 3.8 3.9 3.10, 3.11
 
 Installation
 ------------
@@ -1942,7 +1942,7 @@ Run test multiple Python versions
 
     $ pip install poetry
     $ poetry install -v
-    $ pyenv local 3.11.1 3.10.1 3.9.1 3.8.2 3.7.2
+    $ pyenv local 3.11.1 3.10.1 3.9.1 3.8.2
     $ poetry run tox
 
 GitHub Actions

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import re
-import sys
 import textwrap
 import uuid
 from datetime import date, datetime
@@ -392,11 +391,6 @@ class TestSQLAlchemyAthena:
         result_with_limit2 = conn.execute(query_with_limit2)
         assert result_with_limit2.fetchall() == [("a string", "b%")]
 
-    @pytest.mark.skipif(
-        # TODO: Python 3.7 EOL 2023-06-27
-        sys.version_info < (3, 8),
-        reason="TypeError: __init__() got multiple values for argument 'schema'",
-    )
     @pytest.mark.parametrize(
         "engine",
         [{"file_format": "parquet", "compression": "snappy"}],
@@ -453,11 +447,6 @@ class TestSQLAlchemyAthena:
             )
         ]
 
-    @pytest.mark.skipif(
-        # TODO: Python 3.7 EOL 2023-06-27
-        sys.version_info < (3, 8),
-        reason="TypeError: __init__() got multiple values for argument 'schema'",
-    )
     @pytest.mark.parametrize(
         "engine",
         [
@@ -519,11 +508,6 @@ class TestSQLAlchemyAthena:
             )
         ]
 
-    @pytest.mark.skipif(
-        # TODO: Python 3.7 EOL 2023-06-27
-        sys.version_info < (3, 8),
-        reason="TypeError: __init__() got multiple values for argument 'schema'",
-    )
     @pytest.mark.parametrize(
         "engine",
         [
