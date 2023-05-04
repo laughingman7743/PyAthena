@@ -31,6 +31,7 @@ from sqlalchemy.sql.compiler import (
 
 import pyathena
 from pyathena.model import AthenaFileFormat, AthenaRowFormatSerde
+from pyathena.sqlalchemy.types import AthenaDate, AthenaTimestamp
 from pyathena.sqlalchemy.util import _HashableDict
 
 if TYPE_CHECKING:
@@ -909,6 +910,12 @@ class AthenaDialect(DefaultDialect):
             },
         ),
     ]
+
+    colspecs = {
+        types.DATE: AthenaDate,
+        types.DATETIME: AthenaTimestamp,
+        types.TIMESTAMP: AthenaTimestamp,
+    }
 
     ischema_names: Dict[str, Type[Any]] = ischema_names
 
