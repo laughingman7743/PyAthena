@@ -194,7 +194,9 @@ class DefaultParameterFormatter(Formatter):
         kwargs: Optional[Dict[str, Any]] = None
         if parameters is not None:
             kwargs = dict()
-            if isinstance(parameters, dict):
+            if not parameters:
+                pass
+            elif isinstance(parameters, dict):
                 for k, v in parameters.items():
                     func = self.get(v)
                     if not func:
