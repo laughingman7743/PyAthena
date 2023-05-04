@@ -17,7 +17,7 @@ from sqlalchemy.sql.ddl import CreateTable
 from sqlalchemy.sql.schema import Column, MetaData, Table
 from sqlalchemy.sql.selectable import TextualSelect
 
-from tests.conftest import ENV
+from tests.pyathena.conftest import ENV
 
 
 class TestSQLAlchemyAthena:
@@ -619,7 +619,7 @@ class TestSQLAlchemyAthena:
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
-            Column(column_name, types.String(10)),
+            Column(column_name, types.VARCHAR(10)),
             awsathena_location=f"s3://path/to/{ENV.schema}/{table_name}",
             awsathena_file_format="PARQUET",
             awsathena_compression="SNAPPY",
@@ -645,7 +645,7 @@ class TestSQLAlchemyAthena:
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
-            Column("col_1", types.String(10), awsathena_cluster=True),
+            Column("col_1", types.VARCHAR(10), awsathena_cluster=True),
             Column("col_2", types.Integer, awsathena_cluster=True),
             Column("col_3", types.String, awsathena_partition=True),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
@@ -701,7 +701,7 @@ class TestSQLAlchemyAthena:
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
-            Column("col_1", types.String(10)),
+            Column("col_1", types.VARCHAR(10)),
             Column("col_2", types.Integer),
             Column("col_3", types.String),
         )
@@ -749,7 +749,7 @@ class TestSQLAlchemyAthena:
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
-            Column(column_name, types.String(10)),
+            Column(column_name, types.VARCHAR(10)),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_row_format="SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde'",
             awsathena_serdeproperties={
@@ -791,7 +791,7 @@ class TestSQLAlchemyAthena:
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
-            Column(column_name, types.String(10)),
+            Column(column_name, types.VARCHAR(10)),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_row_format="SERDE 'com.amazonaws.glue.serde.GrokSerDe'",
             awsathena_serdeproperties={
@@ -846,7 +846,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
-            Column(column_name, types.String(10)),
+            Column(column_name, types.VARCHAR(10)),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_row_format="SERDE 'org.openx.data.jsonserde.JsonSerDe'",
             awsathena_serdeproperties={
@@ -885,7 +885,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
-            Column(column_name, types.String(10)),
+            Column(column_name, types.VARCHAR(10)),
             Column("year", types.String, awsathena_partition=True),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_file_format="PARQUET",
@@ -931,7 +931,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
-            Column(column_name, types.String(10)),
+            Column(column_name, types.VARCHAR(10)),
             Column("year", types.String, awsathena_partition=True),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_file_format="ORC",
@@ -976,7 +976,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
-            Column(column_name, types.String(10)),
+            Column(column_name, types.VARCHAR(10)),
             Column("year", types.String, awsathena_partition=True),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_file_format="AVRO",
@@ -1070,7 +1070,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
-            Column(column_name, types.String(10), comment=column_comment),
+            Column(column_name, types.VARCHAR(10), comment=column_comment),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_file_format="PARQUET",
             comment=table_comment,
@@ -1148,9 +1148,9 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
-            Column("col_varchar", types.String()),
-            Column("col_varchar_length", types.String(10)),
-            Column("col_varchar_type", types.String),
+            Column("col_varchar", types.VARCHAR()),
+            Column("col_varchar_length", types.VARCHAR(10)),
+            Column("col_varchar_type", types.VARCHAR),
             Column("col_text", types.Text),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_file_format="PARQUET",
@@ -1228,10 +1228,10 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
-            Column("col_1", types.String(10), comment=column_comment),
+            Column("col_1", types.VARCHAR(10), comment=column_comment),
             Column(
                 "col_partition_1",
-                types.String(10),
+                types.VARCHAR(10),
                 awsathena_partition=True,
                 comment=column_comment,
             ),
@@ -1275,7 +1275,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
-            Column("col_1", types.String(10)),
+            Column("col_1", types.VARCHAR(10)),
             Column("col_2", types.Integer),
             Column("dt", types.String, awsathena_partition=True),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",

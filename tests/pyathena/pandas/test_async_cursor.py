@@ -16,7 +16,7 @@ from pyathena.model import AthenaQueryExecution
 from pyathena.pandas.async_cursor import AsyncPandasCursor
 from pyathena.result_set import AthenaResultSet
 from tests import ENV
-from tests.conftest import connect
+from tests.pyathena.conftest import connect
 
 
 class TestAsyncPandasCursor:

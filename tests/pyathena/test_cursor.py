@@ -15,7 +15,7 @@ from pyathena.cursor import Cursor
 from pyathena.error import DatabaseError, NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from tests import ENV
-from tests.conftest import connect
+from tests.pyathena.conftest import connect
 
 
 class TestCursor:
