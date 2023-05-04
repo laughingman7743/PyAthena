@@ -16,7 +16,7 @@ from pyathena.error import DatabaseError, ProgrammingError
 from pyathena.pandas.cursor import PandasCursor
 from pyathena.pandas.result_set import AthenaPandasResultSet
 from tests import ENV
-from tests.conftest import connect
+from tests.pyathena.conftest import connect
 
 
 class TestPandasCursor:

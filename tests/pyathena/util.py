@@ -4,7 +4,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
 _queries = Environment(
-    loader=FileSystemLoader(Path(__file__).parent.resolve() / "resources" / "queries")
+    loader=FileSystemLoader(Path(__file__).parents[1].resolve() / "resources" / "queries")
 )
 
 

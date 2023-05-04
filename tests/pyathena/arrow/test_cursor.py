@@ -15,7 +15,7 @@ from pyathena.arrow.cursor import ArrowCursor
 from pyathena.arrow.result_set import AthenaArrowResultSet
 from pyathena.error import DatabaseError, ProgrammingError
 from tests import ENV
-from tests.conftest import connect
+from tests.pyathena.conftest import connect
 
 
 class TestArrowCursor:

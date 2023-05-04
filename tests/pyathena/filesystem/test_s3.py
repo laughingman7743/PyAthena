@@ -6,7 +6,7 @@ import pytest
 
 from pyathena.filesystem.s3 import S3File, S3FileSystem
 from tests import ENV
-from tests.conftest import connect
+from tests.pyathena.conftest import connect
 
 
 class TestS3FileSystem:

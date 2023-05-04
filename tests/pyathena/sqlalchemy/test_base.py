@@ -17,7 +17,7 @@ from sqlalchemy.sql.ddl import CreateTable
 from sqlalchemy.sql.schema import Column, MetaData, Table
 from sqlalchemy.sql.selectable import TextualSelect
 
-from tests.conftest import ENV
+from tests.pyathena.conftest import ENV
 
 
 class TestSQLAlchemyAthena:
