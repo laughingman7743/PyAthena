@@ -23,6 +23,7 @@ from sqlalchemy.engine import Engine, reflection
 from sqlalchemy.engine.default import DefaultDialect
 from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.sql.compiler import (
+    ILLEGAL_INITIAL_CHARACTERS,
     DDLCompiler,
     GenericTypeCompiler,
     IdentifierPreparer,
@@ -378,6 +379,7 @@ class AthenaDMLIdentifierPreparer(IdentifierPreparer):
 
 class AthenaDDLIdentifierPreparer(IdentifierPreparer):
     reserved_words = DDL_RESERVED_WORDS
+    illegal_initial_characters = ILLEGAL_INITIAL_CHARACTERS.union("_")
 
     def __init__(
         self,
