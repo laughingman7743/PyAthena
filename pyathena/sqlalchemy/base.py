@@ -419,20 +419,10 @@ class AthenaStatementCompiler(SQLCompiler):
 
     def limit_clause(self, select: "GenerativeSelect", **kw):
         text = []
-        # https://docs.sqlalchemy.org/en/14/core/connections.html#example-rendering-limit-offset-with-post-compile-parameters
-        if hasattr(select, "_simple_int_clause"):
-            offset_clause = select._offset_clause
-            if offset_clause is not None and select._simple_int_clause(offset_clause):
-                text.append(f" OFFSET {self.process(offset_clause.render_literal_execute(), **kw)}")
-            limit_clause = select._limit_clause
-            if limit_clause is not None and select._simple_int_clause(limit_clause):
-                text.append(f" LIMIT {self.process(limit_clause.render_literal_execute(), **kw)}")
-        else:
-            # SQLAlchemy < 1.4
-            if select._offset_clause is not None:
-                text.append(" OFFSET " + self.process(select._offset_clause, **kw))
-            if select._limit_clause is not None:
-                text.append(" LIMIT " + self.process(select._limit_clause, **kw))
+        if select._offset_clause is not None:
+            text.append(" OFFSET " + self.process(select._offset_clause, **kw))
+        if select._limit_clause is not None:
+            text.append(" LIMIT " + self.process(select._limit_clause, **kw))
         return "\n".join(text)
 
 

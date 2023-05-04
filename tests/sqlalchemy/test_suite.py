@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import pytest
+from sqlalchemy.testing.suite import FetchLimitOffsetTest as _FetchLimitOffsetTest
 from sqlalchemy.testing.suite import HasTableTest as _HasTableTest
 from sqlalchemy.testing.suite import InsertBehaviorTest as _InsertBehaviorTest
 from sqlalchemy.testing.suite import IntegerTest as _IntegerTest
@@ -55,6 +56,33 @@ class TrueDivTest(_TrueDivTest):
 
     @pytest.mark.skip("TODO")
     def test_truediv_numeric(self, connection, left, right, expected):
+        # TODO
+        pass
+
+
+class FetchLimitOffsetTest(_FetchLimitOffsetTest):
+    @pytest.mark.skip("Athena does not support expressions in the offset clause.")
+    def test_simple_limit_expr_offset(self, connection):
+        pass
+
+    @pytest.mark.skip("Athena does not support expressions in the limit clause.")
+    def test_expr_limit(self, connection):
+        pass
+
+    @pytest.mark.skip("Athena does not support expressions in the limit clause.")
+    def test_expr_limit_offset(self, connection):
+        pass
+
+    @pytest.mark.skip("Athena does not support expressions in the limit clause.")
+    def test_expr_limit_simple_offset(self, connection):
+        pass
+
+    @pytest.mark.skip("Athena does not support expressions in the offset clause.")
+    def test_expr_offset(self, connection):
+        pass
+
+    @pytest.mark.skip("TODO")
+    def test_limit_render_multiple_times(self, connection):
         # TODO
         pass
 
