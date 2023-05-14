@@ -587,6 +587,100 @@ class TestCursor:
         pytest.raises(ProgrammingError, cursor.fetchmany)
         pytest.raises(ProgrammingError, cursor.fetchone)
 
+    def test_iceberg_table(self, cursor):
+        iceberg_table = "test_iceberg_table_cursor"
+        cursor.execute(
+            f"""
+            CREATE TABLE {ENV.schema}.{iceberg_table} (
+              id INT,
+              col1 STRING
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{iceberg_table}/'
+            tblproperties('table_type'='ICEBERG')
+            """
+        )
+        cursor.execute(
+            f"""
+            INSERT INTO {ENV.schema}.{iceberg_table} (id, col1)
+            VALUES (1, 'test1'), (2, 'test2')
+            """
+        )
+        cursor.execute(
+            f"""
+            SELECT COUNT(*) FROM {ENV.schema}.{iceberg_table}
+            """
+        )
+        assert cursor.fetchall() == [(2,)]
+
+        cursor.execute(
+            f"""
+            UPDATE {ENV.schema}.{iceberg_table}
+            SET col1 = 'test1_update'
+            WHERE id = 1
+            """
+        )
+        cursor.execute(
+            f"""
+            SELECT col1
+            FROM {ENV.schema}.{iceberg_table}
+            WHERE id = 1
+            """
+        )
+        assert cursor.fetchall() == [("test1_update",)]
+
+        cursor.execute(
+            f"""
+            CREATE TABLE {ENV.schema}.{iceberg_table}_merge (
+              id INT,
+              col1 STRING
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{iceberg_table}_merge/'
+            tblproperties('table_type'='ICEBERG')
+            """
+        )
+        cursor.execute(
+            f"""
+            INSERT INTO {ENV.schema}.{iceberg_table}_merge (id, col1)
+            VALUES (1, 'foobar')
+            """
+        )
+        cursor.execute(
+            f"""
+            MERGE INTO {ENV.schema}.{iceberg_table} AS t1
+            USING {ENV.schema}.{iceberg_table}_merge AS t2
+              ON t1.id = t2.id
+            WHEN MATCHED
+              THEN UPDATE SET col1 = t2.col1
+            """
+        )
+        cursor.execute(
+            f"""
+            SELECT col1
+            FROM {ENV.schema}.{iceberg_table}
+            WHERE id = 1
+            """
+        )
+        assert cursor.fetchall() == [("foobar",)]
+
+        cursor.execute(
+            f"""
+            VACUUM {ENV.schema}.{iceberg_table}
+            """
+        )
+
+        cursor.execute(
+            f"""
+            DELETE FROM {ENV.schema}.{iceberg_table}
+            WHERE id = 2
+            """
+        )
+        cursor.execute(
+            f"""
+            SELECT COUNT(*) FROM {ENV.schema}.{iceberg_table}
+            """
+        )
+        assert cursor.fetchall() == [(1,)]
+
 
 class TestDictCursor:
     def test_fetchone(self, dict_cursor):
