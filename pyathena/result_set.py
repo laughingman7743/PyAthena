@@ -91,6 +91,12 @@ class AthenaResultSet(CursorIterator):
         return self._query_execution.statement_type
 
     @property
+    def substatement_type(self) -> Optional[str]:
+        if not self._query_execution:
+            return None
+        return self._query_execution.substatement_type
+
+    @property
     def work_group(self) -> Optional[str]:
         if not self._query_execution:
             return None
@@ -550,6 +556,13 @@ class WithResultSet:
             return None
         result_set = cast(AthenaResultSet, self.result_set)
         return result_set.statement_type
+
+    @property
+    def substatement_type(self) -> Optional[str]:
+        if not self.has_result_set:
+            return None
+        result_set = cast(AthenaResultSet, self.result_set)
+        return result_set.substatement_type
 
     @property
     def work_group(self) -> Optional[str]:
