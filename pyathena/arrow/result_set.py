@@ -198,6 +198,13 @@ class AthenaArrowResultSet(AthenaResultSet):
             raise ProgrammingError("OutputLocation is none or empty.")
         if not self.output_location.endswith((".csv", ".txt")):
             return pa.Table.from_pydict(dict())
+        if self.substatement_type and self.substatement_type.upper() in (
+            "UPDATE",
+            "DELETE",
+            "MERGE",
+            "VACUUM_TABLE",
+        ):
+            return pa.Table.from_pydict(dict())
         length = self._get_content_length()
         if length and self.output_location.endswith(".txt"):
             description = self.description if self.description else []
