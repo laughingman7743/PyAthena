@@ -536,3 +536,97 @@ class TestArrowCursor:
         pytest.raises(ProgrammingError, arrow_cursor.fetchmany)
         pytest.raises(ProgrammingError, arrow_cursor.fetchone)
         pytest.raises(ProgrammingError, arrow_cursor.as_arrow)
+
+    def test_iceberg_table(self, arrow_cursor):
+        iceberg_table = "test_iceberg_table_arrow_cursor"
+        arrow_cursor.execute(
+            f"""
+            CREATE TABLE {ENV.schema}.{iceberg_table} (
+              id INT,
+              col1 STRING
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{iceberg_table}/'
+            tblproperties('table_type'='ICEBERG')
+            """
+        )
+        arrow_cursor.execute(
+            f"""
+            INSERT INTO {ENV.schema}.{iceberg_table} (id, col1)
+            VALUES (1, 'test1'), (2, 'test2')
+            """
+        )
+        arrow_cursor.execute(
+            f"""
+            SELECT COUNT(*) FROM {ENV.schema}.{iceberg_table}
+            """
+        )
+        assert arrow_cursor.fetchall() == [(2,)]
+
+        arrow_cursor.execute(
+            f"""
+            UPDATE {ENV.schema}.{iceberg_table}
+            SET col1 = 'test1_update'
+            WHERE id = 1
+            """
+        )
+        arrow_cursor.execute(
+            f"""
+            SELECT col1
+            FROM {ENV.schema}.{iceberg_table}
+            WHERE id = 1
+            """
+        )
+        assert arrow_cursor.fetchall() == [("test1_update",)]
+
+        arrow_cursor.execute(
+            f"""
+            CREATE TABLE {ENV.schema}.{iceberg_table}_merge (
+              id INT,
+              col1 STRING
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{iceberg_table}_merge/'
+            tblproperties('table_type'='ICEBERG')
+            """
+        )
+        arrow_cursor.execute(
+            f"""
+            INSERT INTO {ENV.schema}.{iceberg_table}_merge (id, col1)
+            VALUES (1, 'foobar')
+            """
+        )
+        arrow_cursor.execute(
+            f"""
+            MERGE INTO {ENV.schema}.{iceberg_table} AS t1
+            USING {ENV.schema}.{iceberg_table}_merge AS t2
+              ON t1.id = t2.id
+            WHEN MATCHED
+              THEN UPDATE SET col1 = t2.col1
+            """
+        )
+        arrow_cursor.execute(
+            f"""
+            SELECT col1
+            FROM {ENV.schema}.{iceberg_table}
+            WHERE id = 1
+            """
+        )
+        assert arrow_cursor.fetchall() == [("foobar",)]
+
+        arrow_cursor.execute(
+            f"""
+            VACUUM {ENV.schema}.{iceberg_table}
+            """
+        )
+
+        arrow_cursor.execute(
+            f"""
+            DELETE FROM {ENV.schema}.{iceberg_table}
+            WHERE id = 2
+            """
+        )
+        arrow_cursor.execute(
+            f"""
+            SELECT COUNT(*) FROM {ENV.schema}.{iceberg_table}
+            """
+        )
+        assert arrow_cursor.fetchall() == [(1,)]

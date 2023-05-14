@@ -46,6 +46,7 @@ class AthenaQueryExecution:
         if not self._query:
             raise DataError("KeyError `Query`")
         self._statement_type: Optional[str] = query_execution.get("StatementType", None)
+        self._substatement_type: Optional[str] = query_execution.get("SubstatementType", None)
         self._work_group: Optional[str] = query_execution.get("WorkGroup", None)
         self._execution_parameters: List[str] = query_execution.get("ExecutionParameters", [])
 
@@ -124,6 +125,10 @@ class AthenaQueryExecution:
     @property
     def statement_type(self) -> Optional[str]:
         return self._statement_type
+
+    @property
+    def substatement_type(self) -> Optional[str]:
+        return self._substatement_type
 
     @property
     def work_group(self) -> Optional[str]:

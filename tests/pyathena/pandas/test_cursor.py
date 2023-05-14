@@ -1210,3 +1210,97 @@ class TestPandasCursor:
             assert rows == [(True,)]
         else:
             assert pandas_cursor.fetchall() == [(None,)]
+
+    def test_iceberg_table(self, pandas_cursor):
+        iceberg_table = "test_iceberg_table_pandas_cursor"
+        pandas_cursor.execute(
+            f"""
+            CREATE TABLE {ENV.schema}.{iceberg_table} (
+              id INT,
+              col1 STRING
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{iceberg_table}/'
+            tblproperties('table_type'='ICEBERG')
+            """
+        )
+        pandas_cursor.execute(
+            f"""
+            INSERT INTO {ENV.schema}.{iceberg_table} (id, col1)
+            VALUES (1, 'test1'), (2, 'test2')
+            """
+        )
+        pandas_cursor.execute(
+            f"""
+            SELECT COUNT(*) FROM {ENV.schema}.{iceberg_table}
+            """
+        )
+        assert pandas_cursor.fetchall() == [(2,)]
+
+        pandas_cursor.execute(
+            f"""
+            UPDATE {ENV.schema}.{iceberg_table}
+            SET col1 = 'test1_update'
+            WHERE id = 1
+            """
+        )
+        pandas_cursor.execute(
+            f"""
+            SELECT col1
+            FROM {ENV.schema}.{iceberg_table}
+            WHERE id = 1
+            """
+        )
+        assert pandas_cursor.fetchall() == [("test1_update",)]
+
+        pandas_cursor.execute(
+            f"""
+            CREATE TABLE {ENV.schema}.{iceberg_table}_merge (
+              id INT,
+              col1 STRING
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{iceberg_table}_merge/'
+            tblproperties('table_type'='ICEBERG')
+            """
+        )
+        pandas_cursor.execute(
+            f"""
+            INSERT INTO {ENV.schema}.{iceberg_table}_merge (id, col1)
+            VALUES (1, 'foobar')
+            """
+        )
+        pandas_cursor.execute(
+            f"""
+            MERGE INTO {ENV.schema}.{iceberg_table} AS t1
+            USING {ENV.schema}.{iceberg_table}_merge AS t2
+              ON t1.id = t2.id
+            WHEN MATCHED
+              THEN UPDATE SET col1 = t2.col1
+            """
+        )
+        pandas_cursor.execute(
+            f"""
+            SELECT col1
+            FROM {ENV.schema}.{iceberg_table}
+            WHERE id = 1
+            """
+        )
+        assert pandas_cursor.fetchall() == [("foobar",)]
+
+        pandas_cursor.execute(
+            f"""
+            VACUUM {ENV.schema}.{iceberg_table}
+            """
+        )
+
+        pandas_cursor.execute(
+            f"""
+            DELETE FROM {ENV.schema}.{iceberg_table}
+            WHERE id = 2
+            """
+        )
+        pandas_cursor.execute(
+            f"""
+            SELECT COUNT(*) FROM {ENV.schema}.{iceberg_table}
+            """
+        )
+        assert pandas_cursor.fetchall() == [(1,)]

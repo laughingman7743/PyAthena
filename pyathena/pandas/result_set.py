@@ -257,6 +257,13 @@ class AthenaPandasResultSet(AthenaResultSet):
             raise ProgrammingError("OutputLocation is none or empty.")
         if not self.output_location.endswith((".csv", ".txt")):
             return pd.DataFrame()
+        if self.substatement_type and self.substatement_type.upper() in (
+            "UPDATE",
+            "DELETE",
+            "MERGE",
+            "VACUUM_TABLE",
+        ):
+            return pd.DataFrame()
         length = self._get_content_length()
         if length and self.output_location.endswith(".txt"):
             sep = "\t"
