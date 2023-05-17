@@ -21,6 +21,7 @@ from tests.pyathena.conftest import connect
 class TestCursor:
     def test_fetchone(self, cursor):
         cursor.execute("SELECT * FROM one_row")
+        assert cursor.rowcount == -1
         assert cursor.rownumber == 0
         assert cursor.fetchone() == (1,)
         assert cursor.rownumber == 1
@@ -382,6 +383,7 @@ class TestCursor:
     def test_query_execution_initial(self, cursor):
         assert not cursor.has_result_set
         assert cursor.rownumber is None
+        assert cursor.rowcount == -1
         assert cursor.database is None
         assert cursor.catalog is None
         assert cursor.query_id is None
@@ -577,6 +579,8 @@ class TestCursor:
             "INSERT INTO execute_many (a, b) VALUES (%(a)d, %(b)s)",
             [{"a": a, "b": b} for a, b in rows],
         )
+        # rowcount is not supported for executemany
+        assert cursor.rowcount == -1
         cursor.execute("SELECT * FROM execute_many")
         assert sorted(cursor.fetchall()) == [(a, b) for a, b in rows]
 
@@ -605,12 +609,14 @@ class TestCursor:
             VALUES (1, 'test1'), (2, 'test2')
             """
         )
+        assert cursor.rowcount == 2
         cursor.execute(
             f"""
             SELECT COUNT(*) FROM {ENV.schema}.{iceberg_table}
             """
         )
         assert cursor.fetchall() == [(2,)]
+        assert cursor.rowcount == -1
 
         cursor.execute(
             f"""
@@ -619,6 +625,7 @@ class TestCursor:
             WHERE id = 1
             """
         )
+        assert cursor.rowcount == 1
         cursor.execute(
             f"""
             SELECT col1
@@ -630,20 +637,16 @@ class TestCursor:
 
         cursor.execute(
             f"""
-            CREATE TABLE {ENV.schema}.{iceberg_table}_merge (
-              id INT,
-              col1 STRING
+            CREATE TABLE {ENV.schema}.{iceberg_table}_merge
+            WITH (
+              table_type = 'ICEBERG',
+              location = '{ENV.s3_staging_dir}{ENV.schema}/{iceberg_table}_merge/',
+              is_external = false
             )
-            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{iceberg_table}_merge/'
-            tblproperties('table_type'='ICEBERG')
+            AS SELECT 1 AS id, 'foobar' AS col1
             """
         )
-        cursor.execute(
-            f"""
-            INSERT INTO {ENV.schema}.{iceberg_table}_merge (id, col1)
-            VALUES (1, 'foobar')
-            """
-        )
+        assert cursor.rowcount == 1
         cursor.execute(
             f"""
             MERGE INTO {ENV.schema}.{iceberg_table} AS t1
@@ -653,6 +656,7 @@ class TestCursor:
               THEN UPDATE SET col1 = t2.col1
             """
         )
+        assert cursor.rowcount == 1
         cursor.execute(
             f"""
             SELECT col1
@@ -674,6 +678,7 @@ class TestCursor:
             WHERE id = 2
             """
         )
+        assert cursor.rowcount == 1
         cursor.execute(
             f"""
             SELECT COUNT(*) FROM {ENV.schema}.{iceberg_table}

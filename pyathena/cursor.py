@@ -78,6 +78,10 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
     def rownumber(self) -> Optional[int]:
         return self.result_set.rownumber if self.result_set else None
 
+    @property
+    def rowcount(self) -> int:
+        return self.result_set.rowcount if self.result_set else -1
+
     def close(self) -> None:
         if self.result_set and not self.result_set.is_closed:
             self.result_set.close()
