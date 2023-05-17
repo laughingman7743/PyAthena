@@ -318,6 +318,7 @@ class AthenaResultSet(CursorIterator):
     def _pre_fetch(self) -> None:
         response = self.__fetch()
         self._process_metadata(response)
+        self._process_update_count(response)
         self._process_rows(response)
 
     def fetchone(
@@ -370,6 +371,22 @@ class AthenaResultSet(CursorIterator):
         if column_info is None:
             raise DataError("KeyError `ColumnInfo`")
         self._metadata = tuple(column_info)
+
+    def _process_update_count(self, response: Dict[str, Any]) -> None:
+        update_count = response.get("UpdateCount", None)
+        if (
+            update_count is not None
+            and self.substatement_type
+            and self.substatement_type.upper()
+            in (
+                "INSERT",
+                "UPDATE",
+                "DELETE",
+                "MERGE",
+                "CREATE_TABLE_AS_SELECT",
+            )
+        ):
+            self._rowcount = update_count
 
     def _get_rows(
         self, offset: int, metadata: Tuple[Any, ...], rows: List[Dict[str, Any]]
@@ -455,6 +472,7 @@ class AthenaResultSet(CursorIterator):
         self._rows.clear()
         self._next_token = None
         self._rownumber = None
+        self._rowcount = -1
 
     def __enter__(self):
         return self

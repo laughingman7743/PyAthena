@@ -31,6 +31,7 @@ class CursorIterator(metaclass=ABCMeta):
         super(CursorIterator, self).__init__()
         self.arraysize: int = kwargs.get("arraysize", self.DEFAULT_FETCH_SIZE)
         self._rownumber: Optional[int] = None
+        self._rowcount: int = -1  # By default, return -1 to indicate that this is not supported.
 
     @property
     def arraysize(self) -> int:
@@ -50,8 +51,7 @@ class CursorIterator(metaclass=ABCMeta):
 
     @property
     def rowcount(self) -> int:
-        """By default, return -1 to indicate that this is not supported."""
-        return -1
+        return self._rowcount
 
     @abstractmethod
     def fetchone(self):
