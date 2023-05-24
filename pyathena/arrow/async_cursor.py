@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import logging
 from concurrent.futures import Future
 from multiprocessing import cpu_count
