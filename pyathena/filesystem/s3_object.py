@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
