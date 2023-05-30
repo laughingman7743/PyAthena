@@ -919,7 +919,7 @@ class AthenaDialect(DefaultDialect):
     @classmethod
     def import_dbapi(cls) -> "ModuleType":
         return pyathena
-    
+
     @classmethod
     def dbapi(cls) -> "ModuleType":
         return pyathena
