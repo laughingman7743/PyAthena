@@ -504,6 +504,10 @@ class AthenaTypeCompiler(GenericTypeCompiler):
     def visit_BOOLEAN(self, type_: Type[Any], **kw) -> str:
         return "BOOLEAN"
 
+    def visit_ARRAY(self, type_, **kw):
+        # TODO: Handle visit of item type
+        return f"ARRAY<{self.process(type_.item_type)}>"
+
     def visit_string(self, type_, **kw):
         return "STRING"
 
