@@ -20,7 +20,7 @@ from typing import (
 )
 
 import botocore
-from sqlalchemy import exc, schema, types, util
+from sqlalchemy import Column, exc, schema, types, util
 from sqlalchemy.engine import Engine, reflection
 from sqlalchemy.engine.default import DefaultDialect
 from sqlalchemy.exc import NoSuchTableError
@@ -31,6 +31,7 @@ from sqlalchemy.sql.compiler import (
     IdentifierPreparer,
     SQLCompiler,
 )
+from sqlalchemy.sql.elements import DQLDMLClauseElement
 
 import pyathena
 from pyathena.model import AthenaFileFormat, AthenaRowFormatSerde
@@ -45,7 +46,6 @@ if TYPE_CHECKING:
         Cast,
         CheckConstraint,
         ClauseElement,
-        Column,
         Connection,
         Dialect,
         ExecutableDDLElement,
@@ -430,7 +430,11 @@ class AthenaStatementCompiler(SQLCompiler):
 
 class AthenaTypeCompiler(GenericTypeCompiler):
     def visit_FLOAT(self, type_: Type[Any], **kw) -> str:
-        return self.visit_REAL(type_, **kw)
+        type_expression = kw.get("type_expression", None)
+        if isinstance(type_expression, DQLDMLClauseElement) or isinstance(type_expression, Column):
+            return self.visit_REAL(type_, **kw)
+
+        return "FLOAT"
 
     def visit_REAL(self, type_: Type[Any], **kw) -> str:
         return "DOUBLE"
