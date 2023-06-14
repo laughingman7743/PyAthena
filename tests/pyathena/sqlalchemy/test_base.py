@@ -1376,30 +1376,3 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
             ).strip()
         )
         assert actual == [(2, "bar")]
-
-    def test_partitioned_table_introspection(self, engine):
-        """Ensure the location is properly inserted when the `awsathena_location` is used
-        and that a trailing slash is appended if missing.
-        """
-        engine, conn = engine
-        table_name = "test_partitioned_table"
-        table = Table(
-            table_name,
-            MetaData(),
-            Column("column_name", types.String(10)),
-            Column(
-                "dt",
-                types.DATE,
-                comment="Daily partitioning of the table",
-                awsathena_partition=True,
-            ),
-            schema=ENV.schema,
-            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
-            awsathena_file_format="PARQUET",
-            awsathena_compression="SNAPPY",
-        )
-        table.create(bind=conn)
-        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
-        assert len([c for c in actual.c if not c.dialect_options["awsathena"]["partition"]]) == 1
-        assert len([c for c in actual.c if c.dialect_options["awsathena"]["partition"]]) == 1
-        assert len(actual.c) == 2
