@@ -2,6 +2,7 @@
 import re
 import textwrap
 import uuid
+from collections import OrderedDict
 from datetime import date, datetime
 from decimal import Decimal
 from urllib.parse import quote_plus
@@ -17,6 +18,7 @@ from sqlalchemy.sql.ddl import CreateTable
 from sqlalchemy.sql.schema import Column, MetaData, Table
 from sqlalchemy.sql.selectable import TextualSelect
 
+from pyathena import sqlalchemy as pysqlalchemy
 from tests.pyathena.conftest import ENV
 
 
@@ -271,9 +273,14 @@ class TestSQLAlchemyAthena:
         assert isinstance(one_row_complex.c.col_timestamp.type, types.TIMESTAMP)
         assert isinstance(one_row_complex.c.col_date.type, types.DATE)
         assert isinstance(one_row_complex.c.col_binary.type, types.BINARY)
-        assert isinstance(one_row_complex.c.col_array.type, types.String)
+        assert isinstance(one_row_complex.c.col_array.type, types.ARRAY)
+        assert isinstance(one_row_complex.c.col_array.type.item_type, types.INTEGER)
         assert isinstance(one_row_complex.c.col_map.type, types.String)
-        assert isinstance(one_row_complex.c.col_struct.type, types.String)
+        assert isinstance(one_row_complex.c.col_struct.type, pysqlalchemy.types.STRUCT)
+        assert one_row_complex.c.col_struct.type._struct_fields[0][0] == "a"
+        assert isinstance(one_row_complex.c.col_struct.type._struct_fields[0][1], types.INTEGER)
+        assert one_row_complex.c.col_struct.type._struct_fields[1][0] == "b"
+        assert isinstance(one_row_complex.c.col_struct.type._struct_fields[1][1], types.INTEGER)
         assert isinstance(
             one_row_complex.c.col_decimal.type,
             types.DECIMAL,
@@ -316,9 +323,17 @@ class TestSQLAlchemyAthena:
         assert isinstance(dialect._get_column_type("timestamp"), types.TIMESTAMP)
         assert isinstance(dialect._get_column_type("date"), types.DATE)
         assert isinstance(dialect._get_column_type("binary"), types.BINARY)
-        assert isinstance(dialect._get_column_type("array<integer>"), types.String)
+        array_col_type = dialect._get_column_type("array<boolean>")
+        assert isinstance(array_col_type, types.ARRAY)
+        assert isinstance(array_col_type.item_type, types.BOOLEAN)
         assert isinstance(dialect._get_column_type("map<int, int>"), types.String)
-        assert isinstance(dialect._get_column_type("struct<a: int, b: int>"), types.String)
+        struct_col_type = dialect._get_column_type("struct<a: int, b: varchar>")
+        assert isinstance(struct_col_type, pysqlalchemy.types.STRUCT)
+        struct_fields = struct_col_type._struct_fields
+        assert struct_fields[0][0] == "a"
+        assert isinstance(struct_fields[0][1], types.INTEGER)
+        assert struct_fields[1][0] == "b"
+        assert isinstance(struct_fields[1][1], types.VARCHAR)
         decimal_with_args = dialect._get_column_type("decimal(10,1)")
         assert isinstance(decimal_with_args, types.DECIMAL)
         assert decimal_with_args.precision == 10
@@ -1040,17 +1055,17 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             dialect_opts["serdeproperties"]["avro.schema.literal"].replace("\n", "")
             == textwrap.dedent(
                 """
-                {
-                 "type" : "record",
-                 "name" : "test_create_table_avro",
-                 "namespace" : "default",
-                 "fields" : [ {
-                 "name" : "col",
-                 "type" : [ "null", "string" ],
-                 "default" : null
-                 } ]
-                }
-                """
+            {
+             "type" : "record",
+             "name" : "test_create_table_avro",
+             "namespace" : "default",
+             "fields" : [ {
+             "name" : "col",
+             "type" : [ "null", "string" ],
+             "default" : null
+             } ]
+            }
+            """
             ).replace("\n", "")
         )
         assert dialect_opts["tblproperties"] is not None
@@ -1191,6 +1206,188 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         assert isinstance(actual.c.col_text.type, types.String)
         assert not isinstance(actual.c.col_text.type, types.VARCHAR)
         assert actual.c.col_text.type.length is None
+
+    def test_struct_create(self, engine):
+        engine, conn = engine
+        table_name = "test_struct_create"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column(
+                "col_struct",
+                pysqlalchemy.types.STRUCT(
+                    name=types.VARCHAR,
+                    age=types.INTEGER,
+                    owner=types.BOOLEAN,
+                    pets_list=types.ARRAY(types.VARCHAR),
+                    address=pysqlalchemy.types.STRUCT(
+                        number=types.INTEGER,
+                        road=types.VARCHAR,
+                        country=types.VARCHAR,
+                    ),
+                    children=types.ARRAY(
+                        pysqlalchemy.types.STRUCT(
+                            name=types.VARCHAR,
+                            at_school=types.BOOLEAN,
+                        )
+                    ),
+                    married=types.BOOLEAN,
+                ),
+            ),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+        )
+        ddl = CreateTable(table).compile(bind=conn)
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
+            \tcol_struct STRUCT<name: STRING, age: INTEGER, owner: BOOLEAN, pets_list: ARRAY<STRING>, address: STRUCT<number: INTEGER, road: STRING, country: STRING>, children: ARRAY<STRUCT<name: STRING, at_school: BOOLEAN>>, married: BOOLEAN>
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            """  # noqa: E501
+        )
+        assert isinstance(actual.c.col_struct.type, pysqlalchemy.types.STRUCT)
+
+        assert isinstance(actual.c.col_struct.type._struct_fields[0][1], types.String)
+        assert actual.c.col_struct.type._struct_fields[0][0] == "name"
+
+        assert isinstance(actual.c.col_struct.type._struct_fields[1][1], types.INTEGER)
+        assert actual.c.col_struct.type._struct_fields[1][0] == "age"
+
+        assert isinstance(actual.c.col_struct.type._struct_fields[2][1], types.BOOLEAN)
+        assert actual.c.col_struct.type._struct_fields[2][0] == "owner"
+
+        assert isinstance(actual.c.col_struct.type._struct_fields[3][1], types.ARRAY)
+        assert isinstance(actual.c.col_struct.type._struct_fields[3][1].item_type, types.String)
+        assert actual.c.col_struct.type._struct_fields[3][0] == "pets_list"
+
+        assert isinstance(actual.c.col_struct.type._struct_fields[4][1], pysqlalchemy.types.STRUCT)
+        assert isinstance(
+            actual.c.col_struct.type._struct_fields[4][1]._struct_fields[0][1], types.INTEGER
+        )
+        assert actual.c.col_struct.type._struct_fields[4][1]._struct_fields[0][0] == "number"
+        assert isinstance(
+            actual.c.col_struct.type._struct_fields[4][1]._struct_fields[1][1], types.String
+        )
+        assert actual.c.col_struct.type._struct_fields[4][1]._struct_fields[1][0] == "road"
+        assert isinstance(
+            actual.c.col_struct.type._struct_fields[4][1]._struct_fields[2][1], types.String
+        )
+        assert actual.c.col_struct.type._struct_fields[4][1]._struct_fields[2][0] == "country"
+        assert actual.c.col_struct.type._struct_fields[4][0] == "address"
+
+        assert isinstance(actual.c.col_struct.type._struct_fields[5][1], types.ARRAY)
+        assert isinstance(
+            actual.c.col_struct.type._struct_fields[5][1].item_type, pysqlalchemy.types.STRUCT
+        )
+        assert isinstance(
+            actual.c.col_struct.type._struct_fields[5][1].item_type._struct_fields[0][1],
+            types.String,
+        )
+        assert (
+            actual.c.col_struct.type._struct_fields[5][1].item_type._struct_fields[0][0] == "name"
+        )
+        assert isinstance(
+            actual.c.col_struct.type._struct_fields[5][1].item_type._struct_fields[1][1],
+            types.BOOLEAN,
+        )
+        assert (
+            actual.c.col_struct.type._struct_fields[5][1].item_type._struct_fields[1][0]
+            == "at_school"
+        )
+        assert actual.c.col_struct.type._struct_fields[5][0] == "children"
+
+        assert isinstance(actual.c.col_struct.type._struct_fields[6][1], types.BOOLEAN)
+        assert actual.c.col_struct.type._struct_fields[6][0] == "married"
+
+    def test_struct_select(self, engine):
+        engine, conn = engine
+        table_name = "test_struct_select"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column(
+                "col_struct",
+                pysqlalchemy.types.STRUCT(
+                    name=types.VARCHAR,
+                    age=types.INTEGER,
+                    owner=types.BOOLEAN,
+                    pets_list=types.ARRAY(types.VARCHAR),
+                    address=pysqlalchemy.types.STRUCT(
+                        number=types.INTEGER,
+                        road=types.VARCHAR,
+                        country=types.VARCHAR,
+                    ),
+                    children=types.ARRAY(
+                        pysqlalchemy.types.STRUCT(
+                            name=types.VARCHAR,
+                            at_school=types.BOOLEAN,
+                        )
+                    ),
+                    married=types.BOOLEAN,
+                ),
+            ),
+            Column("col_int", types.INTEGER),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+        )
+        table.create(bind=conn)
+        conn.execute(
+            table.insert().values(
+                col_struct=OrderedDict(
+                    name="Bob",
+                    age=45,
+                    owner=True,
+                    pets_list=["Golden"],
+                    address=OrderedDict(
+                        number=12,
+                        road="Road St",
+                        country="France",
+                    ),
+                    children=[
+                        OrderedDict(
+                            name="Alice",
+                            at_school=False,
+                        )
+                    ],
+                    married=False,
+                ),
+                col_int=1,
+            )
+        )
+        rows = conn.execute(
+            sqlalchemy.select(
+                table.c.col_struct.NAME,
+                table.c.col_struct.address.number,
+                # Array indices in Athena starts at 1
+                table.c.col_struct.children[1].at_school,
+            )
+        ).fetchall()
+        assert rows == [
+            (
+                "Bob",
+                12,
+                False,
+            )
+        ]
+
+        rows = conn.execute(
+            sqlalchemy.select(
+                table.c.col_struct.NAME,
+            ).where(
+                # Array indices in Athena starts at 1
+                table.c.col_struct.children[1].NAME
+                == "Alice"
+            )
+        ).fetchall()
+        assert rows == [("Bob",)]
+
+        rows = conn.execute(
+            sqlalchemy.select(
+                table.c.col_struct.address.road,
+            ).where(table.c.col_struct.age >= 40)
+        ).fetchall()
+        assert rows == [("Road St",)]
 
     def test_cast_as_varchar(self, engine):
         engine, conn = engine

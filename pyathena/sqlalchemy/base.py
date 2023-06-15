@@ -35,7 +35,7 @@ from sqlalchemy.sql.elements import DQLDMLClauseElement
 
 import pyathena
 from pyathena.model import AthenaFileFormat, AthenaRowFormatSerde
-from pyathena.sqlalchemy.types import AthenaDate, AthenaTimestamp
+from pyathena.sqlalchemy.types import STRUCT, AthenaDate, AthenaTimestamp
 from pyathena.sqlalchemy.util import _HashableDict
 
 if TYPE_CHECKING:
@@ -367,10 +367,10 @@ ischema_names: Dict[str, Type[Any]] = {
     "timestamp": types.TIMESTAMP,
     "binary": types.BINARY,
     "varbinary": types.BINARY,
-    "array": types.String,
+    "array": types.ARRAY,
     "map": types.String,
-    "struct": types.String,
-    "row": types.String,
+    "struct": STRUCT,
+    "row": STRUCT,
     "json": types.String,
 }
 
@@ -403,6 +403,15 @@ class AthenaDDLIdentifierPreparer(IdentifierPreparer):
 
 
 class AthenaStatementCompiler(SQLCompiler):
+    def visit_struct_getitem_op_binary(self, binary, operator_, **kw):
+        left = self.process(binary.left, **kw)
+        return f"{left}.{binary.right.value}"
+
+    def visit_getitem_binary(self, binary, operator_, **kw):
+        left = self.process(binary.left, **kw)
+        right = self.process(binary.right, **kw)
+        return f"{left}[{right}]"
+
     def visit_char_length_func(self, fn: "FunctionElement[Any]", **kw):
         return f"length{self.function_argspec(fn, **kw)}"
 
@@ -1094,10 +1103,10 @@ class AthenaDialect(DefaultDialect):
         match = self._pattern_column_type.match(type_)
         if match:
             name = match.group(1).lower()
-            length = match.group(2)
+            column_type_args = match.group(2)
         else:
             name = type_.lower()
-            length = None
+            column_type_args = None
 
         if name in self.ischema_names:
             col_type = self.ischema_names[name]
@@ -1105,15 +1114,61 @@ class AthenaDialect(DefaultDialect):
             util.warn(f"Did not recognize type '{type_}'")
             col_type = types.NullType
 
-        args = []
-        if length:
+        args: List[Any] = []
+        if column_type_args:
             if col_type is types.DECIMAL:
-                precision, scale = length.split(",")
+                precision, scale = column_type_args.split(",")
                 args = [int(precision), int(scale)]
             elif col_type is types.CHAR or col_type is types.VARCHAR:
-                args = [int(length)]
+                args = [int(column_type_args)]
+            elif col_type is types.ARRAY:
+                args = [self._get_column_type(column_type_args.strip())]
+            elif col_type is STRUCT:
+                args = self._parse_struct(column_type_args)
 
         return col_type(*args)
+
+    def _parse_struct(self, inner_struct: str) -> List[Tuple[str, Type[Any]]]:
+        start_idx, end_idx, struct_lvl = 0, 0, 0
+        struct_fields = []
+        while end_idx < len(inner_struct):
+            c = inner_struct[end_idx]
+            if c == ",":
+                if struct_lvl == 0:
+                    struct_fields.append(
+                        self._parse_struct_field_parts(inner_struct[start_idx:end_idx])
+                    )
+                    start_idx = end_idx + 1
+                    end_idx += 2
+                else:
+                    end_idx += 1
+            elif c == "<":
+                struct_lvl += 1
+                end_idx += 1
+            elif c == ">":
+                struct_lvl -= 1
+                if struct_lvl == 0:
+                    sub_struct_end_idx = end_idx + 1
+                    struct_fields.append(
+                        self._parse_struct_field_parts(inner_struct[start_idx:sub_struct_end_idx])
+                    )
+                    # After > we must have a comma
+                    start_idx = sub_struct_end_idx + 1
+                    end_idx += 3
+                else:
+                    end_idx += 1
+            else:
+                end_idx += 1
+        end_idx = end_idx + 1
+        if inner_struct[start_idx:end_idx]:
+            struct_fields.append(self._parse_struct_field_parts(inner_struct[start_idx:end_idx]))
+        return struct_fields
+
+    def _parse_struct_field_parts(self, struct_field_part: str) -> Tuple[str, Type[Any]]:
+        struct_field_parts = struct_field_part.strip().split(":")
+        struct_field_name = struct_field_parts.pop(0)
+        struct_field_type_str = ":".join(struct_field_parts).strip()
+        return struct_field_name, self._get_column_type(struct_field_type_str)
 
     def get_foreign_keys(
         self, connection: "Connection", table_name: str, schema: Optional[str] = None, **kw
@@ -1146,3 +1201,6 @@ class AthenaDialect(DefaultDialect):
     def _check_unicode_description(self, connection: "Connection") -> bool:
         # Requests gives back Unicode strings
         return True  # pragma: no cover
+
+
+dialect = AthenaDialect
