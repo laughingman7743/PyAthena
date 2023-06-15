@@ -25,6 +25,7 @@ def pytest_sessionstart(session):
             schema_name=ENV.schema,
             s3_staging_dir=ENV.s3_staging_dir,
             location=ENV.s3_staging_dir,
+            work_group=ENV.work_group,
         )
     ]
     sqlalchemy_pytest_sessionstart(session)

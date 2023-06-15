@@ -17,6 +17,7 @@ jobs:
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       AWS_ATHENA_S3_STAGING_DIR: ${{ secrets.AWS_ATHENA_S3_STAGING_DIR }}
       AWS_ATHENA_WORKGROUP: ${{ secrets.AWS_ATHENA_WORKGROUP }}
+      AWS_ATHENA_DEFAULT_WORKGROUP: ${{ secrets.AWS_ATHENA_DEFAULT_WORKGROUP }}
 
     strategy:
       fail-fast: false

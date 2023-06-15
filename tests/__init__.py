@@ -5,7 +5,7 @@ import string
 
 SQLALCHEMY_CONNECTION_STRING = (
     "awsathena+rest://athena.{region_name}.amazonaws.com:443/"
-    "{schema_name}?s3_staging_dir={s3_staging_dir}&location={location}"
+    "{schema_name}?s3_staging_dir={s3_staging_dir}&location={location}&work_group={work_group}"
 )
 
 

@@ -97,6 +97,7 @@ def create_engine(**kwargs):
             schema_name=ENV.schema,
             s3_staging_dir=ENV.s3_staging_dir,
             location=ENV.s3_staging_dir,
+            work_group=ENV.default_work_group,
             **kwargs,
         )
     )
