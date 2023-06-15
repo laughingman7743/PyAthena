@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import datetime
 from typing import TYPE_CHECKING, FrozenSet, Type
 
@@ -7,11 +9,12 @@ from pyathena.error import *  # noqa
 if TYPE_CHECKING:
     from pyathena.connection import Connection
 
-__version__: str = "2.4.1"
+__version__: str = "3.0.3"
+user_agent_extra: str = f"PyAthena/{__version__}"
 
 # Globals https://www.python.org/dev/peps/pep-0249/#globals
 apilevel: str = "2.0"
-threadsafety: int = 3
+threadsafety: int = 2
 paramstyle: str = "pyformat"
 
 

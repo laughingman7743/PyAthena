@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
 
 from pyathena.common import BaseCursor, CursorIterator
 from pyathena.converter import Converter
@@ -8,7 +10,7 @@ from pyathena.error import OperationalError, ProgrammingError
 from pyathena.formatter import Formatter
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaDictResultSet, AthenaResultSet, WithResultSet
-from pyathena.util import RetryConfig, synchronized
+from pyathena.util import RetryConfig
 
 if TYPE_CHECKING:
     from pyathena.connection import Connection
@@ -20,33 +22,37 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
     def __init__(
         self,
         connection: "Connection",
-        s3_staging_dir: str,
-        poll_interval: float,
-        encryption_option: str,
-        kms_key: str,
         converter: Converter,
         formatter: Formatter,
         retry_config: RetryConfig,
+        s3_staging_dir: Optional[str] = None,
         schema_name: Optional[str] = None,
         catalog_name: Optional[str] = None,
         work_group: Optional[str] = None,
+        poll_interval: float = 1,
+        encryption_option: Optional[str] = None,
+        kms_key: Optional[str] = None,
         kill_on_interrupt: bool = True,
-        **kwargs
+        result_reuse_enable: bool = False,
+        result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
+        **kwargs,
     ) -> None:
         super(Cursor, self).__init__(
             connection=connection,
-            s3_staging_dir=s3_staging_dir,
-            poll_interval=poll_interval,
-            encryption_option=encryption_option,
-            kms_key=kms_key,
             converter=converter,
             formatter=formatter,
             retry_config=retry_config,
+            s3_staging_dir=s3_staging_dir,
             schema_name=schema_name,
             catalog_name=catalog_name,
             work_group=work_group,
+            poll_interval=poll_interval,
+            encryption_option=encryption_option,
+            kms_key=kms_key,
             kill_on_interrupt=kill_on_interrupt,
-            **kwargs
+            result_reuse_enable=result_reuse_enable,
+            result_reuse_minutes=result_reuse_minutes,
+            **kwargs,
         )
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaResultSet] = None
@@ -72,11 +78,14 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
     def rownumber(self) -> Optional[int]:
         return self.result_set.rownumber if self.result_set else None
 
+    @property
+    def rowcount(self) -> int:
+        return self.result_set.rowcount if self.result_set else -1
+
     def close(self) -> None:
         if self.result_set and not self.result_set.is_closed:
             self.result_set.close()
 
-    @synchronized
     def execute(
         self,
         operation: str,
@@ -85,7 +94,9 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
-    ):
+        result_reuse_enable: Optional[bool] = None,
+        result_reuse_minutes: Optional[int] = None,
+    ) -> Cursor:
         self._reset_state()
         self.query_id = self._execute(
             operation,
@@ -94,6 +105,8 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
             s3_staging_dir=s3_staging_dir,
             cache_size=cache_size,
             cache_expiration_time=cache_expiration_time,
+            result_reuse_enable=result_reuse_enable,
+            result_reuse_minutes=result_reuse_minutes,
         )
         query_execution = self._poll(self.query_id)
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
@@ -110,34 +123,36 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
 
     def executemany(
         self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]]
-    ):
+    ) -> None:
         for parameters in seq_of_parameters:
             self.execute(operation, parameters)
         # Operations that have result sets are not allowed with executemany.
         self._reset_state()
 
-    @synchronized
     def cancel(self) -> None:
         if not self.query_id:
             raise ProgrammingError("QueryExecutionId is none or empty.")
         self._cancel(self.query_id)
 
-    @synchronized
-    def fetchone(self):
+    def fetchone(
+        self,
+    ) -> Optional[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaResultSet, self.result_set)
         return result_set.fetchone()
 
-    @synchronized
-    def fetchmany(self, size: int = None):
+    def fetchmany(
+        self, size: Optional[int] = None
+    ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaResultSet, self.result_set)
         return result_set.fetchmany(size)
 
-    @synchronized
-    def fetchall(self):
+    def fetchall(
+        self,
+    ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaResultSet, self.result_set)

@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import concurrent
 import logging
 import textwrap
@@ -35,7 +37,7 @@ if TYPE_CHECKING:
 _logger = logging.getLogger(__name__)  # type: ignore
 
 
-def get_chunks(df: "DataFrame", chunksize: int = None) -> Iterator["DataFrame"]:
+def get_chunks(df: "DataFrame", chunksize: Optional[int] = None) -> Iterator["DataFrame"]:
     rows = len(df)
     if rows == 0:
         return
@@ -68,9 +70,7 @@ def as_pandas(cursor: "Cursor", coerce_float: bool = False) -> "DataFrame":
     if not description:
         return DataFrame()
     names = [metadata[0] for metadata in description]
-    return DataFrame.from_records(
-        cursor.fetchall(), columns=names, coerce_float=coerce_float
-    )
+    return DataFrame.from_records(cursor.fetchall(), columns=names, coerce_float=coerce_float)
 
 
 def to_sql_type_mappings(col: "Series") -> str:
@@ -111,7 +111,7 @@ def to_parquet(
     retry_config: RetryConfig,
     session_kwargs: Dict[str, Any],
     client_kwargs: Dict[str, Any],
-    compression: str = None,
+    compression: Optional[str] = None,
     flavor: str = "spark",
 ) -> str:
     import pyarrow as pa
@@ -140,15 +140,13 @@ def to_sql(
     schema: str = "default",
     index: bool = False,
     index_label: Optional[str] = None,
-    partitions: List[str] = None,
+    partitions: Optional[List[str]] = None,
     chunksize: Optional[int] = None,
     if_exists: str = "fail",
-    compression: str = None,
+    compression: Optional[str] = None,
     flavor: str = "spark",
     type_mappings: Callable[["Series"], str] = to_sql_type_mappings,
-    executor_class: Type[
-        Union[ThreadPoolExecutor, ProcessPoolExecutor]
-    ] = ThreadPoolExecutor,
+    executor_class: Type[Union[ThreadPoolExecutor, ProcessPoolExecutor]] = ThreadPoolExecutor,
     max_workers: int = (cpu_count() or 1) * 5,
     repair_table=True,
 ) -> None:
@@ -207,14 +205,10 @@ def to_sql(
             for keys, group in df.groupby(by=partitions, observed=True):
                 keys = keys if isinstance(keys, tuple) else (keys,)
                 group = group.drop(partitions, axis=1)
-                partition_prefix = "/".join(
-                    [f"{key}={val}" for key, val in zip(partitions, keys)]
-                )
+                partition_prefix = "/".join([f"{key}={val}" for key, val in zip(partitions, keys)])
                 partition_prefixes.append(
                     (
-                        ", ".join(
-                            [f"`{key}` = '{val}'" for key, val in zip(partitions, keys)]
-                        ),
+                        ", ".join([f"`{key}` = '{val}'" for key, val in zip(partitions, keys)]),
                         f"{location}{partition_prefix}/",
                     )
                 )
@@ -267,21 +261,16 @@ def to_sql(
             add_partition = textwrap.dedent(
                 f"""
                 ALTER TABLE `{schema}`.`{name}`
-                ADD PARTITION ({partition[0]}) LOCATION '{partition[1]}'
+                ADD IF NOT EXISTS PARTITION ({partition[0]}) LOCATION '{partition[1]}'
                 """
             )
             _logger.info(add_partition)
             cursor.execute(add_partition)
 
 
-def get_column_names_and_types(
-    df: "DataFrame", type_mappings
-) -> "OrderedDict[str, str]":
+def get_column_names_and_types(df: "DataFrame", type_mappings) -> "OrderedDict[str, str]":
     return OrderedDict(
-        (
-            (str(df.columns[i]), type_mappings(df.iloc[:, i]))
-            for i in range(len(df.columns))
-        )
+        ((str(df.columns[i]), type_mappings(df.iloc[:, i])) for i in range(len(df.columns)))
     )
 
 

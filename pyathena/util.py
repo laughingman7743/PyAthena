@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-import functools
+from __future__ import annotations
+
 import logging
 import re
-import threading
-from typing import Any, Callable, Iterable, Pattern, Tuple
+from typing import Any, Callable, Iterable, Optional, Pattern, Tuple
 
 import tenacity
 from tenacity import after_log, retry_if_exception, stop_after_attempt, wait_exponential
@@ -25,21 +25,7 @@ def parse_output_location(output_location: str) -> Tuple[str, str]:
         raise DataError("Unknown `output_location` format.")
 
 
-def synchronized(wrapped: Callable[..., Any]) -> Any:
-    """The missing @synchronized decorator
-
-    https://git.io/vydTA"""
-    _lock = threading.RLock()
-
-    @functools.wraps(wrapped)
-    def _wrapper(*args, **kwargs):
-        with _lock:
-            return wrapped(*args, **kwargs)
-
-    return _wrapper
-
-
-class RetryConfig(object):
+class RetryConfig:
     def __init__(
         self,
         exceptions: Iterable[str] = (
@@ -61,9 +47,9 @@ class RetryConfig(object):
 def retry_api_call(
     func: Callable[..., Any],
     config: RetryConfig,
-    logger: logging.Logger = None,
+    logger: Optional[logging.Logger] = None,
     *args,
-    **kwargs
+    **kwargs,
 ) -> Any:
     retry = tenacity.Retrying(
         retry=retry_if_exception(

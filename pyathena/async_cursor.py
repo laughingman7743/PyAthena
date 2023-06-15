@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import logging
 from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -16,7 +18,6 @@ from pyathena.util import RetryConfig
 
 if TYPE_CHECKING:
     from pyathena.connection import Connection
-    from pyathena.pandas.result_set import AthenaPandasResultSet
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
@@ -25,34 +26,39 @@ class AsyncCursor(BaseCursor):
     def __init__(
         self,
         connection: "Connection",
-        s3_staging_dir: str,
-        poll_interval: float,
-        encryption_option: str,
-        kms_key: str,
         converter: Converter,
         formatter: Formatter,
         retry_config: RetryConfig,
+        s3_staging_dir: Optional[str] = None,
         schema_name: Optional[str] = None,
         catalog_name: Optional[str] = None,
         work_group: Optional[str] = None,
+        poll_interval: float = 1,
+        encryption_option: Optional[str] = None,
+        kms_key: Optional[str] = None,
+        kill_on_interrupt: bool = True,
         max_workers: int = (cpu_count() or 1) * 5,
         arraysize: int = CursorIterator.DEFAULT_FETCH_SIZE,
-        kill_on_interrupt: bool = True,
+        result_reuse_enable: bool = False,
+        result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
     ) -> None:
         super(AsyncCursor, self).__init__(
             connection=connection,
-            s3_staging_dir=s3_staging_dir,
-            poll_interval=poll_interval,
-            encryption_option=encryption_option,
-            kms_key=kms_key,
             converter=converter,
             formatter=formatter,
             retry_config=retry_config,
+            s3_staging_dir=s3_staging_dir,
             schema_name=schema_name,
             catalog_name=catalog_name,
             work_group=work_group,
+            poll_interval=poll_interval,
+            encryption_option=encryption_option,
+            kms_key=kms_key,
             kill_on_interrupt=kill_on_interrupt,
+            result_reuse_enable=result_reuse_enable,
+            result_reuse_minutes=result_reuse_minutes,
         )
+        self._max_workers = max_workers
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._arraysize = arraysize
         self._result_set_class = AthenaResultSet
@@ -65,9 +71,8 @@ class AsyncCursor(BaseCursor):
     def arraysize(self, value: int) -> None:
         if value <= 0 or value > CursorIterator.DEFAULT_FETCH_SIZE:
             raise ProgrammingError(
-                "MaxResults is more than maximum allowed length {0}.".format(
-                    CursorIterator.DEFAULT_FETCH_SIZE
-                )
+                "MaxResults is more than maximum allowed length "
+                f"{CursorIterator.DEFAULT_FETCH_SIZE}."
             )
         self._arraysize = value
 
@@ -76,39 +81,13 @@ class AsyncCursor(BaseCursor):
 
     def _description(
         self, query_id: str
-    ) -> Optional[
-        List[
-            Tuple[
-                Optional[Any],
-                Optional[Any],
-                None,
-                None,
-                Optional[Any],
-                Optional[Any],
-                Optional[Any],
-            ]
-        ]
-    ]:
+    ) -> Optional[List[Tuple[str, str, None, None, int, int, str]]]:
         result_set = self._collect_result_set(query_id)
         return result_set.description
 
     def description(
         self, query_id: str
-    ) -> "Future[\
-        Optional[\
-            List[\
-                Tuple[\
-                    Optional[Any],\
-                    Optional[Any],\
-                    None,\
-                    None,\
-                    Optional[Any],\
-                    Optional[Any],\
-                    Optional[Any],\
-                ]\
-            ]\
-        ]\
-    ]":
+    ) -> "Future[Optional[List[Tuple[str, str, None, None, int, int, str]]]]":
         return self._executor.submit(self._description, query_id)
 
     def query_execution(self, query_id: str) -> "Future[AthenaQueryExecution]":
@@ -135,7 +114,9 @@ class AsyncCursor(BaseCursor):
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
-    ) -> Tuple[str, "Future[Union[AthenaResultSet, AthenaPandasResultSet]]"]:
+        result_reuse_enable: Optional[bool] = None,
+        result_reuse_minutes: Optional[int] = None,
+    ) -> Tuple[str, "Future[Union[AthenaResultSet, Any]]"]:
         query_id = self._execute(
             operation,
             parameters=parameters,
@@ -143,12 +124,14 @@ class AsyncCursor(BaseCursor):
             s3_staging_dir=s3_staging_dir,
             cache_size=cache_size,
             cache_expiration_time=cache_expiration_time,
+            result_reuse_enable=result_reuse_enable,
+            result_reuse_minutes=result_reuse_minutes,
         )
         return query_id, self._executor.submit(self._collect_result_set, query_id)
 
     def executemany(
         self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]]
-    ):
+    ) -> None:
         raise NotSupportedError
 
     def cancel(self, query_id: str) -> "Future[None]":

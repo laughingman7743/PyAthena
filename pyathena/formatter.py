@@ -1,22 +1,26 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import logging
+import textwrap
+import uuid
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Callable, Dict, Optional, Type, TypeVar
+from typing import Any, Callable, Dict, Optional, Type
 
 from pyathena.error import ProgrammingError
+from pyathena.model import AthenaCompression, AthenaFileFormat
 
 _logger = logging.getLogger(__name__)  # type: ignore
-_T = TypeVar("_T", bound="Formatter")
 
 
-class Formatter(object, metaclass=ABCMeta):
+class Formatter(metaclass=ABCMeta):
     def __init__(
         self,
-        mappings: Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], Any]],
-        default: Callable[[_T, Callable[[str], str], Any], Any] = None,
+        mappings: Dict[Type[Any], Callable[[Formatter, Callable[[str], str], Any], Any]],
+        default: Optional[Callable[[Formatter, Callable[[str], str], Any], Any]] = None,
     ) -> None:
         self._mappings = mappings
         self._default = default
@@ -24,16 +28,16 @@ class Formatter(object, metaclass=ABCMeta):
     @property
     def mappings(
         self,
-    ) -> Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], Any]]:
+    ) -> Dict[Type[Any], Callable[[Formatter, Callable[[str], str], Any], Any]]:
         return self._mappings
 
-    def get(self, type_) -> Optional[Callable[[_T, Callable[[str], str], Any], Any]]:
+    def get(self, type_) -> Optional[Callable[[Formatter, Callable[[str], str], Any], Any]]:
         return self.mappings.get(type(type_), self._default)
 
     def set(
         self,
         type_: Type[Any],
-        formatter: Callable[[_T, Callable[[str], str], Any], Any],
+        formatter: Callable[[Formatter, Callable[[str], str], Any], Any],
     ) -> None:
         self.mappings[type_] = formatter
 
@@ -41,55 +45,75 @@ class Formatter(object, metaclass=ABCMeta):
         self.mappings.pop(type_, None)
 
     def update(
-        self, mappings: Dict[Type[Any], Callable[[_T, Callable[[str], str], Any], Any]]
+        self, mappings: Dict[Type[Any], Callable[[Formatter, Callable[[str], str], Any], Any]]
     ) -> None:
         self.mappings.update(mappings)
 
     @abstractmethod
-    def format(
-        self, operation: str, parameters: Optional[Dict[str, Any]] = None
-    ) -> str:
+    def format(self, operation: str, parameters: Optional[Dict[str, Any]] = None) -> str:
         raise NotImplementedError  # pragma: no cover
+
+    @staticmethod
+    def wrap_unload(
+        operation: str,
+        s3_staging_dir: str,
+        format_: str = AthenaFileFormat.FILE_FORMAT_PARQUET,
+        compression: str = AthenaCompression.COMPRESSION_SNAPPY,
+    ):
+        if not operation or not operation.strip():
+            raise ProgrammingError("Query is none or empty.")
+
+        operation_upper = operation.strip().upper()
+        if operation_upper.startswith("SELECT") or operation_upper.startswith("WITH"):
+            now = datetime.utcnow().strftime("%Y%m%d")
+            location = f"{s3_staging_dir}unload/{now}/{str(uuid.uuid4())}/"
+            operation = textwrap.dedent(
+                f"""
+                UNLOAD (
+                \t{operation.strip()}
+                )
+                TO '{location}'
+                WITH (
+                \tformat = '{format_}',
+                \tcompression = '{compression}'
+                )
+                """
+            )
+        else:
+            location = None
+        return operation, location
 
 
 def _escape_presto(val: str) -> str:
-    """ParamEscaper
-
-    https://github.com/dropbox/PyHive/blob/master/pyhive/common.py"""
-    return "'{0}'".format(val.replace("'", "''"))
+    escaped = val.replace("'", "''")
+    return f"'{escaped}'"
 
 
 def _escape_hive(val: str) -> str:
-    """HiveParamEscaper
-
-    https://github.com/dropbox/PyHive/blob/master/pyhive/hive.py"""
-    return "'{0}'".format(
+    escaped = (
         val.replace("\\", "\\\\")
         .replace("'", "\\'")
         .replace("\r", "\\r")
         .replace("\n", "\\n")
         .replace("\t", "\\t")
     )
+    return f"'{escaped}'"
 
 
 def _format_none(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
     return "null"
 
 
-def _format_default(
-    formatter: Formatter, escaper: Callable[[str], str], val: Any
-) -> Any:
+def _format_default(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
     return val
 
 
 def _format_date(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
-    return "DATE '{0}'".format(val.strftime("%Y-%m-%d"))
+    return f"DATE '{val:%Y-%m-%d}'"
 
 
-def _format_datetime(
-    formatter: Formatter, escaper: Callable[[str], str], val: Any
-) -> Any:
-    return "TIMESTAMP '{0}'".format(val.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3])
+def _format_datetime(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
+    return f"""TIMESTAMP '{val.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]}'"""
 
 
 def _format_bool(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
@@ -105,7 +129,7 @@ def _format_seq(formatter: Formatter, escaper: Callable[[str], str], val: Any) -
     for v in val:
         func = formatter.get(v)
         if not func:
-            raise TypeError("{0} is not defined formatter.".format(type(v)))
+            raise TypeError(f"{type(v)} is not defined formatter.")
         formatted = func(formatter, escaper, v)
         if not isinstance(
             formatted,
@@ -119,22 +143,19 @@ def _format_seq(formatter: Formatter, escaper: Callable[[str], str], val: Any) -
                     Decimal,
                 ),
             ):
-                formatted = "{0:f}".format(formatted)
+                formatted = f"{formatted:f}"
             else:
-                formatted = "{0}".format(formatted)
+                formatted = f"{formatted}"
         results.append(formatted)
-    return "({0})".format(", ".join(results))
+    return f"""({", ".join(results)})"""
 
 
-def _format_decimal(
-    formatter: Formatter, escaper: Callable[[str], str], val: Any
-) -> Any:
-    return "DECIMAL {0}".format(escaper("{0:f}".format(val)))
+def _format_decimal(formatter: Formatter, escaper: Callable[[str], str], val: Any) -> Any:
+    escaped = escaper(f"{val:f}")
+    return f"DECIMAL {escaped}"
 
 
-_DEFAULT_FORMATTERS: Dict[
-    Type[Any], Callable[[Formatter, Callable[[str], str], Any], Any]
-] = {
+_DEFAULT_FORMATTERS: Dict[Type[Any], Callable[[Formatter, Callable[[str], str], Any], Any]] = {
     type(None): _format_none,
     date: _format_date,
     datetime: _format_datetime,
@@ -155,15 +176,16 @@ class DefaultParameterFormatter(Formatter):
             mappings=deepcopy(_DEFAULT_FORMATTERS), default=None
         )
 
-    def format(
-        self, operation: str, parameters: Optional[Dict[str, Any]] = None
-    ) -> str:
+    def format(self, operation: str, parameters: Optional[Dict[str, Any]] = None) -> str:
         if not operation or not operation.strip():
             raise ProgrammingError("Query is none or empty.")
         operation = operation.strip()
 
-        if operation.upper().startswith("SELECT") or operation.upper().startswith(
-            "WITH"
+        operation_upper = operation.upper()
+        if (
+            operation_upper.startswith("SELECT")
+            or operation_upper.startswith("WITH")
+            or operation_upper.startswith("INSERT")
         ):
             escaper = _escape_presto
         else:
@@ -172,16 +194,17 @@ class DefaultParameterFormatter(Formatter):
         kwargs: Optional[Dict[str, Any]] = None
         if parameters is not None:
             kwargs = dict()
-            if isinstance(parameters, dict):
+            if not parameters:
+                pass
+            elif isinstance(parameters, dict):
                 for k, v in parameters.items():
                     func = self.get(v)
                     if not func:
-                        raise TypeError("{0} is not defined formatter.".format(type(v)))
+                        raise TypeError(f"{type(v)} is not defined formatter.")
                     kwargs.update({k: func(self, escaper, v)})
             else:
                 raise ProgrammingError(
-                    "Unsupported parameter "
-                    + "(Support for dict only): {0}".format(parameters)
+                    f"Unsupported parameter (Support for dict only): {parameters}"
                 )
 
         return (operation % kwargs).strip() if kwargs is not None else operation.strip()

@@ -1,0 +1,129 @@
+Parameters:
+  GitHubOrg:
+    Type: String
+  RepositoryName:
+    Type: String
+  RoleName:
+    Type: String
+    Default: "github-actions-oidc-pyathena-test"
+  BucketName:
+    Type: String
+  WorkGroupName:
+    Type: String
+    Default: "pyathena-test"
+  OIDCProviderArn:
+    Type: String
+    Default: ""
+    Description: Arn for the GitHub OIDC Provider.
+
+Conditions:
+  CreateOIDCProvider: !Equals
+    - !Ref OIDCProviderArn
+    - ""
+
+Resources:
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${RoleName}"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRoleWithWebIdentity
+            Principal:
+              Federated: !If
+                - CreateOIDCProvider
+                - !Ref GithubOidc
+                - !Ref OIDCProviderArn
+            Condition:
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${RepositoryName}:*"
+      Policies:
+        - PolicyName: athena-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [
+                  "athena:*"
+                ]
+                Resource: [
+                  "*"
+                ]
+        - PolicyName: glue-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [
+                  "glue:CreateDatabase",
+                  "glue:DeleteDatabase",
+                  "glue:GetDatabase",
+                  "glue:GetDatabases",
+                  "glue:UpdateDatabase",
+                  "glue:CreateTable",
+                  "glue:DeleteTable",
+                  "glue:BatchDeleteTable",
+                  "glue:UpdateTable",
+                  "glue:GetTable",
+                  "glue:GetTables",
+                  "glue:BatchCreatePartition",
+                  "glue:CreatePartition",
+                  "glue:DeletePartition",
+                  "glue:BatchDeletePartition",
+                  "glue:UpdatePartition",
+                  "glue:GetPartition",
+                  "glue:GetPartitions",
+                  "glue:BatchGetPartition"
+                ]
+                Resource: [
+                  "*"
+                ]
+        - PolicyName: s3-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [
+                  "s3:GetBucketLocation",
+                  "s3:GetObject",
+                  "s3:ListBucket",
+                  "s3:ListBucketMultipartUploads",
+                  "s3:ListMultipartUploadParts",
+                  "s3:AbortMultipartUpload",
+                  "s3:CreateBucket",
+                  "s3:PutObject",
+                  "s3:PutBucketPublicAccessBlock",
+                  "s3:DeleteObject"
+                ]
+                Resource: [
+                  !Sub "arn:aws:s3:::${BucketName}*"
+                ]
+
+  WorkGroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: !Sub "${WorkGroupName}"
+      State: ENABLED
+      WorkGroupConfiguration:
+        EnforceWorkGroupConfiguration: false
+        PublishCloudWatchMetricsEnabled: false
+        RequesterPaysEnabled: false
+        EngineVersion:
+          SelectedEngineVersion: "Athena engine version 3"
+        ResultConfiguration:
+          OutputLocation: !Sub "s3://${BucketName}/workgroup=pyathena-test/"
+
+  GithubOidc:
+    Type: AWS::IAM::OIDCProvider
+    Condition: CreateOIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+
+Outputs:
+  Role:
+    Value: !GetAtt Role.Arn

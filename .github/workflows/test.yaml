@@ -3,6 +3,10 @@ name: Test
 on:
   push:
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   tox:
     runs-on: ubuntu-latest
@@ -12,35 +16,33 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       AWS_ATHENA_S3_STAGING_DIR: ${{ secrets.AWS_ATHENA_S3_STAGING_DIR }}
-      AWS_ATHENA_WORK_GROUP: ${{ secrets.AWS_ATHENA_WORK_GROUP }}
-      CACHE_VERSION: v1
+      AWS_ATHENA_WORKGROUP: ${{ secrets.AWS_ATHENA_WORKGROUP }}
+      AWS_ATHENA_DEFAULT_WORKGROUP: ${{ secrets.AWS_ATHENA_DEFAULT_WORKGROUP }}
 
     strategy:
-      max-parallel: 4
+      fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9, "3.10"]
+        python-version: [3.8, 3.9, "3.10", "3.11"]
 
     steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install poetry
+        run: pipx install poetry
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Restore cache
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pip
-          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ env.CACHE_VERSION }}-${{ runner.os }}-pip-${{ matrix.python-version }}-
+          cache: 'poetry'
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r ${{ github.workspace }}/.github/workflows/requirements.txt
-      - name: Upload test data
-        run: |
-          ./scripts/test_data/upload_test_data.sh
+        run: poetry install --no-interaction --no-root
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          role-session-name: PyAthenaTestSession
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
       - name: Test with tox
         run: |
-          tox
+          poetry run tox

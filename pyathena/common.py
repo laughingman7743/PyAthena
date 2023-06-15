@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import logging
 import sys
 import time
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from pyathena.converter import Converter
+from pyathena.converter import Converter, DefaultTypeConverter
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
 from pyathena.formatter import Formatter
-from pyathena.model import AthenaQueryExecution, AthenaTableMetadata
+from pyathena.model import AthenaDatabase, AthenaQueryExecution, AthenaTableMetadata
 from pyathena.util import RetryConfig, retry_api_call
 
 if TYPE_CHECKING:
@@ -18,14 +20,20 @@ if TYPE_CHECKING:
 _logger = logging.getLogger(__name__)  # type: ignore
 
 
-class CursorIterator(object, metaclass=ABCMeta):
-
+class CursorIterator(metaclass=ABCMeta):
+    # https://docs.aws.amazon.com/athena/latest/APIReference/API_GetQueryResults.html
+    # Valid Range: Minimum value of 1. Maximum value of 1000.
     DEFAULT_FETCH_SIZE: int = 1000
+    # https://docs.aws.amazon.com/athena/latest/APIReference/API_ResultReuseByAgeConfiguration.html
+    # Specifies, in minutes, the maximum age of a previous query result
+    # that Athena should consider for reuse. The default is 60.
+    DEFAULT_RESULT_REUSE_MINUTES = 60
 
     def __init__(self, **kwargs) -> None:
         super(CursorIterator, self).__init__()
         self.arraysize: int = kwargs.get("arraysize", self.DEFAULT_FETCH_SIZE)
         self._rownumber: Optional[int] = None
+        self._rowcount: int = -1  # By default, return -1 to indicate that this is not supported.
 
     @property
     def arraysize(self) -> int:
@@ -35,9 +43,7 @@ class CursorIterator(object, metaclass=ABCMeta):
     def arraysize(self, value: int) -> None:
         if value <= 0 or value > self.DEFAULT_FETCH_SIZE:
             raise ProgrammingError(
-                "MaxResults is more than maximum allowed length {0}.".format(
-                    self.DEFAULT_FETCH_SIZE
-                )
+                f"MaxResults is more than maximum allowed length {self.DEFAULT_FETCH_SIZE}."
             )
         self._arraysize = value
 
@@ -47,8 +53,7 @@ class CursorIterator(object, metaclass=ABCMeta):
 
     @property
     def rowcount(self) -> int:
-        """By default, return -1 to indicate that this is not supported."""
-        return -1
+        return self._rowcount
 
     @abstractmethod
     def fetchone(self):
@@ -69,24 +74,27 @@ class CursorIterator(object, metaclass=ABCMeta):
         else:
             return row
 
-    next = __next__
-
     def __iter__(self):
         return self
 
 
-class BaseCursor(object, metaclass=ABCMeta):
-
+class BaseCursor(metaclass=ABCMeta):
     # https://docs.aws.amazon.com/athena/latest/APIReference/API_ListQueryExecutions.html
     # Valid Range: Minimum value of 0. Maximum value of 50.
     LIST_QUERY_EXECUTIONS_MAX_RESULTS = 50
     # https://docs.aws.amazon.com/athena/latest/APIReference/API_ListTableMetadata.html
     # Valid Range: Minimum value of 1. Maximum value of 50.
     LIST_TABLE_METADATA_MAX_RESULTS = 50
+    # https://docs.aws.amazon.com/athena/latest/APIReference/API_ListDatabases.html
+    # Valid Range: Minimum value of 1. Maximum value of 50.
+    LIST_DATABASES_MAX_RESULTS = 50
 
     def __init__(
         self,
         connection: "Connection",
+        converter: Converter,
+        formatter: Formatter,
+        retry_config: RetryConfig,
         s3_staging_dir: Optional[str],
         schema_name: Optional[str],
         catalog_name: Optional[str],
@@ -94,14 +102,16 @@ class BaseCursor(object, metaclass=ABCMeta):
         poll_interval: float,
         encryption_option: Optional[str],
         kms_key: Optional[str],
-        converter: Converter,
-        formatter: Formatter,
-        retry_config: RetryConfig,
         kill_on_interrupt: bool,
-        **kwargs
+        result_reuse_enable: bool,
+        result_reuse_minutes: int,
+        **kwargs,
     ) -> None:
         super(BaseCursor, self).__init__()
         self._connection = connection
+        self._converter = converter
+        self._formatter = formatter
+        self._retry_config = retry_config
         self._s3_staging_dir = s3_staging_dir
         self._schema_name = schema_name
         self._catalog_name = catalog_name
@@ -109,36 +119,159 @@ class BaseCursor(object, metaclass=ABCMeta):
         self._poll_interval = poll_interval
         self._encryption_option = encryption_option
         self._kms_key = kms_key
-        self._converter = converter
-        self._formatter = formatter
-        self._retry_config = retry_config
         self._kill_on_interrupt = kill_on_interrupt
+        self._result_reuse_enable = result_reuse_enable
+        self._result_reuse_minutes = result_reuse_minutes
+
+    @staticmethod
+    def get_default_converter(unload: bool = False) -> Union[DefaultTypeConverter, Any]:
+        return DefaultTypeConverter()
 
     @property
     def connection(self) -> "Connection":
         return self._connection
 
-    def _get_query_execution(self, query_id: str) -> AthenaQueryExecution:
-        request = {"QueryExecutionId": query_id}
+    def _build_start_query_execution_request(
+        self,
+        query: str,
+        work_group: Optional[str] = None,
+        s3_staging_dir: Optional[str] = None,
+        result_reuse_enable: Optional[bool] = None,
+        result_reuse_minutes: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        request: Dict[str, Any] = {
+            "QueryString": query,
+            "QueryExecutionContext": {},
+            "ResultConfiguration": {},
+        }
+        if self._schema_name:
+            request["QueryExecutionContext"].update({"Database": self._schema_name})
+        if self._catalog_name:
+            request["QueryExecutionContext"].update({"Catalog": self._catalog_name})
+        if self._s3_staging_dir or s3_staging_dir:
+            request["ResultConfiguration"].update(
+                {"OutputLocation": s3_staging_dir if s3_staging_dir else self._s3_staging_dir}
+            )
+        if self._work_group or work_group:
+            request.update({"WorkGroup": work_group if work_group else self._work_group})
+        if self._encryption_option:
+            enc_conf = {
+                "EncryptionOption": self._encryption_option,
+            }
+            if self._kms_key:
+                enc_conf.update({"KmsKey": self._kms_key})
+            request["ResultConfiguration"].update({"EncryptionConfiguration": enc_conf})
+        if self._result_reuse_enable or result_reuse_enable:
+            reuse_conf = {
+                "Enabled": result_reuse_enable
+                if result_reuse_enable is not None
+                else self._result_reuse_enable,
+                "MaxAgeInMinutes": result_reuse_minutes
+                if result_reuse_minutes is not None
+                else self._result_reuse_minutes,
+            }
+            request["ResultReuseConfiguration"] = {"ResultReuseByAgeConfiguration": reuse_conf}
+        return request
+
+    def _build_list_query_executions_request(
+        self,
+        work_group: Optional[str],
+        next_token: Optional[str] = None,
+        max_results: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        request: Dict[str, Any] = {
+            "MaxResults": max_results if max_results else self.LIST_QUERY_EXECUTIONS_MAX_RESULTS
+        }
+        if self._work_group or work_group:
+            request.update({"WorkGroup": work_group if work_group else self._work_group})
+        if next_token:
+            request.update({"NextToken": next_token})
+        return request
+
+    def _build_list_table_metadata_request(
+        self,
+        catalog_name: Optional[str],
+        schema_name: Optional[str],
+        expression: Optional[str] = None,
+        next_token: Optional[str] = None,
+        max_results: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        request: Dict[str, Any] = {
+            "CatalogName": catalog_name if catalog_name else self._catalog_name,
+            "DatabaseName": schema_name if schema_name else self._schema_name,
+            "MaxResults": max_results if max_results else self.LIST_TABLE_METADATA_MAX_RESULTS,
+        }
+        if expression:
+            request.update({"Expression": expression})
+        if next_token:
+            request.update({"NextToken": next_token})
+        return request
+
+    def _build_list_databases_request(
+        self,
+        catalog_name: Optional[str],
+        next_token: Optional[str] = None,
+        max_results: Optional[int] = None,
+    ):
+        request: Dict[str, Any] = {
+            "CatalogName": catalog_name if catalog_name else self._catalog_name,
+            "MaxResults": max_results if max_results else self.LIST_DATABASES_MAX_RESULTS,
+        }
+        if next_token:
+            request.update({"NextToken": next_token})
+        return request
+
+    def _list_databases(
+        self,
+        catalog_name: Optional[str],
+        next_token: Optional[str] = None,
+        max_results: Optional[int] = None,
+    ) -> Tuple[Optional[str], List[AthenaDatabase]]:
+        request = self._build_list_databases_request(
+            catalog_name=catalog_name,
+            next_token=next_token,
+            max_results=max_results,
+        )
         try:
             response = retry_api_call(
-                self._connection.client.get_query_execution,
+                self.connection._client.list_databases,
                 config=self._retry_config,
                 logger=_logger,
-                **request
+                **request,
             )
         except Exception as e:
-            _logger.exception("Failed to get query execution.")
+            _logger.exception("Failed to list databases.")
             raise OperationalError(*e.args) from e
         else:
-            return AthenaQueryExecution(response)
+            return response.get("NextToken", None), [
+                AthenaDatabase({"Database": r}) for r in response.get("DatabaseList", [])
+            ]
+
+    def list_databases(
+        self,
+        catalog_name: Optional[str],
+        max_results: Optional[int] = None,
+    ) -> List[AthenaDatabase]:
+        databases = []
+        next_token = None
+        while True:
+            next_token, response = self._list_databases(
+                catalog_name=catalog_name,
+                next_token=next_token,
+                max_results=max_results,
+            )
+            databases.extend(response)
+            if not next_token:
+                break
+        return databases
 
     def _get_table_metadata(
         self,
         table_name: str,
         catalog_name: Optional[str] = None,
         schema_name: Optional[str] = None,
-    ):
+        logging_: bool = True,
+    ) -> AthenaTableMetadata:
         request = {
             "CatalogName": catalog_name if catalog_name else self._catalog_name,
             "DatabaseName": schema_name if schema_name else self._schema_name,
@@ -149,17 +282,98 @@ class BaseCursor(object, metaclass=ABCMeta):
                 self._connection.client.get_table_metadata,
                 config=self._retry_config,
                 logger=_logger,
-                **request
+                **request,
             )
         except Exception as e:
-            _logger.exception("Failed to get table metadata.")
+            if logging_:
+                _logger.exception("Failed to get table metadata.")
             raise OperationalError(*e.args) from e
         else:
             return AthenaTableMetadata(response)
 
-    def _batch_get_query_execution(
-        self, query_ids: List[str]
-    ) -> List[AthenaQueryExecution]:
+    def get_table_metadata(
+        self,
+        table_name: str,
+        catalog_name: Optional[str] = None,
+        schema_name: Optional[str] = None,
+        logging_: bool = True,
+    ) -> AthenaTableMetadata:
+        return self._get_table_metadata(
+            table_name=table_name,
+            catalog_name=catalog_name,
+            schema_name=schema_name,
+            logging_=logging_,
+        )
+
+    def _list_table_metadata(
+        self,
+        catalog_name: Optional[str] = None,
+        schema_name: Optional[str] = None,
+        expression: Optional[str] = None,
+        next_token: Optional[str] = None,
+        max_results: Optional[int] = None,
+    ) -> Tuple[Optional[str], List[AthenaTableMetadata]]:
+        request = self._build_list_table_metadata_request(
+            catalog_name=catalog_name,
+            schema_name=schema_name,
+            expression=expression,
+            next_token=next_token,
+            max_results=max_results,
+        )
+        try:
+            response = retry_api_call(
+                self.connection._client.list_table_metadata,
+                config=self._retry_config,
+                logger=_logger,
+                **request,
+            )
+        except Exception as e:
+            _logger.exception("Failed to list table metadata.")
+            raise OperationalError(*e.args) from e
+        else:
+            return response.get("NextToken", None), [
+                AthenaTableMetadata({"TableMetadata": r})
+                for r in response.get("TableMetadataList", [])
+            ]
+
+    def list_table_metadata(
+        self,
+        catalog_name: Optional[str] = None,
+        schema_name: Optional[str] = None,
+        expression: Optional[str] = None,
+        max_results: Optional[int] = None,
+    ) -> List[AthenaTableMetadata]:
+        metadata = []
+        next_token = None
+        while True:
+            next_token, response = self._list_table_metadata(
+                catalog_name=catalog_name,
+                schema_name=schema_name,
+                expression=expression,
+                next_token=next_token,
+                max_results=max_results,
+            )
+            metadata.extend(response)
+            if not next_token:
+                break
+        return metadata
+
+    def _get_query_execution(self, query_id: str) -> AthenaQueryExecution:
+        request = {"QueryExecutionId": query_id}
+        try:
+            response = retry_api_call(
+                self._connection.client.get_query_execution,
+                config=self._retry_config,
+                logger=_logger,
+                **request,
+            )
+        except Exception as e:
+            _logger.exception("Failed to get query execution.")
+            raise OperationalError(*e.args) from e
+        else:
+            return AthenaQueryExecution(response)
+
+    def _batch_get_query_execution(self, query_ids: List[str]) -> List[AthenaQueryExecution]:
         try:
             response = retry_api_call(
                 self.connection._client.batch_get_query_execution,
@@ -178,19 +392,19 @@ class BaseCursor(object, metaclass=ABCMeta):
 
     def _list_query_executions(
         self,
-        max_results: Optional[int] = None,
         work_group: Optional[str] = None,
         next_token: Optional[str] = None,
+        max_results: Optional[int] = None,
     ) -> Tuple[Optional[str], List[AthenaQueryExecution]]:
         request = self._build_list_query_executions_request(
-            max_results=max_results, work_group=work_group, next_token=next_token
+            work_group=work_group, next_token=next_token, max_results=max_results
         )
         try:
             response = retry_api_call(
                 self.connection._client.list_query_executions,
                 config=self._retry_config,
                 logger=_logger,
-                **request
+                **request,
             )
         except Exception as e:
             _logger.exception("Failed to list query executions.")
@@ -201,37 +415,6 @@ class BaseCursor(object, metaclass=ABCMeta):
             if not query_ids:
                 return next_token, []
             return next_token, self._batch_get_query_execution(query_ids)
-
-    def _list_table_metadata(
-        self,
-        max_results: Optional[int] = None,
-        catalog_name: Optional[str] = None,
-        schema_name: Optional[str] = None,
-        expression: Optional[str] = None,
-        next_token: Optional[str] = None,
-    ):
-        request = self._build_list_table_metadata_request(
-            max_results=max_results,
-            catalog_name=catalog_name,
-            schema_name=schema_name,
-            expression=expression,
-            next_token=next_token,
-        )
-        try:
-            response = retry_api_call(
-                self.connection._client.list_table_metadata,
-                config=self._retry_config,
-                logger=_logger,
-                **request
-            )
-        except Exception as e:
-            _logger.exception("Failed to list table metadata.")
-            raise OperationalError(*e.args) from e
-        else:
-            return response.get("NextToken", None), [
-                AthenaTableMetadata({"TableMetadata": r})
-                for r in response.get("TableMetadataList", [])
-            ]
 
     def __poll(self, query_id: str) -> AthenaQueryExecution:
         while True:
@@ -257,82 +440,6 @@ class BaseCursor(object, metaclass=ABCMeta):
                 raise e
         return query_execution
 
-    def _build_start_query_execution_request(
-        self,
-        query: str,
-        work_group: Optional[str] = None,
-        s3_staging_dir: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        request: Dict[str, Any] = {
-            "QueryString": query,
-            "QueryExecutionContext": {},
-            "ResultConfiguration": {},
-        }
-        if self._schema_name:
-            request["QueryExecutionContext"].update({"Database": self._schema_name})
-        if self._catalog_name:
-            request["QueryExecutionContext"].update({"Catalog": self._catalog_name})
-        if self._s3_staging_dir or s3_staging_dir:
-            request["ResultConfiguration"].update(
-                {
-                    "OutputLocation": s3_staging_dir
-                    if s3_staging_dir
-                    else self._s3_staging_dir
-                }
-            )
-        if self._work_group or work_group:
-            request.update(
-                {"WorkGroup": work_group if work_group else self._work_group}
-            )
-        if self._encryption_option:
-            enc_conf = {
-                "EncryptionOption": self._encryption_option,
-            }
-            if self._kms_key:
-                enc_conf.update({"KmsKey": self._kms_key})
-            request["ResultConfiguration"].update({"EncryptionConfiguration": enc_conf})
-        return request
-
-    def _build_list_query_executions_request(
-        self,
-        max_results: Optional[int],
-        work_group: Optional[str],
-        next_token: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        request: Dict[str, Any] = {
-            "MaxResults": max_results
-            if max_results
-            else self.LIST_QUERY_EXECUTIONS_MAX_RESULTS
-        }
-        if self._work_group or work_group:
-            request.update(
-                {"WorkGroup": work_group if work_group else self._work_group}
-            )
-        if next_token:
-            request.update({"NextToken": next_token})
-        return request
-
-    def _build_list_table_metadata_request(
-        self,
-        max_results: Optional[int],
-        catalog_name: Optional[str],
-        schema_name: Optional[str],
-        expression: Optional[str] = None,
-        next_token: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        request: Dict[str, Any] = {
-            "MaxResults": max_results
-            if max_results
-            else self.LIST_TABLE_METADATA_MAX_RESULTS,
-            "CatalogName": catalog_name if catalog_name else self._catalog_name,
-            "DatabaseName": schema_name if schema_name else self._schema_name,
-        }
-        if expression:
-            request.update({"Expression": expression})
-        if next_token:
-            request.update({"NextToken": next_token})
-        return request
-
     def _find_previous_query_id(
         self,
         query: str,
@@ -344,9 +451,7 @@ class BaseCursor(object, metaclass=ABCMeta):
         if cache_size == 0 and cache_expiration_time > 0:
             cache_size = sys.maxsize
         if cache_expiration_time > 0:
-            expiration_time = datetime.now(timezone.utc) - timedelta(
-                seconds=cache_expiration_time
-            )
+            expiration_time = datetime.now(timezone.utc) - timedelta(seconds=cache_expiration_time)
         else:
             expiration_time = datetime.now(timezone.utc)
         try:
@@ -355,7 +460,7 @@ class BaseCursor(object, metaclass=ABCMeta):
                 max_results = min(cache_size, self.LIST_QUERY_EXECUTIONS_MAX_RESULTS)
                 cache_size -= max_results
                 next_token, query_executions = self._list_query_executions(
-                    max_results, work_group, next_token=next_token
+                    work_group, next_token=next_token, max_results=max_results
                 )
                 for execution in sorted(
                     (
@@ -382,9 +487,7 @@ class BaseCursor(object, metaclass=ABCMeta):
                 if query_id or next_token is None:
                     break
         except Exception:
-            _logger.warning(
-                "Failed to check the cache. Moving on without cache.", exc_info=True
-            )
+            _logger.warning("Failed to check the cache. Moving on without cache.", exc_info=True)
         return query_id
 
     def _execute(
@@ -395,12 +498,18 @@ class BaseCursor(object, metaclass=ABCMeta):
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
+        result_reuse_enable: Optional[bool] = None,
+        result_reuse_minutes: Optional[int] = None,
     ) -> str:
         query = self._formatter.format(operation, parameters)
         _logger.debug(query)
 
         request = self._build_start_query_execution_request(
-            query, work_group, s3_staging_dir
+            query=query,
+            work_group=work_group,
+            s3_staging_dir=s3_staging_dir,
+            result_reuse_enable=result_reuse_enable,
+            result_reuse_minutes=result_reuse_minutes,
         )
         query_id = self._find_previous_query_id(
             query,
@@ -414,7 +523,7 @@ class BaseCursor(object, metaclass=ABCMeta):
                     self._connection.client.start_query_execution,
                     config=self._retry_config,
                     logger=_logger,
-                    **request
+                    **request,
                 ).get("QueryExecutionId", None)
             except Exception as e:
                 _logger.exception("Failed to execute query.")
@@ -430,13 +539,15 @@ class BaseCursor(object, metaclass=ABCMeta):
         s3_staging_dir: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
+        result_reuse_enable: Optional[bool] = None,
+        result_reuse_minutes: Optional[int] = None,
     ):
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
     def executemany(
         self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]]
-    ):
+    ) -> None:
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
@@ -450,7 +561,7 @@ class BaseCursor(object, metaclass=ABCMeta):
                 self._connection.client.stop_query_execution,
                 config=self._retry_config,
                 logger=_logger,
-                **request
+                **request,
             )
         except Exception as e:
             _logger.exception("Failed to cancel query.")

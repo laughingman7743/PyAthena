@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import logging
 import os
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 from boto3.session import Session
+from botocore.config import Config
 
-from pyathena.common import BaseCursor
-from pyathena.converter import (
-    Converter,
-    DefaultPandasTypeConverter,
-    DefaultTypeConverter,
-)
+import pyathena
+from pyathena.common import BaseCursor, CursorIterator
+from pyathena.converter import Converter
 from pyathena.cursor import Cursor
 from pyathena.error import NotSupportedError
 from pyathena.formatter import DefaultParameterFormatter, Formatter
@@ -23,8 +23,7 @@ if TYPE_CHECKING:
 _logger = logging.getLogger(__name__)  # type: ignore
 
 
-class Connection(object):
-
+class Connection:
     _ENV_S3_STAGING_DIR: str = "AWS_ATHENA_S3_STAGING_DIR"
     _ENV_WORK_GROUP: str = "AWS_ATHENA_WORK_GROUP"
     _SESSION_PASSING_ARGS: List[str] = [
@@ -39,11 +38,12 @@ class Connection(object):
         "aws_access_key_id",
         "aws_secret_access_key",
         "aws_session_token",
-        "config",
         "api_version",
         "use_ssl",
         "verify",
         "endpoint_url",
+        "region_name",
+        "config",
     ]
 
     def __init__(
@@ -58,21 +58,27 @@ class Connection(object):
         kms_key: Optional[str] = None,
         profile_name: Optional[str] = None,
         role_arn: Optional[str] = None,
-        role_session_name: str = "PyAthena-session-{0}".format(int(time.time())),
+        role_session_name: str = f"PyAthena-session-{int(time.time())}",
+        external_id: Optional[str] = None,
         serial_number: Optional[str] = None,
         duration_seconds: int = 3600,
         converter: Optional[Converter] = None,
         formatter: Optional[Formatter] = None,
         retry_config: Optional[RetryConfig] = None,
         cursor_class: Type[BaseCursor] = Cursor,
+        cursor_kwargs: Optional[Dict[str, Any]] = None,
         kill_on_interrupt: bool = True,
         session: Optional[Session] = None,
-        **kwargs
+        config: Optional[Config] = None,
+        result_reuse_enable: bool = False,
+        result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
+        **kwargs,
     ) -> None:
         self._kwargs = {
             **kwargs,
             "role_arn": role_arn,
             "role_session_name": role_session_name,
+            "external_id": external_id,
             "serial_number": serial_number,
             "duration_seconds": duration_seconds,
         }
@@ -91,6 +97,7 @@ class Connection(object):
         self.encryption_option = encryption_option
         self.kms_key = kms_key
         self.profile_name = profile_name
+        self.config: Optional[Config] = config if config else Config()
 
         assert (
             self.s3_staging_dir or self.work_group
@@ -105,6 +112,7 @@ class Connection(object):
                     region_name=self.region_name,
                     role_arn=role_arn,
                     role_session_name=role_session_name,
+                    external_id=external_id,
                     serial_number=serial_number,
                     duration_seconds=duration_seconds,
                 )
@@ -132,33 +140,57 @@ class Connection(object):
                     }
                 )
             self._session = Session(
-                profile_name=self.profile_name, **self._session_kwargs
+                region_name=self.region_name,
+                profile_name=self.profile_name,
+                **self._session_kwargs,
+            )
+
+        if not self.config.user_agent_extra or (
+            pyathena.user_agent_extra not in self.config.user_agent_extra
+        ):
+            self.config.user_agent_extra = (
+                f"{pyathena.user_agent_extra}"
+                f"{' ' + self.config.user_agent_extra if self.config.user_agent_extra else ''}"
             )
         self._client = self._session.client(
-            "athena", region_name=self.region_name, **self._client_kwargs
+            "athena", region_name=self.region_name, config=self.config, **self._client_kwargs
         )
         self._converter = converter
         self._formatter = formatter if formatter else DefaultParameterFormatter()
         self._retry_config = retry_config if retry_config else RetryConfig()
         self.cursor_class = cursor_class
+        self.cursor_kwargs = cursor_kwargs if cursor_kwargs else dict()
         self.kill_on_interrupt = kill_on_interrupt
+        self.result_reuse_enable = result_reuse_enable
+        self.result_reuse_minutes = result_reuse_minutes
 
     def _assume_role(
         self,
         profile_name: Optional[str],
         region_name: Optional[str],
-        role_arn: Optional[str],
+        role_arn: str,
         role_session_name: str,
+        external_id: Optional[str],
         serial_number: Optional[str],
         duration_seconds: int,
     ) -> Dict[str, Any]:
-        session = Session(profile_name=profile_name, **self._session_kwargs)
-        client = session.client("sts", region_name=region_name, **self._client_kwargs)
+        session = Session(
+            region_name=region_name, profile_name=profile_name, **self._session_kwargs
+        )
+        client = session.client(
+            "sts", region_name=region_name, config=self.config, **self._client_kwargs
+        )
         request = {
             "RoleArn": role_arn,
             "RoleSessionName": role_session_name,
             "DurationSeconds": duration_seconds,
         }
+        if external_id:
+            request.update(
+                {
+                    "ExternalId": external_id,
+                }
+            )
         if serial_number:
             token_code = input("Enter the MFA code: ")
             request.update(
@@ -179,7 +211,9 @@ class Connection(object):
         duration_seconds: int,
     ) -> Dict[str, Any]:
         session = Session(profile_name=profile_name, **self._session_kwargs)
-        client = session.client("sts", region_name=region_name, **self._client_kwargs)
+        client = session.client(
+            "sts", region_name=region_name, config=self.config, **self._client_kwargs
+        )
         token_code = input("Enter the MFA code: ")
         request = {
             "DurationSeconds": duration_seconds,
@@ -192,9 +226,7 @@ class Connection(object):
 
     @property
     def _session_kwargs(self) -> Dict[str, Any]:
-        return {
-            k: v for k, v in self._kwargs.items() if k in self._SESSION_PASSING_ARGS
-        }
+        return {k: v for k, v in self._kwargs.items() if k in self._SESSION_PASSING_ARGS}
 
     @property
     def _client_kwargs(self) -> Dict[str, Any]:
@@ -219,31 +251,28 @@ class Connection(object):
         self.close()
 
     def cursor(self, cursor: Optional[Type[BaseCursor]] = None, **kwargs) -> BaseCursor:
+        kwargs.update(self.cursor_kwargs)
         if not cursor:
             cursor = self.cursor_class
         converter = kwargs.pop("converter", self._converter)
         if not converter:
-            from pyathena.pandas.async_cursor import AsyncPandasCursor
-            from pyathena.pandas.cursor import PandasCursor
-
-            if cursor is PandasCursor or cursor is AsyncPandasCursor:
-                converter = DefaultPandasTypeConverter()
-            else:
-                converter = DefaultTypeConverter()
+            converter = cursor.get_default_converter(kwargs.get("unload", False))
         return cursor(
             connection=self,
-            s3_staging_dir=kwargs.pop("s3_staging_dir", self.s3_staging_dir),
-            poll_interval=kwargs.pop("poll_interval", self.poll_interval),
-            encryption_option=kwargs.pop("encryption_option", self.encryption_option),
-            kms_key=kwargs.pop("kms_key", self.kms_key),
             converter=converter,
             formatter=kwargs.pop("formatter", self._formatter),
             retry_config=kwargs.pop("retry_config", self._retry_config),
+            s3_staging_dir=kwargs.pop("s3_staging_dir", self.s3_staging_dir),
             schema_name=kwargs.pop("schema_name", self.schema_name),
             catalog_name=kwargs.pop("catalog_name", self.catalog_name),
             work_group=kwargs.pop("work_group", self.work_group),
+            poll_interval=kwargs.pop("poll_interval", self.poll_interval),
+            encryption_option=kwargs.pop("encryption_option", self.encryption_option),
+            kms_key=kwargs.pop("kms_key", self.kms_key),
             kill_on_interrupt=kwargs.pop("kill_on_interrupt", self.kill_on_interrupt),
-            **kwargs
+            result_reuse_enable=kwargs.pop("result_reuse_enable", self.result_reuse_enable),
+            result_reuse_minutes=kwargs.pop("result_reuse_minutes", self.result_reuse_minutes),
+            **kwargs,
         )
 
     def close(self) -> None:
