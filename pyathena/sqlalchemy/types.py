@@ -6,12 +6,12 @@ from collections import OrderedDict
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-import packaging.version
 import sqlalchemy
-from sqlalchemy.sql.sqltypes import Indexable
+from sqlalchemy.sql.sqltypes import Float, Indexable
 from sqlalchemy.sql.type_api import TypeEngine, UserDefinedType
 
 from pyathena.sqlalchemy import base
+from pyathena.sqlalchemy.constants import sqlalchemy_1_4_or_more
 
 if TYPE_CHECKING:
     from sqlalchemy import Dialect
@@ -32,6 +32,10 @@ class AthenaTimestamp(TypeEngine[datetime]):
         return self.process
 
 
+class DOUBLE(Float):  # type: ignore
+    __visit_name__ = "double"
+
+
 class AthenaDate(TypeEngine[date]):
     render_literal_cast = True
     render_bind_cast = True
@@ -45,10 +49,6 @@ class AthenaDate(TypeEngine[date]):
     def literal_processor(self, dialect: "Dialect") -> Optional["_LiteralProcessorType[date]"]:
         return self.process
 
-
-sqlalchemy_1_4_or_more = packaging.version.parse(sqlalchemy.__version__) >= packaging.version.parse(
-    "1.4"
-)
 
 if sqlalchemy_1_4_or_more:
     import sqlalchemy.sql.coercions

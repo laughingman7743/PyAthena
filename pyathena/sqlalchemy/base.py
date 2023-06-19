@@ -34,7 +34,7 @@ from sqlalchemy.sql.compiler import (
 
 import pyathena
 from pyathena.model import AthenaFileFormat, AthenaRowFormatSerde
-from pyathena.sqlalchemy.types import STRUCT, AthenaDate, AthenaTimestamp
+from pyathena.sqlalchemy.types import DOUBLE, STRUCT, AthenaDate, AthenaTimestamp
 from pyathena.sqlalchemy.util import _HashableDict
 
 if TYPE_CHECKING:
@@ -348,11 +348,12 @@ SELECT_STATEMENT_RESERVED_WORDS: Set[str] = {
 }
 RESERVED_WORDS: Set[str] = set(sorted(DDL_RESERVED_WORDS | SELECT_STATEMENT_RESERVED_WORDS))
 
+
 ischema_names: Dict[str, Type[Any]] = {
     "boolean": types.BOOLEAN,
     "float": types.FLOAT,
-    "double": types.FLOAT,
-    "real": types.FLOAT,
+    "double": DOUBLE,
+    "real": types.REAL,
     "tinyint": types.INTEGER,
     "smallint": types.INTEGER,
     "integer": types.INTEGER,
@@ -437,14 +438,17 @@ class AthenaStatementCompiler(SQLCompiler):
 
 
 class AthenaTypeCompiler(GenericTypeCompiler):
-    def visit_FLOAT(self, type_: Type[Any], **kw) -> str:
-        type_expression = kw.get("type_expression", None)
-        if isinstance(type_expression, Column):
-            return self.visit_REAL(type_, **kw)
+    def visit_FLOAT(self, type_, **kw):
+        precision = type_.precision or 64
+        if 0 <= precision <= 32:
+            return "FLOAT"
 
-        return "FLOAT"
+        if 32 < precision <= 64:
+            return self.visit_DOUBLE(type_, **kw)
 
-    def visit_REAL(self, type_: Type[Any], **kw) -> str:
+        raise ValueError(f"type.precision must be in range [0, 64], got {type_.precision}")
+
+    def visit_DOUBLE(self, type_, **kw):
         return "DOUBLE"
 
     def visit_NUMERIC(self, type_: Type[Any], **kw) -> str:

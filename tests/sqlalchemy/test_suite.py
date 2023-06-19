@@ -54,6 +54,10 @@ class TrueDivTest(_TrueDivTest):
     def test_truediv_integer_bound(self, connection):
         pass
 
+    @pytest.mark.skip("Athena uses real for DML & DQL but uses float for DDL")
+    def test_truediv_float(self, connection):
+        pass
+
     @pytest.mark.skip("TODO")
     def test_truediv_numeric(self, connection, left, right, expected):
         # TODO
