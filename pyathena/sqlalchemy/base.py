@@ -940,6 +940,10 @@ class AthenaDialect(DefaultDialect):
     def import_dbapi(cls) -> "ModuleType":
         return pyathena
 
+    @classmethod
+    def dbapi(cls) -> "ModuleType":
+        return pyathena
+
     def _raw_connection(self, connection: Union[Engine, "Connection"]) -> "PoolProxiedConnection":
         if isinstance(connection, Engine):
             return connection.raw_connection()
