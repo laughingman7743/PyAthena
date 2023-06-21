@@ -10,7 +10,18 @@ from random import randint
 
 import pytest
 
-from pyathena import BINARY, BOOLEAN, DATE, DATETIME, JSON, NUMBER, STRING, TIME
+from pyathena import (
+    ARRAY,
+    BINARY,
+    BOOLEAN,
+    DATE,
+    DATETIME,
+    JSON,
+    NUMBER,
+    STRING,
+    STRUCT,
+    TIME,
+)
 from pyathena.cursor import Cursor
 from pyathena.error import DatabaseError, NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
@@ -496,11 +507,11 @@ class TestCursor:
             TIME,
             DATE,
             BINARY,
-            STRING,
+            ARRAY,
             JSON,
             STRING,
             JSON,
-            STRING,
+            STRUCT,
             NUMBER,
         ]
 

@@ -41,7 +41,7 @@ class DBAPITypeObject(FrozenSet[str]):
 
 
 # https://docs.aws.amazon.com/athena/latest/ug/data-types.html
-STRING: DBAPITypeObject = DBAPITypeObject(("char", "varchar", "map", "array", "row"))
+STRING: DBAPITypeObject = DBAPITypeObject(("char", "varchar", "map"))
 BINARY: DBAPITypeObject = DBAPITypeObject(("varbinary",))
 BOOLEAN: DBAPITypeObject = DBAPITypeObject(("boolean",))
 NUMBER: DBAPITypeObject = DBAPITypeObject(
@@ -51,6 +51,8 @@ DATE: DBAPITypeObject = DBAPITypeObject(("date",))
 TIME: DBAPITypeObject = DBAPITypeObject(("time", "time with time zone"))
 DATETIME: DBAPITypeObject = DBAPITypeObject(("timestamp", "timestamp with time zone"))
 JSON: DBAPITypeObject = DBAPITypeObject(("json",))
+STRUCT: DBAPITypeObject = DBAPITypeObject(("struct", "row"))
+ARRAY: DBAPITypeObject = DBAPITypeObject(("array",))
 
 Date: Type[datetime.date] = datetime.date
 Time: Type[datetime.time] = datetime.time

@@ -90,6 +90,9 @@ _DEFAULT_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {
     "varbinary": _to_binary,
     "array": _to_default,
     "map": _to_default,
+    # Given what Athena returns, we cannot correctly parse a row
+    # (especially with array field or nested struct) properly:
+    # {propA=A string with spaces but not escape, even with =, so how to parse it ?, propB=false}
     "row": _to_default,
     "decimal": _to_decimal,
     "json": _to_json,
