@@ -38,7 +38,7 @@ jobs:
         run: poetry install --no-interaction --no-root
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1-node16
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           role-session-name: PyAthenaTestSession
