@@ -921,7 +921,7 @@ class AthenaDialect(DefaultDialect):
         return pyathena
 
     @classmethod
-    def dbapi(cls) -> "ModuleType": # type: ignore
+    def dbapi(cls) -> "ModuleType":  # type: ignore
         return pyathena
 
     def _raw_connection(self, connection: Union[Engine, "Connection"]) -> "PoolProxiedConnection":
