@@ -33,7 +33,7 @@ from sqlalchemy.sql.compiler import (
 )
 
 import pyathena
-from pyathena.model import AthenaFileFormat, AthenaRowFormatSerde
+from pyathena.model import AthenaFileFormat, AthenaRowFormatSerde, AthenaPartitionTransform
 from pyathena.sqlalchemy.types import AthenaDate, AthenaTimestamp
 from pyathena.sqlalchemy.util import _HashableDict
 
@@ -773,7 +773,7 @@ class AthenaDDLCompiler(DDLCompiler):
         return buckets
 
     def _prepared_columns(
-        self, table, create_columns: List["CreateColumn"], connect_opts: Dict[str, Any]
+        self, table, is_iceberg, create_columns: List["CreateColumn"], connect_opts: Dict[str, Any]
     ) -> Tuple[List[str], List[str], List[str]]:
         columns, partitions, buckets = [], [], []
         conn_partitions = self._get_connect_option_partitions(connect_opts)
@@ -789,7 +789,26 @@ class AthenaDDLCompiler(DDLCompiler):
                         or column.name in conn_partitions
                         or f"{table.name}.{column.name}" in conn_partitions
                     ):
-                        partitions.append(f"\t{processed}")
+                        #https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html#querying-iceberg-partitioning
+                        if is_iceberg:
+                            partition_transform = column_dialect_opts["partition_transform"]
+                            if partition_transform:
+                                if AthenaPartitionTransform.is_valid(partition_transform):
+                                    if partition_transform == AthenaPartitionTransform.PARTITION_TRANSFORM_BUCKET:
+                                        bucket_count = column_dialect_opts["partition_transform_bucket_count"]
+                                        if bucket_count:
+                                            partitions.append(f"\t{partition_transform}({bucket_count},{self.preparer.format_column(column)})")
+                                    elif partition_transform == AthenaPartitionTransform.PARTITION_TRANSFORM_TRUNCATE:
+                                        truncate_length = column_dialect_opts["partition_transform_truncate_length"]
+                                        if truncate_length:
+                                            partitions.append(f"\t{partition_transform}({truncate_length},{self.preparer.format_column(column)})")
+                                    else:
+                                        partitions.append(f"\t{partition_transform}({self.preparer.format_column(column)})")
+                            else:
+                                partitions.append(f"\t{self.preparer.format_column(column)}")
+                            columns.append(f"\t{processed}")
+                        else:
+                            partitions.append(f"\t{processed}")
                     else:
                         columns.append(f"\t{processed}")
                     if (
@@ -813,7 +832,11 @@ class AthenaDDLCompiler(DDLCompiler):
         table_properties = self._get_table_properties_specification(
             dialect_opts, connect_opts
         ).lower()
+        is_iceberg = False
         if ("table_type" in table_properties) and ("iceberg" in table_properties):
+            is_iceberg = True
+
+        if is_iceberg:
             # https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html
             text = ["\nCREATE TABLE"]
         else:
@@ -825,7 +848,7 @@ class AthenaDDLCompiler(DDLCompiler):
         text.append("(")
         text = [" ".join(text)]
 
-        columns, partitions, buckets = self._prepared_columns(table, create.columns, connect_opts)
+        columns, partitions, buckets = self._prepared_columns(table, is_iceberg, create.columns, connect_opts)
         text.append(",\n".join(columns))
         text.append(")")
 
@@ -900,6 +923,9 @@ class AthenaDialect(DefaultDialect):
             schema.Column,
             {
                 "partition": False,
+                "partition_transform": None,
+                "partition_transform_bucket_count": None,
+                "partition_transform_truncate_length": None,
                 "cluster": False,
             },
         ),
