@@ -397,3 +397,20 @@ class TestAthenaCompression:
         assert AthenaCompression.is_valid("SNAPPY")
         assert not AthenaCompression.is_valid("")
         assert not AthenaCompression.is_valid("foobar")
+
+class TestAthenaPartitionTransform:
+    def test_is_valid(self):
+        assert AthenaCompression.is_valid("year")
+        assert AthenaCompression.is_valid("YEAR")
+        assert AthenaCompression.is_valid("month")
+        assert AthenaCompression.is_valid("MONTH")
+        assert AthenaCompression.is_valid("day")
+        assert AthenaCompression.is_valid("DAY")
+        assert AthenaCompression.is_valid("hour")
+        assert AthenaCompression.is_valid("HOUR")
+        assert AthenaCompression.is_valid("bucket")
+        assert AthenaCompression.is_valid("BUCKET")
+        assert AthenaCompression.is_valid("truncate")
+        assert AthenaCompression.is_valid("TRUNCATE")
+        assert not AthenaCompression.is_valid("")
+        assert not AthenaCompression.is_valid("foobar")
