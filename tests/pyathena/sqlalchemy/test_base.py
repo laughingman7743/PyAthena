@@ -1624,7 +1624,8 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             actual.c.col_partition_bucket_1.dialect_options["awsathena"]["partition_transform"]
         assert partition_transform == 'bucket'
         partition_transform_bucket_count = \
-            actual.c.col_partition_bucket_1.dialect_options["awsathena"]["partition_transform_bucket_count"]
+            actual.c.col_partition_bucket_1.\
+            dialect_options["awsathena"]["partition_transform_bucket_count"]
         assert partition_transform_bucket_count == 5
         tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
         assert tblproperties["table_type"] == "ICEBERG"
@@ -1674,7 +1675,8 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             actual.c.col_partition_truncate_1.dialect_options["awsathena"]["partition_transform"]
         assert partition_transform == 'truncate'
         partition_transform_truncate_length = \
-            actual.c.col_partition_truncate_1.dialect_options["awsathena"]["partition_transform_truncate_length"]
+            actual.c.col_partition_truncate_1.\
+            dialect_options["awsathena"]["partition_transform_truncate_length"]
         assert partition_transform_truncate_length == 5
         tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
         assert tblproperties["table_type"] == "ICEBERG"

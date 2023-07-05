@@ -807,18 +807,41 @@ class AthenaDDLCompiler(DDLCompiler):
                                             column_dialect_opts["partition_transform_bucket_count"]
                                         if bucket_count:
                                             partitions.append(
-                                                f"\t{partition_transform}({bucket_count},{self.preparer.format_column(column)})"
+                                                f"""
+                                                    \t
+                                                    {partition_transform}(
+                                                        {bucket_count},
+                                                        {self.preparer.format_column(column)}
+                                                    )
+                                                """
                                             )
                                     elif (
                                         partition_transform ==
                                         AthenaPartitionTransform.PARTITION_TRANSFORM_TRUNCATE
                                     ):
                                         truncate_length = \
-                                            column_dialect_opts["partition_transform_truncate_length"]
+                                            column_dialect_opts[
+                                                "partition_transform_truncate_length"
+                                            ]
                                         if truncate_length:
-                                            partitions.append(f"\t{partition_transform}({truncate_length},{self.preparer.format_column(column)})")
+                                            partitions.append(
+                                                f"""
+                                                    \t
+                                                    {partition_transform}(
+                                                        {truncate_length},
+                                                        {self.preparer.format_column(column)}
+                                                    )
+                                                """
+                                            )
                                     else:
-                                        partitions.append(f"\t{partition_transform}({self.preparer.format_column(column)})")
+                                        partitions.append(
+                                            f"""
+                                                \t
+                                                {partition_transform}(
+                                                    {self.preparer.format_column(column)}
+                                                )
+                                            """
+                                        )
                             else:
                                 partitions.append(f"\t{self.preparer.format_column(column)}")
                             columns.append(f"\t{processed}")
