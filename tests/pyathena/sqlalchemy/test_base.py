@@ -1620,7 +1620,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
                 CREATE TABLE {ENV.schema}.{table_name} (
                 \tcol_1 STRING,
                 \tcol_2 INT
-                \tcol_partition_bucket_1 STRING
+                \tcol_partition_truncate_1
                 )
                 PARTITIONED BY (
                 \ttruncate(5, col_partition_truncate_1)
@@ -1633,9 +1633,9 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             )
             assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
             assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
-            assert actual.c.col_partition_bucket_1.dialect_options["awsathena"]["partition"]
-            assert actual.c.col_partition_bucket_1.dialect_options["awsathena"]["partition_transform"] == 'truncate'
-            assert actual.c.col_partition_bucket_1.dialect_options["awsathena"]["partition_transform_truncate_length"] == 5
+            assert actual.c.col_partition_truncate_1.dialect_options["awsathena"]["partition"]
+            assert actual.c.col_partition_truncate_1.dialect_options["awsathena"]["partition_transform"] == 'truncate'
+            assert actual.c.col_partition_truncate_1.dialect_options["awsathena"]["partition_transform_truncate_length"] == 5
             tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
             assert tblproperties["table_type"] == "ICEBERG"
 
