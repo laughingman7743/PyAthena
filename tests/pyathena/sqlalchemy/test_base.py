@@ -1270,50 +1270,55 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         assert actual.c.col_partition_2.dialect_options["awsathena"]["partition"]
 
     def test_create_iceberg_table_with_partition(self, engine):
-            engine, conn = engine
-            table_name = "test_create_iceberg_table_with_partition"
-            table_comment = "table comment"
-            column_comment = "column comment"
-            table = Table(
-                table_name,
-                MetaData(schema=ENV.schema),
-                Column("col_1", types.String, comment=column_comment),
-                Column("col_partition_1", types.String, awsathena_partition=True, comment=column_comment),
-                Column("col_partition_2", types.Integer, awsathena_partition=True),
-                Column("col_2", types.Integer),
-                awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
-                comment=table_comment,
-                awsathena_tblproperties={"table_type": "ICEBERG"}
-            )
-            ddl = CreateTable(table).compile(bind=conn)
-            table.create(bind=conn)
-            actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+        engine, conn = engine
+        table_name = "test_create_iceberg_table_with_partition"
+        table_comment = "table comment"
+        column_comment = "column comment"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column("col_1", types.String, comment=column_comment),
+            Column(
+                "col_partition_1",
+                types.String,
+                awsathena_partition=True,
+                comment=column_comment
+            ),
+            Column("col_partition_2", types.Integer, awsathena_partition=True),
+            Column("col_2", types.Integer),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            comment=table_comment,
+            awsathena_tblproperties={"table_type": "ICEBERG"}
+        )
+        ddl = CreateTable(table).compile(bind=conn)
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
-            assert str(ddl) == textwrap.dedent(
-                f"""
-                CREATE TABLE {ENV.schema}.{table_name} (
-                \tcol_1 STRING COMMENT '{column_comment}',
-                \tcol_partition_1 STRING COMMENT 'column comment',
-                \tcol_partition_2 INT,
-                \tcol_2 INT
-                )
-                COMMENT '{table_comment}'
-                PARTITIONED BY (
-                \tcol_partition_1,
-                \tcol_partition_2
-                )
-                LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
-                TBLPROPERTIES (
-                \t'table_type' = 'ICEBERG'
-                )
-                """
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE TABLE {ENV.schema}.{table_name} (
+            \tcol_1 STRING COMMENT '{column_comment}',
+            \tcol_partition_1 STRING COMMENT 'column comment',
+            \tcol_partition_2 INT,
+            \tcol_2 INT
             )
-            assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
-            assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
-            assert actual.c.col_partition_1.dialect_options["awsathena"]["partition"]
-            assert actual.c.col_partition_2.dialect_options["awsathena"]["partition"]
-            tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
-            assert tblproperties["table_type"] == "ICEBERG"
+            COMMENT '{table_comment}'
+            PARTITIONED BY (
+            \tcol_partition_1,
+            \tcol_partition_2
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            TBLPROPERTIES (
+            \t'table_type' = 'ICEBERG'
+            )
+            """
+        )
+        assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
+        assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
+        assert actual.c.col_partition_1.dialect_options["awsathena"]["partition"]
+        assert actual.c.col_partition_2.dialect_options["awsathena"]["partition"]
+        tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
+        assert tblproperties["table_type"] == "ICEBERG"
 
     def test_create_table_with_date_partition(self, engine):
         engine, conn = engine
@@ -1366,278 +1371,313 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         assert tblproperties["projection.dt.format"] == "yyyy-MM-dd"
 
     def test_create_iceberg_table_with_date_partition(self, engine):
-            engine, conn = engine
-            table_name = "test_create_iceberg_table_with_date_partition"
-            table = Table(
-                table_name,
-                MetaData(schema=ENV.schema),
-                Column("col_1", types.String),
-                Column("col_2", types.Integer),
-                Column("dt", types.Date, awsathena_partition=True),
-                awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
-                awsathena_tblproperties={"table_type": "ICEBERG"},
-            )
-            ddl = CreateTable(table).compile(bind=conn)
-            table.create(bind=conn)
-            actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+        engine, conn = engine
+        table_name = "test_create_iceberg_table_with_date_partition"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column("col_1", types.String),
+            Column("col_2", types.Integer),
+            Column("dt", types.Date, awsathena_partition=True),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            awsathena_tblproperties={"table_type": "ICEBERG"},
+        )
+        ddl = CreateTable(table).compile(bind=conn)
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
-            assert str(ddl) == textwrap.dedent(
-                f"""
-                CREATE TABLE {ENV.schema}.{table_name} (
-                \tcol_1 STRING,
-                \tcol_2 INT
-                \tdt DATE
-                )
-                PARTITIONED BY (
-                \tdt
-                )
-                LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
-                TBLPROPERTIES (
-                \t'table_type' = 'ICEBERG'
-                )
-                """
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE TABLE {ENV.schema}.{table_name} (
+            \tcol_1 STRING,
+            \tcol_2 INT
+            \tdt DATE
             )
-            assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
-            assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
-            assert actual.c.dt.dialect_options["awsathena"]["partition"]
-            tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
-            assert tblproperties["table_type"] == "ICEBERG"
+            PARTITIONED BY (
+            \tdt
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            TBLPROPERTIES (
+            \t'table_type' = 'ICEBERG'
+            )
+            """
+        )
+        assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
+        assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
+        assert actual.c.dt.dialect_options["awsathena"]["partition"]
+        tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
+        assert tblproperties["table_type"] == "ICEBERG"
 
     def test_create_iceberg_table_with_year_partition_transform(self, engine):
-            engine, conn = engine
-            table_name = "test_create_iceberg_table_with_year_partition_transform"
-            table = Table(
-                table_name,
-                MetaData(schema=ENV.schema),
-                Column("col_1", types.String),
-                Column("col_2", types.Integer),
-                Column("dt", types.Date, awsathena_partition=True, awsathena_partition_transform='year'),
-                awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
-                awsathena_tblproperties={"table_type": "ICEBERG"},
-            )
-            ddl = CreateTable(table).compile(bind=conn)
-            table.create(bind=conn)
-            actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+        engine, conn = engine
+        table_name = "test_create_iceberg_table_with_year_partition_transform"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column("col_1", types.String),
+            Column("col_2", types.Integer),
+            Column(
+                "dt",
+                types.Date,
+                awsathena_partition=True,
+                awsathena_partition_transform='year'
+            ),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            awsathena_tblproperties={"table_type": "ICEBERG"},
+        )
+        ddl = CreateTable(table).compile(bind=conn)
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
-            assert str(ddl) == textwrap.dedent(
-                f"""
-                CREATE TABLE {ENV.schema}.{table_name} (
-                \tcol_1 STRING,
-                \tcol_2 INT
-                \tdt DATE
-                )
-                PARTITIONED BY (
-                \tyear(dt)
-                )
-                LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
-                TBLPROPERTIES (
-                \t'table_type' = 'ICEBERG'
-                )
-                """
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE TABLE {ENV.schema}.{table_name} (
+            \tcol_1 STRING,
+            \tcol_2 INT
+            \tdt DATE
             )
-            assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
-            assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
-            assert actual.c.dt.dialect_options["awsathena"]["partition"]
-            assert actual.c.dt.dialect_options["awsathena"]["partition_transform"] == 'year'
-            tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
-            assert tblproperties["table_type"] == "ICEBERG"
+            PARTITIONED BY (
+            \tyear(dt)
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            TBLPROPERTIES (
+            \t'table_type' = 'ICEBERG'
+            )
+            """
+        )
+        assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
+        assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
+        assert actual.c.dt.dialect_options["awsathena"]["partition"]
+        assert actual.c.dt.dialect_options["awsathena"]["partition_transform"] == 'year'
+        tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
+        assert tblproperties["table_type"] == "ICEBERG"
 
     def test_create_iceberg_table_with_month_partition_transform(self, engine):
-            engine, conn = engine
-            table_name = "test_create_iceberg_table_with_month_partition_transform"
-            table = Table(
-                table_name,
-                MetaData(schema=ENV.schema),
-                Column("col_1", types.String),
-                Column("col_2", types.Integer),
-                Column("dt", types.Date, awsathena_partition=True, awsathena_partition_transform='month'),
-                awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
-                awsathena_tblproperties={"table_type": "ICEBERG"},
-            )
-            ddl = CreateTable(table).compile(bind=conn)
-            table.create(bind=conn)
-            actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+        engine, conn = engine
+        table_name = "test_create_iceberg_table_with_month_partition_transform"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column("col_1", types.String),
+            Column("col_2", types.Integer),
+            Column(
+                "dt",
+                types.Date,
+                awsathena_partition=True,
+                awsathena_partition_transform='month'
+            ),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            awsathena_tblproperties={"table_type": "ICEBERG"},
+        )
+        ddl = CreateTable(table).compile(bind=conn)
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
-            assert str(ddl) == textwrap.dedent(
-                f"""
-                CREATE TABLE {ENV.schema}.{table_name} (
-                \tcol_1 STRING,
-                \tcol_2 INT
-                \tdt DATE
-                )
-                PARTITIONED BY (
-                \tmonth(dt)
-                )
-                LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
-                TBLPROPERTIES (
-                \t'table_type' = 'ICEBERG'
-                )
-                """
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE TABLE {ENV.schema}.{table_name} (
+            \tcol_1 STRING,
+            \tcol_2 INT
+            \tdt DATE
             )
-            assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
-            assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
-            assert actual.c.dt.dialect_options["awsathena"]["partition"]
-            assert actual.c.dt.dialect_options["awsathena"]["partition_transform"] == 'month'
-            tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
-            assert tblproperties["table_type"] == "ICEBERG"
+            PARTITIONED BY (
+            \tmonth(dt)
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            TBLPROPERTIES (
+            \t'table_type' = 'ICEBERG'
+            )
+            """
+        )
+        assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
+        assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
+        assert actual.c.dt.dialect_options["awsathena"]["partition"]
+        assert actual.c.dt.dialect_options["awsathena"]["partition_transform"] == 'month'
+        tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
+        assert tblproperties["table_type"] == "ICEBERG"
 
     def test_create_iceberg_table_with_day_partition_transform(self, engine):
-            engine, conn = engine
-            table_name = "test_create_iceberg_table_with_day_partition_transform"
-            table = Table(
-                table_name,
-                MetaData(schema=ENV.schema),
-                Column("col_1", types.String),
-                Column("col_2", types.Integer),
-                Column("dt", types.Date, awsathena_partition=True, awsathena_partition_transform='day'),
-                awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
-                awsathena_tblproperties={"table_type": "ICEBERG"},
-            )
-            ddl = CreateTable(table).compile(bind=conn)
-            table.create(bind=conn)
-            actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+        engine, conn = engine
+        table_name = "test_create_iceberg_table_with_day_partition_transform"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column("col_1", types.String),
+            Column("col_2", types.Integer),
+            Column("dt", types.Date, awsathena_partition=True, awsathena_partition_transform='day'),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            awsathena_tblproperties={"table_type": "ICEBERG"},
+        )
+        ddl = CreateTable(table).compile(bind=conn)
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
-            assert str(ddl) == textwrap.dedent(
-                f"""
-                CREATE TABLE {ENV.schema}.{table_name} (
-                \tcol_1 STRING,
-                \tcol_2 INT
-                \tdt DATE
-                )
-                PARTITIONED BY (
-                \tday(dt)
-                )
-                LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
-                TBLPROPERTIES (
-                \t'table_type' = 'ICEBERG'
-                )
-                """
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE TABLE {ENV.schema}.{table_name} (
+            \tcol_1 STRING,
+            \tcol_2 INT
+            \tdt DATE
             )
-            assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
-            assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
-            assert actual.c.dt.dialect_options["awsathena"]["partition"]
-            assert actual.c.dt.dialect_options["awsathena"]["partition_transform"] == 'day'
-            tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
-            assert tblproperties["table_type"] == "ICEBERG"
+            PARTITIONED BY (
+            \tday(dt)
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            TBLPROPERTIES (
+            \t'table_type' = 'ICEBERG'
+            )
+            """
+        )
+        assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
+        assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
+        assert actual.c.dt.dialect_options["awsathena"]["partition"]
+        assert actual.c.dt.dialect_options["awsathena"]["partition_transform"] == 'day'
+        tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
+        assert tblproperties["table_type"] == "ICEBERG"
 
     def test_create_iceberg_table_with_hour_partition_transform(self, engine):
-            engine, conn = engine
-            table_name = "test_create_iceberg_table_with_hour_partition_transform"
-            table = Table(
-                table_name,
-                MetaData(schema=ENV.schema),
-                Column("col_1", types.String),
-                Column("col_2", types.Integer),
-                Column("ts", types.TIMESTAMP, awsathena_partition=True, awsathena_partition_transform='hour'),
-                awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
-                awsathena_tblproperties={"table_type": "ICEBERG"},
-            )
-            ddl = CreateTable(table).compile(bind=conn)
-            table.create(bind=conn)
-            actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+        engine, conn = engine
+        table_name = "test_create_iceberg_table_with_hour_partition_transform"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column("col_1", types.String),
+            Column("col_2", types.Integer),
+            Column(
+                "ts",
+                types.TIMESTAMP,
+                awsathena_partition=True,
+                awsathena_partition_transform='hour'
+            ),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            awsathena_tblproperties={"table_type": "ICEBERG"},
+        )
+        ddl = CreateTable(table).compile(bind=conn)
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
-            assert str(ddl) == textwrap.dedent(
-                f"""
-                CREATE TABLE {ENV.schema}.{table_name} (
-                \tcol_1 STRING,
-                \tcol_2 INT
-                \tts TIMESTAMP
-                )
-                PARTITIONED BY (
-                \thour(ts)
-                )
-                LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
-                TBLPROPERTIES (
-                \t'table_type' = 'ICEBERG'
-                )
-                """
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE TABLE {ENV.schema}.{table_name} (
+            \tcol_1 STRING,
+            \tcol_2 INT
+            \tts TIMESTAMP
             )
-            assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
-            assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
-            assert actual.c.ts.dialect_options["awsathena"]["partition"]
-            assert actual.c.ts.dialect_options["awsathena"]["partition_transform"] == 'hour'
-            tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
-            assert tblproperties["table_type"] == "ICEBERG"
+            PARTITIONED BY (
+            \thour(ts)
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            TBLPROPERTIES (
+            \t'table_type' = 'ICEBERG'
+            )
+            """
+        )
+        assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
+        assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
+        assert actual.c.ts.dialect_options["awsathena"]["partition"]
+        assert actual.c.ts.dialect_options["awsathena"]["partition_transform"] == 'hour'
+        tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
+        assert tblproperties["table_type"] == "ICEBERG"
 
     def test_create_iceberg_table_with_bucket_partition_transform(self, engine):
-            engine, conn = engine
-            table_name = "test_create_iceberg_table_with_bucket_partition_transform"
-            table = Table(
-                table_name,
-                MetaData(schema=ENV.schema),
-                Column("col_1", types.String),
-                Column("col_2", types.Integer),
-                Column("col_partition_bucket_1", types.Integer, awsathena_partition=True, awsathena_partition_transform='bucket', awsathena_partition_transform_bucket_count=5),
-                awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
-                awsathena_tblproperties={"table_type": "ICEBERG"},
-            )
-            ddl = CreateTable(table).compile(bind=conn)
-            table.create(bind=conn)
-            actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+        engine, conn = engine
+        table_name = "test_create_iceberg_table_with_bucket_partition_transform"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column("col_1", types.String),
+            Column("col_2", types.Integer),
+            Column(
+                "col_partition_bucket_1",
+                types.Integer,
+                awsathena_partition=True,
+                awsathena_partition_transform='bucket',
+                awsathena_partition_transform_bucket_count=5
+            ),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            awsathena_tblproperties={"table_type": "ICEBERG"},
+        )
+        ddl = CreateTable(table).compile(bind=conn)
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
-            assert str(ddl) == textwrap.dedent(
-                f"""
-                CREATE TABLE {ENV.schema}.{table_name} (
-                \tcol_1 STRING,
-                \tcol_2 INT
-                \tcol_partition_bucket_1 INT
-                )
-                PARTITIONED BY (
-                \tbucket(5, col_partition_bucket_1)
-                )
-                LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
-                TBLPROPERTIES (
-                \t'table_type' = 'ICEBERG'
-                )
-                """
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE TABLE {ENV.schema}.{table_name} (
+            \tcol_1 STRING,
+            \tcol_2 INT
+            \tcol_partition_bucket_1 INT
             )
-            assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
-            assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
-            assert actual.c.col_partition_bucket_1.dialect_options["awsathena"]["partition"]
-            assert actual.c.col_partition_bucket_1.dialect_options["awsathena"]["partition_transform"] == 'bucket'
-            assert actual.c.col_partition_bucket_1.dialect_options["awsathena"]["partition_transform_bucket_count"] == 5
-            tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
-            assert tblproperties["table_type"] == "ICEBERG"
+            PARTITIONED BY (
+            \tbucket(5, col_partition_bucket_1)
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            TBLPROPERTIES (
+            \t'table_type' = 'ICEBERG'
+            )
+            """
+        )
+        assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
+        assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
+        assert actual.c.col_partition_bucket_1.dialect_options["awsathena"]["partition"]
+        partition_transform = \
+            actual.c.col_partition_bucket_1.dialect_options["awsathena"]["partition_transform"]
+        assert partition_transform == 'bucket'
+        partition_transform_bucket_count = \
+            actual.c.col_partition_bucket_1.dialect_options["awsathena"]["partition_transform_bucket_count"]
+        assert partition_transform_bucket_count == 5
+        tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
+        assert tblproperties["table_type"] == "ICEBERG"
 
     def test_create_iceberg_table_with_truncate_partition_transform(self, engine):
-            engine, conn = engine
-            table_name = "test_create_iceberg_table_with_truncate_partition_transform"
-            table = Table(
-                table_name,
-                MetaData(schema=ENV.schema),
-                Column("col_1", types.String),
-                Column("col_2", types.Integer),
-                Column("col_partition_truncate_1", types.String, awsathena_partition=True, awsathena_partition_transform='truncate', awsathena_partition_transform_truncate_length=5),
-                awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
-                awsathena_tblproperties={"table_type": "ICEBERG"},
-            )
-            ddl = CreateTable(table).compile(bind=conn)
-            table.create(bind=conn)
-            actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+        engine, conn = engine
+        table_name = "test_create_iceberg_table_with_truncate_partition_transform"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column("col_1", types.String),
+            Column("col_2", types.Integer),
+            Column(
+                "col_partition_truncate_1",
+                types.String,
+                awsathena_partition=True,
+                awsathena_partition_transform='truncate',
+                awsathena_partition_transform_truncate_length=5
+            ),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            awsathena_tblproperties={"table_type": "ICEBERG"},
+        )
+        ddl = CreateTable(table).compile(bind=conn)
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
 
-            assert str(ddl) == textwrap.dedent(
-                f"""
-                CREATE TABLE {ENV.schema}.{table_name} (
-                \tcol_1 STRING,
-                \tcol_2 INT
-                \tcol_partition_truncate_1
-                )
-                PARTITIONED BY (
-                \ttruncate(5, col_partition_truncate_1)
-                )
-                LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
-                TBLPROPERTIES (
-                \t'table_type' = 'ICEBERG'
-                )
-                """
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE TABLE {ENV.schema}.{table_name} (
+            \tcol_1 STRING,
+            \tcol_2 INT
+            \tcol_partition_truncate_1
             )
-            assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
-            assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
-            assert actual.c.col_partition_truncate_1.dialect_options["awsathena"]["partition"]
-            assert actual.c.col_partition_truncate_1.dialect_options["awsathena"]["partition_transform"] == 'truncate'
-            assert actual.c.col_partition_truncate_1.dialect_options["awsathena"]["partition_transform_truncate_length"] == 5
-            tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
-            assert tblproperties["table_type"] == "ICEBERG"
+            PARTITIONED BY (
+            \ttruncate(5, col_partition_truncate_1)
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            TBLPROPERTIES (
+            \t'table_type' = 'ICEBERG'
+            )
+            """
+        )
+        assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
+        assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
+        assert actual.c.col_partition_truncate_1.dialect_options["awsathena"]["partition"]
+        partition_transform = \
+            actual.c.col_partition_truncate_1.dialect_options["awsathena"]["partition_transform"]
+        assert partition_transform == 'truncate'
+        partition_transform_truncate_length = \
+            actual.c.col_partition_truncate_1.dialect_options["awsathena"]["partition_transform_truncate_length"]
+        assert partition_transform_truncate_length == 5
+        tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
+        assert tblproperties["table_type"] == "ICEBERG"
 
     def test_insert_from_select_cte_follows_insert_one(self, engine):
         engine, conn = engine

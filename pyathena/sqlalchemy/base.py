@@ -33,7 +33,12 @@ from sqlalchemy.sql.compiler import (
 )
 
 import pyathena
-from pyathena.model import AthenaFileFormat, AthenaRowFormatSerde, AthenaPartitionTransform
+from pyathena.model import (
+    AthenaFileFormat,
+    AthenaRowFormatSerde,
+    AthenaPartitionTransform,
+)
+
 from pyathena.sqlalchemy.types import AthenaDate, AthenaTimestamp
 from pyathena.sqlalchemy.util import _HashableDict
 
@@ -789,17 +794,27 @@ class AthenaDDLCompiler(DDLCompiler):
                         or column.name in conn_partitions
                         or f"{table.name}.{column.name}" in conn_partitions
                     ):
-                        #https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html#querying-iceberg-partitioning
+                        # https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html#querying-iceberg-partitioning
                         if is_iceberg:
                             partition_transform = column_dialect_opts["partition_transform"]
                             if partition_transform:
                                 if AthenaPartitionTransform.is_valid(partition_transform):
-                                    if partition_transform == AthenaPartitionTransform.PARTITION_TRANSFORM_BUCKET:
-                                        bucket_count = column_dialect_opts["partition_transform_bucket_count"]
+                                    if (
+                                        partition_transform ==
+                                        AthenaPartitionTransform.PARTITION_TRANSFORM_BUCKET
+                                    ):
+                                        bucket_count = \
+                                            column_dialect_opts["partition_transform_bucket_count"]
                                         if bucket_count:
-                                            partitions.append(f"\t{partition_transform}({bucket_count},{self.preparer.format_column(column)})")
-                                    elif partition_transform == AthenaPartitionTransform.PARTITION_TRANSFORM_TRUNCATE:
-                                        truncate_length = column_dialect_opts["partition_transform_truncate_length"]
+                                            partitions.append(
+                                                f"\t{partition_transform}({bucket_count},{self.preparer.format_column(column)})"
+                                            )
+                                    elif (
+                                        partition_transform ==
+                                        AthenaPartitionTransform.PARTITION_TRANSFORM_TRUNCATE
+                                    ):
+                                        truncate_length = \
+                                            column_dialect_opts["partition_transform_truncate_length"]
                                         if truncate_length:
                                             partitions.append(f"\t{partition_transform}({truncate_length},{self.preparer.format_column(column)})")
                                     else:
@@ -848,7 +863,12 @@ class AthenaDDLCompiler(DDLCompiler):
         text.append("(")
         text = [" ".join(text)]
 
-        columns, partitions, buckets = self._prepared_columns(table, is_iceberg, create.columns, connect_opts)
+        columns, partitions, buckets = self._prepared_columns(
+            table,
+            is_iceberg,
+            create.columns,
+            connect_opts
+        )
         text.append(",\n".join(columns))
         text.append(")")
 

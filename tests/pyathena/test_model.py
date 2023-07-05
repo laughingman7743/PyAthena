@@ -398,6 +398,7 @@ class TestAthenaCompression:
         assert not AthenaCompression.is_valid("")
         assert not AthenaCompression.is_valid("foobar")
 
+
 class TestAthenaPartitionTransform:
     def test_is_valid(self):
         assert AthenaCompression.is_valid("year")
