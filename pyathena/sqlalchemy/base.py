@@ -35,10 +35,9 @@ from sqlalchemy.sql.compiler import (
 import pyathena
 from pyathena.model import (
     AthenaFileFormat,
-    AthenaRowFormatSerde,
     AthenaPartitionTransform,
+    AthenaRowFormatSerde,
 )
-
 from pyathena.sqlalchemy.types import AthenaDate, AthenaTimestamp
 from pyathena.sqlalchemy.util import _HashableDict
 
