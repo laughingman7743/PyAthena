@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import re
-import textwrap
 from distutils.util import strtobool
 from typing import (
     TYPE_CHECKING,
@@ -797,6 +796,8 @@ class AthenaDDLCompiler(DDLCompiler):
                         # https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html#querying-iceberg-partitioning
                         if is_iceberg:
                             partition_transform = column_dialect_opts["partition_transform"]
+                            column_name = self.preparer.format_column(column)
+                            transform_column = None
                             if partition_transform:
                                 if AthenaPartitionTransform.is_valid(partition_transform):
                                     if (
@@ -807,17 +808,7 @@ class AthenaDDLCompiler(DDLCompiler):
                                             "partition_transform_bucket_count"
                                         ]
                                         if bucket_count:
-                                            partitions.append(
-                                                textwrap.dedent(
-                                                    f"""
-                                                    \t
-                                                    {partition_transform}(
-                                                        {bucket_count},
-                                                        {self.preparer.format_column(column)}
-                                                    )
-                                                """
-                                                )
-                                            )
+                                            transform_column = {bucket_count}, {column_name}
                                     elif (
                                         partition_transform
                                         == AthenaPartitionTransform.PARTITION_TRANSFORM_TRUNCATE
@@ -826,27 +817,13 @@ class AthenaDDLCompiler(DDLCompiler):
                                             "partition_transform_truncate_length"
                                         ]
                                         if truncate_length:
-                                            partitions.append(
-                                                textwrap.dedent(
-                                                    f"""
-                                                    \t
-                                                    {partition_transform}(
-                                                        {truncate_length},
-                                                        {self.preparer.format_column(column)}
-                                                    )
-                                                """
-                                                )
-                                            )
+                                            transform_column = {truncate_length}, {column_name}
                                     else:
+                                        transform_column = column_name
+
+                                    if transform_column:
                                         partitions.append(
-                                            textwrap.dedent(
-                                                f"""
-                                                \t
-                                                {partition_transform}(
-                                                    {self.preparer.format_column(column)}
-                                                )
-                                            """
-                                            )
+                                            f"\t{partition_transform}({transform_column})"
                                         )
                             else:
                                 partitions.append(f"\t{self.preparer.format_column(column)}")
