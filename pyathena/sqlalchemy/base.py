@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import textwrap
 from distutils.util import strtobool
 from typing import (
     TYPE_CHECKING,
@@ -807,13 +808,15 @@ class AthenaDDLCompiler(DDLCompiler):
                                         ]
                                         if bucket_count:
                                             partitions.append(
-                                                f"""
+                                                textwrap.dedent(
+                                                    f"""
                                                     \t
                                                     {partition_transform}(
                                                         {bucket_count},
                                                         {self.preparer.format_column(column)}
                                                     )
                                                 """
+                                                )
                                             )
                                     elif (
                                         partition_transform
@@ -824,22 +827,26 @@ class AthenaDDLCompiler(DDLCompiler):
                                         ]
                                         if truncate_length:
                                             partitions.append(
-                                                f"""
+                                                textwrap.dedent(
+                                                    f"""
                                                     \t
                                                     {partition_transform}(
                                                         {truncate_length},
                                                         {self.preparer.format_column(column)}
                                                     )
                                                 """
+                                                )
                                             )
                                     else:
                                         partitions.append(
-                                            f"""
+                                            textwrap.dedent(
+                                                f"""
                                                 \t
                                                 {partition_transform}(
                                                     {self.preparer.format_column(column)}
                                                 )
                                             """
+                                            )
                                         )
                             else:
                                 partitions.append(f"\t{self.preparer.format_column(column)}")

@@ -1622,7 +1622,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             CREATE TABLE {ENV.schema}.{table_name} (
             \tcol_1 STRING,
             \tcol_2 INT,
-            \tcol_partition_truncate_1
+            \tcol_partition_truncate_1 STRING
             )
             PARTITIONED BY (
             \ttruncate(5, col_partition_truncate_1)
