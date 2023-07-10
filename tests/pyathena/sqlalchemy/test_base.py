@@ -1279,16 +1279,13 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             MetaData(schema=ENV.schema),
             Column("col_1", types.String, comment=column_comment),
             Column(
-                "col_partition_1",
-                types.String,
-                awsathena_partition=True,
-                comment=column_comment
+                "col_partition_1", types.String, awsathena_partition=True, comment=column_comment
             ),
             Column("col_partition_2", types.Integer, awsathena_partition=True),
             Column("col_2", types.Integer),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             comment=table_comment,
-            awsathena_tblproperties={"table_type": "ICEBERG"}
+            awsathena_tblproperties={"table_type": "ICEBERG"},
         )
         ddl = CreateTable(table).compile(bind=conn)
         table.create(bind=conn)
@@ -1417,10 +1414,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             Column("col_1", types.String),
             Column("col_2", types.Integer),
             Column(
-                "dt",
-                types.Date,
-                awsathena_partition=True,
-                awsathena_partition_transform='year'
+                "dt", types.Date, awsathena_partition=True, awsathena_partition_transform="year"
             ),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_tblproperties={"table_type": "ICEBERG"},
@@ -1448,7 +1442,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
         assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
         assert actual.c.dt.dialect_options["awsathena"]["partition"]
-        assert actual.c.dt.dialect_options["awsathena"]["partition_transform"] == 'year'
+        assert actual.c.dt.dialect_options["awsathena"]["partition_transform"] == "year"
         tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
         assert tblproperties["table_type"] == "ICEBERG"
 
@@ -1461,10 +1455,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             Column("col_1", types.String),
             Column("col_2", types.Integer),
             Column(
-                "dt",
-                types.Date,
-                awsathena_partition=True,
-                awsathena_partition_transform='month'
+                "dt", types.Date, awsathena_partition=True, awsathena_partition_transform="month"
             ),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_tblproperties={"table_type": "ICEBERG"},
@@ -1492,7 +1483,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
         assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
         assert actual.c.dt.dialect_options["awsathena"]["partition"]
-        assert actual.c.dt.dialect_options["awsathena"]["partition_transform"] == 'month'
+        assert actual.c.dt.dialect_options["awsathena"]["partition_transform"] == "month"
         tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
         assert tblproperties["table_type"] == "ICEBERG"
 
@@ -1504,7 +1495,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             MetaData(schema=ENV.schema),
             Column("col_1", types.String),
             Column("col_2", types.Integer),
-            Column("dt", types.Date, awsathena_partition=True, awsathena_partition_transform='day'),
+            Column("dt", types.Date, awsathena_partition=True, awsathena_partition_transform="day"),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_tblproperties={"table_type": "ICEBERG"},
         )
@@ -1531,7 +1522,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
         assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
         assert actual.c.dt.dialect_options["awsathena"]["partition"]
-        assert actual.c.dt.dialect_options["awsathena"]["partition_transform"] == 'day'
+        assert actual.c.dt.dialect_options["awsathena"]["partition_transform"] == "day"
         tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
         assert tblproperties["table_type"] == "ICEBERG"
 
@@ -1547,7 +1538,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
                 "ts",
                 types.TIMESTAMP,
                 awsathena_partition=True,
-                awsathena_partition_transform='hour'
+                awsathena_partition_transform="hour",
             ),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_tblproperties={"table_type": "ICEBERG"},
@@ -1575,7 +1566,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
         assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
         assert actual.c.ts.dialect_options["awsathena"]["partition"]
-        assert actual.c.ts.dialect_options["awsathena"]["partition_transform"] == 'hour'
+        assert actual.c.ts.dialect_options["awsathena"]["partition_transform"] == "hour"
         tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
         assert tblproperties["table_type"] == "ICEBERG"
 
@@ -1591,8 +1582,8 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
                 "col_partition_bucket_1",
                 types.Integer,
                 awsathena_partition=True,
-                awsathena_partition_transform='bucket',
-                awsathena_partition_transform_bucket_count=5
+                awsathena_partition_transform="bucket",
+                awsathena_partition_transform_bucket_count=5,
             ),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_tblproperties={"table_type": "ICEBERG"},
@@ -1620,12 +1611,13 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
         assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
         assert actual.c.col_partition_bucket_1.dialect_options["awsathena"]["partition"]
-        partition_transform = \
-            actual.c.col_partition_bucket_1.dialect_options["awsathena"]["partition_transform"]
-        assert partition_transform == 'bucket'
-        partition_transform_bucket_count = \
-            actual.c.col_partition_bucket_1.\
-            dialect_options["awsathena"]["partition_transform_bucket_count"]
+        partition_transform = actual.c.col_partition_bucket_1.dialect_options["awsathena"][
+            "partition_transform"
+        ]
+        assert partition_transform == "bucket"
+        partition_transform_bucket_count = actual.c.col_partition_bucket_1.dialect_options[
+            "awsathena"
+        ]["partition_transform_bucket_count"]
         assert partition_transform_bucket_count == 5
         tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
         assert tblproperties["table_type"] == "ICEBERG"
@@ -1642,8 +1634,8 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
                 "col_partition_truncate_1",
                 types.String,
                 awsathena_partition=True,
-                awsathena_partition_transform='truncate',
-                awsathena_partition_transform_truncate_length=5
+                awsathena_partition_transform="truncate",
+                awsathena_partition_transform_truncate_length=5,
             ),
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_tblproperties={"table_type": "ICEBERG"},
@@ -1671,12 +1663,13 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
         assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
         assert actual.c.col_partition_truncate_1.dialect_options["awsathena"]["partition"]
-        partition_transform = \
-            actual.c.col_partition_truncate_1.dialect_options["awsathena"]["partition_transform"]
-        assert partition_transform == 'truncate'
-        partition_transform_truncate_length = \
-            actual.c.col_partition_truncate_1.\
-            dialect_options["awsathena"]["partition_transform_truncate_length"]
+        partition_transform = actual.c.col_partition_truncate_1.dialect_options["awsathena"][
+            "partition_transform"
+        ]
+        assert partition_transform == "truncate"
+        partition_transform_truncate_length = actual.c.col_partition_truncate_1.dialect_options[
+            "awsathena"
+        ]["partition_transform_truncate_length"]
         assert partition_transform_truncate_length == 5
         tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
         assert tblproperties["table_type"] == "ICEBERG"

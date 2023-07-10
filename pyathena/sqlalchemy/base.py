@@ -799,11 +799,12 @@ class AthenaDDLCompiler(DDLCompiler):
                             if partition_transform:
                                 if AthenaPartitionTransform.is_valid(partition_transform):
                                     if (
-                                        partition_transform ==
-                                        AthenaPartitionTransform.PARTITION_TRANSFORM_BUCKET
+                                        partition_transform
+                                        == AthenaPartitionTransform.PARTITION_TRANSFORM_BUCKET
                                     ):
-                                        bucket_count = \
-                                            column_dialect_opts["partition_transform_bucket_count"]
+                                        bucket_count = column_dialect_opts[
+                                            "partition_transform_bucket_count"
+                                        ]
                                         if bucket_count:
                                             partitions.append(
                                                 f"""
@@ -815,13 +816,12 @@ class AthenaDDLCompiler(DDLCompiler):
                                                 """
                                             )
                                     elif (
-                                        partition_transform ==
-                                        AthenaPartitionTransform.PARTITION_TRANSFORM_TRUNCATE
+                                        partition_transform
+                                        == AthenaPartitionTransform.PARTITION_TRANSFORM_TRUNCATE
                                     ):
-                                        truncate_length = \
-                                            column_dialect_opts[
-                                                "partition_transform_truncate_length"
-                                            ]
+                                        truncate_length = column_dialect_opts[
+                                            "partition_transform_truncate_length"
+                                        ]
                                         if truncate_length:
                                             partitions.append(
                                                 f"""
@@ -886,10 +886,7 @@ class AthenaDDLCompiler(DDLCompiler):
         text = [" ".join(text)]
 
         columns, partitions, buckets = self._prepared_columns(
-            table,
-            is_iceberg,
-            create.columns,
-            connect_opts
+            table, is_iceberg, create.columns, connect_opts
         )
         text.append(",\n".join(columns))
         text.append(")")
