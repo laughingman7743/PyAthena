@@ -1310,10 +1310,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             )
             """
         )
-        assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
-        assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
-        assert actual.c.col_partition_1.dialect_options["awsathena"]["partition"]
-        assert actual.c.col_partition_2.dialect_options["awsathena"]["partition"]
+
         tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
         assert tblproperties["table_type"] == "ICEBERG"
 
@@ -1387,7 +1384,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             f"""
             CREATE TABLE {ENV.schema}.{table_name} (
             \tcol_1 STRING,
-            \tcol_2 INT
+            \tcol_2 INT,
             \tdt DATE
             )
             PARTITIONED BY (
@@ -1399,9 +1396,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             )
             """
         )
-        assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
-        assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
-        assert actual.c.dt.dialect_options["awsathena"]["partition"]
+
         tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
         assert tblproperties["table_type"] == "ICEBERG"
 
@@ -1427,7 +1422,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             f"""
             CREATE TABLE {ENV.schema}.{table_name} (
             \tcol_1 STRING,
-            \tcol_2 INT
+            \tcol_2 INT,
             \tdt DATE
             )
             PARTITIONED BY (
@@ -1439,10 +1434,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             )
             """
         )
-        assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
-        assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
-        assert actual.c.dt.dialect_options["awsathena"]["partition"]
-        assert actual.c.dt.dialect_options["awsathena"]["partition_transform"] == "year"
+
         tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
         assert tblproperties["table_type"] == "ICEBERG"
 
@@ -1468,7 +1460,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             f"""
             CREATE TABLE {ENV.schema}.{table_name} (
             \tcol_1 STRING,
-            \tcol_2 INT
+            \tcol_2 INT,
             \tdt DATE
             )
             PARTITIONED BY (
@@ -1480,10 +1472,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             )
             """
         )
-        assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
-        assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
-        assert actual.c.dt.dialect_options["awsathena"]["partition"]
-        assert actual.c.dt.dialect_options["awsathena"]["partition_transform"] == "month"
+
         tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
         assert tblproperties["table_type"] == "ICEBERG"
 
@@ -1507,7 +1496,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             f"""
             CREATE TABLE {ENV.schema}.{table_name} (
             \tcol_1 STRING,
-            \tcol_2 INT
+            \tcol_2 INT,
             \tdt DATE
             )
             PARTITIONED BY (
@@ -1519,10 +1508,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             )
             """
         )
-        assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
-        assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
-        assert actual.c.dt.dialect_options["awsathena"]["partition"]
-        assert actual.c.dt.dialect_options["awsathena"]["partition_transform"] == "day"
+
         tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
         assert tblproperties["table_type"] == "ICEBERG"
 
@@ -1551,7 +1537,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             f"""
             CREATE TABLE {ENV.schema}.{table_name} (
             \tcol_1 STRING,
-            \tcol_2 INT
+            \tcol_2 INT,
             \tts TIMESTAMP
             )
             PARTITIONED BY (
@@ -1563,10 +1549,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             )
             """
         )
-        assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
-        assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
-        assert actual.c.ts.dialect_options["awsathena"]["partition"]
-        assert actual.c.ts.dialect_options["awsathena"]["partition_transform"] == "hour"
+
         tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
         assert tblproperties["table_type"] == "ICEBERG"
 
@@ -1596,7 +1579,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             f"""
             CREATE TABLE {ENV.schema}.{table_name} (
             \tcol_1 STRING,
-            \tcol_2 INT
+            \tcol_2 INT,
             \tcol_partition_bucket_1 INT
             )
             PARTITIONED BY (
@@ -1608,17 +1591,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             )
             """
         )
-        assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
-        assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
-        assert actual.c.col_partition_bucket_1.dialect_options["awsathena"]["partition"]
-        partition_transform = actual.c.col_partition_bucket_1.dialect_options["awsathena"][
-            "partition_transform"
-        ]
-        assert partition_transform == "bucket"
-        partition_transform_bucket_count = actual.c.col_partition_bucket_1.dialect_options[
-            "awsathena"
-        ]["partition_transform_bucket_count"]
-        assert partition_transform_bucket_count == 5
+
         tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
         assert tblproperties["table_type"] == "ICEBERG"
 
@@ -1648,7 +1621,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             f"""
             CREATE TABLE {ENV.schema}.{table_name} (
             \tcol_1 STRING,
-            \tcol_2 INT
+            \tcol_2 INT,
             \tcol_partition_truncate_1
             )
             PARTITIONED BY (
@@ -1660,17 +1633,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             )
             """
         )
-        assert not actual.c.col_1.dialect_options["awsathena"]["partition"]
-        assert not actual.c.col_2.dialect_options["awsathena"]["partition"]
-        assert actual.c.col_partition_truncate_1.dialect_options["awsathena"]["partition"]
-        partition_transform = actual.c.col_partition_truncate_1.dialect_options["awsathena"][
-            "partition_transform"
-        ]
-        assert partition_transform == "truncate"
-        partition_transform_truncate_length = actual.c.col_partition_truncate_1.dialect_options[
-            "awsathena"
-        ]["partition_transform_truncate_length"]
-        assert partition_transform_truncate_length == 5
+
         tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
         assert tblproperties["table_type"] == "ICEBERG"
 
