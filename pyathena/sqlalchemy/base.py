@@ -808,7 +808,7 @@ class AthenaDDLCompiler(DDLCompiler):
                                             "partition_transform_bucket_count"
                                         ]
                                         if bucket_count:
-                                            transform_column = {bucket_count}, {column_name}
+                                            transform_column = f"{bucket_count}, {column_name}"
                                     elif (
                                         partition_transform
                                         == AthenaPartitionTransform.PARTITION_TRANSFORM_TRUNCATE
@@ -817,7 +817,7 @@ class AthenaDDLCompiler(DDLCompiler):
                                             "partition_transform_truncate_length"
                                         ]
                                         if truncate_length:
-                                            transform_column = {truncate_length}, {column_name}
+                                            transform_column = f"{truncate_length}, {column_name}"
                                     else:
                                         transform_column = column_name
 
