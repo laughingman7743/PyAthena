@@ -1637,6 +1637,108 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
         tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
         assert tblproperties["table_type"] == "ICEBERG"
 
+    def test_create_iceberg_table_with_partition_plus_transform(self, engine):
+        engine, conn = engine
+        table_name = "test_create_iceberg_table_with_partition_plus_transform"
+        table_comment = "table comment"
+        column_comment = "column comment"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column("col_1", types.String, comment=column_comment),
+            Column(
+                "col_partition_1", types.String, awsathena_partition=True, comment=column_comment
+            ),
+            Column(
+                "col_partition_truncate_2",
+                types.String,
+                awsathena_partition=True,
+                awsathena_partition_transform="truncate",
+                awsathena_partition_transform_truncate_length=5,
+            ),
+            Column("col_2", types.Integer),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            comment=table_comment,
+            awsathena_tblproperties={"table_type": "ICEBERG"},
+        )
+        ddl = CreateTable(table).compile(bind=conn)
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE TABLE {ENV.schema}.{table_name} (
+            \tcol_1 STRING COMMENT '{column_comment}',
+            \tcol_partition_1 STRING COMMENT 'column comment',
+            \tcol_partition_truncate_2 STRING,
+            \tcol_2 INT
+            )
+            COMMENT '{table_comment}'
+            PARTITIONED BY (
+            \tcol_partition_1,
+            \ttruncate(5, col_partition_truncate_2)
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            TBLPROPERTIES (
+            \t'table_type' = 'ICEBERG'
+            )
+            """
+        )
+
+        tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
+        assert tblproperties["table_type"] == "ICEBERG"
+
+    def test_create_iceberg_table_with_multiple_partition_transform(self, engine):
+        engine, conn = engine
+        table_name = "test_create_iceberg_table_with_multiple_partition_transform"
+        table_comment = "table comment"
+        column_comment = "column comment"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column("col_1", types.String, comment=column_comment),
+            Column(
+                "col_partition_bucket_1",
+                types.Integer,
+                awsathena_partition=True,
+                awsathena_partition_transform="bucket",
+                awsathena_partition_transform_bucket_count=5,
+            ),
+            Column(
+                "dt", types.Date, awsathena_partition=True, awsathena_partition_transform="year"
+            ),
+            Column("col_2", types.Integer),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            comment=table_comment,
+            awsathena_tblproperties={"table_type": "ICEBERG"},
+        )
+        ddl = CreateTable(table).compile(bind=conn)
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE TABLE {ENV.schema}.{table_name} (
+            \tcol_1 STRING COMMENT '{column_comment}',
+            \tcol_partition_bucket_1 INT,
+            \tdt DATE,
+            \tcol_2 INT
+            )
+            COMMENT '{table_comment}'
+            PARTITIONED BY (
+            \tbucket(5, col_partition_bucket_1),
+            \tyear(dt)
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            TBLPROPERTIES (
+            \t'table_type' = 'ICEBERG'
+            )
+            """
+        )
+
+        tblproperties = actual.dialect_options["awsathena"]["tblproperties"]
+        assert tblproperties["table_type"] == "ICEBERG"
+
     def test_insert_from_select_cte_follows_insert_one(self, engine):
         engine, conn = engine
         metadata = MetaData(schema=ENV.schema)
