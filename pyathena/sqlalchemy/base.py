@@ -776,6 +776,36 @@ class AthenaDDLCompiler(DDLCompiler):
             buckets = []
         return buckets
 
+    def _prepared_partitions(self, column):
+        # https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html#querying-iceberg-partitioning
+        column_dialect_opts = column.dialect_options["awsathena"]
+        partition_transform = column_dialect_opts["partition_transform"]
+
+        column_name = self.preparer.format_column(column)
+        transform_column = None
+
+        partitions = []
+
+        if partition_transform:
+            if AthenaPartitionTransform.is_valid(partition_transform):
+                if partition_transform == AthenaPartitionTransform.PARTITION_TRANSFORM_BUCKET:
+                    bucket_count = column_dialect_opts["partition_transform_bucket_count"]
+                    if bucket_count:
+                        transform_column = f"{bucket_count}, {column_name}"
+                elif partition_transform == AthenaPartitionTransform.PARTITION_TRANSFORM_TRUNCATE:
+                    truncate_length = column_dialect_opts["partition_transform_truncate_length"]
+                    if truncate_length:
+                        transform_column = f"{truncate_length}, {column_name}"
+                else:
+                    transform_column = column_name
+
+                if transform_column:
+                    partitions.append(f"\t{partition_transform}({transform_column})")
+        else:
+            partitions.append(f"\t{column_name}")
+
+        return partitions
+
     def _prepared_columns(
         self, table, is_iceberg, create_columns: List["CreateColumn"], connect_opts: Dict[str, Any]
     ) -> Tuple[List[str], List[str], List[str]]:
@@ -795,38 +825,7 @@ class AthenaDDLCompiler(DDLCompiler):
                     ):
                         # https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html#querying-iceberg-partitioning
                         if is_iceberg:
-                            partition_transform = column_dialect_opts["partition_transform"]
-                            column_name = self.preparer.format_column(column)
-                            transform_column = None
-                            if partition_transform:
-                                if AthenaPartitionTransform.is_valid(partition_transform):
-                                    if (
-                                        partition_transform
-                                        == AthenaPartitionTransform.PARTITION_TRANSFORM_BUCKET
-                                    ):
-                                        bucket_count = column_dialect_opts[
-                                            "partition_transform_bucket_count"
-                                        ]
-                                        if bucket_count:
-                                            transform_column = f"{bucket_count}, {column_name}"
-                                    elif (
-                                        partition_transform
-                                        == AthenaPartitionTransform.PARTITION_TRANSFORM_TRUNCATE
-                                    ):
-                                        truncate_length = column_dialect_opts[
-                                            "partition_transform_truncate_length"
-                                        ]
-                                        if truncate_length:
-                                            transform_column = f"{truncate_length}, {column_name}"
-                                    else:
-                                        transform_column = column_name
-
-                                    if transform_column:
-                                        partitions.append(
-                                            f"\t{partition_transform}({transform_column})"
-                                        )
-                            else:
-                                partitions.append(f"\t{self.preparer.format_column(column)}")
+                            partitions.extend(self._prepared_partitions(column=column))
                             columns.append(f"\t{processed}")
                         else:
                             partitions.append(f"\t{processed}")
