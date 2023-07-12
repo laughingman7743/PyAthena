@@ -318,6 +318,53 @@ partition
         .. code:: python
 
             Column("some_column", types.String, ..., awsathena_partition=True)
+
+partition_transform
+    Type:
+        str
+    Description:
+        Specifies a partition transform function for partitioning data.
+        Only has an effect for ICEBERG tables and when partition is set to true for the column.
+    Value:
+        * year
+        * month
+        * day
+        * hour
+        * bucket
+        * truncate
+    Example:
+        .. code:: python
+
+            Column("some_column", types.Date, ..., awsathena_partition=True, awsathena_partition_transform='year')
+
+partition_transform_bucket_count
+    Type:
+        int
+    Description:
+        Used for N in the bucket partition transform function, partitions by hashed value mod N buckets.
+        Only has an effect for ICEBERG tables and when partition is set to true and
+        when the partition transform is set to 'bucket' for the column.
+    Value:
+        Integer value greater than or equal to 0
+    Example:
+        .. code:: python
+
+            Column("some_column", types.String, ..., awsathena_partition=True, awsathena_partition_transform='bucket', awsathena_partition_transform_bucket_count=5)
+
+partition_transform_truncate_length
+    Type:
+        int
+    Description:
+        Used for L in the truncate partition transform function, partitions by value truncated to L.
+        Only has an effect for ICEBERG tables and when partition is set to true and
+        when the partition transform is set to 'truncate' for the column.
+    Value:
+        Integer value greater than or equal to 0
+    Example:
+        .. code:: python
+
+            Column("some_column", types.String, ..., awsathena_partition=True, awsathena_partition_transform='truncate', awsathena_partition_transform_truncate_length=5)
+
 cluster
     Type:
         bool
@@ -331,6 +378,8 @@ cluster
             Column("some_column", types.String, ..., awsathena_cluster=True)
 
 To configure column options from the connection string, specify the column name as a comma-separated string.
+The options partition_transform, partition_transform_bucket_count, partition_transform_truncate_length are not supported
+to be configured from the connection string.
 
 .. code:: text
 

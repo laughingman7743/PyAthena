@@ -487,3 +487,23 @@ class AthenaCompression:
             AthenaCompression.COMPRESSION_ZLIB,
             AthenaCompression.COMPRESSION_ZSTD,
         ]
+
+
+class AthenaPartitionTransform:
+    PARTITION_TRANSFORM_YEAR: str = "year"
+    PARTITION_TRANSFORM_MONTH: str = "month"
+    PARTITION_TRANSFORM_DAY: str = "day"
+    PARTITION_TRANSFORM_HOUR: str = "hour"
+    PARTITION_TRANSFORM_BUCKET: str = "bucket"
+    PARTITION_TRANSFORM_TRUNCATE: str = "truncate"
+
+    @staticmethod
+    def is_valid(value: str) -> bool:
+        return value.lower() in [
+            AthenaPartitionTransform.PARTITION_TRANSFORM_YEAR,
+            AthenaPartitionTransform.PARTITION_TRANSFORM_MONTH,
+            AthenaPartitionTransform.PARTITION_TRANSFORM_DAY,
+            AthenaPartitionTransform.PARTITION_TRANSFORM_HOUR,
+            AthenaPartitionTransform.PARTITION_TRANSFORM_BUCKET,
+            AthenaPartitionTransform.PARTITION_TRANSFORM_TRUNCATE,
+        ]

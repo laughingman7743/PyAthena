@@ -5,6 +5,7 @@ from datetime import datetime
 from pyathena.model import (
     AthenaCompression,
     AthenaFileFormat,
+    AthenaPartitionTransform,
     AthenaQueryExecution,
     AthenaRowFormatSerde,
     AthenaTableMetadata,
@@ -397,3 +398,21 @@ class TestAthenaCompression:
         assert AthenaCompression.is_valid("SNAPPY")
         assert not AthenaCompression.is_valid("")
         assert not AthenaCompression.is_valid("foobar")
+
+
+class TestAthenaPartitionTransform:
+    def test_is_valid(self):
+        assert AthenaPartitionTransform.is_valid("year")
+        assert AthenaPartitionTransform.is_valid("YEAR")
+        assert AthenaPartitionTransform.is_valid("month")
+        assert AthenaPartitionTransform.is_valid("MONTH")
+        assert AthenaPartitionTransform.is_valid("day")
+        assert AthenaPartitionTransform.is_valid("DAY")
+        assert AthenaPartitionTransform.is_valid("hour")
+        assert AthenaPartitionTransform.is_valid("HOUR")
+        assert AthenaPartitionTransform.is_valid("bucket")
+        assert AthenaPartitionTransform.is_valid("BUCKET")
+        assert AthenaPartitionTransform.is_valid("truncate")
+        assert AthenaPartitionTransform.is_valid("TRUNCATE")
+        assert not AthenaPartitionTransform.is_valid("")
+        assert not AthenaPartitionTransform.is_valid("foobar")
