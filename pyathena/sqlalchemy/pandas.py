@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-from distutils.util import strtobool
-
 from pyathena.sqlalchemy.base import AthenaDialect
+from pyathena.util import strtobool
 
 
 class AthenaPandasDialect(AthenaDialect):

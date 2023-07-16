@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import re
-from distutils.util import strtobool
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -40,6 +39,7 @@ from pyathena.model import (
 )
 from pyathena.sqlalchemy.types import AthenaDate, AthenaTimestamp
 from pyathena.sqlalchemy.util import _HashableDict
+from pyathena.util import strtobool
 
 if TYPE_CHECKING:
     from types import ModuleType
