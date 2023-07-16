@@ -25,6 +25,21 @@ def parse_output_location(output_location: str) -> Tuple[str, str]:
         raise DataError("Unknown `output_location` format.")
 
 
+def strtobool(val):
+    """
+    Since the distutils module has been deprecated, the distutils.util.strtobool method is ported.
+    https://peps.python.org/pep-0632/
+    https://github.com/pypa/distutils/blob/main/distutils/util.py#L340-L353
+    """
+    val = val.lower()
+    if val in ("y", "yes", "t", "true", "on", "1"):
+        return 1
+    elif val in ("n", "no", "f", "false", "off", "0"):
+        return 0
+    else:
+        raise ValueError(f"invalid truth value {val!r}")
+
+
 class RetryConfig:
     def __init__(
         self,

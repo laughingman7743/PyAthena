@@ -8,8 +8,9 @@ from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from datetime import date, datetime, time
 from decimal import Decimal
-from distutils.util import strtobool
 from typing import Any, Callable, Dict, Optional, Type
+
+from pyathena.util import strtobool
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
