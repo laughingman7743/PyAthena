@@ -10,7 +10,7 @@
 .. image:: https://img.shields.io/pypi/l/PyAthena.svg
     :target: https://github.com/laughingman7743/PyAthena/blob/master/LICENSE
 
-.. image:: https://pepy.tech/badge/pyathena/month
+.. image:: https://static.pepy.tech/badge/pyathena/month
     :target: https://pepy.tech/project/pyathena
 
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
