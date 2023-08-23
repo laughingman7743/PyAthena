@@ -122,3 +122,4 @@ CREATE EXTERNAL TABLE IF NOT EXISTS {{ schema }}.parquet_with_compression (
 STORED AS PARQUET
 LOCATION '{{ s3_staging_dir }}{{ schema }}/parquet_with_compression/'
 TBLPROPERTIES ('parquet.compress'='SNAPPY');
+CREATE OR REPLACE VIEW {{ schema }}.v_one_row AS SELECT number_of_rows FROM {{ schema }}.one_row
