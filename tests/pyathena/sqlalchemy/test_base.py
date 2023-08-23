@@ -1796,7 +1796,7 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
             ).strip()
         )
         assert actual == [(2, "bar")]
-class Test:
+
     def test_get_view_definition(self, engine):
         engine, conn = engine
         insp = sqlalchemy.inspect(engine)
