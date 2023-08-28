@@ -1801,18 +1801,17 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
         engine, conn = engine
         insp = sqlalchemy.inspect(engine)
         actual = insp.get_view_definition(schema=ENV.schema, view_name="v_one_row")
-        assert ([r for r in actual] == [
+        assert [r for r in actual] == [
             f"CREATE VIEW {ENV.schema}.v_one_row AS",
             "SELECT number_of_rows",
             "FROM",
             f"  {ENV.schema}.one_row",
         ]
-                )
 
     def test_get_view_definition_missing_view(self, engine):
         engine, conn = engine
         insp = sqlalchemy.inspect(engine)
         pytest.raises(
-            OperationalError,
-            lambda: insp.get_view_definition(schema=ENV.schema, view_name="test-view")
+            NoSuchTableError,
+            lambda: insp.get_view_definition(schema=ENV.schema, view_name="test_view"),
         )
