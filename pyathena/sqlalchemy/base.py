@@ -1106,9 +1106,11 @@ class AthenaDialect(DefaultDialect):
     @reflection.cache
     def get_view_definition(self, connection, view_name: str, schema: str, **kw):
         query = f"""SHOW CREATE VIEW "{schema}"."{view_name}";"""
-        res = connection.scalars(text(query))
-        if res is None:
-            raise exc.NoSuchTableError(f"{schema}.{view_name}" if schema else view_name)
+
+        try:
+            res = connection.scalars(text(query))
+        except OperationalError as exc:
+            raise exc.NoSuchTableError(f"{schema}.{view_name}" if schema else view_name) from exc
         else:
             return res
 
