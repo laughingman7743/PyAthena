@@ -22,7 +22,6 @@ import botocore
 from sqlalchemy import exc, schema, types, util
 from sqlalchemy.engine import Engine, reflection
 from sqlalchemy.engine.default import DefaultDialect
-from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.sql.compiler import (
     ILLEGAL_INITIAL_CHARACTERS,
     DDLCompiler,
@@ -837,10 +836,10 @@ class AthenaDDLCompiler(DDLCompiler):
                         or f"{table.name}.{column.name}" in conn_buckets
                     ):
                         buckets.append(f"\t{self.preparer.format_column(column)}")
-            except exc.CompileError as ce:
+            except exc.CompileError as e:
                 raise exc.CompileError(
-                    f"(in table '{table.description}', column '{column.name}'): {ce.args[0]}"
-                ) from ce
+                    f"(in table '{table.description}', column '{column.name}'): {e.args[0]}"
+                ) from e
         return columns, partitions, buckets
 
     def visit_create_table(self, create: "CreateTable", **kwargs) -> str:
@@ -1020,8 +1019,8 @@ class AthenaDialect(DefaultDialect):
         with raw_connection.driver_connection.cursor() as cursor:  # type: ignore
             try:
                 return cursor.list_databases(catalog)
-            except pyathena.error.OperationalError as exc:
-                cause = exc.__cause__
+            except pyathena.error.OperationalError as e:
+                cause = e.__cause__
                 if (
                     isinstance(cause, botocore.exceptions.ClientError)
                     and cause.response["Error"]["Code"] == "InvalidRequestException"
@@ -1036,13 +1035,13 @@ class AthenaDialect(DefaultDialect):
         with raw_connection.driver_connection.cursor() as cursor:  # type: ignore
             try:
                 return cursor.get_table_metadata(table_name, schema_name=schema, logging_=False)
-            except pyathena.error.OperationalError as exc:
-                cause = exc.__cause__
+            except pyathena.error.OperationalError as e:
+                cause = e.__cause__
                 if (
                     isinstance(cause, botocore.exceptions.ClientError)
                     and cause.response["Error"]["Code"] == "MetadataException"
                 ):
-                    raise NoSuchTableError(table_name) from exc
+                    raise exc.NoSuchTableError(table_name) from e
                 raise
 
     @reflection.cache
@@ -1100,7 +1099,7 @@ class AthenaDialect(DefaultDialect):
         try:
             columns = self.get_columns(connection, table_name, schema)
             return True if columns else False
-        except NoSuchTableError:
+        except exc.NoSuchTableError:
             return False
 
     @reflection.cache
