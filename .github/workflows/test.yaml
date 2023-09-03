@@ -46,4 +46,4 @@ jobs:
 
       - name: Test with tox
         run: |
-          poetry run tox
+          make tox
