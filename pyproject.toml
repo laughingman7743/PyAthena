@@ -89,8 +89,7 @@ allowlist_externals =
     make
 commands =
     poetry install -v
-    make chk
-    poetry run pytest -n 8 --cov pyathena --cov-report html --cov-report term tests/pyathena/
+    make test
 passenv =
     AWS_*
     TOXENV
@@ -99,7 +98,7 @@ passenv =
 [testenv:py{38,39,310,311}-sqla]
 commands =
     poetry install -v
-    poetry run pytest -n 8 --cov pyathena --cov-report html --cov-report term tests/sqlalchemy/
+    make test-sqla
 """
 
 [tool.pytest.ini_options]
