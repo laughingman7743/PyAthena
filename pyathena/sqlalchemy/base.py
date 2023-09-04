@@ -22,7 +22,7 @@ import botocore
 from sqlalchemy import exc, schema, text, types, util
 from sqlalchemy.engine import Engine, reflection
 from sqlalchemy.engine.default import DefaultDialect
-from sqlalchemy.exc import NoSuchTableError
+from sqlalchemy.exc import NoSuchTableError, OperationalError
 from sqlalchemy.sql.compiler import (
     ILLEGAL_INITIAL_CHARACTERS,
     DDLCompiler,
@@ -1109,8 +1109,8 @@ class AthenaDialect(DefaultDialect):
 
         try:
             res = connection.scalars(text(query))
-        except OperationalError as exc:
-            raise exc.NoSuchTableError(f"{schema}.{view_name}" if schema else view_name) from exc
+        except OperationalError as e:
+            raise exc.NoSuchTableError(f"{schema}.{view_name}" if schema else view_name) from e
         else:
             return res
 
