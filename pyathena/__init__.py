@@ -9,7 +9,7 @@ from pyathena.error import *  # noqa
 if TYPE_CHECKING:
     from pyathena.connection import Connection
 
-__version__: str = "3.0.6"
+__version__: str = "3.0.7"
 user_agent_extra: str = f"PyAthena/{__version__}"
 
 # Globals https://www.python.org/dev/peps/pep-0249/#globals
