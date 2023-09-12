@@ -19,7 +19,7 @@ from typing import (
 )
 
 import botocore
-from sqlalchemy import exc, schema, types, util
+from sqlalchemy import exc, schema, text, types, util
 from sqlalchemy.engine import Engine, reflection
 from sqlalchemy.engine.default import DefaultDialect
 from sqlalchemy.sql.compiler import (
@@ -1101,6 +1101,20 @@ class AthenaDialect(DefaultDialect):
             return True if columns else False
         except exc.NoSuchTableError:
             return False
+
+    @reflection.cache
+    def get_view_definition(
+        self, connection: Connection, view_name: str, schema: Optional[str] = None, **kw
+    ) -> str:
+        raw_connection = self._raw_connection(connection)
+        schema = schema if schema else raw_connection.schema_name  # type: ignore
+        query = f"""SHOW CREATE VIEW "{schema}"."{view_name}";"""
+        try:
+            res = connection.scalars(text(query))
+        except exc.OperationalError as e:
+            raise exc.NoSuchTableError(f"{schema}.{view_name}") from e
+        else:
+            return "\n".join([r for r in res])
 
     @reflection.cache
     def get_columns(

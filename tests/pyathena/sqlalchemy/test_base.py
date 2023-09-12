@@ -1796,3 +1796,27 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
             ).strip()
         )
         assert actual == [(2, "bar")]
+
+    def test_get_view_definition(self, engine):
+        engine, conn = engine
+        insp = sqlalchemy.inspect(engine)
+        actual = insp.get_view_definition(schema=ENV.schema, view_name="v_one_row")
+        assert (
+            actual
+            == textwrap.dedent(
+                f"""
+            CREATE VIEW {ENV.schema}.v_one_row AS
+            SELECT number_of_rows
+            FROM
+              {ENV.schema}.one_row
+            """
+            ).strip()
+        )
+
+    def test_get_view_definition_missing_view(self, engine):
+        engine, conn = engine
+        insp = sqlalchemy.inspect(engine)
+        pytest.raises(
+            NoSuchTableError,
+            lambda: insp.get_view_definition(schema=ENV.schema, view_name="test_view"),
+        )
