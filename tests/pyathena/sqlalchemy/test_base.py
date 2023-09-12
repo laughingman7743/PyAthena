@@ -1802,8 +1802,15 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
         insp = sqlalchemy.inspect(engine)
         actual = insp.get_view_definition(schema=ENV.schema, view_name="v_one_row")
         assert (
-            actual == f"CREATE VIEW {ENV.schema}.v_one_row AS\nSELECT number_of_rows\n"
-            f"FROM\n  {ENV.schema}.one_row"
+            actual
+            == textwrap.dedent(
+                f"""
+            CREATE VIEW {ENV.schema}.v_one_row AS
+            SELECT number_of_rows
+            FROM
+              {ENV.schema}.one_row
+            """
+            ).strip()
         )
 
     def test_get_view_definition_missing_view(self, engine):
