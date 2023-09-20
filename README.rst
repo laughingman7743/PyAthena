@@ -167,11 +167,6 @@ Dialect & driver
 +-----------+--------+------------------+-----------------+
 | awsathena | arrow  | awsathena+arrow  | `ArrowCursor`_  |
 +-----------+--------+------------------+-----------------+
-| awsathena | jdbc   | awsathena+jdbc   | `PyAthenaJDBC`_ |
-+-----------+--------+------------------+-----------------+
-
-.. _`PyAthenaJDBC`: https://github.com/laughingman7743/PyAthenaJDBC
-
 
 Dialect options
 ^^^^^^^^^^^^^^^
