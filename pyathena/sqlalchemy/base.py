@@ -1105,7 +1105,7 @@ class AthenaDialect(DefaultDialect):
     @reflection.cache
     def get_view_definition(
         self, connection: Connection, view_name: str, schema: Optional[str] = None, **kw
-    ) -> str:
+    ):
         raw_connection = self._raw_connection(connection)
         schema = schema if schema else raw_connection.schema_name  # type: ignore
         query = f"""SHOW CREATE VIEW "{schema}"."{view_name}";"""
