@@ -90,7 +90,6 @@ def create_engine(**kwargs):
         "serdeproperties",
         "tblproperties",
         "verify",
-
     ]:
         if arg in kwargs:
             conn_str += f"&{arg}={{{arg}}}"
