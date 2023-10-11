@@ -1010,6 +1010,10 @@ class AthenaDialect(DefaultDialect):
             opts.update({"poll_interval": float(opts["poll_interval"])})
         if "kill_on_interrupt" in opts:
             opts.update({"kill_on_interrupt": bool(strtobool(opts["kill_on_interrupt"]))})
+        if "result_reuse_enable" in opts:
+            opts.update({"result_reuse_enable": bool(strtobool(opts["result_reuse_enable"]))})
+        if "result_reuse_minutes" in opts:
+            opts.update({"result_reuse_minutes": int(opts["result_reuse_minutes"])})
         return opts
 
     @reflection.cache

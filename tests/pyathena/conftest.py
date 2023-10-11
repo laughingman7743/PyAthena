@@ -76,18 +76,20 @@ def connect(schema_name="default", **kwargs):
 def create_engine(**kwargs):
     conn_str = SQLALCHEMY_CONNECTION_STRING
     for arg in [
-        "verify",
-        "duration_seconds",
-        "poll_interval",
-        "kill_on_interrupt",
-        "file_format",
-        "row_format",
-        "compression",
-        "tblproperties",
-        "serdeproperties",
-        "partition",
-        "cluster",
         "bucket_count",
+        "cluster",
+        "compression",
+        "duration_seconds",
+        "file_format",
+        "kill_on_interrupt",
+        "partition",
+        "poll_interval",
+        "result_reuse_enable",
+        "result_reuse_minutes",
+        "row_format",
+        "serdeproperties",
+        "tblproperties",
+        "verify",
     ]:
         if arg in kwargs:
             conn_str += f"&{arg}={{{arg}}}"
