@@ -596,7 +596,7 @@ class TestSQLAlchemyAthena:
     def test_conn_str_kill_on_interrupt(self, engine):
         engine, conn = engine
         assert not conn.connection.kill_on_interrupt
-    
+
     @pytest.mark.parametrize("engine", [{"result_reuse_enable": "true"}], indirect=["engine"])
     def test_conn_str_result_reuse_enable(self, engine):
         engine, conn = engine
