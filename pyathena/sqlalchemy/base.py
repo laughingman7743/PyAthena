@@ -516,6 +516,9 @@ class AthenaTypeCompiler(GenericTypeCompiler):
     def visit_unicode_text(self, type_, **kw):
         return "STRING"
 
+    def visit_null(self, type_, **kw):
+        return "NULL"
+
 
 class AthenaDDLCompiler(DDLCompiler):
     @property
@@ -606,7 +609,7 @@ class AthenaDDLCompiler(DDLCompiler):
 
     def _get_serde_properties(
         self, dialect_opts: "_DialectArgDict", connect_opts: Dict[str, Any]
-    ) -> Optional[str]:
+    ) -> Optional[Union[str, Dict[str, Any]]]:
         if dialect_opts["serdeproperties"]:
             serde_properties = dialect_opts["serdeproperties"]
         elif connect_opts:

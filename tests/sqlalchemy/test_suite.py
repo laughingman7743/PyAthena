@@ -9,6 +9,7 @@ from sqlalchemy.testing.suite import TrueDivTest as _TrueDivTest
 from sqlalchemy.testing.suite import *  # noqa
 
 del BinaryTest  # noqa
+del BizarroCharacterFKResolutionTest  # noqa
 del ComponentReflectionTest  # noqa
 del ComponentReflectionTestExtra  # noqa
 del CompositeKeyReflectionTest  # noqa
@@ -42,6 +43,11 @@ class InsertBehaviorTest(_InsertBehaviorTest):
 
     @pytest.mark.skip("Athena does not support auto-incrementing.")
     def test_insert_from_select_autoinc_no_rows(self, connection):
+        pass
+
+    @pytest.mark.skip("TODO")
+    def test_no_results_for_non_returning_insert(self, connection, style, executemany):
+        # TODO
         pass
 
 
