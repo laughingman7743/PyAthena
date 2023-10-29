@@ -516,6 +516,9 @@ class AthenaTypeCompiler(GenericTypeCompiler):
     def visit_unicode_text(self, type_, **kw):
         return "STRING"
 
+    def visit_null(self, type_, **kw):
+        return "NULL"
+
 
 class AthenaDDLCompiler(DDLCompiler):
     @property
