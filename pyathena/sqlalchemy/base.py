@@ -963,6 +963,11 @@ class AthenaDialect(DefaultDialect):
     _connect_options: Dict[str, Any] = dict()  # type: ignore
     _pattern_column_type: Pattern[str] = re.compile(r"^([a-zA-Z]+)(?:$|[\(|<](.+)[\)|>]$)")
 
+    def __init__(self, json_deserializer=None, json_serializer=None, **kwargs):
+        DefaultDialect.__init__(self, **kwargs)
+        self._json_deserializer = json_deserializer
+        self._json_serializer = json_serializer
+
     @classmethod
     def import_dbapi(cls) -> "ModuleType":
         return pyathena
