@@ -14,10 +14,9 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
-      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-      AWS_ATHENA_S3_STAGING_DIR: ${{ secrets.AWS_ATHENA_S3_STAGING_DIR }}
-      AWS_ATHENA_WORKGROUP: ${{ secrets.AWS_ATHENA_WORKGROUP }}
+      AWS_DEFAULT_REGION: us-west-2
+      AWS_ATHENA_S3_STAGING_DIR: s3://laughingman7743-pyathena/github/
+      AWS_ATHENA_WORKGROUP: pyathena
 
     strategy:
       fail-fast: false
@@ -26,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install poetry
         run: pipx install poetry
       - name: Set up Python
@@ -38,9 +37,9 @@ jobs:
         run: poetry install --no-interaction --no-root
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          role-to-assume: arn:aws:iam::676287850544:role/github-actions-oidc-pyathena
           role-session-name: PyAthenaTestSession
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
