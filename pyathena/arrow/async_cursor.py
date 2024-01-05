@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from concurrent.futures import Future
 from multiprocessing import cpu_count
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union, cast
 
 from pyathena import ProgrammingError
 from pyathena.arrow.converter import (
@@ -14,13 +14,7 @@ from pyathena.arrow.converter import (
 from pyathena.arrow.result_set import AthenaArrowResultSet
 from pyathena.async_cursor import AsyncCursor
 from pyathena.common import CursorIterator
-from pyathena.converter import Converter
-from pyathena.formatter import Formatter
-from pyathena.model import AthenaCompression, AthenaFileFormat
-from pyathena.util import RetryConfig
-
-if TYPE_CHECKING:
-    from pyathena.connection import Connection
+from pyathena.model import AthenaCompression, AthenaFileFormat, AthenaQueryExecution
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
@@ -28,41 +22,15 @@ _logger = logging.getLogger(__name__)  # type: ignore
 class AsyncArrowCursor(AsyncCursor):
     def __init__(
         self,
-        connection: "Connection",
-        converter: Converter,
-        formatter: Formatter,
-        retry_config: RetryConfig,
-        s3_staging_dir: Optional[str] = None,
-        schema_name: Optional[str] = None,
-        catalog_name: Optional[str] = None,
-        work_group: Optional[str] = None,
-        poll_interval: float = 1,
-        encryption_option: Optional[str] = None,
-        kms_key: Optional[str] = None,
-        kill_on_interrupt: bool = True,
         max_workers: int = (cpu_count() or 1) * 5,
         arraysize: int = CursorIterator.DEFAULT_FETCH_SIZE,
         unload: bool = False,
-        result_reuse_enable: bool = False,
-        result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
+        **kwargs,
     ) -> None:
         super(AsyncArrowCursor, self).__init__(
-            connection=connection,
-            converter=converter,
-            formatter=formatter,
-            retry_config=retry_config,
-            s3_staging_dir=s3_staging_dir,
-            schema_name=schema_name,
-            catalog_name=catalog_name,
-            work_group=work_group,
-            poll_interval=poll_interval,
-            encryption_option=encryption_option,
-            kms_key=kms_key,
-            kill_on_interrupt=kill_on_interrupt,
             max_workers=max_workers,
             arraysize=arraysize,
-            result_reuse_enable=result_reuse_enable,
-            result_reuse_minutes=result_reuse_minutes,
+            **kwargs,
         )
         self._unload = unload
 
@@ -93,7 +61,7 @@ class AsyncArrowCursor(AsyncCursor):
     ) -> AthenaArrowResultSet:
         if kwargs is None:
             kwargs = dict()
-        query_execution = self._poll(query_id)
+        query_execution = cast(AthenaQueryExecution, self._poll(query_id))
         return AthenaArrowResultSet(
             connection=self._connection,
             converter=self._converter,
@@ -111,8 +79,8 @@ class AsyncArrowCursor(AsyncCursor):
         parameters: Optional[Dict[str, Any]] = None,
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
-        cache_size: int = 0,
-        cache_expiration_time: int = 0,
+        cache_size: Optional[int] = 0,
+        cache_expiration_time: Optional[int] = 0,
         result_reuse_enable: Optional[bool] = None,
         result_reuse_minutes: Optional[int] = None,
         **kwargs,

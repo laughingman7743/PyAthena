@@ -241,6 +241,158 @@ class AthenaQueryExecution:
         return self._result_reuse_minutes
 
 
+class AthenaCalculationExecutionStatus:
+    STATE_CREATING: str = "CREATING"
+    STATE_CREATED: str = "CREATED"
+    STATE_QUEUED: str = "QUEUED"
+    STATE_RUNNING: str = "RUNNING"
+    STATE_CANCELING: str = "CANCELING"
+    STATE_CANCELLED: str = "CANCELLED"
+    STATE_COMPLETED: str = "COMPLETED"
+    STATE_FAILED: str = "FAILED"
+
+    def __init__(self, response: Dict[str, Any]) -> None:
+        status = response.get("Status", None)
+        if not status:
+            raise DataError("KeyError `Status`")
+        self._state: Optional[str] = status.get("State", None)
+        self._state_change_reason: Optional[str] = status.get("StateChangeReason", None)
+        self._submission_date_time: Optional[datetime] = status.get("SubmissionDateTime", None)
+        self._completion_date_time: Optional[datetime] = status.get("CompletionDateTime", None)
+
+        statistics = response.get("Statistics", None)
+        if not statistics:
+            raise DataError("KeyError `Statistics`")
+        self._dpu_execution_in_millis: Optional[int] = statistics.get("DpuExecutionInMillis", None)
+        self._progress: Optional[str] = statistics.get("Progress", None)
+
+    @property
+    def state(self) -> Optional[str]:
+        return self._state
+
+    @property
+    def state_change_reason(self) -> Optional[str]:
+        return self._state_change_reason
+
+    @property
+    def submission_date_time(self) -> Optional[datetime]:
+        return self._submission_date_time
+
+    @property
+    def completion_date_time(self) -> Optional[datetime]:
+        return self._completion_date_time
+
+    @property
+    def dpu_execution_in_millis(self) -> Optional[int]:
+        return self._dpu_execution_in_millis
+
+    @property
+    def progress(self) -> Optional[str]:
+        return self._progress
+
+
+class AthenaCalculationExecution(AthenaCalculationExecutionStatus):
+    def __init__(self, response: Dict[str, Any]) -> None:
+        super(AthenaCalculationExecution, self).__init__(response)
+
+        self._calculation_id: Optional[str] = response.get("CalculationExecutionId", None)
+        if not self._calculation_id:
+            raise DataError("KeyError `CalculationExecutionId`")
+        self._session_id: Optional[str] = response.get("SessionId", None)
+        if not self._session_id:
+            raise DataError("KeyError `SessionId`")
+        self._description: Optional[str] = response.get("Description", None)
+        self._working_directory: Optional[str] = response.get("WorkingDirectory", None)
+
+        result = response.get("Result", None)
+        if not result:
+            raise DataError("KeyError `Result`")
+        self._std_out_s3_uri: Optional[str] = result.get("StdOutS3Uri", None)
+        self._std_error_s3_uri: Optional[str] = result.get("StdErrorS3Uri", None)
+        self._result_s3_uri: Optional[str] = result.get("ResultS3Uri", None)
+        self._result_type: Optional[str] = result.get("ResultType", None)
+
+    @property
+    def calculation_id(self) -> Optional[str]:
+        return self._calculation_id
+
+    @property
+    def session_id(self) -> Optional[str]:
+        return self._session_id
+
+    @property
+    def description(self) -> Optional[str]:
+        return self._description
+
+    @property
+    def working_directory(self) -> Optional[str]:
+        return self._working_directory
+
+    @property
+    def std_out_s3_uri(self) -> Optional[str]:
+        return self._std_out_s3_uri
+
+    @property
+    def std_error_s3_uri(self) -> Optional[str]:
+        return self._std_error_s3_uri
+
+    @property
+    def result_s3_uri(self) -> Optional[str]:
+        return self._result_s3_uri
+
+    @property
+    def result_type(self) -> Optional[str]:
+        return self._result_type
+
+
+class AthenaSession:
+    STATE_CREATING: str = "CREATING"
+    STATE_CREATED: str = "CREATED"
+    STATE_IDLE: str = "IDLE"
+    STATE_BUSY: str = "BUSY"
+    STATE_TERMINATING: str = "TERMINATING"
+    STATE_TERMINATED: str = "TERMINATED"
+    STATE_DEGRADED: str = "DEGRADED"
+    STATE_FAILED: str = "FAILED"
+
+    def __init__(self, response: Dict[str, Any]) -> None:
+        self._session_id = response.get("SessionId", None)
+
+        status = response.get("Status", None)
+        if not status:
+            raise DataError("KeyError `Status`")
+        self._state: Optional[str] = status.get("State", None)
+        self._state_change_reason: Optional[str] = status.get("StateChangeReason", None)
+        self._start_date_time: Optional[datetime] = status.get("StartDateTime", None)
+        self._last_modified_dateTime: Optional[datetime] = status.get("LastModifiedDateTime", None)
+        self._end_date_time: Optional[datetime] = status.get("EndDateTime", None)
+        self._idle_since_date_time: Optional[datetime] = status.get("IdleSinceDateTime", None)
+
+    @property
+    def state(self) -> Optional[str]:
+        return self._state
+
+    @property
+    def state_change_reason(self) -> Optional[str]:
+        return self._state_change_reason
+
+    @property
+    def start_date_time(self) -> Optional[datetime]:
+        return self._start_date_time
+
+    @property
+    def last_modified_dateTime(self) -> Optional[datetime]:
+        return self._last_modified_dateTime
+
+    @property
+    def end_date_time(self) -> Optional[datetime]:
+        return self._end_date_time
+
+    @property
+    def idle_since_date_time(self) -> Optional[datetime]:
+        return self._idle_since_date_time
+
+
 class AthenaDatabase:
     def __init__(self, response):
         database = response.get("Database", None)

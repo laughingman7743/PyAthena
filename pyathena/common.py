@@ -6,12 +6,18 @@ import sys
 import time
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
 
 from pyathena.converter import Converter, DefaultTypeConverter
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
 from pyathena.formatter import Formatter
-from pyathena.model import AthenaDatabase, AthenaQueryExecution, AthenaTableMetadata
+from pyathena.model import (
+    AthenaCalculationExecution,
+    AthenaCalculationExecutionStatus,
+    AthenaDatabase,
+    AthenaQueryExecution,
+    AthenaTableMetadata,
+)
 from pyathena.util import RetryConfig, retry_api_call
 
 if TYPE_CHECKING:
@@ -171,6 +177,23 @@ class BaseCursor(metaclass=ABCMeta):
                 else self._result_reuse_minutes,
             }
             request["ResultReuseConfiguration"] = {"ResultReuseByAgeConfiguration": reuse_conf}
+        return request
+
+    def _build_start_calculation_execution_request(
+        self,
+        session_id: str,
+        code_block: str,
+        description: Optional[str] = None,
+        client_request_token: Optional[str] = None,
+    ):
+        request: Dict[str, Any] = {
+            "SessionId": session_id,
+            "CodeBlock": code_block,
+        }
+        if description:
+            request.update({"Description": description})
+        if client_request_token:
+            request.update({"ClientRequestToken": client_request_token})
         return request
 
     def _build_list_query_executions_request(
@@ -373,6 +396,36 @@ class BaseCursor(metaclass=ABCMeta):
         else:
             return AthenaQueryExecution(response)
 
+    def _get_calculation_execution_status(self, query_id: str) -> AthenaCalculationExecutionStatus:
+        request = {"CalculationExecutionId": query_id}
+        try:
+            response = retry_api_call(
+                self._connection.client.get_calculation_execution_status,
+                config=self._retry_config,
+                logger=_logger,
+                **request,
+            )
+        except Exception as e:
+            _logger.exception("Failed to get calculation execution status.")
+            raise OperationalError(*e.args) from e
+        else:
+            return AthenaCalculationExecutionStatus(response)
+
+    def _get_calculation_execution(self, query_id: str) -> AthenaCalculationExecution:
+        request = {"CalculationExecutionId": query_id}
+        try:
+            response = retry_api_call(
+                self._connection.client.get_calculation_execution,
+                config=self._retry_config,
+                logger=_logger,
+                **request,
+            )
+        except Exception as e:
+            _logger.exception("Failed to get calculation execution.")
+            raise OperationalError(*e.args) from e
+        else:
+            return AthenaCalculationExecution(response)
+
     def _batch_get_query_execution(self, query_ids: List[str]) -> List[AthenaQueryExecution]:
         try:
             response = retry_api_call(
@@ -416,7 +469,7 @@ class BaseCursor(metaclass=ABCMeta):
                 return next_token, []
             return next_token, self._batch_get_query_execution(query_ids)
 
-    def __poll(self, query_id: str) -> AthenaQueryExecution:
+    def __poll(self, query_id: str) -> Union[AthenaQueryExecution, AthenaCalculationExecution]:
         while True:
             query_execution = self._get_query_execution(query_id)
             if query_execution.state in [
@@ -428,7 +481,7 @@ class BaseCursor(metaclass=ABCMeta):
             else:
                 time.sleep(self._poll_interval)
 
-    def _poll(self, query_id: str) -> AthenaQueryExecution:
+    def _poll(self, query_id: str) -> Union[AthenaQueryExecution, AthenaCalculationExecution]:
         try:
             query_execution = self.__poll(query_id)
         except KeyboardInterrupt as e:
@@ -496,8 +549,8 @@ class BaseCursor(metaclass=ABCMeta):
         parameters: Optional[Dict[str, Any]] = None,
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
-        cache_size: int = 0,
-        cache_expiration_time: int = 0,
+        cache_size: Optional[int] = 0,
+        cache_expiration_time: Optional[int] = 0,
         result_reuse_enable: Optional[bool] = None,
         result_reuse_minutes: Optional[int] = None,
     ) -> str:
@@ -514,8 +567,8 @@ class BaseCursor(metaclass=ABCMeta):
         query_id = self._find_previous_query_id(
             query,
             work_group,
-            cache_size=cache_size,
-            cache_expiration_time=cache_expiration_time,
+            cache_size=cache_size if cache_size else 0,
+            cache_expiration_time=cache_expiration_time if cache_expiration_time else 0,
         )
         if query_id is None:
             try:
@@ -530,23 +583,43 @@ class BaseCursor(metaclass=ABCMeta):
                 raise DatabaseError(*e.args) from e
         return query_id
 
+    def _calculate(
+        self,
+        session_id: str,
+        code_block: str,
+        description: Optional[str] = None,
+        client_request_token: Optional[str] = None,
+    ) -> str:
+        request = self._build_start_calculation_execution_request(
+            session_id=session_id,
+            code_block=code_block,
+            description=description,
+            client_request_token=client_request_token,
+        )
+        try:
+            calculation_id = retry_api_call(
+                self._connection.client.start_calculation_execution,
+                config=self._retry_config,
+                logger=_logger,
+                **request,
+            ).get("CalculationExecutionId", None)
+        except Exception as e:
+            _logger.exception("Failed to execute calculation.")
+            raise DatabaseError(*e.args) from e
+        return cast(str, calculation_id)
+
     @abstractmethod
     def execute(
         self,
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
-        work_group: Optional[str] = None,
-        s3_staging_dir: Optional[str] = None,
-        cache_size: int = 0,
-        cache_expiration_time: int = 0,
-        result_reuse_enable: Optional[bool] = None,
-        result_reuse_minutes: Optional[int] = None,
+        **kwargs,
     ):
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
     def executemany(
-        self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]]
+        self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]], **kwargs
     ) -> None:
         raise NotImplementedError  # pragma: no cover
 
