@@ -47,6 +47,7 @@ class SparkCursor(BaseCursor):
         else:
             self._session_id = self._start_session()
         self._calculation_id: Optional[str] = None
+        self._calculation_execution: Optional[AthenaCalculationExecution] = None
 
     @property
     def session_id(self) -> str:
@@ -63,6 +64,10 @@ class SparkCursor(BaseCursor):
     @query_id.setter
     def query_id(self, val: str) -> None:
         self._calculation_id = val
+
+    @property
+    def calculation_execution(self) -> Optional[AthenaCalculationExecution]:
+        return self._calculation_execution
 
     @staticmethod
     def get_default_engine_configuration() -> Dict[str, Any]:
@@ -217,9 +222,9 @@ class SparkCursor(BaseCursor):
             description=description,
             client_request_token=client_request_token,
         )
-        query_execution = cast(AthenaCalculationExecution, self._poll(self.query_id))
-        if query_execution.state != AthenaCalculationExecution.STATE_COMPLETED:
-            raise OperationalError(query_execution.state_change_reason)
+        self._calculation_execution = cast(AthenaCalculationExecution, self._poll(self.query_id))
+        if self._calculation_execution.state != AthenaCalculationExecution.STATE_COMPLETED:
+            raise OperationalError(self._calculation_execution.state_change_reason)
         return self
 
     def executemany(
