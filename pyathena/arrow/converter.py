@@ -39,7 +39,7 @@ _DEFAULT_ARROW_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] =
 
 class DefaultArrowTypeConverter(Converter):
     def __init__(self) -> None:
-        super(DefaultArrowTypeConverter, self).__init__(
+        super().__init__(
             mappings=deepcopy(_DEFAULT_ARROW_CONVERTERS),
             default=_to_default,
             types=self._dtypes,
@@ -81,7 +81,7 @@ class DefaultArrowTypeConverter(Converter):
 
 class DefaultArrowUnloadTypeConverter(Converter):
     def __init__(self) -> None:
-        super(DefaultArrowUnloadTypeConverter, self).__init__(
+        super().__init__(
             mappings=dict(),
             default=_to_default,
         )

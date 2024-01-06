@@ -42,7 +42,7 @@ class AsyncCursor(BaseCursor):
         result_reuse_enable: bool = False,
         result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
     ) -> None:
-        super(AsyncCursor, self).__init__(
+        super().__init__(
             connection=connection,
             converter=converter,
             formatter=formatter,
@@ -140,7 +140,7 @@ class AsyncCursor(BaseCursor):
 
 class AsyncDictCursor(AsyncCursor):
     def __init__(self, **kwargs) -> None:
-        super(AsyncDictCursor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._result_set_class = AthenaDictResultSet
         if "dict_type" in kwargs:
             AthenaDictResultSet.dict_type = kwargs["dict_type"]

@@ -45,7 +45,7 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
         **kwargs,
     ) -> None:
-        super(ArrowCursor, self).__init__(
+        super().__init__(
             connection=connection,
             converter=converter,
             formatter=formatter,

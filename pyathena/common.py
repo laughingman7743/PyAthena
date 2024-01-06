@@ -30,7 +30,7 @@ class CursorIterator(metaclass=ABCMeta):
     DEFAULT_RESULT_REUSE_MINUTES = 60
 
     def __init__(self, **kwargs) -> None:
-        super(CursorIterator, self).__init__()
+        super().__init__()
         self.arraysize: int = kwargs.get("arraysize", self.DEFAULT_FETCH_SIZE)
         self._rownumber: Optional[int] = None
         self._rowcount: int = -1  # By default, return -1 to indicate that this is not supported.
@@ -107,7 +107,7 @@ class BaseCursor(metaclass=ABCMeta):
         result_reuse_minutes: int,
         **kwargs,
     ) -> None:
-        super(BaseCursor, self).__init__()
+        super().__init__()
         self._connection = connection
         self._converter = converter
         self._formatter = formatter

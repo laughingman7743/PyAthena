@@ -940,7 +940,7 @@ If you want to customize the pandas.Dataframe object dtypes and converters, crea
     class CustomPandasTypeConverter(Converter):
 
         def __init__(self):
-            super(CustomPandasTypeConverter, self).__init__(
+            super().__init__(
                 mappings=None,
                 types={
                     "boolean": object,
@@ -1452,7 +1452,7 @@ If you want to customize the `pyarrow.Table object`_ types, create a converter c
 
     class CustomArrowTypeConverter(Converter):
         def __init__(self) -> None:
-            super(CustomArrowTypeConverter, self).__init__(
+            super().__init__(
                 mappings={
                     "date": _to_date,
                 },

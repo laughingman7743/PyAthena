@@ -48,7 +48,7 @@ class AsyncPandasCursor(AsyncCursor):
         result_reuse_enable: bool = False,
         result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
     ) -> None:
-        super(AsyncPandasCursor, self).__init__(
+        super().__init__(
             connection=connection,
             converter=converter,
             formatter=formatter,
