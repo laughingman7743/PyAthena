@@ -29,7 +29,7 @@ class SparkCursor(BaseCursor):
         session_idle_timeout_minutes: Optional[int] = None,
         **kwargs,
     ) -> None:
-        super(SparkCursor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._engine_configuration = (
             engine_configuration
             if engine_configuration
