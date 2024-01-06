@@ -363,19 +363,19 @@ class AthenaResultSet(CursorIterator):
         return rows
 
     def _process_metadata(self, response: Dict[str, Any]) -> None:
-        result_set = response.get("ResultSet", None)
+        result_set = response.get("ResultSet")
         if not result_set:
             raise DataError("KeyError `ResultSet`")
-        metadata = result_set.get("ResultSetMetadata", None)
+        metadata = result_set.get("ResultSetMetadata")
         if not metadata:
             raise DataError("KeyError `ResultSetMetadata`")
-        column_info = metadata.get("ColumnInfo", None)
+        column_info = metadata.get("ColumnInfo")
         if column_info is None:
             raise DataError("KeyError `ColumnInfo`")
         self._metadata = tuple(column_info)
 
     def _process_update_count(self, response: Dict[str, Any]) -> None:
-        update_count = response.get("UpdateCount", None)
+        update_count = response.get("UpdateCount")
         if (
             update_count is not None
             and self.substatement_type
@@ -396,7 +396,7 @@ class AthenaResultSet(CursorIterator):
         return [
             tuple(
                 [
-                    self._converter.convert(meta.get("Type", None), row.get("VarCharValue", None))
+                    self._converter.convert(meta.get("Type"), row.get("VarCharValue"))
                     for meta, row in zip(metadata, rows[i].get("Data", []))
                 ]
             )
@@ -404,10 +404,10 @@ class AthenaResultSet(CursorIterator):
         ]
 
     def _process_rows(self, response: Dict[str, Any]) -> None:
-        result_set = response.get("ResultSet", None)
+        result_set = response.get("ResultSet")
         if not result_set:
             raise DataError("KeyError `ResultSet`")
-        rows = result_set.get("Rows", None)
+        rows = result_set.get("Rows")
         if rows is None:
             raise DataError("KeyError `Rows`")
         processed_rows = []
@@ -416,13 +416,13 @@ class AthenaResultSet(CursorIterator):
             metadata = cast(Tuple[Any, ...], self._metadata)
             processed_rows = self._get_rows(offset, metadata, rows)
         self._rows.extend(processed_rows)
-        self._next_token = response.get("NextToken", None)
+        self._next_token = response.get("NextToken")
 
     def _is_first_row_column_labels(self, rows: List[Dict[str, Any]]) -> bool:
         first_row_data = rows[0].get("Data", [])
         metadata = cast(Tuple[Any, Any], self._metadata)
         for meta, data in zip(metadata, first_row_data):
-            if meta.get("Name", None) != data.get("VarCharValue", None):
+            if meta.get("Name") != data.get("VarCharValue"):
                 return False
         return True
 
@@ -495,9 +495,7 @@ class AthenaDictResultSet(AthenaResultSet):
                 [
                     (
                         meta.get("Name"),
-                        self._converter.convert(
-                            meta.get("Type", None), row.get("VarCharValue", None)
-                        ),
+                        self._converter.convert(meta.get("Type"), row.get("VarCharValue")),
                     )
                     for meta, row in zip(metadata, rows[i].get("Data", []))
                 ]

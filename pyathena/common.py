@@ -266,7 +266,7 @@ class BaseCursor(metaclass=ABCMeta):
             _logger.exception("Failed to list databases.")
             raise OperationalError(*e.args) from e
         else:
-            return response.get("NextToken", None), [
+            return response.get("NextToken"), [
                 AthenaDatabase({"Database": r}) for r in response.get("DatabaseList", [])
             ]
 
@@ -354,7 +354,7 @@ class BaseCursor(metaclass=ABCMeta):
             _logger.exception("Failed to list table metadata.")
             raise OperationalError(*e.args) from e
         else:
-            return response.get("NextToken", None), [
+            return response.get("NextToken"), [
                 AthenaTableMetadata({"TableMetadata": r})
                 for r in response.get("TableMetadataList", [])
             ]
@@ -463,8 +463,8 @@ class BaseCursor(metaclass=ABCMeta):
             _logger.exception("Failed to list query executions.")
             raise OperationalError(*e.args) from e
         else:
-            next_token = response.get("NextToken", None)
-            query_ids = response.get("QueryExecutionIds", None)
+            next_token = response.get("NextToken")
+            query_ids = response.get("QueryExecutionIds")
             if not query_ids:
                 return next_token, []
             return next_token, self._batch_get_query_execution(query_ids)
@@ -577,7 +577,7 @@ class BaseCursor(metaclass=ABCMeta):
                     config=self._retry_config,
                     logger=_logger,
                     **request,
-                ).get("QueryExecutionId", None)
+                ).get("QueryExecutionId")
             except Exception as e:
                 _logger.exception("Failed to execute query.")
                 raise DatabaseError(*e.args) from e
@@ -602,7 +602,7 @@ class BaseCursor(metaclass=ABCMeta):
                 config=self._retry_config,
                 logger=_logger,
                 **request,
-            ).get("CalculationExecutionId", None)
+            ).get("CalculationExecutionId")
         except Exception as e:
             _logger.exception("Failed to execute calculation.")
             raise DatabaseError(*e.args) from e

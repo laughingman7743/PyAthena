@@ -88,7 +88,7 @@ class AthenaArrowResultSet(AthenaResultSet):
 
         connection = self.connection
         if "role_arn" in connection._kwargs and connection._kwargs["role_arn"]:
-            external_id = connection._kwargs.get("external_id", None)
+            external_id = connection._kwargs.get("external_id")
             fs = fs.S3FileSystem(
                 role_arn=connection._kwargs["role_arn"],
                 session_name=connection._kwargs["role_session_name"],
@@ -106,9 +106,9 @@ class AthenaArrowResultSet(AthenaResultSet):
             )
         else:
             fs = fs.S3FileSystem(
-                access_key=connection._kwargs.get("aws_access_key_id", None),
-                secret_key=connection._kwargs.get("aws_secret_access_key", None),
-                session_token=connection._kwargs.get("aws_session_token", None),
+                access_key=connection._kwargs.get("aws_access_key_id"),
+                secret_key=connection._kwargs.get("aws_secret_access_key"),
+                session_token=connection._kwargs.get("aws_session_token"),
                 region=connection.region_name,
             )
         return fs
