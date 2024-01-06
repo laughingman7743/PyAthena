@@ -39,7 +39,7 @@ class AthenaResultSet(CursorIterator):
         arraysize: int,
         retry_config: RetryConfig,
     ) -> None:
-        super(AthenaResultSet, self).__init__(arraysize=arraysize)
+        super().__init__(arraysize=arraysize)
         self._connection: Optional["Connection"] = connection
         self._converter = converter
         self._query_execution: Optional[AthenaQueryExecution] = query_execution
@@ -508,7 +508,7 @@ class AthenaDictResultSet(AthenaResultSet):
 
 class WithResultSet:
     def __init__(self):
-        super(WithResultSet, self).__init__()
+        super().__init__()
 
     def _reset_state(self) -> None:
         self.query_id = None  # type: ignore

@@ -61,7 +61,7 @@ class AthenaArrowResultSet(AthenaResultSet):
         unload_location: Optional[str] = None,
         **kwargs,
     ) -> None:
-        super(AthenaArrowResultSet, self).__init__(
+        super().__init__(
             connection=connection,
             converter=converter,
             query_execution=query_execution,
@@ -284,6 +284,6 @@ class AthenaArrowResultSet(AthenaResultSet):
     def close(self) -> None:
         import pyarrow as pa
 
-        super(AthenaArrowResultSet, self).close()
+        super().close()
         self._table = pa.Table.from_pydict(dict())
         self._batches = []

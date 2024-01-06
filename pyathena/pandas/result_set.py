@@ -117,7 +117,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         max_workers: int = (cpu_count() or 1) * 5,
         **kwargs,
     ) -> None:
-        super(AthenaPandasResultSet, self).__init__(
+        super().__init__(
             connection=connection,
             converter=converter,
             query_execution=query_execution,
@@ -398,7 +398,7 @@ class AthenaPandasResultSet(AthenaResultSet):
     def close(self) -> None:
         import pandas as pd
 
-        super(AthenaPandasResultSet, self).close()
+        super().close()
         self._df_iter = DataFrameIterator(pd.DataFrame(), _no_trunc_date)
         self._iterrows = enumerate([])
         self._data_manifest = []

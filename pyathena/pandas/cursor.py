@@ -62,7 +62,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
         **kwargs,
     ) -> None:
-        super(PandasCursor, self).__init__(
+        super().__init__(
             connection=connection,
             converter=converter,
             formatter=formatter,

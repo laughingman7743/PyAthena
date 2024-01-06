@@ -37,7 +37,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
         **kwargs,
     ) -> None:
-        super(Cursor, self).__init__(
+        super().__init__(
             connection=connection,
             converter=converter,
             formatter=formatter,
@@ -161,7 +161,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
 
 class DictCursor(Cursor):
     def __init__(self, **kwargs) -> None:
-        super(DictCursor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._result_set_class = AthenaDictResultSet
         if "dict_type" in kwargs:
             AthenaDictResultSet.dict_type = kwargs["dict_type"]
