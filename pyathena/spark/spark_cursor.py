@@ -5,6 +5,8 @@ import logging
 import time
 from typing import Any, Dict, List, Optional, Union, cast
 
+import botocore
+
 from pyathena import NotSupportedError, OperationalError, ProgrammingError
 from pyathena.common import BaseCursor
 from pyathena.model import (
@@ -37,7 +39,13 @@ class SparkCursor(BaseCursor):
         self._session_description = description
         self._session_idle_timeout_minutes = session_idle_timeout_minutes
 
-        self._session_id = session_id if session_id else self._start_session()
+        if session_id:
+            if self._exists_session(session_id):
+                self._session_id = session_id
+            else:
+                raise OperationalError(f"Session: {session_id} not found.")
+        else:
+            self._session_id = self._start_session()
         self._calculation_id: Optional[str] = None
 
     @property
@@ -79,6 +87,42 @@ class SparkCursor(BaseCursor):
         else:
             return AthenaSession(response)
 
+    def _wait_for_idle_session(self, session_id: str):
+        while True:
+            session_status = self._get_session_status(session_id)
+            if session_status.state in [AthenaSession.STATE_IDLE]:
+                break
+            elif session_status in [
+                AthenaSession.STATE_TERMINATED,
+                AthenaSession.STATE_DEGRADED,
+                AthenaSession.STATE_FAILED,
+            ]:
+                raise OperationalError(session_status.state_change_reason)
+            else:
+                time.sleep(self._poll_interval)
+
+    def _exists_session(self, session_id: str) -> bool:
+        request = {"SessionId": session_id}
+        try:
+            retry_api_call(
+                self._connection.client.get_session,
+                config=self._retry_config,
+                logger=_logger,
+                **request,
+            )
+        except Exception as e:
+            if (
+                isinstance(e, botocore.exceptions.ClientError)
+                and e.response["Error"]["Code"] == "InvalidRequestException"
+            ):
+                _logger.exception(f"Session: {session_id} not found.")
+                return False
+            else:
+                raise OperationalError(*e.args) from e
+        else:
+            self._wait_for_idle_session(session_id)
+            return True
+
     def _start_session(self) -> str:
         request: Dict[str, Any] = {
             "WorkGroup": self._work_group,
@@ -101,18 +145,8 @@ class SparkCursor(BaseCursor):
             _logger.exception("Failed to start session.")
             raise OperationalError(*e.args) from e
         else:
-            while True:
-                session_status = self._get_session_status(session_id)
-                if session_status.state in [AthenaSession.STATE_IDLE]:
-                    return session_id
-                elif session_status in [
-                    AthenaSession.STATE_TERMINATED,
-                    AthenaSession.STATE_DEGRADED,
-                    AthenaSession.STATE_FAILED,
-                ]:
-                    raise OperationalError(session_status.state_change_reason)
-                else:
-                    time.sleep(self._poll_interval)
+            self._wait_for_idle_session(session_id)
+            return session_id
 
     def _terminate_session(self) -> None:
         request = {"SessionId": self._session_id}
