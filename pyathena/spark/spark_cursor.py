@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
@@ -18,7 +17,7 @@ from pyathena.util import retry_api_call
 _logger = logging.getLogger(__name__)  # type: ignore
 
 
-class CalcCursor(BaseCursor):
+class SparkCursor(BaseCursor):
     def __init__(
         self,
         session_id: Optional[str] = None,
@@ -28,7 +27,7 @@ class CalcCursor(BaseCursor):
         session_idle_timeout_minutes: Optional[int] = None,
         **kwargs,
     ) -> None:
-        super(CalcCursor, self).__init__(**kwargs)
+        super(SparkCursor, self).__init__(**kwargs)
         self._engine_configuration = (
             engine_configuration
             if engine_configuration
@@ -177,7 +176,7 @@ class CalcCursor(BaseCursor):
         client_request_token: Optional[str] = None,
         work_group: Optional[str] = None,
         **kwargs,
-    ) -> CalcCursor:
+    ) -> SparkCursor:
         self.query_id = self._calculate(
             session_id=session_id if session_id else self._session_id,
             code_block=operation,
