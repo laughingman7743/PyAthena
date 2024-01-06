@@ -5,12 +5,18 @@ Parameters:
     Type: String
   RoleName:
     Type: String
-    Default: "github-actions-oidc-pyathena-test"
+    Default: "github-actions-oidc-pyathena"
+  SparkRoleName:
+    Type: String
+    Default: "pyathena-spark"
   BucketName:
     Type: String
   WorkGroupName:
     Type: String
-    Default: "pyathena-test"
+    Default: "pyathena"
+  SparkWorkGroupName:
+    Type: String
+    Default: "pyathena-spark"
   OIDCProviderArn:
     Type: String
     Default: ""
@@ -99,6 +105,111 @@ Resources:
                 Resource: [
                   !Sub "arn:aws:s3:::${BucketName}*"
                 ]
+  SparkRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${SparkRoleName}"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRoleWithWebIdentity
+            Principal:
+              Service: "athena.amazonaws.com"
+            Condition:
+              StringEquals:
+                "aws:SourceAccount": !Sub "${AWS::AccountId}"
+              ArnLike:
+                "aws:SourceArn": !Sub "arn:aws:athena:${AWS::Region}:${AWS::AccountId}:workgroup/${SparkWorkGroupName}"
+      Policies:
+        - PolicyName: athena-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [
+                  "athena:GetWorkGroup",
+                  "athena:TerminateSession",
+                  "athena:GetSession",
+                  "athena:GetSessionStatus",
+                  "athena:ListSessions",
+                  "athena:StartCalculationExecution",
+                  "athena:GetCalculationExecutionCode",
+                  "athena:StopCalculationExecution",
+                  "athena:ListCalculationExecutions",
+                  "athena:GetCalculationExecution",
+                  "athena:GetCalculationExecutionStatus",
+                  "athena:ListExecutors",
+                  "athena:ExportNotebook",
+                  "athena:UpdateNotebook"
+                ]
+                Resource: [
+                  !Sub "arn:aws:athena:${AWS::Region}:${AWS::AccountId}:workgroup/${SparkWorkGroupName}"
+                ]
+        - PolicyName: glue-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [
+                  "glue:CreateDatabase",
+                  "glue:DeleteDatabase",
+                  "glue:GetDatabase",
+                  "glue:GetDatabases",
+                  "glue:UpdateDatabase",
+                  "glue:CreateTable",
+                  "glue:DeleteTable",
+                  "glue:BatchDeleteTable",
+                  "glue:UpdateTable",
+                  "glue:GetTable",
+                  "glue:GetTables",
+                  "glue:BatchCreatePartition",
+                  "glue:CreatePartition",
+                  "glue:DeletePartition",
+                  "glue:BatchDeletePartition",
+                  "glue:UpdatePartition",
+                  "glue:GetPartition",
+                  "glue:GetPartitions",
+                  "glue:BatchGetPartition"
+                ]
+                Resource: [
+                  "*"
+                ]
+        - PolicyName: s3-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [
+                  "s3:PutObject",
+                  "s3:ListBucket",
+                  "s3:DeleteObject",
+                  "s3:GetObject"
+                ]
+                Resource: [
+                  !Sub "arn:aws:s3:::${BucketName}*"
+                ]
+        - PolicyName: cloudwatch-log-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [
+                  "logs:CreateLogStream",
+                  "logs:DescribeLogStreams",
+                  "logs:CreateLogGroup",
+                  "logs:PutLogEvents"
+                ]
+                Resource: [
+                  !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws-athena:*",
+                  !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws-athena*:log-stream:*"
+                ]
+              - Effect: Allow
+                Action: [
+                  "logs:DescribeLogGroups"
+                ]
+                Resource: [
+                  !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*"
+                ]
 
   WorkGroup:
     Type: AWS::Athena::WorkGroup
@@ -112,7 +223,22 @@ Resources:
         EngineVersion:
           SelectedEngineVersion: "Athena engine version 3"
         ResultConfiguration:
-          OutputLocation: !Sub "s3://${BucketName}/workgroup=pyathena-test/"
+          OutputLocation: !Sub "s3://${BucketName}/workgroup=${WorkGroupName}/"
+
+  SparkWorkGroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: !Sub "${SparkWorkGroupName}"
+      State: ENABLED
+      WorkGroupConfiguration:
+        EnforceWorkGroupConfiguration: false
+        PublishCloudWatchMetricsEnabled: false
+        RequesterPaysEnabled: false
+        EngineVersion:
+          SelectedEngineVersion: "PySpark engine version 3"
+        ResultConfiguration:
+          OutputLocation: !Sub "s3://${BucketName}/workgroup=${SparkWorkGroupName}/"
+        ExecutionRole: !GetAtt SparkRole.Arn
 
   GithubOidc:
     Type: AWS::IAM::OIDCProvider
