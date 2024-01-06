@@ -23,7 +23,7 @@ class AsyncCursor(BaseCursor):
         arraysize: int = CursorIterator.DEFAULT_FETCH_SIZE,
         **kwargs,
     ) -> None:
-        super(AsyncCursor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._max_workers = max_workers
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._arraysize = arraysize
@@ -107,7 +107,7 @@ class AsyncCursor(BaseCursor):
 
 class AsyncDictCursor(AsyncCursor):
     def __init__(self, **kwargs) -> None:
-        super(AsyncDictCursor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._result_set_class = AthenaDictResultSet
         if "dict_type" in kwargs:
             AthenaDictResultSet.dict_type = kwargs["dict_type"]

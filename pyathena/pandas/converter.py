@@ -27,7 +27,7 @@ _DEFAULT_PANDAS_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] 
 
 class DefaultPandasTypeConverter(Converter):
     def __init__(self) -> None:
-        super(DefaultPandasTypeConverter, self).__init__(
+        super().__init__(
             mappings=deepcopy(_DEFAULT_PANDAS_CONVERTERS),
             default=_to_default,
             types=self._dtypes,
@@ -61,7 +61,7 @@ class DefaultPandasTypeConverter(Converter):
 
 class DefaultPandasUnloadTypeConverter(Converter):
     def __init__(self) -> None:
-        super(DefaultPandasUnloadTypeConverter, self).__init__(
+        super().__init__(
             mappings=dict(),
             default=_to_default,
         )

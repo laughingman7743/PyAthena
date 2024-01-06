@@ -43,7 +43,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         max_workers: int = (cpu_count() or 1) * 5,
         **kwargs,
     ) -> None:
-        super(PandasCursor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._unload = unload
         self._engine = engine
         self._chunksize = chunksize

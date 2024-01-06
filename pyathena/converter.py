@@ -141,9 +141,7 @@ class Converter(metaclass=ABCMeta):
 
 class DefaultTypeConverter(Converter):
     def __init__(self) -> None:
-        super(DefaultTypeConverter, self).__init__(
-            mappings=deepcopy(_DEFAULT_CONVERTERS), default=_to_default
-        )
+        super().__init__(mappings=deepcopy(_DEFAULT_CONVERTERS), default=_to_default)
 
     def convert(self, type_: str, value: Optional[str]) -> Optional[Any]:
         converter = self.get(type_)

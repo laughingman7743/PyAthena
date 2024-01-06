@@ -27,7 +27,7 @@ class AsyncArrowCursor(AsyncCursor):
         unload: bool = False,
         **kwargs,
     ) -> None:
-        super(AsyncArrowCursor, self).__init__(
+        super().__init__(
             max_workers=max_workers,
             arraysize=arraysize,
             **kwargs,

@@ -14,7 +14,7 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 class Cursor(BaseCursor, CursorIterator, WithResultSet):
     def __init__(self, **kwargs) -> None:
-        super(Cursor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaResultSet] = None
         self._result_set_class = AthenaResultSet
@@ -123,7 +123,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
 
 class DictCursor(Cursor):
     def __init__(self, **kwargs) -> None:
-        super(DictCursor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._result_set_class = AthenaDictResultSet
         if "dict_type" in kwargs:
             AthenaDictResultSet.dict_type = kwargs["dict_type"]

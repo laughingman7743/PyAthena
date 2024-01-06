@@ -29,9 +29,7 @@ class AsyncPandasCursor(AsyncCursor):
         chunksize: Optional[int] = None,
         **kwargs,
     ) -> None:
-        super(AsyncPandasCursor, self).__init__(
-            max_workers=max_workers, arraysize=arraysize, **kwargs
-        )
+        super().__init__(max_workers=max_workers, arraysize=arraysize, **kwargs)
         self._unload = unload
         self._engine = engine
         self._chunksize = chunksize

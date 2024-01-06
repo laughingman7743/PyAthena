@@ -395,7 +395,7 @@ class AthenaDDLIdentifierPreparer(IdentifierPreparer):
         quote_case_sensitive_collations: bool = True,
         omit_schema: bool = False,
     ):
-        super(AthenaDDLIdentifierPreparer, self).__init__(
+        super().__init__(
             dialect=dialect,
             initial_quote=initial_quote,
             final_quote=final_quote,
@@ -538,7 +538,7 @@ class AthenaDDLCompiler(DDLCompiler):
         compile_kwargs: Mapping[str, Any] = util.immutabledict(),
     ):
         self._preparer = AthenaDDLIdentifierPreparer(dialect)
-        super(AthenaDDLCompiler, self).__init__(
+        super().__init__(
             dialect=dialect,
             statement=statement,
             render_schema_translate=render_schema_translate,

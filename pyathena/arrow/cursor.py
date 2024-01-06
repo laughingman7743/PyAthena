@@ -26,7 +26,7 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         unload: bool = False,
         **kwargs,
     ) -> None:
-        super(ArrowCursor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._unload = unload
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaArrowResultSet] = None
