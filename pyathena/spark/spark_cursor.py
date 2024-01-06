@@ -167,7 +167,7 @@ class SparkCursor(BaseCursor):
             if calculation_status.state in [
                 AthenaCalculationExecution.STATE_COMPLETED,
                 AthenaCalculationExecution.STATE_FAILED,
-                AthenaCalculationExecution.STATE_CANCELLED,
+                AthenaCalculationExecution.STATE_CANCELED,
             ]:
                 return self._get_calculation_execution(query_id)
             else:

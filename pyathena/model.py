@@ -247,7 +247,7 @@ class AthenaCalculationExecutionStatus:
     STATE_QUEUED: str = "QUEUED"
     STATE_RUNNING: str = "RUNNING"
     STATE_CANCELING: str = "CANCELING"
-    STATE_CANCELLED: str = "CANCELLED"
+    STATE_CANCELED: str = "CANCELED"
     STATE_COMPLETED: str = "COMPLETED"
     STATE_FAILED: str = "FAILED"
 
