@@ -293,7 +293,7 @@ class AthenaCalculationExecutionStatus:
 
 class AthenaCalculationExecution(AthenaCalculationExecutionStatus):
     def __init__(self, response: Dict[str, Any]) -> None:
-        super(AthenaCalculationExecution, self).__init__(response)
+        super().__init__(response)
 
         self._calculation_id: Optional[str] = response.get("CalculationExecutionId")
         if not self._calculation_id:

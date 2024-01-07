@@ -15,7 +15,7 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 class AsyncSparkCursor(SparkBaseCursor):
     def __init__(self, max_workers: int = (cpu_count() or 1) * 5, **kwargs):
-        super(AsyncSparkCursor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._max_workers = max_workers
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
 
