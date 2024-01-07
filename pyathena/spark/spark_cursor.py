@@ -32,13 +32,15 @@ class SparkCursor(SparkBaseCursor, WithCalculationExecution):
         work_group: Optional[str] = None,
         **kwargs,
     ) -> SparkCursor:
-        calculation_id = self._calculate(
+        self._calculation_id = self._calculate(
             session_id=session_id if session_id else self._session_id,
             code_block=operation,
             description=description,
             client_request_token=client_request_token,
         )
-        self._calculation_execution = cast(AthenaCalculationExecution, self._poll(calculation_id))
+        self._calculation_execution = cast(
+            AthenaCalculationExecution, self._poll(self._calculation_id)
+        )
         if self._calculation_execution.state != AthenaCalculationExecution.STATE_COMPLETED:
             raise OperationalError(self._calculation_execution.state_change_reason)
         return self

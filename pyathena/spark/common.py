@@ -49,11 +49,16 @@ class SparkBaseCursor(BaseCursor, metaclass=ABCMeta):
                 raise OperationalError(f"Session: {session_id} not found.")
         else:
             self._session_id = self._start_session()
+        self._calculation_id: Optional[str] = None
         self._calculation_execution: Optional[AthenaCalculationExecution] = None
 
     @property
     def session_id(self) -> str:
         return self._session_id
+
+    @property
+    def calculation_id(self) -> Optional[str]:
+        return self._calculation_id
 
     @staticmethod
     def get_default_engine_configuration() -> Dict[str, Any]:
@@ -207,11 +212,15 @@ class WithCalculationExecution:
     def calculation_execution(self) -> Optional[AthenaCalculationExecution]:
         raise NotImplementedError  # pragma: no cover
 
-    @property  # type: ignore
+    @property
+    @abstractmethod
+    def session_id(self) -> str:
+        raise NotImplementedError  # pragma: no cover
+
+    @property
+    @abstractmethod
     def calculation_id(self) -> Optional[str]:
-        if not self.calculation_execution:
-            return None
-        return self.calculation_execution.calculation_id
+        raise NotImplementedError  # pragma: no cover
 
     @property
     def description(self) -> Optional[str]:
