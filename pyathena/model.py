@@ -304,9 +304,8 @@ class AthenaCalculationExecution(AthenaCalculationExecutionStatus):
         self._description: Optional[str] = response.get("Description")
         self._working_directory: Optional[str] = response.get("WorkingDirectory")
 
-        result = response.get("Result")
-        if not result:
-            raise DataError("KeyError `Result`")
+        # If cancelled, the result does not exist.
+        result = response.get("Result", {})
         self._std_out_s3_uri: Optional[str] = result.get("StdOutS3Uri")
         self._std_error_s3_uri: Optional[str] = result.get("StdErrorS3Uri")
         self._result_s3_uri: Optional[str] = result.get("ResultS3Uri")

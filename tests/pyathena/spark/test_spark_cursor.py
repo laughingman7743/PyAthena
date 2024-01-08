@@ -130,6 +130,9 @@ class TestSparkCursor:
             time.sleep(randint(5, 10))
             c.cancel()
 
+            # TODO: Calculation execution is not canceled unless session is terminated
+            c.close()
+
         with ThreadPoolExecutor(max_workers=1) as executor:
             executor.submit(cancel, spark_cursor)
 
