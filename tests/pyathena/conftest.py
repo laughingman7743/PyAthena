@@ -172,7 +172,7 @@ def async_arrow_cursor(request):
 
 @pytest.fixture
 def spark_cursor(request):
-    from pyathena.spark.spark_cursor import SparkCursor
+    from pyathena.spark.cursor import SparkCursor
 
     if not hasattr(request, "param"):
         setattr(request, "param", {})
@@ -182,7 +182,7 @@ def spark_cursor(request):
 
 @pytest.fixture
 def async_spark_cursor(request):
-    from pyathena.spark.async_spark_cursor import AsyncSparkCursor
+    from pyathena.spark.async_cursor import AsyncSparkCursor
 
     if not hasattr(request, "param"):
         setattr(request, "param", {})
