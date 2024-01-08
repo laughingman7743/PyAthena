@@ -355,7 +355,7 @@ class AthenaSessionStatus:
     STATE_FAILED: str = "FAILED"
 
     def __init__(self, response: Dict[str, Any]) -> None:
-        self._session_id = response.get("SessionId")
+        self._session_id: Optional[str] = response.get("SessionId")
 
         status = response.get("Status")
         if not status:
@@ -366,6 +366,10 @@ class AthenaSessionStatus:
         self._last_modified_dateTime: Optional[datetime] = status.get("LastModifiedDateTime")
         self._end_date_time: Optional[datetime] = status.get("EndDateTime")
         self._idle_since_date_time: Optional[datetime] = status.get("IdleSinceDateTime")
+
+    @property
+    def session_id(self) -> Optional[str]:
+        return self._session_id
 
     @property
     def state(self) -> Optional[str]:

@@ -3,11 +3,14 @@ import copy
 from datetime import datetime
 
 from pyathena.model import (
+    AthenaCalculationExecution,
+    AthenaCalculationExecutionStatus,
     AthenaCompression,
     AthenaFileFormat,
     AthenaPartitionTransform,
     AthenaQueryExecution,
     AthenaRowFormatSerde,
+    AthenaSessionStatus,
     AthenaTableMetadata,
 )
 
@@ -61,6 +64,36 @@ ATHENA_QUERY_EXECUTION_RESPONSE = {
             "param2",
         ],
     }
+}
+ATHENA_CALCULATION_EXECUTION_RESPONSE = {
+    "CalculationExecutionId": "calculation_id",
+    "SessionId": "session_id",
+    "Description": "description",
+    "WorkingDirectory": "working_directory",
+    "Status": {
+        "SubmissionDateTime": datetime(2015, 1, 1, 1, 1, 1),
+        "CompletionDateTime": datetime(2016, 1, 1, 1, 1, 1),
+        "State": "COMPLETED",
+        "StateChangeReason": "reason",
+    },
+    "Statistics": {"DpuExecutionInMillis": 123, "Progress": "progress"},
+    "Result": {
+        "StdOutS3Uri": "s3://bucket/path/to/stdout",
+        "StdErrorS3Uri": "s3://bucket/path/to/stderror",
+        "ResultS3Uri": "s3://bucket/path/to/result",
+        "ResultType": "type",
+    },
+}
+ATHENA_SESSION_STATUS_RESPONSE = {
+    "SessionId": "session_id",
+    "Status": {
+        "StartDateTime": datetime(2015, 1, 1, 1, 1, 1),
+        "LastModifiedDateTime": datetime(2016, 1, 1, 1, 1, 1),
+        "EndDateTime": datetime(2017, 1, 1, 1, 1, 1),
+        "IdleSinceDateTime": datetime(2018, 1, 1, 1, 1, 1),
+        "State": "IDLE",
+        "StateChangeReason": "reason",
+    },
 }
 ATHENA_TABLE_METADATA_RESPONSE = {
     "TableMetadata": {
@@ -175,6 +208,37 @@ class TestAthenaQueryExecution:
         assert actual.effective_engine_version == "Athena engine version 2"
         assert actual.result_reuse_enabled
         assert actual.result_reuse_minutes == 5
+
+
+class TestAthenaCalculationExecution:
+    def test_init(self):
+        actual = AthenaCalculationExecution(ATHENA_CALCULATION_EXECUTION_RESPONSE)
+        assert actual.calculation_id == "calculation_id"
+        assert actual.session_id == "session_id"
+        assert actual.description == "description"
+        assert actual.working_directory == "working_directory"
+        assert actual.submission_date_time == datetime(2015, 1, 1, 1, 1, 1)
+        assert actual.completion_date_time == datetime(2016, 1, 1, 1, 1, 1)
+        assert actual.state == AthenaCalculationExecutionStatus.STATE_COMPLETED
+        assert actual.state_change_reason == "reason"
+        assert actual.dpu_execution_in_millis == 123
+        assert actual.progress == "progress"
+        assert actual.std_out_s3_uri == "s3://bucket/path/to/stdout"
+        assert actual.std_error_s3_uri == "s3://bucket/path/to/stderror"
+        assert actual.result_s3_uri == "s3://bucket/path/to/result"
+        assert actual.result_type == "type"
+
+
+class TestAthenaSessionStatus:
+    def test_init(self):
+        actual = AthenaSessionStatus(ATHENA_SESSION_STATUS_RESPONSE)
+        assert actual.session_id == "session_id"
+        assert actual.state == AthenaSessionStatus.STATE_IDLE
+        assert actual.state_change_reason == "reason"
+        assert actual.start_date_time == datetime(2015, 1, 1, 1, 1, 1)
+        assert actual.last_modified_dateTime == datetime(2016, 1, 1, 1, 1, 1)
+        assert actual.end_date_time == datetime(2017, 1, 1, 1, 1, 1)
+        assert actual.idle_since_date_time == datetime(2018, 1, 1, 1, 1, 1)
 
 
 class TestAthenaTableMetadata:
