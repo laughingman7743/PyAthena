@@ -1,18 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import textwrap
+import time
+from concurrent.futures import ThreadPoolExecutor
+from random import randint
 
 import pytest
 
-from pyathena import OperationalError
+from pyathena import DatabaseError, OperationalError
 from pyathena.model import AthenaCalculationExecution
 from tests import ENV
 
 
 class TestSparkCursor:
-    @pytest.mark.parametrize(
-        "spark_cursor", [{"work_group": ENV.spark_work_group}], indirect=["spark_cursor"]
-    )
     def test_spark_dataframe(self, spark_cursor):
         spark_cursor.execute(
             textwrap.dedent(
@@ -76,9 +76,6 @@ class TestSparkCursor:
         )
 
     @pytest.mark.depends(on="test_spark_dataframe")
-    @pytest.mark.parametrize(
-        "spark_cursor", [{"work_group": ENV.spark_work_group}], indirect=["spark_cursor"]
-    )
     def test_spark_sql(self, spark_cursor):
         spark_cursor.execute(
             textwrap.dedent(
@@ -108,9 +105,6 @@ class TestSparkCursor:
             )
         )
 
-    @pytest.mark.parametrize(
-        "spark_cursor", [{"work_group": ENV.spark_work_group}], indirect=["spark_cursor"]
-    )
     def test_failed(self, spark_cursor):
         with pytest.raises(OperationalError):
             spark_cursor.execute(
@@ -130,3 +124,23 @@ class TestSparkCursor:
                 """
             ).strip()
         )
+
+    def test_cancel(self, spark_cursor):
+        def cancel(c):
+            time.sleep(randint(5, 10))
+            c.cancel()
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            executor.submit(cancel, spark_cursor)
+
+            pytest.raises(
+                DatabaseError,
+                lambda: spark_cursor.execute(
+                    textwrap.dedent(
+                        """
+                        import time
+                        time.sleep(60)
+                        """
+                    )
+                ),
+            )
