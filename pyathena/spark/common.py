@@ -6,7 +6,7 @@ import logging
 import time
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
 import botocore
 
@@ -17,7 +17,7 @@ from pyathena.model import (
     AthenaQueryExecution,
     AthenaSession,
 )
-from pyathena.util import retry_api_call
+from pyathena.util import parse_output_location, retry_api_call
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
@@ -49,8 +49,16 @@ class SparkBaseCursor(BaseCursor, metaclass=ABCMeta):
                 raise OperationalError(f"Session: {session_id} not found.")
         else:
             self._session_id = self._start_session()
+
         self._calculation_id: Optional[str] = None
         self._calculation_execution: Optional[AthenaCalculationExecution] = None
+
+        self._client = self.connection.session.client(
+            "s3",
+            region_name=self.connection.region_name,
+            config=self.connection.config,
+            **self.connection._client_kwargs,
+        )
 
     @property
     def session_id(self) -> str:
@@ -67,6 +75,17 @@ class SparkBaseCursor(BaseCursor, metaclass=ABCMeta):
             "MaxConcurrentDpus": 2,
             "DefaultExecutorDpuSize": 1,
         }
+
+    def _read_s3_file_as_text(self, uri) -> str:
+        bucket, key = parse_output_location(uri)
+        response = retry_api_call(
+            self._client.get_object,
+            config=self._retry_config,
+            logger=_logger,
+            Bucket=bucket,
+            Key=key,
+        )
+        return cast(str, response["Body"].read().decode("utf-8").strip())
 
     def _get_session_status(self, session_id: str):
         request: Dict[str, Any] = {"SessionId": session_id}

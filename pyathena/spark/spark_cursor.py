@@ -22,6 +22,16 @@ class SparkCursor(SparkBaseCursor, WithCalculationExecution):
     def calculation_execution(self) -> Optional[AthenaCalculationExecution]:
         return self._calculation_execution
 
+    def get_std_out(self) -> Optional[str]:
+        if not self._calculation_execution or not self._calculation_execution.std_out_s3_uri:
+            return None
+        return self._read_s3_file_as_text(self._calculation_execution.std_out_s3_uri)
+
+    def get_std_error(self) -> Optional[str]:
+        if not self._calculation_execution or not self._calculation_execution.std_error_s3_uri:
+            return None
+        return self._read_s3_file_as_text(self._calculation_execution.std_error_s3_uri)
+
     def execute(
         self,
         operation: str,
@@ -42,7 +52,8 @@ class SparkCursor(SparkBaseCursor, WithCalculationExecution):
             AthenaCalculationExecution, self._poll(self._calculation_id)
         )
         if self._calculation_execution.state != AthenaCalculationExecution.STATE_COMPLETED:
-            raise OperationalError(self._calculation_execution.state_change_reason)
+            std_error = self.get_std_error()
+            raise OperationalError(std_error)
         return self
 
     def cancel(self) -> None:

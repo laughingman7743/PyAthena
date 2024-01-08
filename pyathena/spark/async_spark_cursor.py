@@ -23,8 +23,20 @@ class AsyncSparkCursor(SparkBaseCursor):
         super().close()
         self._executor.shutdown(wait=wait)
 
-    def calculation_execution(self, query_id) -> "Future[AthenaCalculationExecution]":
+    def calculation_execution(self, query_id: str) -> "Future[AthenaCalculationExecution]":
         return self._executor.submit(self._get_calculation_execution, query_id)
+
+    def get_std_out(self, query_id: str) -> Optional[str]:
+        calculation_execution = self._get_calculation_execution(query_id)
+        if not calculation_execution or not calculation_execution.std_out_s3_uri:
+            return None
+        return self._read_s3_file_as_text(calculation_execution.std_out_s3_uri)
+
+    def get_std_error(self, query_id: str) -> Optional[str]:
+        calculation_execution = self._get_calculation_execution(query_id)
+        if not calculation_execution or not calculation_execution.std_error_s3_uri:
+            return None
+        return self._read_s3_file_as_text(calculation_execution.std_error_s3_uri)
 
     def poll(self, query_id: str) -> "Future[AthenaCalculationExecution]":
         return cast(
