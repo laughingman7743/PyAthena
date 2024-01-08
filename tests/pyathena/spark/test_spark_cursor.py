@@ -8,7 +8,7 @@ from random import randint
 import pytest
 
 from pyathena import DatabaseError, OperationalError
-from pyathena.model import AthenaCalculationExecution
+from pyathena.model import AthenaCalculationExecutionStatus
 from tests import ENV
 
 
@@ -30,7 +30,7 @@ class TestSparkCursor:
         assert spark_cursor.calculation_id
         assert spark_cursor.description == "test description"
         assert spark_cursor.working_directory
-        assert spark_cursor.state == AthenaCalculationExecution.STATE_COMPLETED
+        assert spark_cursor.state == AthenaCalculationExecutionStatus.STATE_COMPLETED
         assert spark_cursor.state_change_reason is None
         assert spark_cursor.submission_date_time
         assert spark_cursor.completion_date_time
@@ -114,7 +114,7 @@ class TestSparkCursor:
                     """
                 )
             )
-        assert spark_cursor.state == AthenaCalculationExecution.STATE_FAILED
+        assert spark_cursor.state == AthenaCalculationExecutionStatus.STATE_FAILED
         assert (
             spark_cursor.get_std_error()
             == textwrap.dedent(

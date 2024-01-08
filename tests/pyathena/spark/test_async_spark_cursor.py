@@ -4,7 +4,7 @@ import textwrap
 import time
 from random import randint
 
-from pyathena.model import AthenaCalculationExecution
+from pyathena.model import AthenaCalculationExecutionStatus
 from tests import ENV
 
 
@@ -26,7 +26,7 @@ class TestAsyncSparkCursor:
         assert query_id == calculation_execution.calculation_id
         assert calculation_execution.description == "test description"
         assert calculation_execution.working_directory
-        assert calculation_execution.state == AthenaCalculationExecution.STATE_COMPLETED
+        assert calculation_execution.state == AthenaCalculationExecutionStatus.STATE_COMPLETED
         assert calculation_execution.state_change_reason is None
         assert calculation_execution.submission_date_time
         assert calculation_execution.completion_date_time
@@ -94,7 +94,7 @@ class TestAsyncSparkCursor:
             )
         )
         calculation_execution = future.result()
-        assert calculation_execution.state == AthenaCalculationExecution.STATE_FAILED
+        assert calculation_execution.state == AthenaCalculationExecutionStatus.STATE_FAILED
         std_error = async_spark_cursor.get_std_error(calculation_execution).result()
         assert (
             std_error
@@ -122,4 +122,4 @@ class TestAsyncSparkCursor:
         async_spark_cursor.close()
 
         calculation_execution = future.result()
-        assert calculation_execution.state == AthenaCalculationExecution.STATE_CANCELED
+        assert calculation_execution.state == AthenaCalculationExecutionStatus.STATE_CANCELED

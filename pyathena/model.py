@@ -344,7 +344,7 @@ class AthenaCalculationExecution(AthenaCalculationExecutionStatus):
         return self._result_type
 
 
-class AthenaSession:
+class AthenaSessionStatus:
     STATE_CREATING: str = "CREATING"
     STATE_CREATED: str = "CREATED"
     STATE_IDLE: str = "IDLE"

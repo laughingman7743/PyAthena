@@ -5,7 +5,7 @@ import logging
 from typing import Any, Dict, Optional, cast
 
 from pyathena import OperationalError, ProgrammingError
-from pyathena.model import AthenaCalculationExecution
+from pyathena.model import AthenaCalculationExecution, AthenaCalculationExecutionStatus
 from pyathena.spark.common import SparkBaseCursor, WithCalculationExecution
 
 _logger = logging.getLogger(__name__)  # type: ignore
@@ -51,7 +51,7 @@ class SparkCursor(SparkBaseCursor, WithCalculationExecution):
         self._calculation_execution = cast(
             AthenaCalculationExecution, self._poll(self._calculation_id)
         )
-        if self._calculation_execution.state != AthenaCalculationExecution.STATE_COMPLETED:
+        if self._calculation_execution.state != AthenaCalculationExecutionStatus.STATE_COMPLETED:
             std_error = self.get_std_error()
             raise OperationalError(std_error)
         return self

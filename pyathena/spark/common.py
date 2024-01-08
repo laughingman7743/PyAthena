@@ -14,8 +14,9 @@ from pyathena import NotSupportedError, OperationalError
 from pyathena.common import BaseCursor
 from pyathena.model import (
     AthenaCalculationExecution,
+    AthenaCalculationExecutionStatus,
     AthenaQueryExecution,
-    AthenaSession,
+    AthenaSessionStatus,
 )
 from pyathena.util import parse_output_location, retry_api_call
 
@@ -100,17 +101,17 @@ class SparkBaseCursor(BaseCursor, metaclass=ABCMeta):
             _logger.exception("Failed to get session status.")
             raise OperationalError(*e.args) from e
         else:
-            return AthenaSession(response)
+            return AthenaSessionStatus(response)
 
     def _wait_for_idle_session(self, session_id: str):
         while True:
             session_status = self._get_session_status(session_id)
-            if session_status.state in [AthenaSession.STATE_IDLE]:
+            if session_status.state in [AthenaSessionStatus.STATE_IDLE]:
                 break
             elif session_status in [
-                AthenaSession.STATE_TERMINATED,
-                AthenaSession.STATE_DEGRADED,
-                AthenaSession.STATE_FAILED,
+                AthenaSessionStatus.STATE_TERMINATED,
+                AthenaSessionStatus.STATE_DEGRADED,
+                AthenaSessionStatus.STATE_FAILED,
             ]:
                 raise OperationalError(session_status.state_change_reason)
             else:
@@ -180,9 +181,9 @@ class SparkBaseCursor(BaseCursor, metaclass=ABCMeta):
         while True:
             calculation_status = self._get_calculation_execution_status(query_id)
             if calculation_status.state in [
-                AthenaCalculationExecution.STATE_COMPLETED,
-                AthenaCalculationExecution.STATE_FAILED,
-                AthenaCalculationExecution.STATE_CANCELED,
+                AthenaCalculationExecutionStatus.STATE_COMPLETED,
+                AthenaCalculationExecutionStatus.STATE_FAILED,
+                AthenaCalculationExecutionStatus.STATE_CANCELED,
             ]:
                 return self._get_calculation_execution(query_id)
             else:
