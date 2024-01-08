@@ -112,7 +112,7 @@ Resources:
       AssumeRolePolicyDocument:
         Statement:
           - Effect: Allow
-            Action: sts:AssumeRoleWithWebIdentity
+            Action: sts:AssumeRole
             Principal:
               Service: "athena.amazonaws.com"
             Condition:
