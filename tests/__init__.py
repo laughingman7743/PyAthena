@@ -22,6 +22,10 @@ class Env:
         ).split("/", 1)
         self.work_group = os.getenv("AWS_ATHENA_WORKGROUP")
         assert self.work_group, "Required environment variable `AWS_ATHENA_WORKGROUP` not found."
+        self.spark_work_group = os.getenv("AWS_ATHENA_SPARK_WORKGROUP")
+        assert (
+            self.spark_work_group
+        ), "Required environment variable `AWS_ATHENA_SPARK_WORKGROUP` not found."
         self.default_work_group = os.getenv("AWS_ATHENA_DEFAULT_WORKGROUP", "primary")
         self.schema = "pyathena_test_" + "".join(
             [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]

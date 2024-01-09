@@ -17,6 +17,7 @@ jobs:
       AWS_DEFAULT_REGION: us-west-2
       AWS_ATHENA_S3_STAGING_DIR: s3://laughingman7743-pyathena/github/
       AWS_ATHENA_WORKGROUP: pyathena
+      AWS_ATHENA_SPARK_WORKGROUP: pyathena-spark
 
     strategy:
       fail-fast: false

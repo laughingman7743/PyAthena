@@ -33,40 +33,40 @@ class AthenaQueryExecution:
     S3_ACL_OPTION_BUCKET_OWNER_FULL_CONTROL = "BUCKET_OWNER_FULL_CONTROL"
 
     def __init__(self, response: Dict[str, Any]) -> None:
-        query_execution = response.get("QueryExecution", None)
+        query_execution = response.get("QueryExecution")
         if not query_execution:
             raise DataError("KeyError `QueryExecution`")
 
         query_execution_context = query_execution.get("QueryExecutionContext", {})
-        self._database: Optional[str] = query_execution_context.get("Database", None)
-        self._catalog: Optional[str] = query_execution_context.get("Catalog", None)
+        self._database: Optional[str] = query_execution_context.get("Database")
+        self._catalog: Optional[str] = query_execution_context.get("Catalog")
 
-        self._query_id: Optional[str] = query_execution.get("QueryExecutionId", None)
+        self._query_id: Optional[str] = query_execution.get("QueryExecutionId")
         if not self._query_id:
             raise DataError("KeyError `QueryExecutionId`")
-        self._query: Optional[str] = query_execution.get("Query", None)
+        self._query: Optional[str] = query_execution.get("Query")
         if not self._query:
             raise DataError("KeyError `Query`")
-        self._statement_type: Optional[str] = query_execution.get("StatementType", None)
-        self._substatement_type: Optional[str] = query_execution.get("SubstatementType", None)
-        self._work_group: Optional[str] = query_execution.get("WorkGroup", None)
+        self._statement_type: Optional[str] = query_execution.get("StatementType")
+        self._substatement_type: Optional[str] = query_execution.get("SubstatementType")
+        self._work_group: Optional[str] = query_execution.get("WorkGroup")
         self._execution_parameters: List[str] = query_execution.get("ExecutionParameters", [])
 
-        status = query_execution.get("Status", None)
+        status = query_execution.get("Status")
         if not status:
             raise DataError("KeyError `Status`")
-        self._state: Optional[str] = status.get("State", None)
-        self._state_change_reason: Optional[str] = status.get("StateChangeReason", None)
-        self._submission_date_time: Optional[datetime] = status.get("SubmissionDateTime", None)
-        self._completion_date_time: Optional[datetime] = status.get("CompletionDateTime", None)
+        self._state: Optional[str] = status.get("State")
+        self._state_change_reason: Optional[str] = status.get("StateChangeReason")
+        self._submission_date_time: Optional[datetime] = status.get("SubmissionDateTime")
+        self._completion_date_time: Optional[datetime] = status.get("CompletionDateTime")
         athena_error = status.get("AthenaError", {})
-        self._error_category: Optional[int] = athena_error.get("ErrorCategory", None)
-        self._error_type: Optional[int] = athena_error.get("ErrorType", None)
-        self._retryable: Optional[bool] = athena_error.get("Retryable", None)
-        self._error_message: Optional[str] = athena_error.get("ErrorMessage", None)
+        self._error_category: Optional[int] = athena_error.get("ErrorCategory")
+        self._error_type: Optional[int] = athena_error.get("ErrorType")
+        self._retryable: Optional[bool] = athena_error.get("Retryable")
+        self._error_message: Optional[str] = athena_error.get("ErrorMessage")
 
         statistics = query_execution.get("Statistics", {})
-        self._data_scanned_in_bytes: Optional[int] = statistics.get("DataScannedInBytes", None)
+        self._data_scanned_in_bytes: Optional[int] = statistics.get("DataScannedInBytes")
         self._engine_execution_time_in_millis: Optional[int] = statistics.get(
             "EngineExecutionTimeInMillis", None
         )
@@ -82,18 +82,18 @@ class AthenaQueryExecution:
         self._service_processing_time_in_millis: Optional[int] = statistics.get(
             "ServiceProcessingTimeInMillis", None
         )
-        self._data_manifest_location: Optional[str] = statistics.get("DataManifestLocation", None)
+        self._data_manifest_location: Optional[str] = statistics.get("DataManifestLocation")
         reuse_info = statistics.get("ResultReuseInformation", {})
-        self._reused_previous_result: Optional[bool] = reuse_info.get("ReusedPreviousResult", None)
+        self._reused_previous_result: Optional[bool] = reuse_info.get("ReusedPreviousResult")
 
         result_conf = query_execution.get("ResultConfiguration", {})
-        self._output_location: Optional[str] = result_conf.get("OutputLocation", None)
+        self._output_location: Optional[str] = result_conf.get("OutputLocation")
         encryption_conf = result_conf.get("EncryptionConfiguration", {})
-        self._encryption_option: Optional[str] = encryption_conf.get("EncryptionOption", None)
-        self._kms_key: Optional[str] = encryption_conf.get("KmsKey", None)
-        self._expected_bucket_owner: Optional[str] = result_conf.get("ExpectedBucketOwner", None)
+        self._encryption_option: Optional[str] = encryption_conf.get("EncryptionOption")
+        self._kms_key: Optional[str] = encryption_conf.get("KmsKey")
+        self._expected_bucket_owner: Optional[str] = result_conf.get("ExpectedBucketOwner")
         acl_conf = result_conf.get("AclConfiguration", {})
-        self._s3_acl_option: Optional[str] = acl_conf.get("S3AclOption", None)
+        self._s3_acl_option: Optional[str] = acl_conf.get("S3AclOption")
 
         engine_version = query_execution.get("EngineVersion", {})
         self._selected_engine_version: Optional[str] = engine_version.get(
@@ -105,8 +105,8 @@ class AthenaQueryExecution:
 
         reuse_conf = query_execution.get("ResultReuseConfiguration", {})
         reuse_age_conf = reuse_conf.get("ResultReuseByAgeConfiguration", {})
-        self._result_reuse_enabled: Optional[bool] = reuse_age_conf.get("Enabled", None)
-        self._result_reuse_minutes: Optional[int] = reuse_age_conf.get("MaxAgeInMinutes", None)
+        self._result_reuse_enabled: Optional[bool] = reuse_age_conf.get("Enabled")
+        self._result_reuse_minutes: Optional[int] = reuse_age_conf.get("MaxAgeInMinutes")
 
     @property
     def database(self) -> Optional[str]:
@@ -241,14 +241,169 @@ class AthenaQueryExecution:
         return self._result_reuse_minutes
 
 
+class AthenaCalculationExecutionStatus:
+    STATE_CREATING: str = "CREATING"
+    STATE_CREATED: str = "CREATED"
+    STATE_QUEUED: str = "QUEUED"
+    STATE_RUNNING: str = "RUNNING"
+    STATE_CANCELING: str = "CANCELING"
+    STATE_CANCELED: str = "CANCELED"
+    STATE_COMPLETED: str = "COMPLETED"
+    STATE_FAILED: str = "FAILED"
+
+    def __init__(self, response: Dict[str, Any]) -> None:
+        status = response.get("Status")
+        if not status:
+            raise DataError("KeyError `Status`")
+        self._state: Optional[str] = status.get("State")
+        self._state_change_reason: Optional[str] = status.get("StateChangeReason")
+        self._submission_date_time: Optional[datetime] = status.get("SubmissionDateTime")
+        self._completion_date_time: Optional[datetime] = status.get("CompletionDateTime")
+
+        statistics = response.get("Statistics")
+        if not statistics:
+            raise DataError("KeyError `Statistics`")
+        self._dpu_execution_in_millis: Optional[int] = statistics.get("DpuExecutionInMillis")
+        self._progress: Optional[str] = statistics.get("Progress")
+
+    @property
+    def state(self) -> Optional[str]:
+        return self._state
+
+    @property
+    def state_change_reason(self) -> Optional[str]:
+        return self._state_change_reason
+
+    @property
+    def submission_date_time(self) -> Optional[datetime]:
+        return self._submission_date_time
+
+    @property
+    def completion_date_time(self) -> Optional[datetime]:
+        return self._completion_date_time
+
+    @property
+    def dpu_execution_in_millis(self) -> Optional[int]:
+        return self._dpu_execution_in_millis
+
+    @property
+    def progress(self) -> Optional[str]:
+        return self._progress
+
+
+class AthenaCalculationExecution(AthenaCalculationExecutionStatus):
+    def __init__(self, response: Dict[str, Any]) -> None:
+        super().__init__(response)
+
+        self._calculation_id: Optional[str] = response.get("CalculationExecutionId")
+        if not self._calculation_id:
+            raise DataError("KeyError `CalculationExecutionId`")
+        self._session_id: Optional[str] = response.get("SessionId")
+        if not self._session_id:
+            raise DataError("KeyError `SessionId`")
+        self._description: Optional[str] = response.get("Description")
+        self._working_directory: Optional[str] = response.get("WorkingDirectory")
+
+        # If cancelled, the result does not exist.
+        result = response.get("Result", {})
+        self._std_out_s3_uri: Optional[str] = result.get("StdOutS3Uri")
+        self._std_error_s3_uri: Optional[str] = result.get("StdErrorS3Uri")
+        self._result_s3_uri: Optional[str] = result.get("ResultS3Uri")
+        self._result_type: Optional[str] = result.get("ResultType")
+
+    @property
+    def calculation_id(self) -> Optional[str]:
+        return self._calculation_id
+
+    @property
+    def session_id(self) -> Optional[str]:
+        return self._session_id
+
+    @property
+    def description(self) -> Optional[str]:
+        return self._description
+
+    @property
+    def working_directory(self) -> Optional[str]:
+        return self._working_directory
+
+    @property
+    def std_out_s3_uri(self) -> Optional[str]:
+        return self._std_out_s3_uri
+
+    @property
+    def std_error_s3_uri(self) -> Optional[str]:
+        return self._std_error_s3_uri
+
+    @property
+    def result_s3_uri(self) -> Optional[str]:
+        return self._result_s3_uri
+
+    @property
+    def result_type(self) -> Optional[str]:
+        return self._result_type
+
+
+class AthenaSessionStatus:
+    STATE_CREATING: str = "CREATING"
+    STATE_CREATED: str = "CREATED"
+    STATE_IDLE: str = "IDLE"
+    STATE_BUSY: str = "BUSY"
+    STATE_TERMINATING: str = "TERMINATING"
+    STATE_TERMINATED: str = "TERMINATED"
+    STATE_DEGRADED: str = "DEGRADED"
+    STATE_FAILED: str = "FAILED"
+
+    def __init__(self, response: Dict[str, Any]) -> None:
+        self._session_id: Optional[str] = response.get("SessionId")
+
+        status = response.get("Status")
+        if not status:
+            raise DataError("KeyError `Status`")
+        self._state: Optional[str] = status.get("State")
+        self._state_change_reason: Optional[str] = status.get("StateChangeReason")
+        self._start_date_time: Optional[datetime] = status.get("StartDateTime")
+        self._last_modified_dateTime: Optional[datetime] = status.get("LastModifiedDateTime")
+        self._end_date_time: Optional[datetime] = status.get("EndDateTime")
+        self._idle_since_date_time: Optional[datetime] = status.get("IdleSinceDateTime")
+
+    @property
+    def session_id(self) -> Optional[str]:
+        return self._session_id
+
+    @property
+    def state(self) -> Optional[str]:
+        return self._state
+
+    @property
+    def state_change_reason(self) -> Optional[str]:
+        return self._state_change_reason
+
+    @property
+    def start_date_time(self) -> Optional[datetime]:
+        return self._start_date_time
+
+    @property
+    def last_modified_dateTime(self) -> Optional[datetime]:
+        return self._last_modified_dateTime
+
+    @property
+    def end_date_time(self) -> Optional[datetime]:
+        return self._end_date_time
+
+    @property
+    def idle_since_date_time(self) -> Optional[datetime]:
+        return self._idle_since_date_time
+
+
 class AthenaDatabase:
     def __init__(self, response):
-        database = response.get("Database", None)
+        database = response.get("Database")
         if not database:
             raise DataError("KeyError `Database`")
 
-        self._name: Optional[str] = database.get("Name", None)
-        self._description: Optional[str] = database.get("Description", None)
+        self._name: Optional[str] = database.get("Name")
+        self._description: Optional[str] = database.get("Description")
         self._parameters: Dict[str, str] = database.get("Parameters", {})
 
     @property
@@ -266,9 +421,9 @@ class AthenaDatabase:
 
 class AthenaTableMetadataColumn:
     def __init__(self, response):
-        self._name: Optional[str] = response.get("Name", None)
-        self._type: Optional[str] = response.get("Type", None)
-        self._comment: Optional[str] = response.get("Comment", None)
+        self._name: Optional[str] = response.get("Name")
+        self._type: Optional[str] = response.get("Type")
+        self._comment: Optional[str] = response.get("Comment")
 
     @property
     def name(self) -> Optional[str]:
@@ -285,9 +440,9 @@ class AthenaTableMetadataColumn:
 
 class AthenaTableMetadataPartitionKey:
     def __init__(self, response):
-        self._name: Optional[str] = response.get("Name", None)
-        self._type: Optional[str] = response.get("Type", None)
-        self._comment: Optional[str] = response.get("Comment", None)
+        self._name: Optional[str] = response.get("Name")
+        self._type: Optional[str] = response.get("Type")
+        self._comment: Optional[str] = response.get("Comment")
 
     @property
     def name(self) -> Optional[str]:
@@ -304,14 +459,14 @@ class AthenaTableMetadataPartitionKey:
 
 class AthenaTableMetadata:
     def __init__(self, response):
-        table_metadata = response.get("TableMetadata", None)
+        table_metadata = response.get("TableMetadata")
         if not table_metadata:
             raise DataError("KeyError `TableMetadata`")
 
-        self._name: Optional[str] = table_metadata.get("Name", None)
-        self._create_time: Optional[datetime] = table_metadata.get("CreateTime", None)
-        self._last_access_time: Optional[datetime] = table_metadata.get("LastAccessTime", None)
-        self._table_type: Optional[str] = table_metadata.get("TableType", None)
+        self._name: Optional[str] = table_metadata.get("Name")
+        self._create_time: Optional[datetime] = table_metadata.get("CreateTime")
+        self._last_access_time: Optional[datetime] = table_metadata.get("LastAccessTime")
+        self._table_type: Optional[str] = table_metadata.get("TableType")
 
         columns = table_metadata.get("Columns", [])
         self._columns: List[AthenaTableMetadataColumn] = []
@@ -355,19 +510,19 @@ class AthenaTableMetadata:
 
     @property
     def comment(self) -> Optional[str]:
-        return self._parameters.get("comment", None)
+        return self._parameters.get("comment")
 
     @property
     def location(self) -> Optional[str]:
-        return self._parameters.get("location", None)
+        return self._parameters.get("location")
 
     @property
     def input_format(self) -> Optional[str]:
-        return self._parameters.get("inputformat", None)
+        return self._parameters.get("inputformat")
 
     @property
     def output_format(self) -> Optional[str]:
-        return self._parameters.get("outputformat", None)
+        return self._parameters.get("outputformat")
 
     @property
     def row_format(self) -> Optional[str]:
@@ -386,7 +541,7 @@ class AthenaTableMetadata:
 
     @property
     def serde_serialization_lib(self) -> Optional[str]:
-        return self._parameters.get("serde.serialization.lib", None)
+        return self._parameters.get("serde.serialization.lib")
 
     @property
     def compression(self) -> Optional[str]:

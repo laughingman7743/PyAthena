@@ -85,14 +85,14 @@ class Connection:
         if s3_staging_dir:
             self.s3_staging_dir: Optional[str] = s3_staging_dir
         else:
-            self.s3_staging_dir = os.getenv(self._ENV_S3_STAGING_DIR, None)
+            self.s3_staging_dir = os.getenv(self._ENV_S3_STAGING_DIR)
         self.region_name = region_name
         self.schema_name = schema_name
         self.catalog_name = catalog_name
         if work_group:
             self.work_group: Optional[str] = work_group
         else:
-            self.work_group = os.getenv(self._ENV_WORK_GROUP, None)
+            self.work_group = os.getenv(self._ENV_WORK_GROUP)
         self.poll_interval = poll_interval
         self.encryption_option = encryption_option
         self.kms_key = kms_key

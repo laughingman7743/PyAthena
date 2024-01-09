@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "PyAthena"
-version = "3.0.10"  # https://github.com/laughingman7743/PyAthena/blob/master/pyathena/__init__.py#L10
+version = "3.1.0"  # https://github.com/laughingman7743/PyAthena/blob/master/pyathena/__init__.py#L10
 description = "Python DB API 2.0 (PEP 249) client for Amazon Athena"
 license = "MIT"
 classifiers = [
@@ -61,6 +61,7 @@ flake8 = "*"
 pytest = ">=3.5"
 pytest-cov = "*"
 pytest-xdist = "*"
+pytest-dependency = "^0.6.0"
 
 [tool.poetry.extras]
 pandas = ["pandas"]

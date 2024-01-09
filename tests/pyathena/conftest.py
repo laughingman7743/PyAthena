@@ -171,6 +171,26 @@ def async_arrow_cursor(request):
 
 
 @pytest.fixture
+def spark_cursor(request):
+    from pyathena.spark.cursor import SparkCursor
+
+    if not hasattr(request, "param"):
+        setattr(request, "param", {})
+    request.param.update({"work_group": ENV.spark_work_group})
+    yield from _cursor(SparkCursor, request)
+
+
+@pytest.fixture
+def async_spark_cursor(request):
+    from pyathena.spark.async_cursor import AsyncSparkCursor
+
+    if not hasattr(request, "param"):
+        setattr(request, "param", {})
+    request.param.update({"work_group": ENV.spark_work_group})
+    yield from _cursor(AsyncSparkCursor, request)
+
+
+@pytest.fixture
 def engine(request):
     if not hasattr(request, "param"):
         setattr(request, "param", {})

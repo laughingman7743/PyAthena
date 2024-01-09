@@ -172,9 +172,7 @@ _DEFAULT_FORMATTERS: Dict[Type[Any], Callable[[Formatter, Callable[[str], str], 
 
 class DefaultParameterFormatter(Formatter):
     def __init__(self) -> None:
-        super(DefaultParameterFormatter, self).__init__(
-            mappings=deepcopy(_DEFAULT_FORMATTERS), default=None
-        )
+        super().__init__(mappings=deepcopy(_DEFAULT_FORMATTERS), default=None)
 
     def format(self, operation: str, parameters: Optional[Dict[str, Any]] = None) -> str:
         if not operation or not operation.strip():

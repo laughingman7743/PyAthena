@@ -45,7 +45,7 @@ class S3FileSystem(AbstractFileSystem):
         *args,
         **kwargs,
     ) -> None:
-        super(S3FileSystem, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if connection:
             self._client = connection.session.client(
                 "s3",
@@ -265,7 +265,7 @@ class S3FileSystem(AbstractFileSystem):
                     ).to_dict()
                     for c in response.get("Contents", [])
                 )
-                next_token = response.get("NextContinuationToken", None)
+                next_token = response.get("NextContinuationToken")
                 if not next_token:
                     break
             if files:
@@ -483,7 +483,7 @@ class S3File(AbstractBufferedFile):
         cache_options: Optional[Dict[Any, Any]] = None,
         size: Optional[int] = None,
     ):
-        super(S3File, self).__init__(
+        super().__init__(
             fs=fs,
             path=path,
             mode=mode,
@@ -517,7 +517,7 @@ class S3File(AbstractBufferedFile):
             self.request_kwargs = {"IfMatch": self.details["etag"]}
 
     def close(self):
-        super(S3File, self).close()
+        super().close()
         self._executor.shutdown()
 
     def _initiate_upload(self):
