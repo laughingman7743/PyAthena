@@ -265,7 +265,7 @@ class S3FileSystem(AbstractFileSystem):
                     ).to_dict()
                     for c in response.get("Contents", [])
                 )
-                next_token = response.get("NextContinuationToken", None)
+                next_token = response.get("NextContinuationToken")
                 if not next_token:
                     break
             if files:

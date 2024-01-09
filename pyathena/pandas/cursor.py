@@ -16,10 +16,8 @@ from typing import (
 )
 
 from pyathena.common import CursorIterator
-from pyathena.converter import Converter
 from pyathena.cursor import BaseCursor
 from pyathena.error import OperationalError, ProgrammingError
-from pyathena.formatter import Formatter
 from pyathena.model import AthenaCompression, AthenaFileFormat, AthenaQueryExecution
 from pyathena.pandas.converter import (
     DefaultPandasTypeConverter,
@@ -27,12 +25,9 @@ from pyathena.pandas.converter import (
 )
 from pyathena.pandas.result_set import AthenaPandasResultSet
 from pyathena.result_set import WithResultSet
-from pyathena.util import RetryConfig
 
 if TYPE_CHECKING:
     from pandas import DataFrame
-
-    from pyathena.connection import Connection
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
@@ -40,45 +35,15 @@ _logger = logging.getLogger(__name__)  # type: ignore
 class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
     def __init__(
         self,
-        connection: "Connection",
-        converter: Converter,
-        formatter: Formatter,
-        retry_config: RetryConfig,
-        s3_staging_dir: Optional[str] = None,
-        schema_name: Optional[str] = None,
-        catalog_name: Optional[str] = None,
-        work_group: Optional[str] = None,
-        poll_interval: float = 1,
-        encryption_option: Optional[str] = None,
-        kms_key: Optional[str] = None,
-        kill_on_interrupt: bool = True,
         unload: bool = False,
         engine: str = "auto",
         chunksize: Optional[int] = None,
         block_size: Optional[int] = None,
         cache_type: Optional[str] = None,
         max_workers: int = (cpu_count() or 1) * 5,
-        result_reuse_enable: bool = False,
-        result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
         **kwargs,
     ) -> None:
-        super().__init__(
-            connection=connection,
-            converter=converter,
-            formatter=formatter,
-            retry_config=retry_config,
-            s3_staging_dir=s3_staging_dir,
-            schema_name=schema_name,
-            catalog_name=catalog_name,
-            work_group=work_group,
-            poll_interval=poll_interval,
-            encryption_option=encryption_option,
-            kms_key=kms_key,
-            kill_on_interrupt=kill_on_interrupt,
-            result_reuse_enable=result_reuse_enable,
-            result_reuse_minutes=result_reuse_minutes,
-            **kwargs,
-        )
+        super().__init__(**kwargs)
         self._unload = unload
         self._engine = engine
         self._chunksize = chunksize
@@ -137,8 +102,8 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         parameters: Optional[Dict[str, Any]] = None,
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
-        cache_size: int = 0,
-        cache_expiration_time: int = 0,
+        cache_size: Optional[int] = 0,
+        cache_expiration_time: Optional[int] = 0,
         result_reuse_enable: Optional[bool] = None,
         result_reuse_minutes: Optional[int] = None,
         keep_default_na: bool = False,
@@ -168,7 +133,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
             result_reuse_enable=result_reuse_enable,
             result_reuse_minutes=result_reuse_minutes,
         )
-        query_execution = self._poll(self.query_id)
+        query_execution = cast(AthenaQueryExecution, self._poll(self.query_id))
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
             self.result_set = AthenaPandasResultSet(
                 connection=self._connection,
@@ -193,7 +158,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         return self
 
     def executemany(
-        self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]]
+        self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]], **kwargs
     ) -> None:
         for parameters in seq_of_parameters:
             self.execute(operation, parameters)

@@ -398,16 +398,6 @@ files = [
     {file = "cramjam-2.7.0-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:0b48b11c328d91250dadc63c00753f5ba26eb9df5fe75ba2ce8a78631260479d"},
     {file = "cramjam-2.7.0-cp311-none-win32.whl", hash = "sha256:bef07e7d4607c4d70627e58eb630fe60e48b80a61ab05b33314e3296eb90af78"},
     {file = "cramjam-2.7.0-cp311-none-win_amd64.whl", hash = "sha256:3f2e41dc8143d0e88ec9ba3ff66c8d2aea486b04931119abe9e394f9961d74bc"},
-    {file = "cramjam-2.7.0-cp312-cp312-macosx_10_7_x86_64.whl", hash = "sha256:8e82276b120000834af3f776cbe22ac3016cd9e0ed00e7f3fb31e2ce95e17181"},
-    {file = "cramjam-2.7.0-cp312-cp312-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl", hash = "sha256:2b5a463b01d8867f78a361defb4fadca63635965e8204f7e2409b717d85f0c1d"},
-    {file = "cramjam-2.7.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b84565611f36ee8c3944b96bb01ee4d44c101acf84f1430c9414986ab3a7fb03"},
-    {file = "cramjam-2.7.0-cp312-cp312-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:3cd45d09229960a89e0e3bbf71d29ac399391446f51279f3202846d7da106eb7"},
-    {file = "cramjam-2.7.0-cp312-cp312-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:4bb065d054e49645414bc84eaa49a6b7ed6c7185fb8ba2648c518344cf481144"},
-    {file = "cramjam-2.7.0-cp312-cp312-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:9a3f45cd17730c00358643a814d5921a31c8a0d238582e08594fa86fdbc8401c"},
-    {file = "cramjam-2.7.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6bf4ec082a7647ed7463c5e0bd176850a9f013c258ad98f53055bcd1716c7fac"},
-    {file = "cramjam-2.7.0-cp312-cp312-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:9f9e403be6307e98a47cc7d0132fe1fe4683c873c5d7d9da099fbac9c299a4b0"},
-    {file = "cramjam-2.7.0-cp312-none-win32.whl", hash = "sha256:fd2e81c69baacb95fa28cdf844f714d7c03f0c805f4fa2decc5e9565e6b4405d"},
-    {file = "cramjam-2.7.0-cp312-none-win_amd64.whl", hash = "sha256:831951a3eccebd5911387e3fff14483747d3dae5ad496afbd50447ffe2d03dba"},
     {file = "cramjam-2.7.0-cp37-cp37m-macosx_10_7_x86_64.whl", hash = "sha256:d143ccb3f5aae640f0c2dd6244d43f5e5e81d847b50c2eb9f08dcc3dc33f367a"},
     {file = "cramjam-2.7.0-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:47ae97247a58d3095be800420bba7e43cc6958e67f9dfddd12decdb4c99c4d6f"},
     {file = "cramjam-2.7.0-cp37-cp37m-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:6a8f0fd14bd11f2a625e5c554fd93c7775082c31ffd9fbabb4fe9db3031645d0"},
@@ -1435,6 +1425,20 @@ pytest = ">=4.6"
 testing = ["fields", "hunter", "process-tests", "pytest-xdist", "six", "virtualenv"]
 
 [[package]]
+name = "pytest-dependency"
+version = "0.6.0"
+description = "Manage dependencies of tests"
+optional = false
+python-versions = ">=3.4"
+files = [
+    {file = "pytest-dependency-0.6.0.tar.gz", hash = "sha256:934b0e6a39d95995062c193f7eaeed8a8ffa06ff1bcef4b62b0dc74a708bacc1"},
+]
+
+[package.dependencies]
+pytest = ">=3.7.0"
+setuptools = "*"
+
+[[package]]
 name = "pytest-xdist"
 version = "3.3.1"
 description = "pytest xdist plugin for distributed testing, most importantly across multiple CPUs"
@@ -1608,6 +1612,22 @@ files = [
 [package.dependencies]
 cryptography = ">=2.0"
 jeepney = ">=0.6"
+
+[[package]]
+name = "setuptools"
+version = "69.0.3"
+description = "Easily download, build, install, upgrade, and uninstall Python packages"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "setuptools-69.0.3-py3-none-any.whl", hash = "sha256:385eb4edd9c9d5c17540511303e39a147ce2fc04bc55289c322b9e5904fe2c05"},
+    {file = "setuptools-69.0.3.tar.gz", hash = "sha256:be1af57fc409f93647f2e8e4573a142ed38724b8cdd389706a867bb4efcf1e78"},
+]
+
+[package.extras]
+docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "pygments-github-lexers (==0.0.5)", "rst.linker (>=1.9)", "sphinx (<7.2.5)", "sphinx (>=3.5)", "sphinx-favicon", "sphinx-inline-tabs", "sphinx-lint", "sphinx-notfound-page (>=1,<2)", "sphinx-reredirects", "sphinxcontrib-towncrier"]
+testing = ["build[virtualenv]", "filelock (>=3.4.0)", "flake8-2020", "ini2toml[lite] (>=0.9)", "jaraco.develop (>=7.21)", "jaraco.envs (>=2.2)", "jaraco.path (>=3.2.0)", "pip (>=19.1)", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-mypy (>=0.9.1)", "pytest-perf", "pytest-ruff", "pytest-timeout", "pytest-xdist", "tomli-w (>=1.0.0)", "virtualenv (>=13.0.0)", "wheel"]
+testing-integration = ["build[virtualenv] (>=1.0.3)", "filelock (>=3.4.0)", "jaraco.envs (>=2.2)", "jaraco.path (>=3.2.0)", "packaging (>=23.1)", "pytest", "pytest-enabler", "pytest-xdist", "tomli", "virtualenv (>=13.0.0)", "wheel"]
 
 [[package]]
 name = "six"
@@ -1910,4 +1930,4 @@ sqlalchemy = ["sqlalchemy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8.1"
-content-hash = "229c939ad39be15223f3af58ec918525dc3f0e1594f29b98f015f2e1253e8055"
+content-hash = "f12c784c3d63dfca2fd718b1315f39b6b2df63471e7aacbad88318646a130282"

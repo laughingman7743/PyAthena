@@ -57,6 +57,7 @@ flake8 = "*"
 pytest = ">=3.5"
 pytest-cov = "*"
 pytest-xdist = "*"
+pytest-dependency = "^0.6.0"
 
 [tool.poetry.extras]
 pandas = ["pandas"]
