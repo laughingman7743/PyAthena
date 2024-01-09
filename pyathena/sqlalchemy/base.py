@@ -418,6 +418,8 @@ class AthenaStatementCompiler(SQLCompiler):
             type_clause = "CHAR"
         elif isinstance(cast.type, (types.BINARY, types.VARBINARY)):
             type_clause = "VARBINARY"
+        elif isinstance(cast.type, types.JSON):
+            type_clause = "JSON"
         else:
             type_clause = cast.typeclause._compiler_dispatch(self, **kwargs)
         return f"CAST({cast.clause._compiler_dispatch(self, **kwargs)} AS {type_clause})"
@@ -506,6 +508,9 @@ class AthenaTypeCompiler(GenericTypeCompiler):
 
     def visit_BOOLEAN(self, type_: Type[Any], **kw) -> str:
         return "BOOLEAN"
+
+    def visit_JSON(self, type_: Type[Any], **kw) -> str:
+        return "JSON"
 
     def visit_string(self, type_, **kw):
         return "STRING"
