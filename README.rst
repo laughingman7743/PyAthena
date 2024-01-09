@@ -2067,14 +2067,15 @@ As with AsyncSparkCursor, you need a calculation ID to cancel a calculation.
 .. code:: python
 
     from pyathena import connect
-    from pyathena.arrow.async_cursor import AsyncArrowCursor
+    from pyathena.spark.async_cursor import AsyncSparkCursor
 
-    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
-                     region_name="us-west-2",
-                     cursor_class=AsyncArrowCursor).cursor()
-
-    query_id, future = cursor.execute("SELECT * FROM many_rows")
-    cursor.cancel(query_id)
+    conn = connect(work_group="YOUR_SPARK_WORKGROUP", cursor_class=AsyncSparkCursor)
+    with conn.cursor() as cursor:
+        calculation_id, future = cursor.execute("""spark.sql("SELECT * FROM many_rows")""")
+        cursor.cancel(calculation_id)  # The cancel method future object returns nothing.
+        # It is better not to get the result of cursor execution.
+        # Because it will be blocked until the session is terminated.
+        # future.result()
 
 NOTE: Currently it appears that the calculation is not canceled unless the session is terminated.
 
