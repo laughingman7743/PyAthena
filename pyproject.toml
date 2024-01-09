@@ -79,7 +79,7 @@ fastparquet = ["fastparquet"]
 legacy_tox_ini = """
 [tox]
 isolated_build = true
-envlist = py{38,39,310,311},py{38,39,310,311}-sqla
+envlist = py{38,39,310,311,312},py{38,39,310,311,312}-sqla
 
 [gh-actions]
 python =
@@ -87,6 +87,7 @@ python =
     3.9: py39
     3.10: py310
     3.11: py311
+    3.12: py312
 
 [testenv]
 allowlist_externals =
@@ -100,7 +101,7 @@ passenv =
     TOXENV
     GITHUB_*
 
-[testenv:py{38,39,310,311}-sqla]
+[testenv:py{38,39,310,311,312}-sqla]
 commands =
     poetry install -v
     make test-sqla
