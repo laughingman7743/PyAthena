@@ -1,24 +1,23 @@
 .PHONY: fmt
 fmt:
-	poetry run isort .
-	poetry run black .
+	pdm run ruff check --select I --fix .
+	pdm run ruff format .
 
 .PHONY: chk
 chk:
-	# https://github.com/PyCQA/flake8/issues/234
-	poetry run flake8 --max-line-length 100 --exclude .poetry,.tox,.tmp .
-	poetry run isort -c .
-	poetry run black --check --diff .
-	poetry run mypy .
+	pdm run ruff check .
+	pdm run ruff format --check .
+	pdm run mypy .
+
 
 .PHONY: test
 test: chk
-	poetry run pytest -n 8 --cov pyathena --cov-report html --cov-report term tests/pyathena/
+	pdm run pytest -n 8 --cov pyathena --cov-report html --cov-report term tests/pyathena/
 
 .PHONY: test-sqla
 test-sqla:
-	poetry run pytest -n 8 --cov pyathena --cov-report html --cov-report term tests/sqlalchemy/
+	pdm run pytest -n 8 --cov pyathena --cov-report html --cov-report term tests/sqlalchemy/
 
 .PHONY: tox
 tox:
-	poetry run tox
+	pdm run tox

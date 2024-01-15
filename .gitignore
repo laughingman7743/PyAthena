@@ -7,6 +7,7 @@
 .project
 .pydevproject
 .settings
+.pdm-build
 /*.egg-info/
 /dist/
 /build/
@@ -16,6 +17,7 @@ cover/
 .cache/
 .tox
 .python-version
+.pdm-python
 .pytest_cache
 .mypy_cache
 .tmp
