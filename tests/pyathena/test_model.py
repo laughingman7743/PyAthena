@@ -236,7 +236,7 @@ class TestAthenaSessionStatus:
         assert actual.state == AthenaSessionStatus.STATE_IDLE
         assert actual.state_change_reason == "reason"
         assert actual.start_date_time == datetime(2015, 1, 1, 1, 1, 1)
-        assert actual.last_modified_dateTime == datetime(2016, 1, 1, 1, 1, 1)
+        assert actual.last_modified_date_time == datetime(2016, 1, 1, 1, 1, 1)
         assert actual.end_date_time == datetime(2017, 1, 1, 1, 1, 1)
         assert actual.idle_since_date_time == datetime(2018, 1, 1, 1, 1, 1)
 
