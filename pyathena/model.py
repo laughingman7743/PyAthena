@@ -363,7 +363,7 @@ class AthenaSessionStatus:
         self._state: Optional[str] = status.get("State")
         self._state_change_reason: Optional[str] = status.get("StateChangeReason")
         self._start_date_time: Optional[datetime] = status.get("StartDateTime")
-        self._last_modified_dateTime: Optional[datetime] = status.get("LastModifiedDateTime")
+        self._last_modified_date_time: Optional[datetime] = status.get("LastModifiedDateTime")
         self._end_date_time: Optional[datetime] = status.get("EndDateTime")
         self._idle_since_date_time: Optional[datetime] = status.get("IdleSinceDateTime")
 
@@ -384,8 +384,8 @@ class AthenaSessionStatus:
         return self._start_date_time
 
     @property
-    def last_modified_dateTime(self) -> Optional[datetime]:
-        return self._last_modified_dateTime
+    def last_modified_date_time(self) -> Optional[datetime]:
+        return self._last_modified_date_time
 
     @property
     def end_date_time(self) -> Optional[datetime]:
