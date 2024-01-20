@@ -432,16 +432,16 @@ class AthenaStatementCompiler(SQLCompiler):
 
 
 class AthenaTypeCompiler(GenericTypeCompiler):
-    def visit_FLOAT(self, type_: Type[Any], **kw) -> str:
+    def visit_FLOAT(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return self.visit_REAL(type_, **kw)
 
-    def visit_REAL(self, type_: Type[Any], **kw) -> str:
+    def visit_REAL(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return "DOUBLE"
 
-    def visit_NUMERIC(self, type_: Type[Any], **kw) -> str:
+    def visit_NUMERIC(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return self.visit_DECIMAL(type_, **kw)
 
-    def visit_DECIMAL(self, type_: Type[Any], **kw) -> str:
+    def visit_DECIMAL(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         if type_.precision is None:
             return "DECIMAL"
         elif type_.scale is None:
@@ -449,74 +449,74 @@ class AthenaTypeCompiler(GenericTypeCompiler):
         else:
             return f"DECIMAL({type_.precision}, {type_.scale})"
 
-    def visit_INTEGER(self, type_: Type[Any], **kw) -> str:
+    def visit_INTEGER(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return "INTEGER"
 
-    def visit_SMALLINT(self, type_: Type[Any], **kw) -> str:
+    def visit_SMALLINT(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return "SMALLINT"
 
-    def visit_BIGINT(self, type_: Type[Any], **kw) -> str:
+    def visit_BIGINT(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return "BIGINT"
 
-    def visit_TIMESTAMP(self, type_: Type[Any], **kw) -> str:
+    def visit_TIMESTAMP(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return "TIMESTAMP"
 
-    def visit_DATETIME(self, type_: Type[Any], **kw) -> str:
+    def visit_DATETIME(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return self.visit_TIMESTAMP(type_, **kw)
 
-    def visit_DATE(self, type_: Type[Any], **kw) -> str:
+    def visit_DATE(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return "DATE"
 
-    def visit_TIME(self, type_: Type[Any], **kw) -> str:
+    def visit_TIME(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         raise exc.CompileError(f"Data type `{type_}` is not supported")
 
-    def visit_CLOB(self, type_: Type[Any], **kw) -> str:
+    def visit_CLOB(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return self.visit_BINARY(type_, **kw)
 
-    def visit_NCLOB(self, type_: Type[Any], **kw) -> str:
+    def visit_NCLOB(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return self.visit_BINARY(type_, **kw)
 
-    def visit_CHAR(self, type_: Type[Any], **kw) -> str:
+    def visit_CHAR(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         if type_.length:
             return cast(str, self._render_string_type(type_, "CHAR"))
         return "STRING"
 
-    def visit_NCHAR(self, type_: Type[Any], **kw) -> str:
+    def visit_NCHAR(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return self.visit_CHAR(type_, **kw)
 
-    def visit_VARCHAR(self, type_: Type[Any], **kw) -> str:
+    def visit_VARCHAR(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         if type_.length:
             return cast(str, self._render_string_type(type_, "VARCHAR"))
         return "STRING"
 
-    def visit_NVARCHAR(self, type_: Type[Any], **kw) -> str:
+    def visit_NVARCHAR(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return self.visit_VARCHAR(type_, **kw)
 
-    def visit_TEXT(self, type_: Type[Any], **kw) -> str:
+    def visit_TEXT(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return "STRING"
 
-    def visit_BLOB(self, type_: Type[Any], **kw) -> str:
+    def visit_BLOB(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return self.visit_BINARY(type_, **kw)
 
-    def visit_BINARY(self, type_: Type[Any], **kw) -> str:
+    def visit_BINARY(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return "BINARY"
 
-    def visit_VARBINARY(self, type_: Type[Any], **kw) -> str:
+    def visit_VARBINARY(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return self.visit_BINARY(type_, **kw)
 
-    def visit_BOOLEAN(self, type_: Type[Any], **kw) -> str:
+    def visit_BOOLEAN(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return "BOOLEAN"
 
-    def visit_string(self, type_, **kw):
+    def visit_string(self, type_, **kw):  # noqa: N802
         return "STRING"
 
-    def visit_unicode(self, type_, **kw):
+    def visit_unicode(self, type_, **kw):  # noqa: N802
         return "STRING"
 
-    def visit_unicode_text(self, type_, **kw):
+    def visit_unicode_text(self, type_, **kw):  # noqa: N802
         return "STRING"
 
-    def visit_null(self, type_, **kw):
+    def visit_null(self, type_, **kw):  # noqa: N802
         return "NULL"
 
 

@@ -13,11 +13,9 @@
 .. image:: https://static.pepy.tech/badge/pyathena/month
     :target: https://pepy.tech/project/pyathena
 
-.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
-    :target: https://github.com/psf/black
-
-.. image:: https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336
-    :target: https://pycqa.github.io/isort/
+.. image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
+    :target: https://github.com/astral-sh/ruff
+    :alt: Ruff
 
 PyAthena
 ========
@@ -2311,19 +2309,19 @@ Run test
 
 .. code:: bash
 
-    $ pip install poetry
-    $ poetry install -v
-    $ poetry run pytest
+    $ pip install pdm
+    $ pdm install -v
+    $ pdm run pytest
 
 Run test multiple Python versions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
-    $ pip install poetry
-    $ poetry install -v
+    $ pip install pdm
+    $ pdm install -v
     $ pyenv local 3.11.1 3.10.1 3.9.1 3.8.2
-    $ poetry run tox
+    $ pdm run tox
 
 GitHub Actions
 ~~~~~~~~~~~~~~
@@ -2358,7 +2356,7 @@ The example of the CloudFormation execution command is the following:
 Code formatting
 ---------------
 
-The code formatting uses `black`_ and `isort`_.
+The code formatting uses `ruff`_.
 
 Appy format
 ~~~~~~~~~~~
@@ -2374,8 +2372,7 @@ Check format
 
     $ make chk
 
-.. _`black`: https://github.com/psf/black
-.. _`isort`: https://github.com/timothycrosley/isort
+.. _`ruff`: https://github.com/astral-sh/ruff
 
 License
 -------

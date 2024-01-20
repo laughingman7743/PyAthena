@@ -16,7 +16,7 @@ class Error(Exception):
     pass
 
 
-class Warning(Exception):
+class Warning(Exception):  # noqa: N818
     pass
 
 
