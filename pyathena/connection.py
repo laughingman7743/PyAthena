@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, Generic, List, Optional, Type, TypeVar
 
 from boto3.session import Session
 from botocore.config import Config
@@ -23,7 +23,11 @@ if TYPE_CHECKING:
 _logger = logging.getLogger(__name__)  # type: ignore
 
 
-class Connection:
+ConnectionCursor = TypeVar("ConnectionCursor", bound=BaseCursor)
+FunctionalCursor = TypeVar("FunctionalCursor", bound=BaseCursor)
+
+
+class Connection(Generic[ConnectionCursor]):
     _ENV_S3_STAGING_DIR: str = "AWS_ATHENA_S3_STAGING_DIR"
     _ENV_WORK_GROUP: str = "AWS_ATHENA_WORK_GROUP"
     _SESSION_PASSING_ARGS: List[str] = [
@@ -65,7 +69,7 @@ class Connection:
         converter: Optional[Converter] = None,
         formatter: Optional[Formatter] = None,
         retry_config: Optional[RetryConfig] = None,
-        cursor_class: Type[BaseCursor] = Cursor,
+        cursor_class: Type[ConnectionCursor] = Cursor,
         cursor_kwargs: Optional[Dict[str, Any]] = None,
         kill_on_interrupt: bool = True,
         session: Optional[Session] = None,
@@ -250,14 +254,16 @@ class Connection:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-    def cursor(self, cursor: Optional[Type[BaseCursor]] = None, **kwargs) -> BaseCursor:
+    def cursor(self, cursor: Optional[Type[FunctionalCursor]] = None, **kwargs):
         kwargs.update(self.cursor_kwargs)
-        if not cursor:
-            cursor = self.cursor_class
+        if cursor:
+            _cursor = cursor
+        else:
+            _cursor = self.cursor_class
         converter = kwargs.pop("converter", self._converter)
         if not converter:
-            converter = cursor.get_default_converter(kwargs.get("unload", False))
-        return cursor(
+            converter = _cursor.get_default_converter(kwargs.get("unload", False))
+        return _cursor(
             connection=self,
             converter=converter,
             formatter=kwargs.pop("formatter", self._formatter),
