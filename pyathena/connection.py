@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import TYPE_CHECKING, Any, Dict, Generic, List, Optional, Type, TypeVar
+from typing import TYPE_CHECKING, Any, Dict, Generic, List, Optional, Type, TypeVar, Union
 
 from boto3.session import Session
 from botocore.config import Config
@@ -254,7 +254,7 @@ class Connection(Generic[ConnectionCursor]):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-    def cursor(self, cursor: Optional[Type[FunctionalCursor]] = None, **kwargs):
+    def cursor(self, cursor: Optional[Type[FunctionalCursor]] = None, **kwargs) -> Union[FunctionalCursor, ConnectionCursor]:
         kwargs.update(self.cursor_kwargs)
         if cursor:
             _cursor = cursor
