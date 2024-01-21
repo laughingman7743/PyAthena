@@ -254,7 +254,9 @@ class Connection(Generic[ConnectionCursor]):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-    def cursor(self, cursor: Optional[Type[FunctionalCursor]] = None, **kwargs) -> Union[FunctionalCursor, ConnectionCursor]:
+    def cursor(
+        self, cursor: Optional[Type[FunctionalCursor]] = None, **kwargs
+    ) -> Union[FunctionalCursor, ConnectionCursor]:
         kwargs.update(self.cursor_kwargs)
         if cursor:
             _cursor = cursor
