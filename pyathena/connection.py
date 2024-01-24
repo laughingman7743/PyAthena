@@ -95,7 +95,7 @@ class Connection(Generic[ConnectionCursor]):
 
     @overload
     def __init__(
-        self: Connection[FunctionalCursor],
+        self: Connection[ConnectionCursor],
         s3_staging_dir: Optional[str] = ...,
         region_name: Optional[str] = ...,
         schema_name: Optional[str] = ...,
