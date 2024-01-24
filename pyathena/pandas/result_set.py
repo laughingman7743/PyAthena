@@ -100,7 +100,7 @@ class AthenaPandasResultSet(AthenaResultSet):
 
     def __init__(
         self,
-        connection: "Connection",
+        connection: "Connection[Any]",
         converter: Converter,
         query_execution: AthenaQueryExecution,
         arraysize: int,

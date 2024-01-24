@@ -33,14 +33,14 @@ _logger = logging.getLogger(__name__)  # type: ignore
 class AthenaResultSet(CursorIterator):
     def __init__(
         self,
-        connection: "Connection",
+        connection: "Connection[Any]",
         converter: Converter,
         query_execution: AthenaQueryExecution,
         arraysize: int,
         retry_config: RetryConfig,
     ) -> None:
         super().__init__(arraysize=arraysize)
-        self._connection: Optional["Connection"] = connection
+        self._connection: Optional["Connection[Any]"] = connection
         self._converter = converter
         self._query_execution: Optional[AthenaQueryExecution] = query_execution
         assert self._query_execution, "Required argument `query_execution` not found."
@@ -280,10 +280,10 @@ class AthenaResultSet(CursorIterator):
         ]
 
     @property
-    def connection(self) -> "Connection":
+    def connection(self) -> "Connection[Any]":
         if self.is_closed:
             raise ProgrammingError("AthenaResultSet is closed.")
-        return cast("Connection", self._connection)
+        return cast("Connection[Any]", self._connection)
 
     def __fetch(self, next_token: Optional[str] = None) -> Dict[str, Any]:
         if not self.query_id:

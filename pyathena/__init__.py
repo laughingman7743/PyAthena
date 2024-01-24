@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, FrozenSet, Type
+from typing import TYPE_CHECKING, Any, FrozenSet, Type
 
 from pyathena.error import *  # noqa
 
@@ -57,7 +57,7 @@ Time: Type[datetime.time] = datetime.time
 Timestamp: Type[datetime.datetime] = datetime.datetime
 
 
-def connect(*args, **kwargs) -> "Connection":
+def connect(*args, **kwargs) -> "Connection[Any]":
     from pyathena.connection import Connection
 
     return Connection(*args, **kwargs)

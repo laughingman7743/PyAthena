@@ -4,7 +4,19 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import TYPE_CHECKING, Any, Dict, Generic, List, Optional, Type, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generic,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 
 from boto3.session import Session
 from botocore.config import Config
@@ -50,6 +62,68 @@ class Connection(Generic[ConnectionCursor]):
         "config",
     ]
 
+    @overload
+    def __init__(
+        self: Connection[Cursor],
+        s3_staging_dir: Optional[str] = ...,
+        region_name: Optional[str] = ...,
+        schema_name: Optional[str] = ...,
+        catalog_name: Optional[str] = ...,
+        work_group: Optional[str] = ...,
+        poll_interval: float = ...,
+        encryption_option: Optional[str] = ...,
+        kms_key: Optional[str] = ...,
+        profile_name: Optional[str] = ...,
+        role_arn: Optional[str] = ...,
+        role_session_name: str = ...,
+        external_id: Optional[str] = ...,
+        serial_number: Optional[str] = ...,
+        duration_seconds: int = ...,
+        converter: Optional[Converter] = ...,
+        formatter: Optional[Formatter] = ...,
+        retry_config: Optional[RetryConfig] = ...,
+        cursor_class: None = ...,
+        cursor_kwargs: Optional[Dict[str, Any]] = ...,
+        kill_on_interrupt: bool = ...,
+        session: Optional[Session] = ...,
+        config: Optional[Config] = ...,
+        result_reuse_enable: bool = ...,
+        result_reuse_minutes: int = ...,
+        **kwargs,
+    ) -> None:
+        ...
+
+    @overload
+    def __init__(
+        self: Connection[FunctionalCursor],
+        s3_staging_dir: Optional[str] = ...,
+        region_name: Optional[str] = ...,
+        schema_name: Optional[str] = ...,
+        catalog_name: Optional[str] = ...,
+        work_group: Optional[str] = ...,
+        poll_interval: float = ...,
+        encryption_option: Optional[str] = ...,
+        kms_key: Optional[str] = ...,
+        profile_name: Optional[str] = ...,
+        role_arn: Optional[str] = ...,
+        role_session_name: str = ...,
+        external_id: Optional[str] = ...,
+        serial_number: Optional[str] = ...,
+        duration_seconds: int = ...,
+        converter: Optional[Converter] = ...,
+        formatter: Optional[Formatter] = ...,
+        retry_config: Optional[RetryConfig] = ...,
+        cursor_class: Type[ConnectionCursor] = ...,
+        cursor_kwargs: Optional[Dict[str, Any]] = ...,
+        kill_on_interrupt: bool = ...,
+        session: Optional[Session] = ...,
+        config: Optional[Config] = ...,
+        result_reuse_enable: bool = ...,
+        result_reuse_minutes: int = ...,
+        **kwargs,
+    ) -> None:
+        ...
+
     def __init__(
         self,
         s3_staging_dir: Optional[str] = None,
@@ -69,7 +143,7 @@ class Connection(Generic[ConnectionCursor]):
         converter: Optional[Converter] = None,
         formatter: Optional[Formatter] = None,
         retry_config: Optional[RetryConfig] = None,
-        cursor_class: Type[ConnectionCursor] = Cursor,
+        cursor_class: Optional[Type[ConnectionCursor]] = cast(Type[ConnectionCursor], Cursor),
         cursor_kwargs: Optional[Dict[str, Any]] = None,
         kill_on_interrupt: bool = True,
         session: Optional[Session] = None,
@@ -162,7 +236,7 @@ class Connection(Generic[ConnectionCursor]):
         self._converter = converter
         self._formatter = formatter if formatter else DefaultParameterFormatter()
         self._retry_config = retry_config if retry_config else RetryConfig()
-        self.cursor_class = cursor_class
+        self.cursor_class = cast(Type[ConnectionCursor], cursor_class)
         self.cursor_kwargs = cursor_kwargs if cursor_kwargs else dict()
         self.kill_on_interrupt = kill_on_interrupt
         self.result_reuse_enable = result_reuse_enable
@@ -254,14 +328,19 @@ class Connection(Generic[ConnectionCursor]):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
+    @overload
+    def cursor(self, cursor: None = ..., **kwargs) -> ConnectionCursor:
+        ...
+
+    @overload
+    def cursor(self, cursor: Type[FunctionalCursor], **kwargs) -> FunctionalCursor:
+        ...
+
     def cursor(
         self, cursor: Optional[Type[FunctionalCursor]] = None, **kwargs
     ) -> Union[FunctionalCursor, ConnectionCursor]:
         kwargs.update(self.cursor_kwargs)
-        if cursor:
-            _cursor = cursor
-        else:
-            _cursor = self.cursor_class
+        _cursor = cursor or self.cursor_class
         converter = kwargs.pop("converter", self._converter)
         if not converter:
             converter = _cursor.get_default_converter(kwargs.get("unload", False))
