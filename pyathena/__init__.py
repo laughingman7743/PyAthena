@@ -4,12 +4,11 @@ from __future__ import annotations
 import datetime
 from typing import TYPE_CHECKING, Any, FrozenSet, Type, overload
 
-from pyathena.connection import ConnectionCursor
-from pyathena.cursor import Cursor
 from pyathena.error import *  # noqa
 
 if TYPE_CHECKING:
-    from pyathena.connection import Connection
+    from pyathena.connection import Connection, ConnectionCursor
+    from pyathena.cursor import Cursor
 
 __version__ = "3.1.0"
 user_agent_extra: str = f"PyAthena/{__version__}"
