@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any, FrozenSet, Type
+from typing import TYPE_CHECKING, Any, FrozenSet, Type, overload
 
+from pyathena.connection import ConnectionCursor
+from pyathena.cursor import Cursor
 from pyathena.error import *  # noqa
 
 if TYPE_CHECKING:
@@ -55,6 +57,18 @@ JSON: DBAPITypeObject = DBAPITypeObject(("json",))
 Date: Type[datetime.date] = datetime.date
 Time: Type[datetime.time] = datetime.time
 Timestamp: Type[datetime.datetime] = datetime.datetime
+
+
+@overload
+def connect(*args, cursor_class: None = ..., **kwargs) -> "Connection[Cursor]":
+    ...
+
+
+@overload
+def connect(
+    *args, cursor_class: Type[ConnectionCursor], **kwargs
+) -> "Connection[ConnectionCursor]":
+    ...
 
 
 def connect(*args, **kwargs) -> "Connection[Any]":
