@@ -34,7 +34,7 @@ Requirements
 
 * Python
 
-  - CPython 3.8 3.9 3.10, 3.11
+  - CPython 3.8 3.9 3.10, 3.11 3.12
 
 Installation
 ------------
@@ -2320,7 +2320,7 @@ Run test multiple Python versions
 
     $ pip install pdm
     $ pdm install -v
-    $ pyenv local 3.11.1 3.10.1 3.9.1 3.8.2
+    $ pyenv local 3.12.0 3.11.1 3.10.1 3.9.1 3.8.2
     $ pdm run tox
 
 GitHub Actions
