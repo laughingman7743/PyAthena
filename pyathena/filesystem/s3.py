@@ -38,7 +38,7 @@ class S3FileSystem(AbstractFileSystem):
 
     def __init__(
         self,
-        connection: Optional["Connection"] = None,
+        connection: Optional["Connection[Any]"] = None,
         default_block_size: Optional[int] = None,
         default_cache_type: Optional[str] = None,
         max_workers: int = (cpu_count() or 1) * 5,
