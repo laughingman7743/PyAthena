@@ -51,7 +51,7 @@ class AthenaArrowResultSet(AthenaResultSet):
 
     def __init__(
         self,
-        connection: "Connection[Any]",
+        connection: "Connection",
         converter: Converter,
         query_execution: AthenaQueryExecution,
         arraysize: int,

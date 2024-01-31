@@ -97,7 +97,7 @@ class BaseCursor(metaclass=ABCMeta):
 
     def __init__(
         self,
-        connection: "Connection[Any]",
+        connection: "Connection",
         converter: Converter,
         formatter: Formatter,
         retry_config: RetryConfig,
@@ -134,7 +134,7 @@ class BaseCursor(metaclass=ABCMeta):
         return DefaultTypeConverter()
 
     @property
-    def connection(self) -> "Connection[Any]":
+    def connection(self) -> "Connection":
         return self._connection
 
     def _build_start_query_execution_request(

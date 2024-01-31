@@ -135,7 +135,7 @@ def to_parquet(
 def to_sql(
     df: "DataFrame",
     name: str,
-    conn: "Connection[Any]",
+    conn: "Connection",
     location: str,
     schema: str = "default",
     index: bool = False,

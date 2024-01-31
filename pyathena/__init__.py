@@ -2,13 +2,12 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any, FrozenSet, Type, overload
+from typing import TYPE_CHECKING, FrozenSet, Type
 
 from pyathena.error import *  # noqa
 
 if TYPE_CHECKING:
-    from pyathena.connection import Connection, ConnectionCursor
-    from pyathena.cursor import Cursor
+    from pyathena.connection import Connection
 
 __version__ = "3.2.0"
 user_agent_extra: str = f"PyAthena/{__version__}"
@@ -58,19 +57,7 @@ Time: Type[datetime.time] = datetime.time
 Timestamp: Type[datetime.datetime] = datetime.datetime
 
 
-@overload
-def connect(*args, cursor_class: None = ..., **kwargs) -> "Connection[Cursor]":
-    ...
-
-
-@overload
-def connect(
-    *args, cursor_class: Type[ConnectionCursor], **kwargs
-) -> "Connection[ConnectionCursor]":
-    ...
-
-
-def connect(*args, **kwargs) -> "Connection[Any]":
+def connect(*args, **kwargs) -> "Connection":
     from pyathena.connection import Connection
 
     return Connection(*args, **kwargs)
