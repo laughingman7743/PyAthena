@@ -74,7 +74,7 @@ class TestSparkCursor:
             )
         )
 
-    @pytest.mark.depends(on="test_spark_dataframe")
+    @pytest.mark.dependency(depends="test_spark_dataframe")
     def test_spark_sql(self, spark_cursor):
         spark_cursor.execute(
             textwrap.dedent(
