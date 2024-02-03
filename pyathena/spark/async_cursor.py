@@ -14,8 +14,24 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class AsyncSparkCursor(SparkBaseCursor):
-    def __init__(self, max_workers: int = (cpu_count() or 1) * 5, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(
+        self,
+        session_id: Optional[str] = None,
+        description: Optional[str] = None,
+        engine_configuration: Optional[Dict[str, Any]] = None,
+        notebook_version: Optional[str] = None,
+        session_idle_timeout_minutes: Optional[int] = None,
+        max_workers: int = (cpu_count() or 1) * 5,
+        **kwargs,
+    ):
+        super().__init__(
+            session_id=session_id,
+            description=description,
+            engine_configuration=engine_configuration,
+            notebook_version=notebook_version,
+            session_idle_timeout_minutes=session_idle_timeout_minutes,
+            **kwargs,
+        )
         self._max_workers = max_workers
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
 

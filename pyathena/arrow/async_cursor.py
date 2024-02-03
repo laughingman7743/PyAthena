@@ -22,14 +22,34 @@ _logger = logging.getLogger(__name__)  # type: ignore
 class AsyncArrowCursor(AsyncCursor):
     def __init__(
         self,
+        s3_staging_dir: Optional[str] = None,
+        schema_name: Optional[str] = None,
+        catalog_name: Optional[str] = None,
+        work_group: Optional[str] = None,
+        poll_interval: float = 1,
+        encryption_option: Optional[str] = None,
+        kms_key: Optional[str] = None,
+        kill_on_interrupt: bool = True,
         max_workers: int = (cpu_count() or 1) * 5,
         arraysize: int = CursorIterator.DEFAULT_FETCH_SIZE,
         unload: bool = False,
+        result_reuse_enable: bool = False,
+        result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
         **kwargs,
     ) -> None:
         super().__init__(
+            s3_staging_dir=s3_staging_dir,
+            schema_name=schema_name,
+            catalog_name=catalog_name,
+            work_group=work_group,
+            poll_interval=poll_interval,
+            encryption_option=encryption_option,
+            kms_key=kms_key,
+            kill_on_interrupt=kill_on_interrupt,
             max_workers=max_workers,
             arraysize=arraysize,
+            result_reuse_enable=result_reuse_enable,
+            result_reuse_minutes=result_reuse_minutes,
             **kwargs,
         )
         self._unload = unload
