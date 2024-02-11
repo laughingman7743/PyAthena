@@ -19,17 +19,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up Python
-        uses: pdm-project/setup-pdm@v4
+
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: true
-      - name: Install dependencies
-        run: pdm install -v --dev
+      - name: Install hatch
+        run: pipx install hatch
 
       - name: Build
         run: |
-          pdm build -v
+          hatch build
       - name: Publish release distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
       - name: Release
