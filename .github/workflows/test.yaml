@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  tox:
+  test:
     runs-on: ubuntu-latest
 
     env:
@@ -27,13 +27,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up Python
-        uses: pdm-project/setup-pdm@v4
+
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: true
-      - name: Install dependencies
-        run: pdm install -v --dev
+      - name: Install hatch
+        run: pipx install hatch
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -42,6 +41,7 @@ jobs:
           role-session-name: PyAthenaTestSession
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
-      - name: Test with tox
+      - name: Test
         run: |
-          make tox
+          hatch -e test.py${{ matrix.python-version }} run test
+          hatch -e test.py${{ matrix.python-version }} run test-sqla

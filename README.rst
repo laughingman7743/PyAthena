@@ -2309,19 +2309,18 @@ Run test
 
 .. code:: bash
 
-    $ pip install pdm
-    $ pdm install -v
-    $ pdm run pytest
+    $ pip install hatch or pipx install hatch or brew install hatch
+    $ hatch run test
+    $ hatch run test-sqla
 
 Run test multiple Python versions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
-    $ pip install pdm
-    $ pdm install -v
-    $ pyenv local 3.11.1 3.10.1 3.9.1 3.8.2
-    $ pdm run tox
+    $ pip install hatch or pipx install hatch or brew install hatch
+    $ hatch -e test run test
+    $ hatch -e test run test-sqla
 
 GitHub Actions
 ~~~~~~~~~~~~~~
