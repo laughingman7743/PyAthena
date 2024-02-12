@@ -17,6 +17,10 @@
     :target: https://github.com/astral-sh/ruff
     :alt: Ruff
 
+.. image:: https://www.mypy-lang.org/static/mypy_badge.svg
+    :target: https://mypy-lang.org/
+    :alt: mypy
+
 PyAthena
 ========
 
