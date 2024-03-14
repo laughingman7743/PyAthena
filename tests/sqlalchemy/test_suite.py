@@ -65,6 +65,11 @@ class TrueDivTest(_TrueDivTest):
         # TODO
         pass
 
+    @pytest.mark.skip("TODO")
+    def test_truediv_float(self, connection, left, right, expected):
+        # TODO: AssertionError: 2.299999908606215 != 2.3
+        pass
+
 
 class FetchLimitOffsetTest(_FetchLimitOffsetTest):
     @pytest.mark.skip("Athena does not support expressions in the offset clause.")

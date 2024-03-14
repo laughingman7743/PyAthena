@@ -17,6 +17,7 @@ from sqlalchemy.sql.ddl import CreateTable
 from sqlalchemy.sql.schema import Column, MetaData, Table
 from sqlalchemy.sql.selectable import TextualSelect
 
+from pyathena.sqlalchemy.types import TINYINT
 from tests.pyathena.conftest import ENV
 
 
@@ -259,12 +260,12 @@ class TestSQLAlchemyAthena:
             Decimal("0.1"),
         ]
         assert isinstance(one_row_complex.c.col_boolean.type, types.BOOLEAN)
-        assert isinstance(one_row_complex.c.col_tinyint.type, types.INTEGER)
-        assert isinstance(one_row_complex.c.col_smallint.type, types.INTEGER)
+        assert isinstance(one_row_complex.c.col_tinyint.type, TINYINT)
+        assert isinstance(one_row_complex.c.col_smallint.type, types.SMALLINT)
         assert isinstance(one_row_complex.c.col_int.type, types.INTEGER)
         assert isinstance(one_row_complex.c.col_bigint.type, types.BIGINT)
         assert isinstance(one_row_complex.c.col_float.type, types.FLOAT)
-        assert isinstance(one_row_complex.c.col_double.type, types.FLOAT)
+        assert isinstance(one_row_complex.c.col_double.type, types.DOUBLE)
         assert isinstance(one_row_complex.c.col_string.type, types.String)
         assert isinstance(one_row_complex.c.col_varchar.type, types.VARCHAR)
         assert one_row_complex.c.col_varchar.type.length == 10
@@ -300,13 +301,13 @@ class TestSQLAlchemyAthena:
         engine, conn = engine
         dialect = engine.dialect
         assert isinstance(dialect._get_column_type("boolean"), types.BOOLEAN)
-        assert isinstance(dialect._get_column_type("tinyint"), types.INTEGER)
-        assert isinstance(dialect._get_column_type("smallint"), types.INTEGER)
+        assert isinstance(dialect._get_column_type("tinyint"), TINYINT)
+        assert isinstance(dialect._get_column_type("smallint"), types.SMALLINT)
         assert isinstance(dialect._get_column_type("integer"), types.INTEGER)
         assert isinstance(dialect._get_column_type("int"), types.INTEGER)
         assert isinstance(dialect._get_column_type("bigint"), types.BIGINT)
         assert isinstance(dialect._get_column_type("float"), types.FLOAT)
-        assert isinstance(dialect._get_column_type("double"), types.FLOAT)
+        assert isinstance(dialect._get_column_type("double"), types.DOUBLE)
         assert isinstance(dialect._get_column_type("real"), types.FLOAT)
         assert isinstance(dialect._get_column_type("string"), types.String)
         assert isinstance(dialect._get_column_type("varchar"), types.VARCHAR)

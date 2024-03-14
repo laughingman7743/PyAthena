@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
 
+from sqlalchemy.sql import sqltypes
 from sqlalchemy.sql.type_api import TypeEngine
 
 if TYPE_CHECKING:
@@ -37,3 +38,11 @@ class AthenaDate(TypeEngine[date]):
 
     def literal_processor(self, dialect: "Dialect") -> Optional["_LiteralProcessorType[date]"]:
         return self.process
+
+
+class Tinyint(sqltypes.Integer):
+    __visit_name__ = "tinyint"
+
+
+class TINYINT(Tinyint):
+    __visit_name__ = "TINYINT"
