@@ -36,7 +36,7 @@ from pyathena.model import (
     AthenaPartitionTransform,
     AthenaRowFormatSerde,
 )
-from pyathena.sqlalchemy.types import AthenaDate, AthenaTimestamp
+from pyathena.sqlalchemy.types import TINYINT, AthenaDate, AthenaTimestamp
 from pyathena.sqlalchemy.util import _HashableDict
 from pyathena.util import strtobool
 
@@ -355,10 +355,10 @@ RESERVED_WORDS: Set[str] = set(sorted(DDL_RESERVED_WORDS | SELECT_STATEMENT_RESE
 ischema_names: Dict[str, Type[Any]] = {
     "boolean": types.BOOLEAN,
     "float": types.FLOAT,
-    "double": types.FLOAT,
+    "double": types.DOUBLE,
     "real": types.FLOAT,
-    "tinyint": types.INTEGER,
-    "smallint": types.INTEGER,
+    "tinyint": TINYINT,
+    "smallint": types.SMALLINT,
     "integer": types.INTEGER,
     "int": types.INTEGER,
     "bigint": types.BIGINT,
@@ -418,6 +418,11 @@ class AthenaStatementCompiler(SQLCompiler):
             type_clause = "CHAR"
         elif isinstance(cast.type, (types.BINARY, types.VARBINARY)):
             type_clause = "VARBINARY"
+        elif isinstance(cast.type, (types.FLOAT, types.Float, types.REAL)):
+            # https://docs.aws.amazon.com/athena/latest/ug/data-types.html
+            # In Athena, use float in DDL statements like CREATE TABLE
+            # and real in SQL functions like SELECT CAST.
+            type_clause = "REAL"
         else:
             type_clause = cast.typeclause._compiler_dispatch(self, **kwargs)
         return f"CAST({cast.clause._compiler_dispatch(self, **kwargs)} AS {type_clause})"
@@ -436,6 +441,12 @@ class AthenaTypeCompiler(GenericTypeCompiler):
         return self.visit_REAL(type_, **kw)
 
     def visit_REAL(self, type_: Type[Any], **kw) -> str:  # noqa: N802
+        return "FLOAT"
+
+    def visit_DOUBLE(self, type_, **kw) -> str:  # noqa: N802
+        return "DOUBLE"
+
+    def visit_DOUBLE_PRECISION(self, type_, **kw) -> str:  # noqa: N802
         return "DOUBLE"
 
     def visit_NUMERIC(self, type_: Type[Any], **kw) -> str:  # noqa: N802
@@ -448,6 +459,9 @@ class AthenaTypeCompiler(GenericTypeCompiler):
             return f"DECIMAL({type_.precision})"
         else:
             return f"DECIMAL({type_.precision}, {type_.scale})"
+
+    def visit_TINYINT(self, type_: Type[Any], **kw) -> str:  # noqa: N802
+        return "TINYINT"
 
     def visit_INTEGER(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return "INTEGER"
@@ -518,6 +532,9 @@ class AthenaTypeCompiler(GenericTypeCompiler):
 
     def visit_null(self, type_, **kw):  # noqa: N802
         return "NULL"
+
+    def visit_tinyint(self, type_, **kw):  # noqa: N802
+        return self.visit_TINYINT(type_, **kw)
 
 
 class AthenaDDLCompiler(DDLCompiler):
@@ -731,7 +748,7 @@ class AthenaDDLCompiler(DDLCompiler):
         return "\n".join(text)
 
     def get_column_specification(self, column: "Column[Any]", **kwargs) -> str:
-        if isinstance(column.type, (types.Integer, types.INTEGER, types.INT)):
+        if type(column.type) in [types.Integer, types.INTEGER, types.INT]:
             # https://docs.aws.amazon.com/athena/latest/ug/create-table.html
             # In Data Definition Language (DDL) queries like CREATE TABLE,
             # use the int keyword to represent an integer

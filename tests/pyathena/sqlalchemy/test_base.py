@@ -17,6 +17,7 @@ from sqlalchemy.sql.ddl import CreateTable
 from sqlalchemy.sql.schema import Column, MetaData, Table
 from sqlalchemy.sql.selectable import TextualSelect
 
+from pyathena.sqlalchemy.types import TINYINT, Tinyint
 from tests.pyathena.conftest import ENV
 
 
@@ -259,12 +260,12 @@ class TestSQLAlchemyAthena:
             Decimal("0.1"),
         ]
         assert isinstance(one_row_complex.c.col_boolean.type, types.BOOLEAN)
-        assert isinstance(one_row_complex.c.col_tinyint.type, types.INTEGER)
-        assert isinstance(one_row_complex.c.col_smallint.type, types.INTEGER)
+        assert isinstance(one_row_complex.c.col_tinyint.type, TINYINT)
+        assert isinstance(one_row_complex.c.col_smallint.type, types.SMALLINT)
         assert isinstance(one_row_complex.c.col_int.type, types.INTEGER)
         assert isinstance(one_row_complex.c.col_bigint.type, types.BIGINT)
         assert isinstance(one_row_complex.c.col_float.type, types.FLOAT)
-        assert isinstance(one_row_complex.c.col_double.type, types.FLOAT)
+        assert isinstance(one_row_complex.c.col_double.type, types.DOUBLE)
         assert isinstance(one_row_complex.c.col_string.type, types.String)
         assert isinstance(one_row_complex.c.col_varchar.type, types.VARCHAR)
         assert one_row_complex.c.col_varchar.type.length == 10
@@ -300,13 +301,13 @@ class TestSQLAlchemyAthena:
         engine, conn = engine
         dialect = engine.dialect
         assert isinstance(dialect._get_column_type("boolean"), types.BOOLEAN)
-        assert isinstance(dialect._get_column_type("tinyint"), types.INTEGER)
-        assert isinstance(dialect._get_column_type("smallint"), types.INTEGER)
+        assert isinstance(dialect._get_column_type("tinyint"), TINYINT)
+        assert isinstance(dialect._get_column_type("smallint"), types.SMALLINT)
         assert isinstance(dialect._get_column_type("integer"), types.INTEGER)
         assert isinstance(dialect._get_column_type("int"), types.INTEGER)
         assert isinstance(dialect._get_column_type("bigint"), types.BIGINT)
         assert isinstance(dialect._get_column_type("float"), types.FLOAT)
-        assert isinstance(dialect._get_column_type("double"), types.FLOAT)
+        assert isinstance(dialect._get_column_type("double"), types.DOUBLE)
         assert isinstance(dialect._get_column_type("real"), types.FLOAT)
         assert isinstance(dialect._get_column_type("string"), types.String)
         assert isinstance(dialect._get_column_type("varchar"), types.VARCHAR)
@@ -1830,3 +1831,68 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
             NoSuchTableError,
             lambda: insp.get_view_definition(schema=ENV.schema, view_name="test_view"),
         )
+
+    def test_numeric_type_variants(self, engine):
+        engine, conn = engine
+        table_name = "test_numeric_type_variants"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column("col_tinyint1", TINYINT),
+            Column("col_tinyint2", Tinyint),
+            Column("col_smallint", types.SMALLINT),
+            Column("col_smallinteger", types.SmallInteger),
+            Column("col_int", types.INT),
+            Column("col_integer1", types.INTEGER),
+            Column("col_integer2", types.Integer),
+            Column("col_bigint", types.BIGINT),
+            Column("col_biginteger", types.BigInteger),
+            Column("col_double1", types.DOUBLE),
+            Column("col_double2", types.Double),
+            Column("col_double_precision", types.DOUBLE_PRECISION),
+            Column("col_float1", types.FLOAT),
+            Column("col_float2", types.Float),
+            Column("col_decimal", types.DECIMAL(15, 10)),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+        )
+        ddl = CreateTable(table).compile(bind=conn)
+        table.create(bind=conn)
+        actual = Table(table_name, MetaData(schema=ENV.schema), autoload_with=conn)
+
+        assert str(ddl) == textwrap.dedent(
+            f"""
+            CREATE EXTERNAL TABLE {ENV.schema}.{table_name} (
+            \tcol_tinyint1 TINYINT,
+            \tcol_tinyint2 TINYINT,
+            \tcol_smallint SMALLINT,
+            \tcol_smallinteger SMALLINT,
+            \tcol_int INT,
+            \tcol_integer1 INT,
+            \tcol_integer2 INT,
+            \tcol_bigint BIGINT,
+            \tcol_biginteger BIGINT,
+            \tcol_double1 DOUBLE,
+            \tcol_double2 DOUBLE,
+            \tcol_double_precision DOUBLE,
+            \tcol_float1 FLOAT,
+            \tcol_float2 FLOAT,
+            \tcol_decimal DECIMAL(15, 10)
+            )
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table_name}/'
+            """
+        )
+        assert type(actual.c.col_tinyint1.type) in [TINYINT, Tinyint]
+        assert type(actual.c.col_tinyint2.type) in [TINYINT, Tinyint]
+        assert type(actual.c.col_smallint.type) in [types.SMALLINT, types.SmallInteger]
+        assert type(actual.c.col_smallinteger.type) in [types.SMALLINT, types.SmallInteger]
+        assert type(actual.c.col_int.type) in [types.INT, types.INTEGER, types.Integer]
+        assert type(actual.c.col_integer1.type) in [types.INT, types.INTEGER, types.Integer]
+        assert type(actual.c.col_integer2.type) in [types.INT, types.INTEGER, types.Integer]
+        assert type(actual.c.col_bigint.type) in [types.BIGINT, types.BigInteger]
+        assert type(actual.c.col_biginteger.type) in [types.BIGINT, types.BigInteger]
+        assert type(actual.c.col_double1.type) in [types.DOUBLE, types.Double, types.DOUBLE_PRECISION]
+        assert type(actual.c.col_double2.type) in [types.DOUBLE, types.Double, types.DOUBLE_PRECISION]
+        assert type(actual.c.col_double_precision.type) in [types.DOUBLE, types.Double, types.DOUBLE_PRECISION]
+        assert type(actual.c.col_float1.type) in [types.FLOAT, types.Float]
+        assert type(actual.c.col_float2.type) in [types.FLOAT, types.Float]
+        assert type(actual.c.col_decimal.type) in [types.DECIMAL]

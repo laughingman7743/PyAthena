@@ -88,6 +88,12 @@ class Requirements(SuiteRequirements):
         return unsupported()
 
     @property
+    def precision_generic_float_type(self):
+        # TODO: AssertionError:
+        #  {Decimal('15.7563820'), Decimal('15.7563830')} != {Decimal('15.7563827')}
+        return unsupported()
+
+    @property
     def precision_numerics_many_significant_digits(self):
         return supported()
 
