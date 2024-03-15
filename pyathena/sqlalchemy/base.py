@@ -435,6 +435,29 @@ class AthenaStatementCompiler(SQLCompiler):
             text.append(" LIMIT " + self.process(select._limit_clause, **kw))
         return "\n".join(text)
 
+    def get_from_hint_text(self, table, text):
+        """Gets the text of a FROM clause hint"""
+        return text
+
+    def format_from_hint_text(self, sqltext, table, hint, iscrud):
+        """ Parses the text of a FROM clause hint, returning the text formatted properly"""
+        hint_upper = hint.upper()
+
+        if not any([
+            hint_upper.startswith("FOR TIMESTAMP AS OF"),
+            hint_upper.startswith("FOR SYSTEM_TIME AS OF"),
+            hint_upper.startswith("FOR VERSION AS OF"),
+            hint_upper.startswith("FOR SYSTEM_VERSION AS OF"),
+        ]):
+            raise exc.CompileError("Unrecognized hint: %r" % hint)
+
+        if 'AS' in sqltext.upper():
+            _, alias = sqltext.upper().split(' AS ', 1)
+            return f"{table.original.fullname} {hint} AS {alias.lower()}"
+
+        return f"{sqltext} {hint}"
+
+
 
 class AthenaTypeCompiler(GenericTypeCompiler):
     def visit_FLOAT(self, type_: Type[Any], **kw) -> str:  # noqa: N802
