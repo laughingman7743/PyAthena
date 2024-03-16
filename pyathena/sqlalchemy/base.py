@@ -440,7 +440,6 @@ class AthenaStatementCompiler(SQLCompiler):
 
     def format_from_hint_text(self, sqltext, table, hint, iscrud):
         hint_upper = hint.upper()
-
         if any(
             [
                 hint_upper.startswith("FOR TIMESTAMP AS OF"),
