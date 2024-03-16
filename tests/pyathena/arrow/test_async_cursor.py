@@ -16,7 +16,7 @@ from tests import ENV
 from tests.pyathena.conftest import connect
 
 
-class TestAsyncarrowCursor:
+class TestAsyncArrowCursor:
     @pytest.mark.parametrize(
         "async_arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
