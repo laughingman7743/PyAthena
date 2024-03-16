@@ -1898,7 +1898,7 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
         assert type(actual.c.col_decimal.type) in [types.DECIMAL]
 
     def test_compile_temporal_query_by_version_with_hint(self):
-        table_name = "test_create_table_with_date_partition"
+        table_name = "test_compile_temporal_query_by_version_with_hint"
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
@@ -1908,12 +1908,7 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_file_format="PARQUET",
             awsathena_compression="SNAPPY",
-            awsathena_tblproperties={
-                "projection.enabled": "true",
-                "projection.dt.type": "date",
-                "projection.dt.range": "NOW-1YEARS,NOW",
-                "projection.dt.format": "yyyy-MM-dd",
-            },
+            awsathena_tblproperties={},
         )
 
         version = 1
@@ -1922,7 +1917,7 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
         assert compiled.string == f"SELECT COUNT({table_name}.col_1) AS count_1 FROM {table_name} FOR VERSION AS OF {version}"
 
     def test_compile_temporal_query_with_hint_by_version_alias(self):
-        table_name = "test_create_table_with_date_partition"
+        table_name = "test_compile_temporal_query_with_hint_by_version_alias"
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
@@ -1932,12 +1927,7 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_file_format="PARQUET",
             awsathena_compression="SNAPPY",
-            awsathena_tblproperties={
-                "projection.enabled": "true",
-                "projection.dt.type": "date",
-                "projection.dt.range": "NOW-1YEARS,NOW",
-                "projection.dt.format": "yyyy-MM-dd",
-            },
+            awsathena_tblproperties={},
         )
 
         version = 1
@@ -1947,7 +1937,7 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
         assert compiled.string == f"SELECT COUNT({table_name}.col_1) AS count_1 FROM {table_name} FOR VERSION AS OF {version} AS {table_name}_1"
 
     def test_compile_temporal_query_by_timestamp_with_hint(self):
-        table_name = "test_create_table_with_date_partition"
+        table_name = "test_compile_temporal_query_by_timestamp_with_hint"
         table = Table(
             table_name,
             MetaData(schema=ENV.schema),
@@ -1957,12 +1947,7 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
             awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
             awsathena_file_format="PARQUET",
             awsathena_compression="SNAPPY",
-            awsathena_tblproperties={
-                "projection.enabled": "true",
-                "projection.dt.type": "date",
-                "projection.dt.range": "NOW-1YEARS,NOW",
-                "projection.dt.format": "yyyy-MM-dd",
-            },
+            awsathena_tblproperties={},
         )
 
         timestamp = '2024-01-01 01:00:00 UTC'
