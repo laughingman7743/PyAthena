@@ -451,9 +451,6 @@ class AthenaStatementCompiler(SQLCompiler):
             if "AS" in sqltext:
                 _, alias = sqltext.split(" AS ", 1)
                 return f"{table.original.fullname} {hint} AS {alias}"
-
-            return f"{sqltext} {hint}"
-
         if hint:
             sqltext += " " + hint
         return sqltext
