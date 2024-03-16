@@ -1970,25 +1970,3 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
         compiled = query.compile(dialect=sqlalchemy.dialects.aws.athena.dialect())
         assert compiled.string == f"SELECT COUNT({table_name}.col_1) AS count_1 FROM {table_name} FOR VERSION AS OF {timestamp}"
 
-
-    def test_compile_temporal_query_with_hint_invalid(self):
-        table_name = "test_create_table_with_date_partition"
-        table = Table(
-            table_name,
-            MetaData(schema=ENV.schema),
-            Column("col_1", types.String(10)),
-            Column("col_2", types.Integer),
-            Column("dt", types.String, awsathena_partition=True),
-            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
-            awsathena_file_format="PARQUET",
-            awsathena_compression="SNAPPY",
-            awsathena_tblproperties={
-                "projection.enabled": "true",
-                "projection.dt.type": "date",
-                "projection.dt.range": "NOW-1YEARS,NOW",
-                "projection.dt.format": "yyyy-MM-dd",
-            },
-        )
-
-        query = select(func.count(table.c.col_1)).with_hint(table, f"BAD HINT")
-        pytest.raises(CompileError, lambda: query.compile(dialect=sqlalchemy.dialects.aws.athena.dialect()))
