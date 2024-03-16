@@ -20,3 +20,4 @@ cover/
 .mypy_cache
 .tmp
 .venv
+docs/_build

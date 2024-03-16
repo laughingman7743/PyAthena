@@ -33,3 +33,7 @@ upgrade-lock:
 	rm -rf ./requirements/
 	PIP_COMPILE_UPGRADE=1 hatch env run -- python --version
 	PIP_COMPILE_UPGRADE=1 hatch env run --env test -- python --version
+
+.PHONY: docs
+docs:
+	cd ./docs && $(MAKE) clean html
