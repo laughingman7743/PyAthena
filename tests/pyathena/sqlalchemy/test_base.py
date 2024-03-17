@@ -1937,7 +1937,10 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
         table_alias = table.alias()
         query = select(func.count(table_alias.c.col_1)).with_hint(table_alias, f"FOR VERSION AS OF {version}")
         compiled = query.compile(compile_kwargs={"literal_binds": True}, dialect=engine.dialect)
-        assert compiled.string == f"SELECT COUNT({table_name}.col_1) AS count_1 FROM {table_name} FOR VERSION AS OF {version} AS {table_name}_1"
+        assert compiled.string == textwrap.dedent(
+            f"SELECT count({table_name}_1.col_1) AS count_1 \n"
+            f"FROM {ENV.schema}.{table_name} FOR VERSION AS OF {version} AS {table_name}_1"
+        )
 
     def test_compile_temporal_query_by_timestamp_with_hint(self, engine):
         table_name = "test_compile_temporal_query_by_timestamp_with_hint"
