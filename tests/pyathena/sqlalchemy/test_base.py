@@ -1959,5 +1959,8 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
         timestamp = '2024-01-01 01:00:00 UTC'
         query = select(func.count(table.c.col_1)).with_hint(table, f"FOR VERSION AS OF '{timestamp}'")
         compiled = query.compile(compile_kwargs={"literal_binds": True}, dialect=engine.dialect)
-        assert compiled.string == f"SELECT COUNT({table_name}.col_1) AS count_1 FROM {table_name} FOR VERSION AS OF {timestamp}"
+        assert compiled.string == (
+            f"SELECT count({ENV.schema}.{table_name}.col_1) AS count_1 \n"
+            f"FROM {ENV.schema}.{table_name} FOR VERSION AS OF '{timestamp}'"
+        )
 
