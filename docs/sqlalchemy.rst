@@ -276,29 +276,29 @@ If you want to limit the column options to specific table names only, specify th
 Temporal/Time-travel with Iceberg
 ---------------------------------
 
-Athena supports time-travel queries on Iceberg tables by either a version_id or a timestamp. The `FOR TIMESTAMP AS OF`
+Athena supports time-travel queries on Iceberg tables by either a version_id or a timestamp. The :code:`FOR TIMESTAMP AS OF`
 clause is used to query the table as it existed at the specified timestamp. To build a time travel query by timestamp,
-use `with_hint(table_name, "FOR TIMESTAMP AS OF timestamp)` after the table name in the SELECT statement, as in the
+use :code:`with_hint(table_name, "FOR TIMESTAMP AS OF timestamp")` after the table name in the SELECT statement, as in the
 following example.
 
-..code:: python
+.. code:: python
 
         select(table.c).with_hint(table_name, "FOR TIMESTAMP AS OF '2024-03-17 10:00:00'")
 
 which will build a statement that outputs the following:
 
-..code:: sql
+.. code:: sql
 
         SELECT * FROM table_name FOR TIMESTAMP AS OF '2024-03-17 10:00:00'
 
-To build a time travel query by version_id, use `with_hint(table_name, "FOR VERSION AS OF version_id")` after the table
-name. Note: the version_id is also know as a snapshot_id can be retrieved by querying the `table_name$snapshots`
-or `table_name$history` metadata. Again the hint goes after the select statement as in the following example.
+To build a time travel query by version_id, use :code:`with_hint(table_name, "FOR VERSION AS OF version_id")` after the table
+name. Note: the version_id is also know as a snapshot_id can be retrieved by querying the :code:`table_name$snapshots`
+or :code:`table_name$history` metadata. Again the hint goes after the select statement as in the following example.
 
-..code:: python
+.. code:: python
 
         select(table.c).with_hint(table_name, "FOR VERSION AS OF 949530903748831860")
 
-..code:: sql
+.. code:: sql
 
         SELECT * FROM table_name FOR VERSION AS OF 949530903748831860
