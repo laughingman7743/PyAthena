@@ -96,7 +96,8 @@ dependencies = [
     "pytest-xdist",
     "pytest-dependency",
     "ruff>=0.1.13",
-    "hatch-pip-compile"
+    "hatch-pip-compile",
+    "sphinx"
 ]
 
 [tool.hatch.envs.default.scripts]
