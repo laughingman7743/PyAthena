@@ -263,7 +263,7 @@ class AthenaArrowResultSet(AthenaResultSet):
         bucket, key = parse_output_location(self._unload_location)
         try:
             dataset = parquet.ParquetDataset(
-                f"{bucket}/{key}", filesystem=self._fs, use_legacy_dataset=False
+                f"{bucket}/{key}", filesystem=self._fs
             )
             return dataset.read(use_threads=True)
         except Exception as e:
