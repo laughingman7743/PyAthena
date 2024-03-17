@@ -1047,7 +1047,7 @@ class TestPandasCursor:
             """,
             engine=parquet_engine,
         ).as_pandas()
-        rows = [tuple([row[0]]) for _, row in df.iterrows()]
+        rows = [tuple([row["col"]]) for _, row in df.iterrows()]
         np.testing.assert_equal(rows, [(0.33,), (np.nan,)])
 
     @pytest.mark.parametrize(

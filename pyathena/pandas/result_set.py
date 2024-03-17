@@ -317,7 +317,6 @@ class AthenaPandasResultSet(AthenaResultSet):
             unload_location = self._unload_location
             kwargs = {
                 "use_threads": True,
-                "use_legacy_dataset": False,
             }
         elif engine == "fastparquet":
             unload_location = f"{self._unload_location}*"
