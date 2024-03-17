@@ -11,7 +11,7 @@ import pandas as pd
 import pytest
 import sqlalchemy
 from sqlalchemy import func, select, types
-from sqlalchemy.exc import NoSuchTableError, CompileError
+from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.ddl import CreateTable
 from sqlalchemy.sql.schema import Column, MetaData, Table
