@@ -1945,6 +1945,7 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
         )
 
     def test_compile_temporal_query_by_timestamp_with_hint(self, engine):
+        engine, conn = engine
         table_name = "test_compile_temporal_query_by_timestamp_with_hint"
         table = Table(
             table_name,
