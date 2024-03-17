@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import sqlalchemy
-from sqlalchemy import types
+from sqlalchemy import func, select, types
 from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.ddl import CreateTable
@@ -1896,3 +1896,74 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
         assert type(actual.c.col_float1.type) in [types.FLOAT, types.Float]
         assert type(actual.c.col_float2.type) in [types.FLOAT, types.Float]
         assert type(actual.c.col_decimal.type) in [types.DECIMAL]
+
+    def test_compile_temporal_query_by_version_with_hint(self, engine):
+        engine, conn = engine
+        table_name = "test_compile_temporal_query_by_version_with_hint"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column("col_1", types.String(10)),
+            Column("col_2", types.Integer),
+            Column("dt", types.String, awsathena_partition=True),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            awsathena_file_format="PARQUET",
+            awsathena_compression="SNAPPY",
+            awsathena_tblproperties={},
+        )
+
+        version = 1
+        query = select(func.count(table.c.col_1)).with_hint(table, f"FOR VERSION AS OF {version}")
+        compiled = query.compile(compile_kwargs={"literal_binds": True}, dialect=engine.dialect)
+        assert compiled.string == (
+            f"SELECT count({ENV.schema}.{table_name}.col_1) AS count_1 \n"
+            f"FROM {ENV.schema}.{table_name} FOR VERSION AS OF {version}"
+        )
+
+    def test_compile_temporal_query_with_hint_by_version_alias(self, engine):
+        engine, conn = engine
+        table_name = "test_compile_temporal_query_with_hint_by_version_alias"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column("col_1", types.String(10)),
+            Column("col_2", types.Integer),
+            Column("dt", types.String, awsathena_partition=True),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            awsathena_file_format="PARQUET",
+            awsathena_compression="SNAPPY",
+            awsathena_tblproperties={},
+        )
+
+        version = 1
+        table_alias = table.alias()
+        query = select(func.count(table_alias.c.col_1)).with_hint(table_alias, f"FOR VERSION AS OF {version}")
+        compiled = query.compile(compile_kwargs={"literal_binds": True}, dialect=engine.dialect)
+        assert compiled.string == textwrap.dedent(
+            f"SELECT count({table_name}_1.col_1) AS count_1 \n"
+            f"FROM {ENV.schema}.{table_name} FOR VERSION AS OF {version} AS {table_name}_1"
+        )
+
+    def test_compile_temporal_query_by_timestamp_with_hint(self, engine):
+        engine, conn = engine
+        table_name = "test_compile_temporal_query_by_timestamp_with_hint"
+        table = Table(
+            table_name,
+            MetaData(schema=ENV.schema),
+            Column("col_1", types.String(10)),
+            Column("col_2", types.Integer),
+            Column("dt", types.String, awsathena_partition=True),
+            awsathena_location=f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/",
+            awsathena_file_format="PARQUET",
+            awsathena_compression="SNAPPY",
+            awsathena_tblproperties={},
+        )
+
+        timestamp = '2024-01-01 01:00:00 UTC'
+        query = select(func.count(table.c.col_1)).with_hint(table, f"FOR VERSION AS OF '{timestamp}'")
+        compiled = query.compile(compile_kwargs={"literal_binds": True}, dialect=engine.dialect)
+        assert compiled.string == (
+            f"SELECT count({ENV.schema}.{table_name}.col_1) AS count_1 \n"
+            f"FROM {ENV.schema}.{table_name} FOR VERSION AS OF '{timestamp}'"
+        )
+

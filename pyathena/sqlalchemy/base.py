@@ -435,6 +435,25 @@ class AthenaStatementCompiler(SQLCompiler):
             text.append(" LIMIT " + self.process(select._limit_clause, **kw))
         return "\n".join(text)
 
+    def get_from_hint_text(self, table, text):
+        return text
+
+    def format_from_hint_text(self, sqltext, table, hint, iscrud):
+        hint_upper = hint.upper()
+        if any(
+            [
+                hint_upper.startswith("FOR TIMESTAMP AS OF"),
+                hint_upper.startswith("FOR SYSTEM_TIME AS OF"),
+                hint_upper.startswith("FOR VERSION AS OF"),
+                hint_upper.startswith("FOR SYSTEM_VERSION AS OF"),
+            ]
+        ):
+            if "AS" in sqltext:
+                _, alias = sqltext.split(" AS ", 1)
+                return f"{table.original.fullname} {hint} AS {alias}"
+
+        return f"{sqltext} {hint}"
+
 
 class AthenaTypeCompiler(GenericTypeCompiler):
     def visit_FLOAT(self, type_: Type[Any], **kw) -> str:  # noqa: N802
