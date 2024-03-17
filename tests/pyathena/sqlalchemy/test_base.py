@@ -1921,6 +1921,7 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
         )
 
     def test_compile_temporal_query_with_hint_by_version_alias(self, engine):
+        engine, conn = engine
         table_name = "test_compile_temporal_query_with_hint_by_version_alias"
         table = Table(
             table_name,
