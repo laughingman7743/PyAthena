@@ -1816,11 +1816,11 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
             actual
             == textwrap.dedent(
                 f"""
-            CREATE VIEW {ENV.schema}.v_one_row AS
-            SELECT number_of_rows
-            FROM
-              {ENV.schema}.one_row
-            """
+                CREATE VIEW {ENV.schema}.v_one_row AS
+                SELECT number_of_rows
+                FROM
+                  {ENV.schema}.one_row
+                """
             ).strip()
         )
 
