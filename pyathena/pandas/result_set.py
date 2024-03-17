@@ -351,9 +351,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                 raise ProgrammingError("UnloadLocation is none or empty.")
             bucket, key = parse_output_location(self._unload_location)
             try:
-                dataset = parquet.ParquetDataset(
-                    f"{bucket}/{key}", filesystem=self._fs
-                )
+                dataset = parquet.ParquetDataset(f"{bucket}/{key}", filesystem=self._fs)
                 return to_column_info(dataset.schema)
             except Exception as e:
                 _logger.exception(f"Failed to read schema {bucket}/{key}.")
