@@ -6,7 +6,7 @@ import textwrap
 import uuid
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Callable, Dict, Optional, Type
 
@@ -65,7 +65,7 @@ class Formatter(metaclass=ABCMeta):
 
         operation_upper = operation.strip().upper()
         if operation_upper.startswith("SELECT") or operation_upper.startswith("WITH"):
-            now = datetime.utcnow().strftime("%Y%m%d")
+            now = datetime.now(timezone.utc).strftime("%Y%m%d")
             location = f"{s3_staging_dir}unload/{now}/{str(uuid.uuid4())}/"
             operation = textwrap.dedent(
                 f"""
