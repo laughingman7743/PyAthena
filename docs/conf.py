@@ -2,15 +2,26 @@
 #
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+def get_version():
+    version_file = Path(".").absolute().parent / "pyathena" / "__init__.py"
+    with version_file.open() as f:
+        for line in f:
+            if line.startswith("__version__"):
+                return line.strip().split('"')[1]
+
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "PyAthena"
-copyright = "2024, laughingman7743"
+copyright = f"{datetime.now(timezone.utc).year}, laughingman7743"
 author = "laughingman7743"
-version = "v3.4.0"
-release = version
+version = f"v{get_version()}"
+release = f"v{get_version()}"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
