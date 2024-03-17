@@ -1898,6 +1898,7 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
         assert type(actual.c.col_decimal.type) in [types.DECIMAL]
 
     def test_compile_temporal_query_by_version_with_hint(self, engine):
+        engine, conn = engine
         table_name = "test_compile_temporal_query_by_version_with_hint"
         table = Table(
             table_name,
