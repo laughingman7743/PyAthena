@@ -355,7 +355,8 @@ RESERVED_WORDS: Set[str] = set(sorted(DDL_RESERVED_WORDS | SELECT_STATEMENT_RESE
 ischema_names: Dict[str, Type[Any]] = {
     "boolean": types.BOOLEAN,
     "float": types.FLOAT,
-    "double": types.DOUBLE,
+    # TODO: types.DOUBLE is not defined in SQLAlchemy 1.4.
+    "double": types.FLOAT,
     "real": types.FLOAT,
     "tinyint": TINYINT,
     "smallint": types.SMALLINT,

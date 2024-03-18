@@ -265,7 +265,8 @@ class TestSQLAlchemyAthena:
         assert isinstance(one_row_complex.c.col_int.type, types.INTEGER)
         assert isinstance(one_row_complex.c.col_bigint.type, types.BIGINT)
         assert isinstance(one_row_complex.c.col_float.type, types.FLOAT)
-        assert isinstance(one_row_complex.c.col_double.type, types.DOUBLE)
+        # TODO: types.DOUBLE is not defined in SQLAlchemy 1.4.
+        assert isinstance(one_row_complex.c.col_double.type, types.FLOAT)
         assert isinstance(one_row_complex.c.col_string.type, types.String)
         assert isinstance(one_row_complex.c.col_varchar.type, types.VARCHAR)
         assert one_row_complex.c.col_varchar.type.length == 10
@@ -307,7 +308,8 @@ class TestSQLAlchemyAthena:
         assert isinstance(dialect._get_column_type("int"), types.INTEGER)
         assert isinstance(dialect._get_column_type("bigint"), types.BIGINT)
         assert isinstance(dialect._get_column_type("float"), types.FLOAT)
-        assert isinstance(dialect._get_column_type("double"), types.DOUBLE)
+        # TODO: types.DOUBLE is not defined in SQLAlchemy 1.4.
+        assert isinstance(dialect._get_column_type("double"), types.FLOAT)
         assert isinstance(dialect._get_column_type("real"), types.FLOAT)
         assert isinstance(dialect._get_column_type("string"), types.String)
         assert isinstance(dialect._get_column_type("varchar"), types.VARCHAR)
@@ -1890,9 +1892,14 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
         assert type(actual.c.col_integer2.type) in [types.INT, types.INTEGER, types.Integer]
         assert type(actual.c.col_bigint.type) in [types.BIGINT, types.BigInteger]
         assert type(actual.c.col_biginteger.type) in [types.BIGINT, types.BigInteger]
-        assert type(actual.c.col_double1.type) in [types.DOUBLE, types.Double, types.DOUBLE_PRECISION]
-        assert type(actual.c.col_double2.type) in [types.DOUBLE, types.Double, types.DOUBLE_PRECISION]
-        assert type(actual.c.col_double_precision.type) in [types.DOUBLE, types.Double, types.DOUBLE_PRECISION]
+        assert type(actual.c.col_double1.type) in [types.FLOAT, types.Float]
+        assert type(actual.c.col_double2.type) in [types.FLOAT, types.Float]
+        assert type(actual.c.col_double_precision.type) in [types.FLOAT, types.Float]
+        # TODO: types.DOUBLE is not defined in SQLAlchemy 1.4.
+        # assert type(actual.c.col_double_precision.type) in [types.DOUBLE, types.Double, types.DOUBLE_PRECISION]
+        # assert type(actual.c.col_double1.type) in [types.DOUBLE, types.Double, types.DOUBLE_PRECISION]
+        # assert type(actual.c.col_double2.type) in [types.DOUBLE, types.Double, types.DOUBLE_PRECISION]
+        # assert type(actual.c.col_double_precision.type) in [types.DOUBLE, types.Double, types.DOUBLE_PRECISION]
         assert type(actual.c.col_float1.type) in [types.FLOAT, types.Float]
         assert type(actual.c.col_float2.type) in [types.FLOAT, types.Float]
         assert type(actual.c.col_decimal.type) in [types.DECIMAL]
