@@ -29,8 +29,8 @@ Cursor iteration
     for row in cursor:
         print(row)
 
-Query with parameter
---------------------
+Query with parameters
+---------------------
 
 Supported `DB API paramstyle`_ is only ``PyFormat``.
 ``PyFormat`` only supports `named placeholders`_ with old ``%`` operator style and parameters specify dictionary format.
@@ -140,17 +140,24 @@ and the query was a DML statement (the assumption being that you always want to 
 
 The S3 staging directory is not checked, so it's possible that the location of the results is not in your provided ``s3_staging_dir``.
 
+Environment variables
+---------------------
+
+Support `Boto3 environment variables`_.
+
+Additional environment variables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+AWS_ATHENA_S3_STAGING_DIR:
+    The S3 location where Athena automatically stores the query results and metadata information. Required if you have not set up workgroups. Not required if a workgroup has been set up.
+
+AWS_ATHENA_WORK_GROUP:
+    The setting of the workgroup to execute the query.
+
 Credentials
 -----------
 
 Support `Boto3 credentials`_.
-
-Additional environment variable:
-
-.. code:: bash
-
-    $ export AWS_ATHENA_S3_STAGING_DIR=s3://YOUR_S3_BUCKET/path/to/
-    $ export AWS_ATHENA_WORK_GROUP=YOUR_WORK_GROUP
 
 Examples
 ~~~~~~~~
@@ -261,4 +268,5 @@ No need to specify credential information.
 .. _`DB API paramstyle`: https://www.python.org/dev/peps/pep-0249/#paramstyle
 .. _`named placeholders`: https://pyformat.info/#named_placeholders
 .. _`reuse the results of previous queries`: https://docs.aws.amazon.com/athena/latest/ug/reusing-query-results.html
-.. _`Boto3 credentials`: http://boto3.readthedocs.io/en/latest/guide/configuration.html
+.. _`Boto3 environment variables`: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-environment-variables
+.. _`Boto3 credentials`: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html
