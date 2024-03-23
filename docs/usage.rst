@@ -148,10 +148,10 @@ Support `Boto3 environment variables`_.
 Additional environment variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-AWS_ATHENA_S3_STAGING_DIR:
+AWS_ATHENA_S3_STAGING_DIR
     The S3 location where Athena automatically stores the query results and metadata information. Required if you have not set up workgroups. Not required if a workgroup has been set up.
 
-AWS_ATHENA_WORK_GROUP:
+AWS_ATHENA_WORK_GROUP
     The setting of the workgroup to execute the query.
 
 Credentials
