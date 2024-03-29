@@ -1,30 +1,34 @@
-.. image:: https://badge.fury.io/py/pyathena.svg
-    :target: https://badge.fury.io/py/pyathena
-
-.. image:: https://img.shields.io/pypi/pyversions/PyAthena.svg
-    :target: https://pypi.org/project/PyAthena/
-
-.. image:: https://github.com/laughingman7743/PyAthena/actions/workflows/test.yaml/badge.svg
-    :target: https://github.com/laughingman7743/PyAthena/actions/workflows/test.yaml
-
-.. image:: https://img.shields.io/pypi/l/PyAthena.svg
-    :target: https://github.com/laughingman7743/PyAthena/blob/master/LICENSE
-
-.. image:: https://static.pepy.tech/badge/pyathena/month
-    :target: https://pepy.tech/project/pyathena
-
-.. image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
-    :target: https://github.com/astral-sh/ruff
-    :alt: Ruff
-
-.. image:: https://www.mypy-lang.org/static/mypy_badge.svg
-    :target: https://mypy-lang.org/
-    :alt: mypy
+.. |badge package| image:: https://badge.fury.io/py/pyathena.svg
+  :target: https://badge.fury.io/py/pyathena
+.. |badge pypi| image:: https://img.shields.io/pypi/pyversions/PyAthena.svg
+  :target: https://pypi.org/project/PyAthena/
+.. |badge test| image:: https://github.com/laughingman7743/PyAthena/actions/workflows/test.yaml/badge.svg
+  :target: https://github.com/laughingman7743/PyAthena/actions/workflows/test.yaml
+.. |badge docs| image:: https://github.com/laughingman7743/PyAthena/actions/workflows/docs.yaml/badge.svg
+  :target: https://github.com/laughingman7743/PyAthena/actions/workflows/docs.yaml
+.. |badge license| image:: https://img.shields.io/pypi/l/PyAthena.svg
+  :target: https://github.com/laughingman7743/PyAthena/blob/master/LICENSE
+.. |badge downloads| image:: https://static.pepy.tech/badge/pyathena/month
+  :target: https://pepy.tech/project/pyathena
+.. |badge ruff| image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
+  :target: https://github.com/astral-sh/ruff
+  :alt: Ruff
+.. |badge mypy| image:: https://www.mypy-lang.org/static/mypy_badge.svg
+  :target: https://mypy-lang.org/
+  :alt: mypy
 
 PyAthena
 ========
 
 PyAthena is a Python `DB API 2.0 (PEP 249)`_ client for `Amazon Athena`_.
+
++---------+------------------------------------------------+
+| Package | |badge package| |badge pypi| |badge downloads| |
++---------+------------------------------------------------+
+| CI/CD   | |badge test| |badge docs|                      |
++---------+------------------------------------------------+
+| Meta    | |badge license| |badge ruff| |badge mypy|      |
++---------+------------------------------------------------+
 
 .. _`DB API 2.0 (PEP 249)`: https://www.python.org/dev/peps/pep-0249/
 .. _`Amazon Athena`: https://docs.aws.amazon.com/athena/latest/APIReference/Welcome.html
