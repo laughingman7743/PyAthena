@@ -544,3 +544,31 @@ def test_to_sql_invalid_args(cursor):
             if_exists="fail",
             compression="foobar",
         )
+
+    # invalid partition key (None)
+    with pytest.raises(ValueError) as exc_info:
+        to_sql(
+            df,
+            table_name,
+            cursor._connection,
+            location,
+            schema=ENV.schema,
+            if_exists="fail",
+            compression="snappy",
+            partitions=[None],
+        )
+    assert str(exc_info.value) == "Partition key: `None` is None, no data will be written to the table."
+    # invalid partition key value (None)
+    df_with_none = pd.DataFrame({"col_int": np.int32([1]), "partition_key": [None]})
+    with pytest.raises(ValueError) as exc_info:
+        to_sql(
+            df_with_none,
+            table_name,
+            cursor._connection,
+            location,
+            schema=ENV.schema,
+            if_exists="fail",
+            compression="snappy",
+            partitions=["partition_key"],
+        )
+    assert str(exc_info.value) == "Partition key: `partition_key` contains None values, no data will be written to the table."

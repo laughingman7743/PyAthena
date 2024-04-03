@@ -159,6 +159,16 @@ def to_sql(
         partitions = []
     if not location.endswith("/"):
         location += "/"
+    for partition_key in partitions:
+        if partition_key is None:
+            raise ValueError(
+                f"Partition key: `{partition_key}` is None, no data will be written to the table."
+            )
+        if df[partition_key].isnull().any():
+            raise ValueError(
+                f"Partition key: `{partition_key}` contains None values, "
+                "no data will be written to the table."
+            )
 
     bucket_name, key_prefix = parse_output_location(location)
     bucket = conn.session.resource(
