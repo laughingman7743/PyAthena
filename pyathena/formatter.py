@@ -184,6 +184,8 @@ class DefaultParameterFormatter(Formatter):
             operation_upper.startswith("SELECT")
             or operation_upper.startswith("WITH")
             or operation_upper.startswith("INSERT")
+            or operation_upper.startswith("UPDATE")
+            or operation_upper.startswith("MERGE")
         ):
             escaper = _escape_presto
         else:
