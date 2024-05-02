@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from itertools import chain
-from typing import Dict
 
 import pytest
 
@@ -109,35 +108,34 @@ class TestS3FileSystem:
             S3FileSystem.parse_path("s3a://bucket/path/to/obj?foo=bar")
 
     @pytest.fixture(scope="class")
-    def fs(self) -> Dict[str, S3FileSystem]:
-        fs = {
-            "default": S3FileSystem(connect()),
-            "small_batches": S3FileSystem(connect(), default_block_size=3),
-        }
-        return fs
+    def fs(self, request):
+        if not hasattr(request, "param"):
+            setattr(request, "param", {})
+        return S3FileSystem(connect(), **request.param)
 
     @pytest.mark.parametrize(
-        ["start", "end", "batch_mode", "target_data"],
+        ["fs", "start", "end", "target_data"],
         list(
             chain(
                 *[
                     [
-                        (0, 5, x, b"01234"),
-                        (2, 7, x, b"23456"),
-                        (0, 10, x, b"0123456789"),
+                        ({"default_block_size": x}, 0, 5, b"01234"),
+                        ({"default_block_size": x}, 2, 7, b"23456"),
+                        ({"default_block_size": x}, 0, 10, b"0123456789"),
                     ]
-                    for x in ("default", "small_batches")
+                    for x in (S3FileSystem.DEFAULT_BLOCK_SIZE, 3)
                 ]
             )
         ),
+        indirect=["fs"],
     )
-    def test_read(self, fs, start, end, batch_mode, target_data):
+    def test_read(self, fs, start, end, target_data):
         # lowest level access: use _get_object
-        data = fs[batch_mode]._get_object(
+        data = fs._get_object(
             ENV.s3_staging_bucket, ENV.s3_filesystem_test_file_key, ranges=(start, end)
         )
         assert data == (start, target_data), data
-        with fs[batch_mode].open(
+        with fs.open(
             f"s3://{ENV.s3_staging_bucket}/{ENV.s3_filesystem_test_file_key}", "rb"
         ) as file:
             # mid-level access: use _fetch_range
