@@ -99,6 +99,9 @@ class S3Object(MutableMapping[str, Any]):
     def to_api_repr(self) -> Dict[str, Any]:
         fields = {}
         for k, v in _API_FIELD_TO_S3_OBJECT_PROPERTY.items():
+            if k in ["LastModified"]:
+                # Excluded from API representation
+                continue
             field = self.get(v)
             if field is not None:
                 fields[k] = field
