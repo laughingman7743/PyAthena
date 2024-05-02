@@ -7,6 +7,7 @@ import re
 from concurrent.futures import Future, as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
 from copy import deepcopy
+from datetime import datetime
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Pattern, Tuple, Union, cast
 
@@ -240,7 +241,7 @@ class S3FileSystem(AbstractFileSystem):
         path: str,
         prefix: str = "",
         delimiter: str = "/",
-        next_token=None,
+        next_token: Optional[str] = None,
         max_keys: Optional[int] = None,
         refresh: bool = False,
     ) -> List[S3Object]:
@@ -297,7 +298,9 @@ class S3FileSystem(AbstractFileSystem):
             files = self.dircache[path]
         return files
 
-    def ls(self, path, detail=False, refresh=False, **kwargs):
+    def ls(
+        self, path: str, detail: bool = False, refresh: bool = False, **kwargs
+    ) -> Union[List[S3Object], List[str]]:
         path = self._strip_protocol(path).rstrip("/")
         if path in ["", "/"]:
             files = self._ls_buckets(refresh)
@@ -309,7 +312,7 @@ class S3FileSystem(AbstractFileSystem):
                     files = [file]
         return [f for f in files] if detail else [f.name for f in files]
 
-    def info(self, path, **kwargs) -> S3Object:
+    def info(self, path: str, **kwargs) -> S3Object:
         refresh = kwargs.pop("refresh", False)
         path = self._strip_protocol(path)
         bucket, key, path_version_id = self.parse_path(path)
@@ -387,7 +390,15 @@ class S3FileSystem(AbstractFileSystem):
         else:
             raise FileNotFoundError(path)
 
-    def find(self, path, maxdepth=None, withdirs=None, detail=False, **kwargs):
+    def find(
+        self,
+        path: str,
+        maxdepth: Optional[int] = None,
+        withdirs: Optional[bool] = None,
+        detail: bool = False,
+        **kwargs,
+    ) -> Union[Dict[str, S3Object], List[str]]:
+        # TODO: Support maxdepth and withdirs
         path = self._strip_protocol(path)
         if path in ["", "/"]:
             raise ValueError("Cannot traverse all files in S3.")
@@ -405,7 +416,7 @@ class S3FileSystem(AbstractFileSystem):
         else:
             return [f.name for f in files]
 
-    def exists(self, path, **kwargs):
+    def exists(self, path: str, **kwargs) -> bool:
         path = self._strip_protocol(path)
         if path in ["", "/"]:
             # The root always exists.
@@ -436,19 +447,19 @@ class S3FileSystem(AbstractFileSystem):
             else:
                 return False
 
-    def rm_file(self, path):
+    def rm_file(self, path: str) -> None:
         # TODO
         raise NotImplementedError  # pragma: no cover
 
-    def rmdir(self, path):
+    def rmdir(self, path: str) -> None:
         # TODO
         raise NotImplementedError  # pragma: no cover
 
-    def _rm(self, path):
+    def _rm(self, path: str) -> None:
         # TODO
         raise NotImplementedError  # pragma: no cover
 
-    def touch(self, path, truncate=True, **kwargs):
+    def touch(self, path: str, truncate: bool = True, **kwargs) -> Dict[str, Any]:
         bucket, key, version_id = self.parse_path(path)
         if version_id:
             raise ValueError("Cannot touch the file with the version specified.")
@@ -461,11 +472,13 @@ class S3FileSystem(AbstractFileSystem):
         self.invalidate_cache(path)
         return object_.to_dict()
 
-    def cp_file(self, path1, path2, **kwargs):
+    def cp_file(self, path1: str, path2: str, **kwargs):
         # TODO
         raise NotImplementedError  # pragma: no cover
 
-    def cat_file(self, path, start=None, end=None, **kwargs):
+    def cat_file(
+        self, path: str, start: Optional[int] = None, end: Optional[int] = None, **kwargs
+    ) -> bytes:
         bucket, key, version_id = self.parse_path(path)
         if start is not None and end is not None:
             ranges = (start, end)
@@ -474,40 +487,40 @@ class S3FileSystem(AbstractFileSystem):
 
         return self._get_object(
             bucket=bucket,
-            key=key,
+            key=cast(str, key),
             ranges=ranges,
             version_id=version_id,
             **kwargs,
         )[1]
 
-    def pipe_file(self, path, value, **kwargs):
+    def pipe_file(self, path: str, value, **kwargs):
         # TODO
         raise NotImplementedError  # pragma: no cover
 
-    def put_file(self, lpath, rpath, callback=_DEFAULT_CALLBACK, **kwargs):
+    def put_file(self, lpath: str, rpath: str, callback=_DEFAULT_CALLBACK, **kwargs):
         # TODO
         raise NotImplementedError  # pragma: no cover
 
-    def get_file(self, rpath, lpath, callback=_DEFAULT_CALLBACK, outfile=None, **kwargs):
+    def get_file(self, rpath: str, lpath: str, callback=_DEFAULT_CALLBACK, outfile=None, **kwargs):
         # TODO
         raise NotImplementedError  # pragma: no cover
 
-    def checksum(self, path):
+    def checksum(self, path: str):
         # TODO
         raise NotImplementedError  # pragma: no cover
 
-    def sign(self, path, expiration=100, **kwargs):
+    def sign(self, path: str, expiration: int = 100, **kwargs):
         # TODO
         raise NotImplementedError  # pragma: no cover
 
-    def created(self, path):
+    def created(self, path: str) -> datetime:
         return self.modified(path)
 
-    def modified(self, path):
+    def modified(self, path: str) -> datetime:
         info = self.info(path)
-        return info.get("last_modified")
+        return cast(datetime, info.get("last_modified"))
 
-    def invalidate_cache(self, path=None):
+    def invalidate_cache(self, path: Optional[str] = None) -> None:
         if path is None:
             self.dircache.clear()
         else:
@@ -518,14 +531,14 @@ class S3FileSystem(AbstractFileSystem):
 
     def _open(
         self,
-        path,
-        mode="rb",
-        block_size=None,
-        cache_type=None,
-        autocommit=True,
-        cache_options=None,
+        path: str,
+        mode: str = "rb",
+        block_size: Optional[int] = None,
+        cache_type: Optional[str] = None,
+        autocommit: bool = True,
+        cache_options: Optional[Dict[Any, Any]] = None,
         **kwargs,
-    ):
+    ) -> S3File:
         if block_size is None:
             block_size = self.default_block_size
         if cache_type is None:
@@ -558,7 +571,7 @@ class S3FileSystem(AbstractFileSystem):
             range_ = f"bytes={ranges[0]}-{ranges[1] - 1}"
             request.update({"Range": range_})
         else:
-            ranges = (0, None)
+            ranges = (0, 0)
             range_ = "bytes=0-"
         if version_id:
             request.update({"VersionId": version_id})
@@ -692,8 +705,8 @@ class S3File(AbstractBufferedFile):
         autocommit: bool = True,
         cache_options: Optional[Dict[Any, Any]] = None,
         size: Optional[int] = None,
-        s3_additional_kwargs=None,
-    ):
+        s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
         self.max_workers = max_workers
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self.s3_additional_kwargs = s3_additional_kwargs if s3_additional_kwargs else {}
@@ -750,11 +763,11 @@ class S3File(AbstractBufferedFile):
         self.multipart_upload: Optional[S3MultipartUpload] = None
         self.multipart_upload_parts: List[Future[S3MultipartUploadPart]] = []
 
-    def close(self):
+    def close(self) -> None:
         super().close()
         self._executor.shutdown()
 
-    def _initiate_upload(self):
+    def _initiate_upload(self) -> None:
         if self.tell() < self.blocksize:
             # Files smaller than block size in size cannot be multipart uploaded.
             return
@@ -776,7 +789,7 @@ class S3File(AbstractBufferedFile):
                 )
             )
 
-    def _upload_chunk(self, final=False):
+    def _upload_chunk(self, final: bool = False) -> bool:
         if self.tell() < self.blocksize:
             # Files smaller than block size in size cannot be multipart uploaded.
             if self.autocommit and final:
@@ -805,7 +818,7 @@ class S3File(AbstractBufferedFile):
             self.commit()
         return True
 
-    def commit(self):
+    def commit(self) -> None:
         if self.tell() == 0:
             if self.buffer is not None:
                 self.discard()
@@ -845,7 +858,7 @@ class S3File(AbstractBufferedFile):
 
         self.fs.invalidate_cache(self.path)
 
-    def discard(self):
+    def discard(self) -> None:
         if self.multipart_upload:
             for f in self.multipart_upload_parts:
                 f.cancel()

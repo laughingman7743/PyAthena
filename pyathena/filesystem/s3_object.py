@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Any, Dict, Iterator, MutableMapping, Optional
 
 _logger = logging.getLogger(__name__)  # type: ignore
+
 _API_FIELD_TO_S3_OBJECT_PROPERTY = {
     "ETag": "etag",
     "CacheControl": "cache_control",
@@ -36,18 +37,18 @@ class S3ObjectType:
 
 
 class S3StorageClass:
-    S3_STORAGE_CLASS_STANDARD = "STANDARD"
-    S3_STORAGE_CLASS_REDUCED_REDUNDANCY = "REDUCED_REDUNDANCY"
-    S3_STORAGE_CLASS_STANDARD_IA = "STANDARD_IA"
-    S3_STORAGE_CLASS_ONEZONE_IA = "ONEZONE_IA"
-    S3_STORAGE_CLASS_INTELLIGENT_TIERING = "INTELLIGENT_TIERING"
-    S3_STORAGE_CLASS_GLACIER = "GLACIER"
-    S3_STORAGE_CLASS_DEEP_ARCHIVE = "DEEP_ARCHIVE"
-    S3_STORAGE_CLASS_OUTPOSTS = "OUTPOSTS"
-    S3_STORAGE_CLASS_GLACIER_IR = "GLACIER_IR"
+    S3_STORAGE_CLASS_STANDARD: str = "STANDARD"
+    S3_STORAGE_CLASS_REDUCED_REDUNDANCY: str = "REDUCED_REDUNDANCY"
+    S3_STORAGE_CLASS_STANDARD_IA: str = "STANDARD_IA"
+    S3_STORAGE_CLASS_ONEZONE_IA: str = "ONEZONE_IA"
+    S3_STORAGE_CLASS_INTELLIGENT_TIERING: str = "INTELLIGENT_TIERING"
+    S3_STORAGE_CLASS_GLACIER: str = "GLACIER"
+    S3_STORAGE_CLASS_DEEP_ARCHIVE: str = "DEEP_ARCHIVE"
+    S3_STORAGE_CLASS_OUTPOSTS: str = "OUTPOSTS"
+    S3_STORAGE_CLASS_GLACIER_IR: str = "GLACIER_IR"
 
-    S3_STORAGE_CLASS_BUCKET = "BUCKET"
-    S3_STORAGE_CLASS_DIRECTORY = "DIRECTORY"
+    S3_STORAGE_CLASS_BUCKET: str = "BUCKET"
+    S3_STORAGE_CLASS_DIRECTORY: str = "DIRECTORY"
 
 
 class S3Object(MutableMapping[str, Any]):
@@ -55,7 +56,7 @@ class S3Object(MutableMapping[str, Any]):
         self,
         init: Dict[str, Any],
         **kwargs,
-    ):
+    ) -> None:
         if init:
             super().update({_API_FIELD_TO_S3_OBJECT_PROPERTY.get(k, k): v for k, v in init.items()})
             if "Size" in init:
@@ -109,7 +110,7 @@ class S3Object(MutableMapping[str, Any]):
 
 
 class S3PutObject:
-    def __init__(self, response: Dict[str, Any]):
+    def __init__(self, response: Dict[str, Any]) -> None:
         self._expiration: Optional[str] = response.get("Expiration")
         self._version_id: Optional[str] = response.get("VersionId")
         self._etag: Optional[str] = response.get("ETag")
@@ -181,12 +182,12 @@ class S3PutObject:
     def request_charged(self) -> Optional[str]:
         return self._request_charged
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         return copy.deepcopy(self.__dict__)
 
 
 class S3MultipartUpload:
-    def __init__(self, response: Dict[str, Any]):
+    def __init__(self, response: Dict[str, Any]) -> None:
         self._abort_date = response.get("AbortDate")
         self._abort_rule_id = response.get("AbortRuleId")
         self._bucket = response.get("Bucket")
@@ -255,7 +256,7 @@ class S3MultipartUpload:
 
 
 class S3MultipartUploadPart:
-    def __init__(self, part_number: int, response: Dict[str, Any]):
+    def __init__(self, part_number: int, response: Dict[str, Any]) -> None:
         self._part_number = part_number
         self._copy_source_version_id: Optional[str] = response.get("CopySourceVersionId")
         copy_part_result = response.get("CopyPartResult")
@@ -348,7 +349,7 @@ class S3MultipartUploadPart:
 
 
 class S3CompleteMultipartUpload:
-    def __init__(self, response: Dict[str, Any]):
+    def __init__(self, response: Dict[str, Any]) -> None:
         self._location: Optional[str] = response.get("Location")
         self._bucket: Optional[str] = response.get("Bucket")
         self._key: Optional[str] = response.get("Key")
