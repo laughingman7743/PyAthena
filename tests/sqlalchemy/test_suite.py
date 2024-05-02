@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 import pytest
+from sqlalchemy.testing.suite import *  # noqa
 from sqlalchemy.testing.suite import FetchLimitOffsetTest as _FetchLimitOffsetTest
 from sqlalchemy.testing.suite import HasTableTest as _HasTableTest
 from sqlalchemy.testing.suite import InsertBehaviorTest as _InsertBehaviorTest
 from sqlalchemy.testing.suite import IntegerTest as _IntegerTest
 from sqlalchemy.testing.suite import StringTest as _StringTest
 from sqlalchemy.testing.suite import TrueDivTest as _TrueDivTest
-from sqlalchemy.testing.suite import *  # noqa
 
 del BinaryTest  # noqa
 del BizarroCharacterFKResolutionTest  # noqa
