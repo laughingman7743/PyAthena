@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
+import uuid
 from itertools import chain
 
+import fsspec
 import pytest
 
 from pyathena.filesystem.s3 import S3File, S3FileSystem
@@ -8,6 +10,13 @@ from tests import ENV
 from tests.pyathena.conftest import connect
 
 
+@pytest.fixture(scope="class")
+def register_filesystem():
+    fsspec.register_implementation("s3", "pyathena.filesystem.s3.S3FileSystem", clobber=True)
+    fsspec.register_implementation("s3a", "pyathena.filesystem.s3.S3FileSystem", clobber=True)
+
+
+@pytest.mark.usefixtures("register_filesystem")
 class TestS3FileSystem:
     def test_parse_path(self):
         actual = S3FileSystem.parse_path("s3://bucket")
@@ -146,7 +155,84 @@ class TestS3FileSystem:
             data = file.read(end - start)
             assert data == target_data, data
 
-    def test_compatibility_with_s3fs(self):
+    @pytest.mark.parametrize(
+        ["base", "exp"],
+        [
+            (1, 2**10),
+            (10, 2**10),
+            (100, 2**10),
+            (1, 2**20),
+            (10, 2**20),
+            (100, 2**20),
+            (1000, 2**20),
+        ],
+    )
+    def test_write(self, fs, base, exp):
+        data = b"a" * (base * exp)
+        path = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/{uuid.uuid4()}.dat"
+        with fs.open(path, "wb") as f:
+            f.write(data)
+        with fs.open(path, "rb") as f:
+            actual = f.read()
+            assert len(actual) == len(data)
+            assert actual == data
+
+    @pytest.mark.parametrize(
+        ["base", "exp"],
+        [
+            (1, 2**10),
+            (10, 2**10),
+            (100, 2**10),
+            (1, 2**20),
+            (10, 2**20),
+            (100, 2**20),
+            (1000, 2**20),
+        ],
+    )
+    def test_append(self, fs, base, exp):
+        # TODO: Check the metadata is kept.
+        data = b"a" * (base * exp)
+        path = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/{uuid.uuid4()}.dat"
+        with fs.open(path, "ab") as f:
+            f.write(data)
+        extra = b"extra"
+        with fs.open(path, "ab") as f:
+            f.write(extra)
+        with fs.open(path, "rb") as f:
+            actual = f.read()
+            assert len(actual) == len(data + extra)
+            assert actual == data + extra
+
+    def test_exists(self, fs):
+        path = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_filesystem_test_file_key}"
+        assert fs.exists(path)
+
+        not_exists_path = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/{uuid.uuid4()}"
+        )
+        assert not fs.exists(not_exists_path)
+
+    def test_touch(self, fs):
+        path = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/{uuid.uuid4()}"
+        assert not fs.exists(path)
+        fs.touch(path)
+        assert fs.exists(path)
+        assert fs.size(path) == 0
+
+        with fs.open(path, "wb") as f:
+            f.write(b"data")
+        assert fs.size(path) == 4
+        fs.touch(path, truncate=True)
+        assert fs.size(path) == 0
+
+        with fs.open(path, "wb") as f:
+            f.write(b"data")
+        assert fs.size(path) == 4
+        with pytest.raises(ValueError):
+            fs.touch(path, truncate=False)
+        assert fs.size(path) == 4
+
+    def test_pandas_read_csv(self):
         import pandas
 
         df = pandas.read_csv(
@@ -155,6 +241,16 @@ class TestS3FileSystem:
             names=["col"],
         )
         assert [(row["col"],) for _, row in df.iterrows()] == [(123456789,)]
+
+    def test_pandas_write_csv(self):
+        import pandas
+
+        df = pandas.DataFrame({"a": [1], "b": [2]})
+        path = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/{uuid.uuid4()}.csv"
+        df.to_csv(path, index=False)
+
+        actual = pandas.read_csv(path)
+        pandas.testing.assert_frame_equal(df, actual)
 
 
 class TestS3File:

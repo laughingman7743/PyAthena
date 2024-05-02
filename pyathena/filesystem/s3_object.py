@@ -99,7 +99,7 @@ class S3Object(MutableMapping[str, Any]):
     def to_api_repr(self) -> Dict[str, Any]:
         fields = {}
         for k, v in _API_FIELD_TO_S3_OBJECT_PROPERTY.items():
-            if k in ["LastModified"]:
+            if k in ["ETag", "ContentLength", "LastModified"]:
                 # Excluded from API representation
                 continue
             field = self.get(v)
@@ -124,7 +124,6 @@ class S3PutObject:
         self._sse_kms_encryption_context = response.get("SSEKMSEncryptionContext")
         self._bucket_key_enabled = response.get("BucketKeyEnabled")
         self._request_charged = response.get("RequestCharged")
-        self._checksum_algorithm = response.get("ChecksumAlgorithm")
 
     @property
     def expiration(self) -> Optional[str]:
@@ -350,6 +349,9 @@ class S3MultipartUploadPart:
 
 class S3CompleteMultipartUpload:
     def __init__(self, response: Dict[str, Any]):
+        self._location: Optional[str] = response.get("Location")
+        self._bucket: Optional[str] = response.get("Bucket")
+        self._key: Optional[str] = response.get("Key")
         self._expiration: Optional[str] = response.get("Expiration")
         self._version_id: Optional[str] = response.get("VersionId")
         self._etag: Optional[str] = response.get("ETag")
@@ -361,6 +363,18 @@ class S3CompleteMultipartUpload:
         self._sse_kms_key_id = response.get("SSEKMSKeyId")
         self._bucket_key_enabled = response.get("BucketKeyEnabled")
         self._request_charged = response.get("RequestCharged")
+
+    @property
+    def location(self) -> Optional[str]:
+        return self._location
+
+    @property
+    def bucket(self) -> Optional[str]:
+        return self._bucket
+
+    @property
+    def key(self) -> Optional[str]:
+        return self._key
 
     @property
     def expiration(self) -> Optional[str]:

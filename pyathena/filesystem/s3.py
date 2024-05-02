@@ -37,6 +37,9 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class S3FileSystem(AbstractFileSystem):
+    # https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html
+    # The minimum size of a part in a multipart upload is 5MB.
+    MULTIPART_UPLOAD_MINIMUM_SIZE: int = 5 * 2**20  # 5MB
     DEFAULT_BLOCK_SIZE: int = 5 * 2**20  # 5MB
     PATTERN_PATH: Pattern[str] = re.compile(
         r"(^s3://|^s3a://|^)(?P<bucket>[a-zA-Z0-9.\-_]+)(/(?P<key>[^?]+)|/)?"
@@ -454,17 +457,28 @@ class S3FileSystem(AbstractFileSystem):
         if not key:
             raise ValueError("Cannot touch the bucket.")
 
-        object = self._put_object(bucket=bucket, key=key, body=None, **kwargs)
-        self.invalidate_cache(self._parent(path))
-        return object.to_dict()
+        object_ = self._put_object(bucket=bucket, key=key, body=None, **kwargs)
+        self.invalidate_cache(path)
+        return object_.to_dict()
 
     def cp_file(self, path1, path2, **kwargs):
         # TODO
         raise NotImplementedError  # pragma: no cover
 
     def cat_file(self, path, start=None, end=None, **kwargs):
-        # TODO
-        raise NotImplementedError  # pragma: no cover
+        bucket, key, version_id = self.parse_path(path)
+        if start is not None and end is not None:
+            ranges = (start, end)
+        else:
+            ranges = None
+
+        return self._get_object(
+            bucket=bucket,
+            key=key,
+            ranges=ranges,
+            version_id=version_id,
+            **kwargs,
+        )[1]
 
     def pipe_file(self, path, value, **kwargs):
         # TODO
@@ -535,16 +549,21 @@ class S3FileSystem(AbstractFileSystem):
         self,
         bucket: str,
         key: str,
-        ranges: Tuple[int, int],
+        ranges: Optional[Tuple[int, int]],
         version_id: Optional[str] = None,
         **kwargs,
     ) -> Tuple[int, bytes]:
-        range_ = f"bytes={ranges[0]}-{ranges[1] - 1}"
-        request = {"Bucket": bucket, "Key": key, "Range": range_}
+        request = {"Bucket": bucket, "Key": key}
+        if ranges:
+            range_ = f"bytes={ranges[0]}-{ranges[1] - 1}"
+            request.update({"Range": range_})
+        else:
+            ranges = (0, None)
+            range_ = "bytes=0-"
         if version_id:
-            request.update({"versionId": version_id})
+            request.update({"VersionId": version_id})
 
-        _logger.debug(f"Get object: s3://{bucket}/{key}?versionId={version_id} {range_}")
+        _logger.debug(f"Get object: s3://{bucket}/{key}?versionId={version_id}&range={range_}")
         response = self._call(
             self._client.get_object,
             **request,
@@ -676,7 +695,6 @@ class S3File(AbstractBufferedFile):
         s3_additional_kwargs=None,
     ):
         self.max_workers = max_workers
-        self.worker_block_size = block_size
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self.s3_additional_kwargs = s3_additional_kwargs if s3_additional_kwargs else {}
 
@@ -706,6 +724,10 @@ class S3File(AbstractBufferedFile):
             self.version_id = path_version_id
         else:
             self.version_id = version_id
+        if "r" not in mode and block_size < self.fs.MULTIPART_UPLOAD_MINIMUM_SIZE:
+            # When writing occurs, the block size should not be smaller
+            # than the minimum size of a part in a multipart upload.
+            raise ValueError(f"Block size must be >= {self.fs.MULTIPART_UPLOAD_MINIMUM_SIZE}MB.")
 
         self.append_block = False
         if "r" in mode:
@@ -716,7 +738,10 @@ class S3File(AbstractBufferedFile):
         elif "a" in mode and self.fs.exists(path):
             self.append_block = True
             info = self.fs.info(self.path, version_id=self.version_id)
-            self.loc = info.get("size", 0)
+            loc = info.get("size", 0)
+            if loc < self.fs.MULTIPART_UPLOAD_MINIMUM_SIZE:
+                self.write(self.fs.cat(self.path))
+            self.loc = loc
             self.s3_additional_kwargs.update(info.to_api_repr())
             self._details = info
         else:
@@ -730,7 +755,8 @@ class S3File(AbstractBufferedFile):
         self._executor.shutdown()
 
     def _initiate_upload(self):
-        if self.autocommit and not self.append_block and self.tell() < self.blocksize:
+        if self.tell() < self.blocksize:
+            # Files smaller than block size in size cannot be multipart uploaded.
             return
 
         self.multipart_upload = self.fs._create_multipart_upload(
@@ -744,38 +770,39 @@ class S3File(AbstractBufferedFile):
                     self.fs._upload_part_copy,
                     bucket=self.bucket,
                     key=self.key,
+                    copy_source=self.path,
                     upload_id=cast(str, cast(S3MultipartUpload, self.multipart_upload).upload_id),
                     part_number=1,
-                    **self.s3_additional_kwargs,
                 )
             )
 
     def _upload_chunk(self, final=False):
-        if not self.append_block and self.tell() < self.blocksize:
+        if self.tell() < self.blocksize:
+            # Files smaller than block size in size cannot be multipart uploaded.
             if self.autocommit and final:
                 self.commit()
             return True
 
         if not self.multipart_upload:
             raise RuntimeError("Multipart upload is not initialized.")
+
+        part_number = len(self.multipart_upload_parts)
+        self.buffer.seek(0)
+        while data := self.buffer.read(self.blocksize):
+            part_number += 1
+            self.multipart_upload_parts.append(
+                self._executor.submit(
+                    self.fs._upload_part,
+                    bucket=self.bucket,
+                    key=self.key,
+                    upload_id=cast(str, self.multipart_upload.upload_id),
+                    part_number=part_number,
+                    body=data,
+                )
+            )
+
         if self.autocommit and final:
             self.commit()
-        else:
-            part_number = len(self.multipart_upload_parts)
-            self.buffer.seek(0)
-            while data := self.buffer.read(self.blocksize):
-                part_number += 1
-                self.multipart_upload_parts.append(
-                    self._executor.submit(
-                        self.fs._upload_part,
-                        bucket=self.bucket,
-                        key=self.key,
-                        upload_id=cast(str, self.multipart_upload.upload_id),
-                        part_number=part_number,
-                        body=data,
-                        **self.s3_additional_kwargs,
-                    )
-                )
         return True
 
     def commit(self):
@@ -785,6 +812,7 @@ class S3File(AbstractBufferedFile):
                 self.fs.touch(self.path, **self.s3_additional_kwargs)
         elif not self.multipart_upload_parts:
             if self.buffer is not None:
+                # Upload files smaller than block size.
                 self.buffer.seek(0)
                 data = self.buffer.read()
                 self.fs._put_object(
@@ -834,7 +862,7 @@ class S3File(AbstractBufferedFile):
 
     def _fetch_range(self, start: int, end: int) -> bytes:
         ranges = self._get_ranges(
-            start, end, max_workers=self.max_workers, worker_block_size=self.worker_block_size
+            start, end, max_workers=self.max_workers, worker_block_size=self.blocksize
         )
         if len(ranges) > 1:
             object_ = self._merge_objects(
