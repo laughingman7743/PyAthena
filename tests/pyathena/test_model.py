@@ -14,168 +14,65 @@ from pyathena.model import (
     AthenaTableMetadata,
 )
 
-ATHENA_QUERY_EXECUTION_RESPONSE = {
-    "QueryExecution": {
-        "QueryExecutionId": "12345678-90ab-cdef-1234-567890abcdef",
-        "Query": "SELECT * FROM test_table",
-        "StatementType": "DML",
-        "ResultConfiguration": {
-            "OutputLocation": "s3://bucket/path/to/output/",
-            "EncryptionConfiguration": {
-                "EncryptionOption": "test_encryption_option",
-                "KmsKey": "test_kms_key",
-            },
-            "ExpectedBucketOwner": "test-bucket-owner",
-            "AclConfiguration": {"S3AclOption": "BUCKET_OWNER_FULL_CONTROL"},
-        },
-        "ResultReuseConfiguration": {
-            "ResultReuseByAgeConfiguration": {"Enabled": True, "MaxAgeInMinutes": 5}
-        },
-        "QueryExecutionContext": {"Database": "test_database", "Catalog": "test_catalog"},
-        "Status": {
-            "State": "SUCCEEDED",
-            "StateChangeReason": "test_reason",
-            "SubmissionDateTime": datetime(2019, 1, 2, 3, 4, 5),
-            "CompletionDateTime": datetime(2019, 9, 8, 7, 6, 5),
-            "AthenaError": {
-                "ErrorCategory": 2,
-                "ErrorType": 1001,
-                "Retryable": True,
-                "ErrorMessage": "test_error_message",
-            },
-        },
-        "Statistics": {
-            "EngineExecutionTimeInMillis": 234567890,
-            "DataScannedInBytes": 1234567890,
-            "DataManifestLocation": "s3://bucket/path/to/data_manifest/",
-            "TotalExecutionTimeInMillis": 4567890,
-            "QueryQueueTimeInMillis": 34567890,
-            "QueryPlanningTimeInMillis": 567890,
-            "ServiceProcessingTimeInMillis": 67890,
-            "ResultReuseInformation": {"ReusedPreviousResult": True},
-        },
-        "WorkGroup": "test_work_group",
-        "EngineVersion": {
-            "SelectedEngineVersion": "Athena engine version 2",
-            "EffectiveEngineVersion": "Athena engine version 2",
-        },
-        "ExecutionParameters": [
-            "param1",
-            "param2",
-        ],
-    }
-}
-ATHENA_CALCULATION_EXECUTION_RESPONSE = {
-    "CalculationExecutionId": "calculation_id",
-    "SessionId": "session_id",
-    "Description": "description",
-    "WorkingDirectory": "working_directory",
-    "Status": {
-        "SubmissionDateTime": datetime(2015, 1, 1, 1, 1, 1),
-        "CompletionDateTime": datetime(2016, 1, 1, 1, 1, 1),
-        "State": "COMPLETED",
-        "StateChangeReason": "reason",
-    },
-    "Statistics": {"DpuExecutionInMillis": 123, "Progress": "progress"},
-    "Result": {
-        "StdOutS3Uri": "s3://bucket/path/to/stdout",
-        "StdErrorS3Uri": "s3://bucket/path/to/stderror",
-        "ResultS3Uri": "s3://bucket/path/to/result",
-        "ResultType": "type",
-    },
-}
-ATHENA_SESSION_STATUS_RESPONSE = {
-    "SessionId": "session_id",
-    "Status": {
-        "StartDateTime": datetime(2015, 1, 1, 1, 1, 1),
-        "LastModifiedDateTime": datetime(2016, 1, 1, 1, 1, 1),
-        "EndDateTime": datetime(2017, 1, 1, 1, 1, 1),
-        "IdleSinceDateTime": datetime(2018, 1, 1, 1, 1, 1),
-        "State": "IDLE",
-        "StateChangeReason": "reason",
-    },
-}
-ATHENA_TABLE_METADATA_RESPONSE = {
-    "TableMetadata": {
-        "Name": "test_name",
-        "CreateTime": datetime(2015, 1, 2, 3, 4, 5),
-        "LastAccessTime": datetime(2015, 9, 8, 7, 6, 5),
-        "TableType": "test_table_type",
-        "Columns": [
-            {"Name": "test_name_1", "Type": "test_type_1", "Comment": "test_comment_1"},
-            {"Name": "test_name_2", "Type": "test_type_2", "Comment": "test_comment_2"},
-        ],
-        "PartitionKeys": [
-            {"Name": "test_name_1", "Type": "test_type_1", "Comment": "test_comment_1"},
-            {"Name": "test_name_2", "Type": "test_type_2", "Comment": "test_comment_2"},
-        ],
-        "Parameters": {"comment": "test_comment"},
-    }
-}
-ATHENA_TABLE_METADATA_PARAMETERS_TEXT = {
-    "EXTERNAL": "TRUE",
-    "has_encrypted_data": "false",
-    "inputformat": "org.apache.hadoop.mapred.TextInputFormat",
-    "location": "s3://bucket/path/to",
-    "outputformat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
-    "presto_query_id": "20220101_123456_98765_abcde",
-    "serde.serialization.lib": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
-    "write.compression": "SNAPPY",
-}
-ATHENA_TABLE_METADATA_PARAMETERS_JSON = {
-    "EXTERNAL": "TRUE",
-    "inputformat": "org.apache.hadoop.mapred.TextInputFormat",
-    "location": "s3://bucket/path/to",
-    "outputformat": "org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat",
-    "serde.param.serialization.format": "1",
-    "serde.param.write.compression": "GZIP",
-    "serde.serialization.lib": "org.openx.data.jsonserde.JsonSerDe",
-    "transient_lastDdlTime": "1234567890",
-}
-ATHENA_TABLE_METADATA_PARAMETERS_JSON_HCATALOG = {
-    "EXTERNAL": "TRUE",
-    "has_encrypted_data": "false",
-    "inputformat": "org.apache.hadoop.mapred.TextInputFormat",
-    "location": "s3://bucket/path/to",
-    "outputformat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
-    "presto_query_id": "20220101_123456_98765_abcde",
-    "serde.serialization.lib": "org.apache.hive.hcatalog.data.JsonSerDe",
-    "write.compression": "SNAPPY",
-}
-ATHENA_TABLE_METADATA_PARAMETERS_PARQUET = {
-    "EXTERNAL": "TRUE",
-    "inputformat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
-    "location": "s3://bucket/path/to",
-    "outputformat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
-    "parquet.compress": "SNAPPY",
-    "serde.param.serialization.format": "1",
-    "serde.serialization.lib": "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
-    "transient_lastDdlTime": "1234567890",
-}
-ATHENA_TABLE_METADATA_PARAMETERS_ORC = {
-    "EXTERNAL": "TRUE",
-    "has_encrypted_data": "false",
-    "inputformat": "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat",
-    "location": "s3://bucket/path/to",
-    "orc.compress": "SNAPPY",
-    "outputformat": "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat",
-    "presto_query_id": "20220101_123456_98765_abcde",
-    "serde.serialization.lib": "org.apache.hadoop.hive.ql.io.orc.OrcSerde",
-}
-ATHENA_TABLE_METADATA_PARAMETERS_AVRO = {
-    "EXTERNAL": "TRUE",
-    "has_encrypted_data": "false",
-    "inputformat": "org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat",
-    "location": "s3://bucket/path/to",
-    "outputformat": "org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat",
-    "presto_query_id": "20220101_123456_98765_abcde",
-    "serde.serialization.lib": "org.apache.hadoop.hive.serde2.avro.AvroSerDe",
-}
-
 
 class TestAthenaQueryExecution:
     def test_init(self):
-        actual = AthenaQueryExecution(ATHENA_QUERY_EXECUTION_RESPONSE)
+        actual = AthenaQueryExecution(
+            {
+                "QueryExecution": {
+                    "QueryExecutionId": "12345678-90ab-cdef-1234-567890abcdef",
+                    "Query": "SELECT * FROM test_table",
+                    "StatementType": "DML",
+                    "ResultConfiguration": {
+                        "OutputLocation": "s3://bucket/path/to/output/",
+                        "EncryptionConfiguration": {
+                            "EncryptionOption": "test_encryption_option",
+                            "KmsKey": "test_kms_key",
+                        },
+                        "ExpectedBucketOwner": "test-bucket-owner",
+                        "AclConfiguration": {"S3AclOption": "BUCKET_OWNER_FULL_CONTROL"},
+                    },
+                    "ResultReuseConfiguration": {
+                        "ResultReuseByAgeConfiguration": {"Enabled": True, "MaxAgeInMinutes": 5}
+                    },
+                    "QueryExecutionContext": {
+                        "Database": "test_database",
+                        "Catalog": "test_catalog",
+                    },
+                    "Status": {
+                        "State": "SUCCEEDED",
+                        "StateChangeReason": "test_reason",
+                        "SubmissionDateTime": datetime(2019, 1, 2, 3, 4, 5),
+                        "CompletionDateTime": datetime(2019, 9, 8, 7, 6, 5),
+                        "AthenaError": {
+                            "ErrorCategory": 2,
+                            "ErrorType": 1001,
+                            "Retryable": True,
+                            "ErrorMessage": "test_error_message",
+                        },
+                    },
+                    "Statistics": {
+                        "EngineExecutionTimeInMillis": 234567890,
+                        "DataScannedInBytes": 1234567890,
+                        "DataManifestLocation": "s3://bucket/path/to/data_manifest/",
+                        "TotalExecutionTimeInMillis": 4567890,
+                        "QueryQueueTimeInMillis": 34567890,
+                        "QueryPlanningTimeInMillis": 567890,
+                        "ServiceProcessingTimeInMillis": 67890,
+                        "ResultReuseInformation": {"ReusedPreviousResult": True},
+                    },
+                    "WorkGroup": "test_work_group",
+                    "EngineVersion": {
+                        "SelectedEngineVersion": "Athena engine version 2",
+                        "EffectiveEngineVersion": "Athena engine version 2",
+                    },
+                    "ExecutionParameters": [
+                        "param1",
+                        "param2",
+                    ],
+                }
+            }
+        )
         assert actual.database == "test_database"
         assert actual.catalog == "test_catalog"
         assert actual.query_id, "12345678-90ab-cdef-1234-567890abcdef"
@@ -212,7 +109,27 @@ class TestAthenaQueryExecution:
 
 class TestAthenaCalculationExecution:
     def test_init(self):
-        actual = AthenaCalculationExecution(ATHENA_CALCULATION_EXECUTION_RESPONSE)
+        actual = AthenaCalculationExecution(
+            {
+                "CalculationExecutionId": "calculation_id",
+                "SessionId": "session_id",
+                "Description": "description",
+                "WorkingDirectory": "working_directory",
+                "Status": {
+                    "SubmissionDateTime": datetime(2015, 1, 1, 1, 1, 1),
+                    "CompletionDateTime": datetime(2016, 1, 1, 1, 1, 1),
+                    "State": "COMPLETED",
+                    "StateChangeReason": "reason",
+                },
+                "Statistics": {"DpuExecutionInMillis": 123, "Progress": "progress"},
+                "Result": {
+                    "StdOutS3Uri": "s3://bucket/path/to/stdout",
+                    "StdErrorS3Uri": "s3://bucket/path/to/stderror",
+                    "ResultS3Uri": "s3://bucket/path/to/result",
+                    "ResultType": "type",
+                },
+            }
+        )
         assert actual.calculation_id == "calculation_id"
         assert actual.session_id == "session_id"
         assert actual.description == "description"
@@ -231,7 +148,19 @@ class TestAthenaCalculationExecution:
 
 class TestAthenaSessionStatus:
     def test_init(self):
-        actual = AthenaSessionStatus(ATHENA_SESSION_STATUS_RESPONSE)
+        actual = AthenaSessionStatus(
+            {
+                "SessionId": "session_id",
+                "Status": {
+                    "StartDateTime": datetime(2015, 1, 1, 1, 1, 1),
+                    "LastModifiedDateTime": datetime(2016, 1, 1, 1, 1, 1),
+                    "EndDateTime": datetime(2017, 1, 1, 1, 1, 1),
+                    "IdleSinceDateTime": datetime(2018, 1, 1, 1, 1, 1),
+                    "State": "IDLE",
+                    "StateChangeReason": "reason",
+                },
+            }
+        )
         assert actual.session_id == "session_id"
         assert actual.state == AthenaSessionStatus.STATE_IDLE
         assert actual.state_change_reason == "reason"
@@ -242,8 +171,100 @@ class TestAthenaSessionStatus:
 
 
 class TestAthenaTableMetadata:
+    def _create_table_metadata(self):
+        return {
+            "TableMetadata": {
+                "Name": "test_name",
+                "CreateTime": datetime(2015, 1, 2, 3, 4, 5),
+                "LastAccessTime": datetime(2015, 9, 8, 7, 6, 5),
+                "TableType": "test_table_type",
+                "Columns": [
+                    {"Name": "test_name_1", "Type": "test_type_1", "Comment": "test_comment_1"},
+                    {"Name": "test_name_2", "Type": "test_type_2", "Comment": "test_comment_2"},
+                ],
+                "PartitionKeys": [
+                    {"Name": "test_name_1", "Type": "test_type_1", "Comment": "test_comment_1"},
+                    {"Name": "test_name_2", "Type": "test_type_2", "Comment": "test_comment_2"},
+                ],
+                "Parameters": {"comment": "test_comment"},
+            }
+        }
+
+    def _create_table_metadata_parameters_text(self):
+        return {
+            "EXTERNAL": "TRUE",
+            "has_encrypted_data": "false",
+            "inputformat": "org.apache.hadoop.mapred.TextInputFormat",
+            "location": "s3://bucket/path/to",
+            "outputformat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            "presto_query_id": "20220101_123456_98765_abcde",
+            "serde.serialization.lib": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+            "write.compression": "SNAPPY",
+        }
+
+    def _create_table_metadata_parameters_json(self):
+        return {
+            "EXTERNAL": "TRUE",
+            "inputformat": "org.apache.hadoop.mapred.TextInputFormat",
+            "location": "s3://bucket/path/to",
+            "outputformat": "org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat",
+            "serde.param.serialization.format": "1",
+            "serde.param.write.compression": "GZIP",
+            "serde.serialization.lib": "org.openx.data.jsonserde.JsonSerDe",
+            "transient_lastDdlTime": "1234567890",
+        }
+
+    def _create_table_metadata_parameters_json_hcatalog(self):
+        return {
+            "EXTERNAL": "TRUE",
+            "has_encrypted_data": "false",
+            "inputformat": "org.apache.hadoop.mapred.TextInputFormat",
+            "location": "s3://bucket/path/to",
+            "outputformat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            "presto_query_id": "20220101_123456_98765_abcde",
+            "serde.serialization.lib": "org.apache.hive.hcatalog.data.JsonSerDe",
+            "write.compression": "SNAPPY",
+        }
+
+    def _create_table_metadata_parameters_parquet(self):
+        return {
+            "EXTERNAL": "TRUE",
+            "inputformat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "location": "s3://bucket/path/to",
+            "outputformat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
+            "parquet.compress": "SNAPPY",
+            "serde.param.serialization.format": "1",
+            "serde.serialization.lib": (
+                "org.apache.hadoop.hive.ql.io.parquet.serde." "ParquetHiveSerDe"
+            ),
+            "transient_lastDdlTime": "1234567890",
+        }
+
+    def _create_table_metadata_parameters_orc(self):
+        return {
+            "EXTERNAL": "TRUE",
+            "has_encrypted_data": "false",
+            "inputformat": "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat",
+            "location": "s3://bucket/path/to",
+            "orc.compress": "SNAPPY",
+            "outputformat": "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat",
+            "presto_query_id": "20220101_123456_98765_abcde",
+            "serde.serialization.lib": "org.apache.hadoop.hive.ql.io.orc.OrcSerde",
+        }
+
+    def _create_table_metadata_parameters_avro(self):
+        return {
+            "EXTERNAL": "TRUE",
+            "has_encrypted_data": "false",
+            "inputformat": "org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat",
+            "location": "s3://bucket/path/to",
+            "outputformat": "org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat",
+            "presto_query_id": "20220101_123456_98765_abcde",
+            "serde.serialization.lib": "org.apache.hadoop.hive.serde2.avro.AvroSerDe",
+        }
+
     def test_init(self):
-        actual = AthenaTableMetadata(ATHENA_TABLE_METADATA_RESPONSE)
+        actual = AthenaTableMetadata(self._create_table_metadata())
         assert actual.name == "test_name"
         assert actual.create_time == datetime(2015, 1, 2, 3, 4, 5)
         assert actual.last_access_time == datetime(2015, 9, 8, 7, 6, 5)
@@ -276,10 +297,11 @@ class TestAthenaTableMetadata:
         assert actual.compression is None
 
     def test_init_text(self):
-        response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
-        response["TableMetadata"]["Parameters"] = ATHENA_TABLE_METADATA_PARAMETERS_TEXT
+        response = copy.deepcopy(self._create_table_metadata())
+        parameters = copy.deepcopy(self._create_table_metadata_parameters_text())
+        response["TableMetadata"]["Parameters"] = parameters
         actual = AthenaTableMetadata(response)
-        assert actual.parameters == ATHENA_TABLE_METADATA_PARAMETERS_TEXT
+        assert actual.parameters == parameters
         assert actual.comment is None
         assert actual.location == "s3://bucket/path/to"
         assert actual.input_format == "org.apache.hadoop.mapred.TextInputFormat"
@@ -295,10 +317,11 @@ class TestAthenaTableMetadata:
         )
 
     def test_init_json(self):
-        response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
-        response["TableMetadata"]["Parameters"] = ATHENA_TABLE_METADATA_PARAMETERS_JSON
+        response = copy.deepcopy(self._create_table_metadata())
+        parameters = copy.deepcopy(self._create_table_metadata_parameters_json())
+        response["TableMetadata"]["Parameters"] = parameters
         actual = AthenaTableMetadata(response)
-        assert actual.parameters == ATHENA_TABLE_METADATA_PARAMETERS_JSON
+        assert actual.parameters == parameters
         assert actual.comment is None
         assert actual.location == "s3://bucket/path/to"
         assert actual.input_format == "org.apache.hadoop.mapred.TextInputFormat"
@@ -318,10 +341,11 @@ class TestAthenaTableMetadata:
         )
 
     def test_init_json_hcatalog(self):
-        response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
-        response["TableMetadata"]["Parameters"] = ATHENA_TABLE_METADATA_PARAMETERS_JSON_HCATALOG
+        response = copy.deepcopy(self._create_table_metadata())
+        parameters = copy.deepcopy(self._create_table_metadata_parameters_json_hcatalog())
+        response["TableMetadata"]["Parameters"] = parameters
         actual = AthenaTableMetadata(response)
-        assert actual.parameters == ATHENA_TABLE_METADATA_PARAMETERS_JSON_HCATALOG
+        assert actual.parameters == parameters
         assert actual.comment is None
         assert actual.location == "s3://bucket/path/to"
         assert actual.input_format == "org.apache.hadoop.mapred.TextInputFormat"
@@ -338,10 +362,11 @@ class TestAthenaTableMetadata:
         )
 
     def test_init_parquet(self):
-        response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
-        response["TableMetadata"]["Parameters"] = ATHENA_TABLE_METADATA_PARAMETERS_PARQUET
+        response = copy.deepcopy(self._create_table_metadata())
+        parameters = copy.deepcopy(self._create_table_metadata_parameters_parquet())
+        response["TableMetadata"]["Parameters"] = parameters
         actual = AthenaTableMetadata(response)
-        assert actual.parameters == ATHENA_TABLE_METADATA_PARAMETERS_PARQUET
+        assert actual.parameters == parameters
         assert actual.comment is None
         assert actual.location == "s3://bucket/path/to"
         assert (
@@ -371,10 +396,11 @@ class TestAthenaTableMetadata:
         )
 
     def test_init_orc(self):
-        response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
-        response["TableMetadata"]["Parameters"] = ATHENA_TABLE_METADATA_PARAMETERS_ORC
+        response = copy.deepcopy(self._create_table_metadata())
+        parameters = copy.deepcopy(self._create_table_metadata_parameters_orc())
+        response["TableMetadata"]["Parameters"] = parameters
         actual = AthenaTableMetadata(response)
-        assert actual.parameters == ATHENA_TABLE_METADATA_PARAMETERS_ORC
+        assert actual.parameters == parameters
         assert actual.comment is None
         assert actual.location == "s3://bucket/path/to"
         assert actual.input_format == "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat"
@@ -391,10 +417,11 @@ class TestAthenaTableMetadata:
         )
 
     def test_init_avro(self):
-        response = copy.deepcopy(ATHENA_TABLE_METADATA_RESPONSE)
-        response["TableMetadata"]["Parameters"] = ATHENA_TABLE_METADATA_PARAMETERS_AVRO
+        response = copy.deepcopy(self._create_table_metadata())
+        parameters = copy.deepcopy(self._create_table_metadata_parameters_avro())
+        response["TableMetadata"]["Parameters"] = parameters
         actual = AthenaTableMetadata(response)
-        assert actual.parameters == ATHENA_TABLE_METADATA_PARAMETERS_AVRO
+        assert actual.parameters == parameters
         assert actual.comment is None
         assert actual.location == "s3://bucket/path/to"
         assert actual.input_format == "org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat"

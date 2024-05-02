@@ -136,7 +136,6 @@ profile_file = "tests/sqlalchemy/profiles.txt"
 line-length = 100
 exclude = [
     ".venv",
-    "tests"
 ]
 target-version = "py38"
 

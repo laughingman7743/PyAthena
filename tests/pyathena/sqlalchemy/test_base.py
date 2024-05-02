@@ -518,7 +518,7 @@ class TestSQLAlchemyAthena:
                 "file_format": "parquet",
                 "compression": "snappy",
                 "bucket_count": 5,
-                "partition": "col_int%2Ccol_string"
+                "partition": "col_int%2Ccol_string",
                 # INSERT is not supported for bucketed tables
             }
         ],
@@ -1049,10 +1049,10 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
             == "INPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat' "
             "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat'"
         )
-        assert (
-            dialect_opts["serdeproperties"]["avro.schema.literal"].replace("\n", "")
-            == textwrap.dedent(
-                """
+        assert dialect_opts["serdeproperties"]["avro.schema.literal"].replace(
+            "\n", ""
+        ) == textwrap.dedent(
+            """
                 {
                  "type" : "record",
                  "name" : "test_create_table_avro",
@@ -1064,8 +1064,7 @@ OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
                  } ]
                 }
                 """
-            ).replace("\n", "")
-        )
+        ).replace("\n", "")
         assert dialect_opts["tblproperties"] is not None
 
     def test_create_table_with_comments(self, engine):
@@ -1896,10 +1895,26 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
         assert type(actual.c.col_double2.type) in [types.FLOAT, types.Float]
         assert type(actual.c.col_double_precision.type) in [types.FLOAT, types.Float]
         # TODO: types.DOUBLE is not defined in SQLAlchemy 1.4.
-        # assert type(actual.c.col_double_precision.type) in [types.DOUBLE, types.Double, types.DOUBLE_PRECISION]
-        # assert type(actual.c.col_double1.type) in [types.DOUBLE, types.Double, types.DOUBLE_PRECISION]
-        # assert type(actual.c.col_double2.type) in [types.DOUBLE, types.Double, types.DOUBLE_PRECISION]
-        # assert type(actual.c.col_double_precision.type) in [types.DOUBLE, types.Double, types.DOUBLE_PRECISION]
+        # assert type(actual.c.col_double_precision.type) in [
+        #     types.DOUBLE,
+        #     types.Double,
+        #     types.DOUBLE_PRECISION,
+        # ]
+        # assert type(actual.c.col_double1.type) in [
+        #     types.DOUBLE,
+        #     types.Double,
+        #     types.DOUBLE_PRECISION,
+        # ]
+        # assert type(actual.c.col_double2.type) in [
+        #     types.DOUBLE,
+        #     types.Double,
+        #     types.DOUBLE_PRECISION,
+        # ]
+        # assert type(actual.c.col_double_precision.type) in [
+        #     types.DOUBLE,
+        #     types.Double,
+        #     types.DOUBLE_PRECISION,
+        # ]
         assert type(actual.c.col_float1.type) in [types.FLOAT, types.Float]
         assert type(actual.c.col_float2.type) in [types.FLOAT, types.Float]
         assert type(actual.c.col_decimal.type) in [types.DECIMAL]
@@ -1944,7 +1959,9 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
 
         version = 1
         table_alias = table.alias()
-        query = select(func.count(table_alias.c.col_1)).with_hint(table_alias, f"FOR VERSION AS OF {version}")
+        query = select(func.count(table_alias.c.col_1)).with_hint(
+            table_alias, f"FOR VERSION AS OF {version}"
+        )
         compiled = query.compile(compile_kwargs={"literal_binds": True}, dialect=engine.dialect)
         assert compiled.string == textwrap.dedent(
             f"SELECT count({table_name}_1.col_1) AS count_1 \n"
@@ -1966,11 +1983,12 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
             awsathena_tblproperties={},
         )
 
-        timestamp = '2024-01-01 01:00:00 UTC'
-        query = select(func.count(table.c.col_1)).with_hint(table, f"FOR VERSION AS OF '{timestamp}'")
+        timestamp = "2024-01-01 01:00:00 UTC"
+        query = select(func.count(table.c.col_1)).with_hint(
+            table, f"FOR VERSION AS OF '{timestamp}'"
+        )
         compiled = query.compile(compile_kwargs={"literal_binds": True}, dialect=engine.dialect)
         assert compiled.string == (
             f"SELECT count({ENV.schema}.{table_name}.col_1) AS count_1 \n"
             f"FROM {ENV.schema}.{table_name} FOR VERSION AS OF '{timestamp}'"
         )
-
