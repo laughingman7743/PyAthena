@@ -1,11 +1,20 @@
 # -*- coding: utf-8 -*-
+import os
+import tempfile
+import time
+import urllib.parse
+import urllib.request
 import uuid
+from datetime import datetime, timezone
 from itertools import chain
+from pathlib import Path
 
 import fsspec
 import pytest
+from fsspec import Callback
 
 from pyathena.filesystem.s3 import S3File, S3FileSystem
+from pyathena.filesystem.s3_object import S3ObjectType, S3StorageClass
 from tests import ENV
 from tests.pyathena.conftest import connect
 
@@ -174,7 +183,10 @@ class TestS3FileSystem:
     )
     def test_write(self, fs, base, exp):
         data = b"a" * (base * exp)
-        path = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/{uuid.uuid4()}.dat"
+        path = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+            f"filesystem/test_write/{uuid.uuid4()}"
+        )
         with fs.open(path, "wb") as f:
             f.write(data)
         with fs.open(path, "rb") as f:
@@ -202,7 +214,10 @@ class TestS3FileSystem:
     def test_append(self, fs, base, exp):
         # TODO: Check the metadata is kept.
         data = b"a" * (base * exp)
-        path = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/{uuid.uuid4()}.dat"
+        path = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+            f"filesystem/test_append/{uuid.uuid4()}"
+        )
         with fs.open(path, "ab") as f:
             f.write(data)
         extra = b"extra"
@@ -213,17 +228,255 @@ class TestS3FileSystem:
             assert len(actual) == len(data + extra)
             assert actual == data + extra
 
-    def test_exists(self, fs):
+    def test_ls_buckets(self, fs):
+        fs.invalidate_cache()
+        actual = fs.ls("s3://")
+        assert ENV.s3_staging_bucket in actual, actual
+
+        fs.invalidate_cache()
+        actual = fs.ls("s3:///")
+        assert ENV.s3_staging_bucket in actual, actual
+
+        fs.invalidate_cache()
+        ls = fs.ls("s3://", detail=True)
+        actual = next(filter(lambda x: x.name == ENV.s3_staging_bucket, ls), None)
+        assert actual
+        assert actual.name == ENV.s3_staging_bucket
+
+        fs.invalidate_cache()
+        ls = fs.ls("s3:///", detail=True)
+        actual = next(filter(lambda x: x.name == ENV.s3_staging_bucket, ls), None)
+        assert actual
+        assert actual.name == ENV.s3_staging_bucket
+
+    def test_ls_dirs(self, fs):
+        dir_ = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+            f"filesystem/test_ls_dirs"
+        )
+        for i in range(5):
+            fs.pipe(f"{dir_}/prefix/test_{i}", bytes(i))
+        fs.touch(f"{dir_}/prefix2")
+
+        assert len(fs.ls(f"{dir_}/prefix")) == 5
+        assert len(fs.ls(f"{dir_}/prefix/")) == 5
+        assert len(fs.ls(f"{dir_}/prefix/test_")) == 0
+        assert len(fs.ls(f"{dir_}/prefix2")) == 1
+
+        test_1 = fs.ls(f"{dir_}/prefix/test_1")
+        assert len(test_1) == 1
+        assert test_1[0] == fs._strip_protocol(f"{dir_}/prefix/test_1")
+
+        test_1_detail = fs.ls(f"{dir_}/prefix/test_1", detail=True)
+        assert len(test_1_detail) == 1
+        assert test_1_detail[0].name == fs._strip_protocol(f"{dir_}/prefix/test_1")
+        assert test_1_detail[0].size == 1
+
+    def test_info_bucket(self, fs):
+        dir_ = f"s3://{ENV.s3_staging_bucket}"
+        bucket, key, version_id = fs.parse_path(dir_)
+        info = fs.info(dir_)
+
+        assert info.name == fs._strip_protocol(dir_)
+        assert info.bucket == bucket
+        assert info.key is None
+        assert info.last_modified is None
+        assert info.size == 0
+        assert info.etag is None
+        assert info.type == S3ObjectType.S3_OBJECT_TYPE_DIRECTORY
+        assert info.storage_class == S3StorageClass.S3_STORAGE_CLASS_BUCKET
+        assert info.version_id == version_id
+
+        dir_ = f"s3://{ENV.s3_staging_bucket}/"
+        bucket, key, version_id = fs.parse_path(dir_)
+        info = fs.info(dir_)
+
+        assert info.name == fs._strip_protocol(dir_)
+        assert info.bucket == bucket
+        assert info.key is None
+        assert info.last_modified is None
+        assert info.size == 0
+        assert info.etag is None
+        assert info.type == S3ObjectType.S3_OBJECT_TYPE_DIRECTORY
+        assert info.storage_class == S3StorageClass.S3_STORAGE_CLASS_BUCKET
+        assert info.version_id == version_id
+
+    def test_info_dir(self, fs):
+        dir_ = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+            f"filesystem/test_info_dir"
+        )
+        file = f"{dir_}/{uuid.uuid4()}"
+
+        fs.invalidate_cache()
+        with pytest.raises(FileNotFoundError):
+            fs.info(f"s3://{uuid.uuid4()}")
+
+        fs.pipe(file, b"a")
+        bucket, key, version_id = fs.parse_path(dir_)
+        fs.invalidate_cache()
+        info = fs.info(dir_)
+        fs.invalidate_cache()
+
+        assert info.name == fs._strip_protocol(dir_)
+        assert info.bucket == bucket
+        assert info.key == key.rstrip("/")
+        assert info.last_modified is None
+        assert info.size == 0
+        assert info.etag is None
+        assert info.type == S3ObjectType.S3_OBJECT_TYPE_DIRECTORY
+        assert info.storage_class == S3StorageClass.S3_STORAGE_CLASS_DIRECTORY
+        assert info.version_id == version_id
+
+    def test_info_file(self, fs):
+        dir_ = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+            f"filesystem/test_info_file"
+        )
+        file = f"{dir_}/{uuid.uuid4()}"
+
+        fs.invalidate_cache()
+        with pytest.raises(FileNotFoundError):
+            fs.info(file)
+
+        now = datetime.now(timezone.utc)
+        fs.pipe(file, b"a")
+        bucket, key, version_id = fs.parse_path(file)
+        fs.invalidate_cache()
+        info = fs.info(file)
+        fs.invalidate_cache()
+        ls_info = fs.ls(file, detail=True)[0]
+
+        assert info == ls_info
+        assert info.name == fs._strip_protocol(file)
+        assert info.bucket == bucket
+        assert info.key == key
+        assert info.last_modified >= now
+        assert info.size == 1
+        assert info.etag is not None
+        assert info.type == S3ObjectType.S3_OBJECT_TYPE_FILE
+        assert info.storage_class == S3StorageClass.S3_STORAGE_CLASS_STANDARD
+        assert info.version_id == version_id
+
+    def test_find(self, fs):
+        # TODO maxdepsth and withdirs options
+        dir_ = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+            f"filesystem/test_find"
+        )
+        for i in range(5):
+            fs.pipe(f"{dir_}/prefix/test_{i}", bytes(i))
+        fs.touch(f"{dir_}/prefix2")
+
+        assert len(fs.find(f"{dir_}/prefix")) == 5
+        assert len(fs.find(f"{dir_}/prefix/")) == 5
+        assert len(fs.find(dir_, prefix="prefix")) == 6
+        assert len(fs.find(f"{dir_}/prefix/test_")) == 0
+        assert len(fs.find(f"{dir_}/prefix", prefix="test_")) == 5
+        assert len(fs.find(f"{dir_}/prefix/", prefix="test_")) == 5
+
+        test_1 = fs.find(f"{dir_}/prefix/test_1")
+        assert len(test_1) == 1
+        assert test_1[0] == fs._strip_protocol(f"{dir_}/prefix/test_1")
+
+        test_1_detail = fs.find(f"{dir_}/prefix/test_1", detail=True)
+        assert len(test_1_detail) == 1
+        assert test_1_detail[
+            fs._strip_protocol(f"{dir_}/prefix/test_1")
+        ].name == fs._strip_protocol(f"{dir_}/prefix/test_1")
+        assert test_1_detail[fs._strip_protocol(f"{dir_}/prefix/test_1")].size == 1
+
+    def test_du(self):
+        # TODO
+        pass
+
+    def test_glob(self, fs):
+        dir_ = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+            f"filesystem/test_glob"
+        )
+        path = f"{dir_}/nested/test_{uuid.uuid4()}"
+        fs.touch(path)
+
+        assert fs._strip_protocol(path) not in fs.glob(f"{dir_}/")
+        assert fs._strip_protocol(path) not in fs.glob(f"{dir_}/*")
+        assert fs._strip_protocol(path) not in fs.glob(f"{dir_}/nested")
+        assert fs._strip_protocol(path) not in fs.glob(f"{dir_}/nested/")
+        assert fs._strip_protocol(path) in fs.glob(f"{dir_}/nested/*")
+        assert fs._strip_protocol(path) in fs.glob(f"{dir_}/nested/test_*")
+        assert fs._strip_protocol(path) in fs.glob(f"{dir_}/*/*")
+
+        with pytest.raises(ValueError):
+            fs.glob("*")
+
+    def test_exists_bucket(self, fs):
+        assert fs.exists("s3://")
+        assert fs.exists("s3:///")
+
+        path = f"s3://{ENV.s3_staging_bucket}"
+        assert fs.exists(path)
+
+        not_exists_path = f"s3://{uuid.uuid4()}"
+        assert not fs.exists(not_exists_path)
+
+    def test_exists_object(self, fs):
         path = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_filesystem_test_file_key}"
         assert fs.exists(path)
 
         not_exists_path = (
-            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/{uuid.uuid4()}"
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+            f"filesystem/test_exists/{uuid.uuid4()}"
         )
         assert not fs.exists(not_exists_path)
 
+    def test_rm_file(self, fs):
+        dir_ = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+            f"filesystem/test_rm_rile"
+        )
+        file = f"{dir_}/{uuid.uuid4()}"
+        fs.touch(file)
+        fs.rm_file(file)
+
+        assert not fs.exists(file)
+        assert not fs.exists(dir_)
+
+    def test_rm(self, fs):
+        dir_ = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/" f"filesystem/test_rm"
+        )
+        file = f"{dir_}/{uuid.uuid4()}"
+        fs.touch(file)
+        fs.rm(file)
+
+        assert not fs.exists(file)
+        assert not fs.exists(dir_)
+
+    def test_rm_recursive(self, fs):
+        dir_ = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+            f"filesystem/test_rm_recursive"
+        )
+
+        files = [f"{dir_}/{uuid.uuid4()}" for _ in range(10)]
+        for f in files:
+            fs.touch(f)
+
+        fs.rm(dir_)
+        for f in files:
+            assert fs.exists(f)
+        assert fs.exists(dir_)
+
+        fs.rm(dir_, recursive=True)
+        for f in files:
+            assert not fs.exists(f)
+        assert not fs.exists(dir_)
+
     def test_touch(self, fs):
-        path = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/{uuid.uuid4()}"
+        path = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+            f"filesystem/test_touch/{uuid.uuid4()}"
+        )
         assert not fs.exists(path)
         fs.touch(path)
         assert fs.exists(path)
@@ -242,6 +495,234 @@ class TestS3FileSystem:
             fs.touch(path, truncate=False)
         assert fs.size(path) == 4
 
+    @pytest.mark.parametrize(
+        ["base", "exp"],
+        [
+            (1, 2**10),
+            (10, 2**10),
+            (100, 2**10),
+            (1, 2**20),
+            (10, 2**20),
+            (100, 2**20),
+            (1024, 2**20),
+            # TODO: Perhaps OOM is occurring and the worker is shutting down.
+            #   The runner has received a shutdown signal.
+            #   This can happen when the runner service is stopped,
+            #   or a manually started runner is canceled.
+            # (5 * 1024 + 1, 2**20),
+        ],
+    )
+    def test_pipe_cat(self, fs, base, exp):
+        data = b"a" * (base * exp)
+        path = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+            f"filesystem/test_pipe_file/{uuid.uuid4()}"
+        )
+        fs.pipe(path, data)
+        assert fs.cat(path) == data
+
+    def test_cat_ranges(self, fs):
+        data = b"1234567890abcdefghijklmnopqrstuvwxyz"
+        path = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+            f"filesystem/test_cat_ranges/{uuid.uuid4()}"
+        )
+        fs.pipe(path, data)
+
+        assert fs.cat_file(path) == data
+        assert fs.cat_file(path, start=5) == data[5:]
+        assert fs.cat_file(path, end=5) == data[:5]
+        assert fs.cat_file(path, start=1, end=-1) == data[1:-1]
+        assert fs.cat_file(path, start=-5) == data[-5:]
+
+    @pytest.mark.parametrize(
+        ["base", "exp"],
+        [
+            (1, 2**10),
+            (10, 2**10),
+            (100, 2**10),
+            (1, 2**20),
+            (10, 2**20),
+            (100, 2**20),
+            (1024, 2**20),
+            # TODO: Perhaps OOM is occurring and the worker is shutting down.
+            #   The runner has received a shutdown signal.
+            #   This can happen when the runner service is stopped,
+            #   or a manually started runner is canceled.
+            # (5 * 1024 + 1, 2**20),
+        ],
+    )
+    def test_put(self, fs, base, exp):
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            data = b"a" * (base * exp)
+            tmp.write(data)
+            tmp.flush()
+
+            # put
+            rpath = (
+                f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+                f"filesystem/test_put/{uuid.uuid4()}"
+            )
+            fs.put(lpath=tmp.name, rpath=rpath)
+            tmp.seek(0)
+            assert fs.cat(rpath) == tmp.read()
+
+    @pytest.mark.parametrize(
+        ["base", "exp"],
+        [
+            (1, 2**10),
+            (10, 2**10),
+            (100, 2**10),
+            (1, 2**20),
+            (10, 2**20),
+            (100, 2**20),
+            (1024, 2**20),
+            # TODO: Perhaps OOM is occurring and the worker is shutting down.
+            #   The runner has received a shutdown signal.
+            #   This can happen when the runner service is stopped,
+            #   or a manually started runner is canceled.
+            # (5 * 1024 + 1, 2**20),
+        ],
+    )
+    def test_put_with_callback(self, fs, base, exp):
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            data = b"a" * (base * exp)
+            tmp.write(data)
+            tmp.flush()
+
+            # put_file
+            rpath = (
+                f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+                f"filesystem/test_put_with_callback/{uuid.uuid4()}"
+            )
+            callback = Callback()
+            fs.put_file(lpath=tmp.name, rpath=rpath, callback=callback)
+            tmp.seek(0)
+            assert fs.cat(rpath) == tmp.read()
+            assert callback.size == os.stat(tmp.name).st_size
+            assert callback.value == callback.size
+
+    @pytest.mark.parametrize(
+        ["base", "exp"],
+        [
+            (1, 2**10),
+            (10, 2**10),
+            (100, 2**10),
+            (1, 2**20),
+            (10, 2**20),
+            (100, 2**20),
+            (1024, 2**20),
+            # TODO: Perhaps OOM is occurring and the worker is shutting down.
+            #   The runner has received a shutdown signal.
+            #   This can happen when the runner service is stopped,
+            #   or a manually started runner is canceled.
+            # (5 * 1024 + 1, 2**20),
+        ],
+    )
+    def test_upload_cp_file(self, fs, base, exp):
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            data = b"a" * (base * exp)
+            tmp.write(data)
+            tmp.flush()
+
+            rpath = (
+                f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+                f"filesystem/test_upload_copy_file/{uuid.uuid4()}"
+            )
+            fs.upload(lpath=tmp.name, rpath=rpath)
+
+            rpath_copy = (
+                f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+                f"filesystem/test_put_file_copy_file/{uuid.uuid4()}"
+            )
+            fs.cp_file(path1=rpath, path2=rpath_copy)
+            tmp.seek(0)
+            assert fs.cat(rpath_copy) == tmp.read()
+            assert fs.cat(rpath_copy) == fs.cat(rpath)
+
+    def test_move(self, fs):
+        path1 = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+            f"filesystem/test_move/{uuid.uuid4()}"
+        )
+        path2 = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+            f"filesystem/test_move/{uuid.uuid4()}"
+        )
+        data = b"a"
+        fs.pipe(path1, data)
+        fs.move(path1, path2)
+        assert fs.cat(path2) == data
+        assert not fs.exists(path1)
+
+    # TODO Recursive directory traversal currently requires wildcards,
+    #  but with the recursive option, recursive directory traversal
+    #  must be possible without wildcards.
+    # def test_move_recursive(self, fs):
+    #     dir1 = (
+    #         f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+    #         f"filesystem/test_move_recursive/"
+    #     )
+    #     dir2 = (
+    #         f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+    #         f"filesystem/test_move_recursive_copy/"
+    #     )
+    #
+    #     for i in range(10):
+    #         fs.pipe(f"{dir1}test_{i}", bytes(i))
+    #     fs.move(dir1, dir2, recursive=True)
+    #     for i in range(10):
+    #         assert fs.cat(f"{dir2}test_{i}") == bytes(i)
+    #         assert not fs.exists(f"{dir1}test_{i}")
+
+    def test_get_file(self, fs):
+        with tempfile.TemporaryDirectory() as tmp:
+            rpath = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_filesystem_test_file_key}"
+            lpath = Path(f"{tmp}/{uuid.uuid4()}")
+            callback = Callback()
+            fs.get_file(rpath=rpath, lpath=str(lpath), callback=callback)
+
+            assert lpath.open("rb").read() == fs.cat(rpath)
+            assert callback.size == os.stat(lpath).st_size
+            assert callback.value == callback.size
+
+    def test_checksum(self, fs):
+        path = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+            f"filesystem/test_checksum/{uuid.uuid4()}"
+        )
+        bucket, key, _ = fs.parse_path(path)
+
+        fs.pipe_file(path, b"foo")
+        checksum = fs.checksum(path)
+        fs.ls(path)  # caching
+        fs._put_object(bucket=bucket, key=key, body=b"bar")
+        assert checksum == fs.checksum(path)
+        assert checksum != fs.checksum(path, refresh=True)
+
+        fs.pipe_file(path, b"foo")
+        checksum = fs.checksum(path)
+        fs.ls(path)  # caching
+        fs._delete_object(bucket, key)
+        assert checksum == fs.checksum(path)
+        with pytest.raises(FileNotFoundError):
+            fs.checksum(path, refresh=True)
+
+    def test_sign(self, fs):
+        path = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_filesystem_test_file_key}"
+        requested = time.time()
+        time.sleep(1)
+        url = fs.sign(path, expiration=100)
+        parsed = urllib.parse.urlparse(url)
+        query = urllib.parse.parse_qs(parsed.query)
+        expires = int(query["Expires"][0])
+        with urllib.request.urlopen(url) as r:
+            data = r.read()
+
+        assert "https" in url
+        assert requested + 100 < expires
+        assert data == b"0123456789"
+
     def test_pandas_read_csv(self):
         import pandas
 
@@ -256,7 +737,10 @@ class TestS3FileSystem:
         import pandas
 
         df = pandas.DataFrame({"a": [1], "b": [2]})
-        path = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/{uuid.uuid4()}.csv"
+        path = (
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+            f"filesystem/test_pandas_write_csv/{uuid.uuid4()}.csv"
+        )
         df.to_csv(path, index=False)
 
         actual = pandas.read_csv(path)
