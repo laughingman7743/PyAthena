@@ -39,8 +39,11 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 class S3FileSystem(AbstractFileSystem):
     # https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html
-    # The minimum size of a part in a multipart upload is 5MB.
-    MULTIPART_UPLOAD_MINIMUM_SIZE: int = 5 * 2**20  # 5MB
+    # The minimum size of a part in a multipart upload is 5MiB.
+    MULTIPART_UPLOAD_MINIMUM_PART_SIZE: int = 5 * 2**20  # 5MiB
+    # https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html
+    # The maximum size of a part in a multipart upload is 5GiB.
+    MULTIPART_UPLOAD_MAXIMUM_PART_SIZE: int = 5 * 2**30  # 5GiB
     DEFAULT_BLOCK_SIZE: int = 5 * 2**20  # 5MB
     PATTERN_PATH: Pattern[str] = re.compile(
         r"(^s3://|^s3a://|^)(?P<bucket>[a-zA-Z0-9.\-_]+)(/(?P<key>[^?]+)|/)?"
@@ -562,13 +565,13 @@ class S3FileSystem(AbstractFileSystem):
         self,
         bucket: str,
         key: str,
-        ranges: Optional[Tuple[int, int]],
+        ranges: Optional[Tuple[int, int]] = None,
         version_id: Optional[str] = None,
         **kwargs,
     ) -> Tuple[int, bytes]:
         request = {"Bucket": bucket, "Key": key}
         if ranges:
-            range_ = f"bytes={ranges[0]}-{ranges[1] - 1}"
+            range_ = S3File._format_ranges(ranges)
             request.update({"Range": range_})
         else:
             ranges = (0, 0)
@@ -618,6 +621,7 @@ class S3FileSystem(AbstractFileSystem):
         copy_source: str,
         upload_id: str,
         part_number: int,
+        copy_source_ranges: Optional[Tuple[int, int]] = None,
         **kwargs,
     ) -> S3MultipartUploadPart:
         request = {
@@ -627,7 +631,9 @@ class S3FileSystem(AbstractFileSystem):
             "UploadId": upload_id,
             "PartNumber": part_number,
         }
-
+        if copy_source_ranges:
+            range_ = S3File._format_ranges(copy_source_ranges)
+            request.update({"CopySourceRange": range_})
         _logger.debug(
             f"Upload part copy from {copy_source} to s3://{bucket}/{key} as part {part_number}."
         )
@@ -737,10 +743,12 @@ class S3File(AbstractBufferedFile):
             self.version_id = path_version_id
         else:
             self.version_id = version_id
-        if "r" not in mode and block_size < self.fs.MULTIPART_UPLOAD_MINIMUM_SIZE:
+        if "r" not in mode and block_size < self.fs.MULTIPART_UPLOAD_MINIMUM_PART_SIZE:
             # When writing occurs, the block size should not be smaller
             # than the minimum size of a part in a multipart upload.
-            raise ValueError(f"Block size must be >= {self.fs.MULTIPART_UPLOAD_MINIMUM_SIZE}MB.")
+            raise ValueError(
+                f"Block size must be >= {self.fs.MULTIPART_UPLOAD_MINIMUM_PART_SIZE}MB."
+            )
 
         self.append_block = False
         if "r" in mode:
@@ -752,7 +760,7 @@ class S3File(AbstractBufferedFile):
             self.append_block = True
             info = self.fs.info(self.path, version_id=self.version_id)
             loc = info.get("size", 0)
-            if loc < self.fs.MULTIPART_UPLOAD_MINIMUM_SIZE:
+            if loc < self.fs.MULTIPART_UPLOAD_MINIMUM_PART_SIZE:
                 self.write(self.fs.cat(self.path))
             self.loc = loc
             self.s3_additional_kwargs.update(info.to_api_repr())
@@ -778,16 +786,42 @@ class S3File(AbstractBufferedFile):
             **self.s3_additional_kwargs,
         )
         if self.append_block:
-            self.multipart_upload_parts.append(
-                self._executor.submit(
-                    self.fs._upload_part_copy,
-                    bucket=self.bucket,
-                    key=self.key,
-                    copy_source=self.path,
-                    upload_id=cast(str, cast(S3MultipartUpload, self.multipart_upload).upload_id),
-                    part_number=1,
+            if self.tell() > S3FileSystem.MULTIPART_UPLOAD_MAXIMUM_PART_SIZE:
+                info = self.fs.info(self.path, version_id=self.version_id)
+                ranges = self._get_ranges(
+                    0,
+                    # Set copy source file byte size
+                    info.get("size", 0),
+                    self.max_workers,
+                    S3FileSystem.MULTIPART_UPLOAD_MAXIMUM_PART_SIZE,
                 )
-            )
+                for i, range in enumerate(ranges):
+                    self.multipart_upload_parts.append(
+                        self._executor.submit(
+                            self.fs._upload_part_copy,
+                            bucket=self.bucket,
+                            key=self.key,
+                            copy_source=self.path,
+                            upload_id=cast(
+                                str, cast(S3MultipartUpload, self.multipart_upload).upload_id
+                            ),
+                            part_number=i + 1,
+                            copy_source_ranges=range,
+                        )
+                    )
+            else:
+                self.multipart_upload_parts.append(
+                    self._executor.submit(
+                        self.fs._upload_part_copy,
+                        bucket=self.bucket,
+                        key=self.key,
+                        copy_source=self.path,
+                        upload_id=cast(
+                            str, cast(S3MultipartUpload, self.multipart_upload).upload_id
+                        ),
+                        part_number=1,
+                    )
+                )
 
     def _upload_chunk(self, final: bool = False) -> bool:
         if self.tell() < self.blocksize:
@@ -905,6 +939,10 @@ class S3File(AbstractBufferedFile):
                 **self.s3_additional_kwargs,
             )[1]
         return object_
+
+    @staticmethod
+    def _format_ranges(ranges: Tuple[int, int]):
+        return f"bytes={ranges[0]}-{ranges[1] - 1}"
 
     @staticmethod
     def _get_ranges(

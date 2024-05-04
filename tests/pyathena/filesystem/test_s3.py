@@ -164,7 +164,12 @@ class TestS3FileSystem:
             (1, 2**20),
             (10, 2**20),
             (100, 2**20),
-            (1000, 2**20),
+            (1024, 2**20),
+            # TODO: Perhaps OOM is occurring and the worker is shutting down.
+            #   The runner has received a shutdown signal.
+            #   This can happen when the runner service is stopped,
+            #   or a manually started runner is canceled.
+            # (5 * 1024 + 1, 2**20),
         ],
     )
     def test_write(self, fs, base, exp):
@@ -186,7 +191,12 @@ class TestS3FileSystem:
             (1, 2**20),
             (10, 2**20),
             (100, 2**20),
-            (1000, 2**20),
+            (1024, 2**20),
+            # TODO: Perhaps OOM is occurring and the worker is shutting down.
+            #   The runner has received a shutdown signal.
+            #   This can happen when the runner service is stopped,
+            #   or a manually started runner is canceled.
+            # (5 * 1024 + 1, 2**20),
         ],
     )
     def test_append(self, fs, base, exp):
@@ -298,3 +308,6 @@ class TestS3File:
             )
             == ranges
         )
+
+    def test_format_ranges(self):
+        assert S3File._format_ranges((0, 100)) == "bytes=0-99"
