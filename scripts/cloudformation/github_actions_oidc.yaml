@@ -105,6 +105,18 @@ Resources:
                 Resource: [
                   !Sub "arn:aws:s3:::${BucketName}*"
                 ]
+        - PolicyName: s3-list-bucket
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [
+                  "s3:ListBucket",
+                  "s3:ListAllMyBuckets"
+                ]
+                Resource: [
+                  !Sub "arn:aws:s3:::*"
+                ]
   SparkRole:
     Type: AWS::IAM::Role
     Properties:

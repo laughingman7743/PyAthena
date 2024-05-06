@@ -58,12 +58,27 @@ class S3Object(MutableMapping[str, Any]):
         **kwargs,
     ) -> None:
         if init:
-            super().update({_API_FIELD_TO_S3_OBJECT_PROPERTY.get(k, k): v for k, v in init.items()})
+            filtered = {}
+            for k, v in init.items():
+                if k not in _API_FIELD_TO_S3_OBJECT_PROPERTY:
+                    continue
+                filtered[_API_FIELD_TO_S3_OBJECT_PROPERTY[k]] = v
+            if "StorageClass" not in init:
+                # https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html#API_HeadObject_ResponseSyntax
+                # Amazon S3 returns this header for all objects except for
+                # S3 Standard storage class objects.
+                filtered[
+                    _API_FIELD_TO_S3_OBJECT_PROPERTY["StorageClass"]
+                ] = S3StorageClass.S3_STORAGE_CLASS_STANDARD
+            super().update(filtered)
             if "Size" in init:
                 self.content_length = init["Size"]
                 self.size = init["Size"]
-            if "ContentLength" in init:
+            elif "ContentLength" in init:
                 self.size = init["ContentLength"]
+            else:
+                self.content_length = 0
+                self.size = 0
         super().update({_API_FIELD_TO_S3_OBJECT_PROPERTY.get(k, k): v for k, v in kwargs.items()})
         if self.get("key") is None:
             self.name = self.get("bucket")
@@ -93,6 +108,9 @@ class S3Object(MutableMapping[str, Any]):
 
     def __len__(self) -> int:
         return len(self.__dict__)
+
+    def __str__(self):
+        return str(self.__dict__)
 
     def to_dict(self) -> Dict[str, Any]:
         return copy.deepcopy(self.__dict__)
