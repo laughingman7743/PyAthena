@@ -220,8 +220,6 @@ class S3FileSystem(AbstractFileSystem):
                     self._client.list_buckets,
                 )
             except botocore.exceptions.ClientError as e:
-                # if e.response["Error"]["Code"] in ["AccessDenied", "403"]:
-                #     return []
                 raise
             buckets = [
                 S3Object(
