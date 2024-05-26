@@ -1082,17 +1082,37 @@ class S3File(AbstractBufferedFile):
         part_number = len(self.multipart_upload_parts)
         self.buffer.seek(0)
         while data := self.buffer.read(self.blocksize):
-            part_number += 1
-            self.multipart_upload_parts.append(
-                self._executor.submit(
-                    self.fs._upload_part,
-                    bucket=self.bucket,
-                    key=self.key,
-                    upload_id=cast(str, self.multipart_upload.upload_id),
-                    part_number=part_number,
-                    body=data,
+            # The last part of a multipart request should be adjusted to be larger than the minimum part size.
+            next_data = self.buffer.read(self.blocksize)
+            next_data_size = len(next_data)
+            if 0 < next_data_size < self.fs.MULTIPART_UPLOAD_MIN_PART_SIZE:
+                upload_data = data + next_data
+                upload_data_size = len(upload_data)
+                if upload_data_size < self.fs.MULTIPART_UPLOAD_MAX_PART_SIZE:
+                    uploads = [upload_data]
+                else:
+                    split_size = upload_data_size // 2
+                    uploads = [upload_data[:split_size], upload_data[split_size:]]
+            else:
+                uploads = [data]
+                if next_data:
+                    uploads.append(next_data)
+
+            for upload in uploads:
+                part_number += 1
+                self.multipart_upload_parts.append(
+                    self._executor.submit(
+                        self.fs._upload_part,
+                        bucket=self.bucket,
+                        key=self.key,
+                        upload_id=cast(str, self.multipart_upload.upload_id),
+                        part_number=part_number,
+                        body=upload,
+                    )
                 )
-            )
+
+            if not next_data:
+                break
 
         if self.autocommit and final:
             self.commit()
