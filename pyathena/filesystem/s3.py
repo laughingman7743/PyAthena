@@ -215,12 +215,9 @@ class S3FileSystem(AbstractFileSystem):
 
     def _ls_buckets(self, refresh: bool = False) -> List[S3Object]:
         if "" not in self.dircache or refresh:
-            try:
-                response = self._call(
-                    self._client.list_buckets,
-                )
-            except botocore.exceptions.ClientError as e:
-                raise
+            response = self._call(
+                self._client.list_buckets,
+            )
             buckets = [
                 S3Object(
                     init={
@@ -550,6 +547,8 @@ class S3FileSystem(AbstractFileSystem):
         bucket2, key2, version_id2 = self.parse_path(path2)
         if version_id2:
             raise ValueError("Cannot copy to a versioned file.")
+        if not key1 or not key2:
+            raise ValueError("Cannot copy buckets.")
 
         info1 = self.info(path1)
         size1 = info1.get("size", 0)
@@ -662,7 +661,7 @@ class S3FileSystem(AbstractFileSystem):
                     }
                 )
 
-        parts.sort(key=lambda x: x["PartNumber"])
+        parts.sort(key=lambda x: x["PartNumber"])  # type: ignore
         self._complete_multipart_upload(
             bucket=bucket2,
             key=key2,
@@ -677,14 +676,20 @@ class S3FileSystem(AbstractFileSystem):
         if start is not None or end is not None:
             size = self.info(path).get("size", 0)
             if start is None:
-                start = 0
+                range_start = 0
             elif start < 0:
-                start = size + start
+                range_start = size + start
+            else:
+                range_start = start
+
             if end is None:
-                end = size
+                range_end = size
             elif end < 0:
-                end = size + end
-            ranges = (start, end)
+                range_end = size + end
+            else:
+                range_end = end
+
+            ranges = (range_start, range_end)
         else:
             ranges = None
 
@@ -1082,17 +1087,38 @@ class S3File(AbstractBufferedFile):
         part_number = len(self.multipart_upload_parts)
         self.buffer.seek(0)
         while data := self.buffer.read(self.blocksize):
-            part_number += 1
-            self.multipart_upload_parts.append(
-                self._executor.submit(
-                    self.fs._upload_part,
-                    bucket=self.bucket,
-                    key=self.key,
-                    upload_id=cast(str, self.multipart_upload.upload_id),
-                    part_number=part_number,
-                    body=data,
+            # The last part of a multipart request should be adjusted
+            # to be larger than the minimum part size.
+            next_data = self.buffer.read(self.blocksize)
+            next_data_size = len(next_data)
+            if 0 < next_data_size < self.fs.MULTIPART_UPLOAD_MIN_PART_SIZE:
+                upload_data = data + next_data
+                upload_data_size = len(upload_data)
+                if upload_data_size < self.fs.MULTIPART_UPLOAD_MAX_PART_SIZE:
+                    uploads = [upload_data]
+                else:
+                    split_size = upload_data_size // 2
+                    uploads = [upload_data[:split_size], upload_data[split_size:]]
+            else:
+                uploads = [data]
+                if next_data:
+                    uploads.append(next_data)
+
+            for upload in uploads:
+                part_number += 1
+                self.multipart_upload_parts.append(
+                    self._executor.submit(
+                        self.fs._upload_part,
+                        bucket=self.bucket,
+                        key=self.key,
+                        upload_id=cast(str, self.multipart_upload.upload_id),
+                        part_number=part_number,
+                        body=upload,
+                    )
                 )
-            )
+
+            if not next_data:
+                break
 
         if self.autocommit and final:
             self.commit()
