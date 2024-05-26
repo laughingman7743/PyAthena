@@ -733,18 +733,38 @@ class TestS3FileSystem:
         )
         assert [(row["col"],) for _, row in df.iterrows()] == [(123456789,)]
 
-    def test_pandas_write_csv(self):
+    @pytest.mark.parametrize(
+        ["line_count"],
+        [
+            (1 * (2**20),),  # Generates files of about 2 MB.
+            (2 * (2**20),),  # 4MB
+            (3 * (2**20),),  # 6MB
+            (4 * (2**20),),  # 8MB
+            (5 * (2**20),),  # 10MB
+            (6 * (2**20),),  # 12MB
+        ],
+    )
+    def test_pandas_write_csv(self, line_count):
         import pandas
 
-        df = pandas.DataFrame({"a": [1], "b": [2]})
-        path = (
-            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
-            f"filesystem/test_pandas_write_csv/{uuid.uuid4()}.csv"
-        )
-        df.to_csv(path, index=False)
+        with tempfile.NamedTemporaryFile("w") as tmp:
+            tmp.write("col1")
+            tmp.write("\n")
+            for i in range(0, line_count):
+                tmp.write("a")
+                tmp.write("\n")
+            tmp.flush()
 
-        actual = pandas.read_csv(path)
-        pandas.testing.assert_frame_equal(df, actual)
+            tmp.seek(0)
+            df = pandas.read_csv(tmp.name)
+            path = (
+                f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
+                f"filesystem/test_pandas_write_csv/{uuid.uuid4()}.csv"
+            )
+            df.to_csv(path, index=False)
+
+            actual = pandas.read_csv(path)
+            pandas.testing.assert_frame_equal(actual, df)
 
 
 class TestS3File:
