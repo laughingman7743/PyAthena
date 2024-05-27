@@ -747,7 +747,7 @@ class TestS3FileSystem:
     def test_pandas_write_csv(self, line_count):
         import pandas
 
-        with tempfile.NamedTemporaryFile("w") as tmp:
+        with tempfile.NamedTemporaryFile("w+t") as tmp:
             tmp.write("col1")
             tmp.write("\n")
             for i in range(0, line_count):
