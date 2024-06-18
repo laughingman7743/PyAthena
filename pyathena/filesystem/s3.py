@@ -174,6 +174,7 @@ class S3FileSystem(AbstractFileSystem):
                 bucket=bucket,
                 key=None,
                 version_id=None,
+                delimiter=None,
             )
             self.dircache[bucket] = file
         else:
@@ -207,6 +208,7 @@ class S3FileSystem(AbstractFileSystem):
                 bucket=bucket,
                 key=key,
                 version_id=version_id,
+                delimiter=None,
             )
             self.dircache[path] = file
         else:
@@ -231,6 +233,7 @@ class S3FileSystem(AbstractFileSystem):
                     bucket=b["Name"],
                     key=None,
                     version_id=None,
+                    delimiter=None,
                 )
                 for b in response["Buckets"]
             ]
@@ -251,58 +254,63 @@ class S3FileSystem(AbstractFileSystem):
         bucket, key, version_id = self.parse_path(path)
         if key:
             prefix = f"{key}/{prefix if prefix else ''}"
-        if path not in self.dircache or refresh:
-            files: List[S3Object] = []
-            while True:
-                request: Dict[Any, Any] = {
-                    "Bucket": bucket,
-                    "Prefix": prefix,
-                    "Delimiter": delimiter,
-                }
-                if next_token:
-                    request.update({"ContinuationToken": next_token})
-                if max_keys:
-                    request.update({"MaxKeys": max_keys})
-                response = self._call(
-                    self._client.list_objects_v2,
-                    **request,
-                )
-                files.extend(
-                    S3Object(
-                        init={
-                            "ContentLength": 0,
-                            "ContentType": None,
-                            "StorageClass": S3StorageClass.S3_STORAGE_CLASS_DIRECTORY,
-                            "ETag": None,
-                            "LastModified": None,
-                        },
-                        type=S3ObjectType.S3_OBJECT_TYPE_DIRECTORY,
-                        bucket=bucket,
-                        key=c["Prefix"][:-1].rstrip("/"),
-                        version_id=version_id,
-                    )
-                    for c in response.get("CommonPrefixes", [])
-                )
-                files.extend(
-                    S3Object(
-                        init=c,
-                        type=S3ObjectType.S3_OBJECT_TYPE_FILE,
-                        bucket=bucket,
-                        key=c["Key"],
-                    )
-                    for c in response.get("Contents", [])
-                )
-                next_token = response.get("NextContinuationToken")
-                if not next_token:
-                    break
-            if files:
-                self.dircache[path] = files
-        else:
+
+        if path in self.dircache and not refresh:
             cache = self.dircache[path]
             if not isinstance(cache, list):
-                files = [cache]
+                caches = [cache]
             else:
-                files = cache
+                caches = cache
+            if all([f.delimiter == delimiter for f in caches]):
+                return caches
+
+        files: List[S3Object] = []
+        while True:
+            request: Dict[Any, Any] = {
+                "Bucket": bucket,
+                "Prefix": prefix,
+                "Delimiter": delimiter,
+            }
+            if next_token:
+                request.update({"ContinuationToken": next_token})
+            if max_keys:
+                request.update({"MaxKeys": max_keys})
+            response = self._call(
+                self._client.list_objects_v2,
+                **request,
+            )
+            files.extend(
+                S3Object(
+                    init={
+                        "ContentLength": 0,
+                        "ContentType": None,
+                        "StorageClass": S3StorageClass.S3_STORAGE_CLASS_DIRECTORY,
+                        "ETag": None,
+                        "LastModified": None,
+                    },
+                    type=S3ObjectType.S3_OBJECT_TYPE_DIRECTORY,
+                    bucket=bucket,
+                    key=c["Prefix"][:-1].rstrip("/"),
+                    version_id=version_id,
+                    delimiter=delimiter,
+                )
+                for c in response.get("CommonPrefixes", [])
+            )
+            files.extend(
+                S3Object(
+                    init=c,
+                    type=S3ObjectType.S3_OBJECT_TYPE_FILE,
+                    bucket=bucket,
+                    key=c["Key"],
+                    delimiter=delimiter,
+                )
+                for c in response.get("Contents", [])
+            )
+            next_token = response.get("NextContinuationToken")
+            if not next_token:
+                break
+        if files:
+            self.dircache[path] = files
         return files
 
     def ls(
@@ -337,6 +345,7 @@ class S3FileSystem(AbstractFileSystem):
                 bucket=bucket,
                 key=None,
                 version_id=None,
+                delimiter=None,
             )
         if not refresh:
             caches: Union[List[S3Object], S3Object] = self._ls_from_cache(path)
@@ -363,6 +372,7 @@ class S3FileSystem(AbstractFileSystem):
                         bucket=bucket,
                         key=key.rstrip("/") if key else None,
                         version_id=version_id,
+                        delimiter=None,
                     )
         if key:
             object_info = self._head_object(path, refresh=refresh, version_id=version_id)
@@ -399,9 +409,39 @@ class S3FileSystem(AbstractFileSystem):
                 bucket=bucket,
                 key=key.rstrip("/") if key else None,
                 version_id=version_id,
+                delimiter=None,
             )
         else:
             raise FileNotFoundError(path)
+
+    def _find(
+        self,
+        path: str,
+        maxdepth: Optional[int] = None,
+        withdirs: Optional[bool] = None,
+        **kwargs,
+    ) -> List[S3Object]:
+        path = self._strip_protocol(path)
+        if path in ["", "/"]:
+            raise ValueError("Cannot traverse all files in S3.")
+        bucket, key, _ = self.parse_path(path)
+        prefix = kwargs.pop("prefix", "")
+        if maxdepth:
+            return super().find(
+                path=path,
+                maxdepth=maxdepth,
+                withdirs=withdirs,
+                detail=True,
+                **kwargs
+            ).values()
+
+        files = self._ls_dirs(path, prefix=prefix, delimiter="")
+        if not files and key:
+            try:
+                files = [self.info(path)]
+            except FileNotFoundError:
+                files = []
+        return files
 
     def find(
         self,
@@ -411,19 +451,8 @@ class S3FileSystem(AbstractFileSystem):
         detail: bool = False,
         **kwargs,
     ) -> Union[Dict[str, S3Object], List[str]]:
-        # TODO: Support maxdepth and withdirs
-        path = self._strip_protocol(path)
-        if path in ["", "/"]:
-            raise ValueError("Cannot traverse all files in S3.")
-        bucket, key, _ = self.parse_path(path)
-        prefix = kwargs.pop("prefix", "")
-
-        files = self._ls_dirs(path, prefix=prefix, delimiter="")
-        if not files and key:
-            try:
-                files = [self.info(path)]
-            except FileNotFoundError:
-                files = []
+        # TODO: Support withdirs
+        files = self._find(path=path, maxdepth=maxdepth, withdirs=withdirs, **kwargs)
         if detail:
             return {f.name: f for f in files}
         else:
