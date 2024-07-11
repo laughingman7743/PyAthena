@@ -7,6 +7,7 @@ import time
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
+from uuid import uuid4
 
 from pyathena.converter import Converter, DefaultTypeConverter
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
@@ -571,16 +572,26 @@ class BaseCursor(metaclass=ABCMeta):
             cache_expiration_time=cache_expiration_time if cache_expiration_time else 0,
         )
         if query_id is None:
+            client_request_token = str(uuid4())
+            old_user_agent_extra = self._connection.client._client_config.user_agent_extra
             try:
-                query_id = retry_api_call(
-                    self._connection.client.start_query_execution,
-                    config=self._retry_config,
-                    logger=_logger,
-                    **request,
-                ).get("QueryExecutionId")
-            except Exception as e:
-                _logger.exception("Failed to execute query.")
-                raise DatabaseError(*e.args) from e
+                request['ClientRequestToken'] = client_request_token
+                self._connection.client._client_config.user_agent_extra += f' ClientRequestToken={client_request_token}'
+
+                try:
+                    query_id = retry_api_call(
+                        self._connection.client.start_query_execution,
+                        config=self._retry_config,
+                        logger=_logger,
+                        **request,
+                    ).get("QueryExecutionId")
+                except Exception as e:
+                    _logger.exception("Failed to execute query.")
+                    raise DatabaseError(*e.args) from e
+
+            finally:
+                self._connection.client._client_config.user_agent_extra = old_user_agent_extra
+
         return query_id
 
     def _calculate(
