@@ -572,11 +572,10 @@ class BaseCursor(metaclass=ABCMeta):
             cache_expiration_time=cache_expiration_time if cache_expiration_time else 0,
         )
         if query_id is None:
-            client_request_token = str(uuid4())
+            query_trace_id = str(uuid4())
             old_user_agent_extra = self._connection.client._client_config.user_agent_extra
             try:
-                request['ClientRequestToken'] = client_request_token
-                self._connection.client._client_config.user_agent_extra += f' ClientRequestToken={client_request_token}'
+                self._connection.client._client_config.user_agent_extra += f' QueryTraceId={query_trace_id}'
 
                 try:
                     query_id = retry_api_call(
