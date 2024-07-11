@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from pyathena.connection import Connection, ConnectionCursor
     from pyathena.cursor import Cursor
 
-__version__ = "3.8.3"
+__version__ = "3.8.4+tonybeta"
 user_agent_extra: str = f"PyAthena/{__version__}"
 
 # Globals https://www.python.org/dev/peps/pep-0249/#globals
