@@ -9,6 +9,7 @@ from copy import deepcopy
 from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, Callable, Dict, Optional, Type
+from zoneinfo import ZoneInfo
 
 from pyathena.util import strtobool
 
@@ -25,6 +26,15 @@ def _to_datetime(varchar_value: Optional[str]) -> Optional[datetime]:
     if varchar_value is None:
         return None
     return datetime.strptime(varchar_value, "%Y-%m-%d %H:%M:%S.%f")
+
+
+def _to_datetime_with_tz(varchar_value: Optional[str]) -> Optional[datetime]:
+    if varchar_value is None:
+        return None
+
+    datetime_ = datetime.strptime(varchar_value, "%Y-%m-%d %H:%M:%S.%f %Z")
+    _, _, tz = varchar_value.rpartition(" ")
+    return datetime_.replace(tzinfo=ZoneInfo(tz))
 
 
 def _to_time(varchar_value: Optional[str]) -> Optional[time]:
@@ -86,6 +96,7 @@ _DEFAULT_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {
     "varchar": _to_default,
     "string": _to_default,
     "timestamp": _to_datetime,
+    "timestamp with time zone": _to_datetime_with_tz,
     "date": _to_date,
     "time": _to_time,
     "varbinary": _to_binary,
