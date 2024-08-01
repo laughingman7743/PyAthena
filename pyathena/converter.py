@@ -9,9 +9,10 @@ from copy import deepcopy
 from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, Callable, Dict, Optional, Type
-from zoneinfo import ZoneInfo
 
 from pyathena.util import strtobool
+
+from dateutil.tz import gettz
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
@@ -31,10 +32,8 @@ def _to_datetime(varchar_value: Optional[str]) -> Optional[datetime]:
 def _to_datetime_with_tz(varchar_value: Optional[str]) -> Optional[datetime]:
     if varchar_value is None:
         return None
-
-    datetime_ = datetime.strptime(varchar_value, "%Y-%m-%d %H:%M:%S.%f %Z")
-    _, _, tz = varchar_value.rpartition(" ")
-    return datetime_.replace(tzinfo=ZoneInfo(tz))
+    datetime_, _, tz = varchar_value.rpartition(" ")
+    return datetime.strptime(datetime_, "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=gettz(tz))
 
 
 def _to_time(varchar_value: Optional[str]) -> Optional[time]:
