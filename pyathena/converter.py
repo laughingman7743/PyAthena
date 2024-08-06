@@ -10,9 +10,9 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, Callable, Dict, Optional, Type
 
-from pyathena.util import strtobool
-
 from dateutil.tz import gettz
+
+from pyathena.util import strtobool
 
 _logger = logging.getLogger(__name__)  # type: ignore
 
