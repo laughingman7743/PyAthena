@@ -9,6 +9,7 @@ dependencies = [
     "botocore>=1.29.4",
     "tenacity>=4.1.0",
     "fsspec",
+    "python-dateutil",
 ]
 requires-python = ">=3.8.1"  # https://bugs.python.org/issue38342
 readme = "README.rst"
@@ -97,7 +98,8 @@ dependencies = [
     "pytest-dependency",
     "ruff>=0.1.13",
     "hatch-pip-compile",
-    "sphinx"
+    "sphinx",
+    "types-python-dateutil",
 ]
 
 [tool.hatch.envs.default.scripts]
