@@ -10,6 +10,8 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, Callable, Dict, Optional, Type
 
+from dateutil.tz import gettz
+
 from pyathena.util import strtobool
 
 _logger = logging.getLogger(__name__)  # type: ignore
@@ -25,6 +27,13 @@ def _to_datetime(varchar_value: Optional[str]) -> Optional[datetime]:
     if varchar_value is None:
         return None
     return datetime.strptime(varchar_value, "%Y-%m-%d %H:%M:%S.%f")
+
+
+def _to_datetime_with_tz(varchar_value: Optional[str]) -> Optional[datetime]:
+    if varchar_value is None:
+        return None
+    datetime_, _, tz = varchar_value.rpartition(" ")
+    return datetime.strptime(datetime_, "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=gettz(tz))
 
 
 def _to_time(varchar_value: Optional[str]) -> Optional[time]:
@@ -86,6 +95,7 @@ _DEFAULT_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {
     "varchar": _to_default,
     "string": _to_default,
     "timestamp": _to_datetime,
+    "timestamp with time zone": _to_datetime_with_tz,
     "date": _to_date,
     "time": _to_time,
     "varbinary": _to_binary,

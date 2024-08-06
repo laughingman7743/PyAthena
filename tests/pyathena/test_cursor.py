@@ -421,6 +421,7 @@ class TestCursor:
               ,col_string
               ,col_varchar
               ,col_timestamp
+              ,CAST(col_timestamp AS timestamp with time zone) AS col_timestamp_tz
               ,CAST(col_timestamp AS time) AS col_time
               ,col_date
               ,col_binary
@@ -444,6 +445,7 @@ class TestCursor:
             ("col_string", "varchar", None, None, 2147483647, 0, "UNKNOWN"),
             ("col_varchar", "varchar", None, None, 10, 0, "UNKNOWN"),
             ("col_timestamp", "timestamp", None, None, 3, 0, "UNKNOWN"),
+            ("col_timestamp_tz", "timestamp with time zone", None, None, 3, 0, "UNKNOWN"),
             ("col_time", "time", None, None, 3, 0, "UNKNOWN"),
             ("col_date", "date", None, None, 0, 0, "UNKNOWN"),
             ("col_binary", "varbinary", None, None, 1073741824, 0, "UNKNOWN"),
@@ -467,6 +469,7 @@ class TestCursor:
                 "a string",
                 "varchar",
                 datetime(2017, 1, 1, 0, 0, 0),
+                datetime(2017, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
                 datetime(2017, 1, 1, 0, 0, 0).time(),
                 date(2017, 1, 2),
                 b"123",
@@ -492,6 +495,7 @@ class TestCursor:
             NUMBER,
             STRING,
             STRING,
+            DATETIME,
             DATETIME,
             TIME,
             DATE,
