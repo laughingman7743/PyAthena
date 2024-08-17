@@ -50,6 +50,8 @@ class AsyncPandasCursor(AsyncCursor):
             kill_on_interrupt=kill_on_interrupt,
             max_workers=max_workers,
             arraysize=arraysize,
+            result_reuse_enable=result_reuse_enable,
+            result_reuse_minutes=result_reuse_minutes,
             **kwargs,
         )
         self._unload = unload
