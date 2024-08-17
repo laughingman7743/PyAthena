@@ -67,9 +67,9 @@ class S3Object(MutableMapping[str, Any]):
                 # https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html#API_HeadObject_ResponseSyntax
                 # Amazon S3 returns this header for all objects except for
                 # S3 Standard storage class objects.
-                filtered[
-                    _API_FIELD_TO_S3_OBJECT_PROPERTY["StorageClass"]
-                ] = S3StorageClass.S3_STORAGE_CLASS_STANDARD
+                filtered[_API_FIELD_TO_S3_OBJECT_PROPERTY["StorageClass"]] = (
+                    S3StorageClass.S3_STORAGE_CLASS_STANDARD
+                )
             super().update(filtered)
             if "Size" in init:
                 self.content_length = init["Size"]

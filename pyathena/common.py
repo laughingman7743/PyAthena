@@ -8,6 +8,7 @@ from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
 
+import pyathena
 from pyathena.converter import Converter, DefaultTypeConverter
 from pyathena.error import DatabaseError, OperationalError, ProgrammingError
 from pyathena.formatter import Formatter
@@ -144,6 +145,7 @@ class BaseCursor(metaclass=ABCMeta):
         s3_staging_dir: Optional[str] = None,
         result_reuse_enable: Optional[bool] = None,
         result_reuse_minutes: Optional[int] = None,
+        execution_parameters: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         request: Dict[str, Any] = {
             "QueryString": query,
@@ -177,6 +179,8 @@ class BaseCursor(metaclass=ABCMeta):
                 else self._result_reuse_minutes,
             }
             request["ResultReuseConfiguration"] = {"ResultReuseByAgeConfiguration": reuse_conf}
+        if execution_parameters:
+            request["ExecutionParameters"] = execution_parameters
         return request
 
     def _build_start_calculation_execution_request(
@@ -546,15 +550,21 @@ class BaseCursor(metaclass=ABCMeta):
     def _execute(
         self,
         operation: str,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: Optional[Union[Dict[str, Any], List[str]]] = None,
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
         cache_size: Optional[int] = 0,
         cache_expiration_time: Optional[int] = 0,
         result_reuse_enable: Optional[bool] = None,
         result_reuse_minutes: Optional[int] = None,
+        paramstyle: Optional[str] = None,
     ) -> str:
-        query = self._formatter.format(operation, parameters)
+        if pyathena.paramstyle == "qmark" or paramstyle == "qmark":
+            query = operation
+            execution_parameters = cast(Optional[List[str]], parameters)
+        else:
+            query = self._formatter.format(operation, cast(Optional[Dict[str, Any]], parameters))
+            execution_parameters = None
         _logger.debug(query)
 
         request = self._build_start_query_execution_request(
@@ -563,6 +573,7 @@ class BaseCursor(metaclass=ABCMeta):
             s3_staging_dir=s3_staging_dir,
             result_reuse_enable=result_reuse_enable,
             result_reuse_minutes=result_reuse_minutes,
+            execution_parameters=execution_parameters,
         )
         query_id = self._find_previous_query_id(
             query,
@@ -612,14 +623,17 @@ class BaseCursor(metaclass=ABCMeta):
     def execute(
         self,
         operation: str,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: Optional[Union[Dict[str, Any], List[str]]] = None,
         **kwargs,
     ):
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
     def executemany(
-        self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]], **kwargs
+        self,
+        operation: str,
+        seq_of_parameters: List[Optional[Union[Dict[str, Any], List[str]]]],
+        **kwargs,
     ) -> None:
         raise NotImplementedError  # pragma: no cover
 

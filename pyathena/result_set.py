@@ -53,9 +53,9 @@ class AthenaResultSet(CursorIterator):
         )
 
         self._metadata: Optional[Tuple[Dict[str, Any], ...]] = None
-        self._rows: Deque[
-            Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]
-        ] = collections.deque()
+        self._rows: Deque[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]] = (
+            collections.deque()
+        )
         self._next_token: Optional[str] = None
 
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED:

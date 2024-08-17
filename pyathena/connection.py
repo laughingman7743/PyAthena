@@ -90,8 +90,7 @@ class Connection(Generic[ConnectionCursor]):
         result_reuse_enable: bool = ...,
         result_reuse_minutes: int = ...,
         **kwargs,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def __init__(
@@ -121,8 +120,7 @@ class Connection(Generic[ConnectionCursor]):
         result_reuse_enable: bool = ...,
         result_reuse_minutes: int = ...,
         **kwargs,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     def __init__(
         self,
@@ -329,12 +327,10 @@ class Connection(Generic[ConnectionCursor]):
         self.close()
 
     @overload
-    def cursor(self, cursor: None = ..., **kwargs) -> ConnectionCursor:
-        ...
+    def cursor(self, cursor: None = ..., **kwargs) -> ConnectionCursor: ...
 
     @overload
-    def cursor(self, cursor: Type[FunctionalCursor], **kwargs) -> FunctionalCursor:
-        ...
+    def cursor(self, cursor: Type[FunctionalCursor], **kwargs) -> FunctionalCursor: ...
 
     def cursor(
         self, cursor: Optional[Type[FunctionalCursor]] = None, **kwargs

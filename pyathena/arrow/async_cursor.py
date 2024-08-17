@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from concurrent.futures import Future
 from multiprocessing import cpu_count
-from typing import Any, Dict, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 from pyathena import ProgrammingError
 from pyathena.arrow.converter import (
@@ -96,13 +96,14 @@ class AsyncArrowCursor(AsyncCursor):
     def execute(
         self,
         operation: str,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: Optional[Union[Dict[str, Any], List[str]]] = None,
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
         cache_size: Optional[int] = 0,
         cache_expiration_time: Optional[int] = 0,
         result_reuse_enable: Optional[bool] = None,
         result_reuse_minutes: Optional[int] = None,
+        paramstyle: Optional[str] = None,
         **kwargs,
     ) -> Tuple[str, "Future[Union[AthenaArrowResultSet, Any]]"]:
         if self._unload:
@@ -125,6 +126,7 @@ class AsyncArrowCursor(AsyncCursor):
             cache_expiration_time=cache_expiration_time,
             result_reuse_enable=result_reuse_enable,
             result_reuse_minutes=result_reuse_minutes,
+            paramstyle=paramstyle,
         )
         return (
             query_id,

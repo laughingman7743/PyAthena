@@ -47,7 +47,7 @@ class SparkCursor(SparkBaseCursor, WithCalculationExecution):
     def execute(
         self,
         operation: str,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: Optional[Union[Dict[str, Any], List[str]]] = None,
         session_id: Optional[str] = None,
         description: Optional[str] = None,
         client_request_token: Optional[str] = None,
