@@ -104,6 +104,7 @@ class AsyncCursor(BaseCursor):
         cache_expiration_time: Optional[int] = 0,
         result_reuse_enable: Optional[bool] = None,
         result_reuse_minutes: Optional[int] = None,
+        paramstyle: Optional[str] = None,
         **kwargs,
     ) -> Tuple[str, "Future[Union[AthenaResultSet, Any]]"]:
         query_id = self._execute(
@@ -115,6 +116,7 @@ class AsyncCursor(BaseCursor):
             cache_expiration_time=cache_expiration_time,
             result_reuse_enable=result_reuse_enable,
             result_reuse_minutes=result_reuse_minutes,
+            paramstyle=paramstyle,
         )
         return query_id, self._executor.submit(self._collect_result_set, query_id)
 
