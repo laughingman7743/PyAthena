@@ -112,7 +112,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]], **kwargs
     ) -> None:
         for parameters in seq_of_parameters:
-            self.execute(operation, parameters)
+            self.execute(operation, parameters, **kwargs)
         # Operations that have result sets are not allowed with executemany.
         self._reset_state()
 
