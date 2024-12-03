@@ -194,7 +194,7 @@ def to_sql(
             cursor.execute(
                 textwrap.dedent(
                     f"""
-                    DROP TABLE {schema}.{name}
+                    DROP TABLE `{schema}`.`{name}`
                     """
                 )
             )
