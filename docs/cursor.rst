@@ -1,6 +1,13 @@
 Cursor
 ======
 
+.. _default_cursor:
+
+DefaultCursor
+-------------
+
+See :ref:`usage`.
+
 .. _dict-cursor:
 
 DictCursor
