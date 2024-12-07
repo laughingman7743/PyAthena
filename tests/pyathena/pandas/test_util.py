@@ -307,7 +307,7 @@ def test_generate_ddl():
     )
 
     # complex
-    df = pd.DataFrame({"col_complex": np.complex_([1.0, 2.0, 3.0, 4.0, 5.0])})
+    df = pd.DataFrame({"col_complex": np.complex128([1.0, 2.0, 3.0, 4.0, 5.0])})
     with pytest.raises(ValueError):
         generate_ddl(df, "test_table", "s3://bucket/path/to/")
 
