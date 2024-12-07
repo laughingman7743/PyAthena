@@ -556,6 +556,9 @@ class AthenaTypeCompiler(GenericTypeCompiler):
     def visit_tinyint(self, type_, **kw):  # noqa: N802
         return self.visit_TINYINT(type_, **kw)
 
+    def visit_enum(self, type_, **kw):
+        return self.visit_string(type_, **kw)
+
 
 class AthenaDDLCompiler(DDLCompiler):
     @property
