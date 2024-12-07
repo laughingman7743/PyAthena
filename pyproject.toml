@@ -11,7 +11,7 @@ dependencies = [
     "fsspec",
     "python-dateutil",
 ]
-requires-python = ">=3.8.1"  # https://bugs.python.org/issue38342
+requires-python = ">=3.9"
 readme = "README.rst"
 license = {file = "LICENSE"}
 classifiers = [
@@ -21,7 +21,6 @@ classifiers = [
     "Operating System :: OS Independent",
     "Topic :: Database :: Front-Ends",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -125,7 +124,7 @@ pip-compile-install-args = [
 ]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+python = ["3.9", "3.10", "3.11", "3.12"]
 
 [tool.pytest.ini_options]
 norecursedirs = ["benchmarks", ".venv"]
@@ -156,7 +155,7 @@ select = [
 ]
 
 [tool.mypy]
-python_version = 3.8
+python_version = 3.9
 follow_imports = "silent"
 disallow_any_generics = true
 strict_optional = true
