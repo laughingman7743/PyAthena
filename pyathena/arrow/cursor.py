@@ -106,6 +106,7 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         cache_expiration_time: Optional[int] = 0,
         result_reuse_enable: Optional[bool] = None,
         result_reuse_minutes: Optional[int] = None,
+        paramstyle: Optional[str] = None,
         **kwargs,
     ) -> ArrowCursor:
         self._reset_state()
@@ -129,6 +130,7 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
             cache_expiration_time=cache_expiration_time,
             result_reuse_enable=result_reuse_enable,
             result_reuse_minutes=result_reuse_minutes,
+            paramstyle=paramstyle,
         )
         query_execution = cast(AthenaQueryExecution, self._poll(self.query_id))
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
