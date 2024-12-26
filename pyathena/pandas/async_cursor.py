@@ -108,13 +108,14 @@ class AsyncPandasCursor(AsyncCursor):
     def execute(
         self,
         operation: str,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: Optional[Union[Dict[str, Any], List[str]]] = None,
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
         cache_size: Optional[int] = 0,
         cache_expiration_time: Optional[int] = 0,
         result_reuse_enable: Optional[bool] = None,
         result_reuse_minutes: Optional[int] = None,
+        paramstyle: Optional[str] = None,
         keep_default_na: bool = False,
         na_values: Optional[Iterable[str]] = ("",),
         quoting: int = 1,
@@ -140,6 +141,7 @@ class AsyncPandasCursor(AsyncCursor):
             cache_expiration_time=cache_expiration_time,
             result_reuse_enable=result_reuse_enable,
             result_reuse_minutes=result_reuse_minutes,
+            paramstyle=paramstyle,
         )
         return (
             query_id,

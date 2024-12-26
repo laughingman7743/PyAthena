@@ -59,15 +59,13 @@ Timestamp: Type[datetime.datetime] = datetime.datetime
 
 
 @overload
-def connect(*args, cursor_class: None = ..., **kwargs) -> "Connection[Cursor]":
-    ...
+def connect(*args, cursor_class: None = ..., **kwargs) -> "Connection[Cursor]": ...
 
 
 @overload
 def connect(
     *args, cursor_class: Type[ConnectionCursor], **kwargs
-) -> "Connection[ConnectionCursor]":
-    ...
+) -> "Connection[ConnectionCursor]": ...
 
 
 def connect(*args, **kwargs) -> "Connection[Any]":

@@ -2,7 +2,7 @@
 import logging
 from concurrent.futures import Future, ThreadPoolExecutor
 from multiprocessing import cpu_count
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
 
 from pyathena.model import AthenaCalculationExecution
 from pyathena.spark.common import SparkBaseCursor
@@ -68,7 +68,7 @@ class AsyncSparkCursor(SparkBaseCursor):
     def execute(
         self,
         operation: str,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: Optional[Union[Dict[str, Any], List[str]]] = None,
         session_id: Optional[str] = None,
         description: Optional[str] = None,
         client_request_token: Optional[str] = None,

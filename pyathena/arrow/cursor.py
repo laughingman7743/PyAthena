@@ -99,13 +99,14 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
     def execute(
         self,
         operation: str,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: Optional[Union[Dict[str, Any], List[str]]] = None,
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
         cache_size: Optional[int] = 0,
         cache_expiration_time: Optional[int] = 0,
         result_reuse_enable: Optional[bool] = None,
         result_reuse_minutes: Optional[int] = None,
+        paramstyle: Optional[str] = None,
         **kwargs,
     ) -> ArrowCursor:
         self._reset_state()
@@ -129,6 +130,7 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
             cache_expiration_time=cache_expiration_time,
             result_reuse_enable=result_reuse_enable,
             result_reuse_minutes=result_reuse_minutes,
+            paramstyle=paramstyle,
         )
         query_execution = cast(AthenaQueryExecution, self._poll(self.query_id))
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
@@ -147,7 +149,10 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         return self
 
     def executemany(
-        self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]], **kwargs
+        self,
+        operation: str,
+        seq_of_parameters: List[Optional[Union[Dict[str, Any], List[str]]]],
+        **kwargs,
     ) -> None:
         for parameters in seq_of_parameters:
             self.execute(operation, parameters, **kwargs)

@@ -248,6 +248,46 @@ class TestCursor:
         pytest.raises(ProgrammingError, cursor.fetchmany)
         pytest.raises(ProgrammingError, cursor.fetchall)
 
+    def test_query_with_parameter(self, cursor):
+        cursor.execute(
+            """
+            SELECT * FROM many_rows
+            WHERE a < %(param)d
+            """,
+            {"param": 10},
+        )
+        assert cursor.fetchall() == [(i,) for i in range(10)]
+
+        cursor.execute(
+            """
+            SELECT col_string FROM one_row_complex
+            WHERE col_string = %(param)s
+            """,
+            {"param": "a string"},
+        )
+        assert cursor.fetchall() == [("a string",)]
+
+    def test_query_with_parameter_qmark(self, cursor):
+        cursor.execute(
+            """
+            SELECT * FROM many_rows
+            WHERE a < ?
+            """,
+            ["10"],
+            paramstyle="qmark",
+        )
+        assert cursor.fetchall() == [(i,) for i in range(10)]
+
+        cursor.execute(
+            """
+            SELECT col_string FROM one_row_complex
+            WHERE col_string = ?
+            """,
+            ["'a string'"],
+            paramstyle="qmark",
+        )
+        assert cursor.fetchall() == [("a string",)]
+
     def test_null_param(self, cursor):
         cursor.execute("SELECT %(param)s FROM one_row", {"param": None})
         assert cursor.fetchall() == [(None,)]

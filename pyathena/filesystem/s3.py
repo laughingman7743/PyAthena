@@ -542,7 +542,9 @@ class S3FileSystem(AbstractFileSystem):
         self.invalidate_cache(path)
         return object_.to_dict()
 
-    def cp_file(self, path1: str, path2: str, recursive=False, maxdepth=None, on_error=None, **kwargs):
+    def cp_file(
+        self, path1: str, path2: str, recursive=False, maxdepth=None, on_error=None, **kwargs
+    ):
         # TODO: Delete the value that seems to be a typo, onerror=false.
         # https://github.com/fsspec/filesystem_spec/commit/346a589fef9308550ffa3d0d510f2db67281bb05
         # https://github.com/fsspec/filesystem_spec/blob/2024.10.0/fsspec/spec.py#L1185

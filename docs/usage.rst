@@ -44,7 +44,8 @@ Supported `DB API paramstyle`_ is only ``PyFormat``.
     cursor.execute("""
                    SELECT col_string FROM one_row_complex
                    WHERE col_string = %(param)s
-                   """, {"param": "a string"})
+                   """,
+                   {"param": "a string"})
     print(cursor.fetchall())
 
 if ``%`` character is contained in your query, it must be escaped with ``%%`` like the following:
@@ -53,6 +54,43 @@ if ``%`` character is contained in your query, it must be escaped with ``%%`` li
 
     SELECT col_string FROM one_row_complex
     WHERE col_string = %(param)s OR col_string LIKE 'a%%'
+
+Use parameterized queries
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you want to use Athena's parameterized queries, you can do so by changing the ``paramstyle`` to ``qmark`` as follows.
+
+.. code:: python
+
+    from pyathena import connect
+
+    pyathena.paramstyle = "qmark"
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor()
+    cursor.execute("""
+                   SELECT col_string FROM one_row_complex
+                   WHERE col_string = ?
+                   """,
+                   ["'a string'"])
+    print(cursor.fetchall())
+
+You can also specify the ``paramstyle`` using the execute method when executing a query.
+
+.. code:: python
+
+    from pyathena import connect
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2").cursor()
+    cursor.execute("""
+                   SELECT col_string FROM one_row_complex
+                   WHERE col_string = ?
+                   """,
+                   ["'a string'"],
+                   paramstyle="qmark")
+    print(cursor.fetchall())
+
+You can find more information about the `considerations and limitations of parameterized queries`_ in the official documentation.
 
 Quickly re-run queries
 ----------------------
@@ -270,3 +308,4 @@ No need to specify credential information.
 .. _`reuse the results of previous queries`: https://docs.aws.amazon.com/athena/latest/ug/reusing-query-results.html
 .. _`Boto3 environment variables`: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-environment-variables
 .. _`Boto3 credentials`: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html
+.. _`considerations and limitations of parameterized queries`: https://docs.aws.amazon.com/athena/latest/ug/querying-with-prepared-statements.html
