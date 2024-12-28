@@ -27,18 +27,17 @@ Run test
 
 .. code:: bash
 
-    $ pip install hatch or pipx install hatch or brew install hatch
-    $ hatch run test
-    $ hatch run test-sqla
+    $ pip install uv or pipx install uv or brew install uv or mise install uv
+    $ make test
+    $ make test-sqla
 
 Run test multiple Python versions
 ---------------------------------
 
 .. code:: bash
 
-    $ pip install hatch or pipx install hatch or brew install hatch
-    $ hatch -e test run test
-    $ hatch -e test run test-sqla
+    $ pip install uv or pipx install uv or brew install uv or mise install uv
+    $ make tox
 
 Code formatting
 ---------------
