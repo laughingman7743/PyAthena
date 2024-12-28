@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional, cast
+from typing import Any, Dict, List, Optional, Union, cast
 
 from pyathena import OperationalError, ProgrammingError
 from pyathena.model import AthenaCalculationExecution, AthenaCalculationExecutionStatus

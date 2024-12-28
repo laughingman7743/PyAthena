@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from concurrent.futures import Future
 from multiprocessing import cpu_count
-from typing import Any, Dict, Iterable, Optional, Tuple, Union, cast
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 from pyathena import ProgrammingError
 from pyathena.async_cursor import AsyncCursor
