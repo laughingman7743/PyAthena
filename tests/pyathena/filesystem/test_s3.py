@@ -167,13 +167,14 @@ class TestS3FileSystem:
     @pytest.mark.parametrize(
         ["base", "exp"],
         [
+            # TODO: Comment out some test cases because of the high cost of AWS for testing.
             (1, 2**10),
-            (10, 2**10),
-            (100, 2**10),
+            # (10, 2**10),
+            # (100, 2**10),
             (1, 2**20),
-            (10, 2**20),
-            (100, 2**20),
-            (1024, 2**20),
+            # (10, 2**20),
+            # (100, 2**20),
+            # (1024, 2**20),
             # TODO: Perhaps OOM is occurring and the worker is shutting down.
             #   The runner has received a shutdown signal.
             #   This can happen when the runner service is stopped,
@@ -197,13 +198,14 @@ class TestS3FileSystem:
     @pytest.mark.parametrize(
         ["base", "exp"],
         [
+            # TODO: Comment out some test cases because of the high cost of AWS for testing.
             (1, 2**10),
-            (10, 2**10),
-            (100, 2**10),
+            # (10, 2**10),
+            # (100, 2**10),
             (1, 2**20),
-            (10, 2**20),
-            (100, 2**20),
-            (1024, 2**20),
+            # (10, 2**20),
+            # (100, 2**20),
+            # (1024, 2**20),
             # TODO: Perhaps OOM is occurring and the worker is shutting down.
             #   The runner has received a shutdown signal.
             #   This can happen when the runner service is stopped,
@@ -498,13 +500,14 @@ class TestS3FileSystem:
     @pytest.mark.parametrize(
         ["base", "exp"],
         [
+            # TODO: Comment out some test cases because of the high cost of AWS for testing.
             (1, 2**10),
-            (10, 2**10),
-            (100, 2**10),
+            # (10, 2**10),
+            # (100, 2**10),
             (1, 2**20),
-            (10, 2**20),
-            (100, 2**20),
-            (1024, 2**20),
+            # (10, 2**20),
+            # (100, 2**20),
+            # (1024, 2**20),
             # TODO: Perhaps OOM is occurring and the worker is shutting down.
             #   The runner has received a shutdown signal.
             #   This can happen when the runner service is stopped,
@@ -538,13 +541,14 @@ class TestS3FileSystem:
     @pytest.mark.parametrize(
         ["base", "exp"],
         [
+            # TODO: Comment out some test cases because of the high cost of AWS for testing.
             (1, 2**10),
-            (10, 2**10),
-            (100, 2**10),
+            # (10, 2**10),
+            # (100, 2**10),
             (1, 2**20),
-            (10, 2**20),
-            (100, 2**20),
-            (1024, 2**20),
+            # (10, 2**20),
+            # (100, 2**20),
+            # (1024, 2**20),
             # TODO: Perhaps OOM is occurring and the worker is shutting down.
             #   The runner has received a shutdown signal.
             #   This can happen when the runner service is stopped,
@@ -570,13 +574,14 @@ class TestS3FileSystem:
     @pytest.mark.parametrize(
         ["base", "exp"],
         [
+            # TODO: Comment out some test cases because of the high cost of AWS for testing.
             (1, 2**10),
-            (10, 2**10),
-            (100, 2**10),
+            # (10, 2**10),
+            # (100, 2**10),
             (1, 2**20),
-            (10, 2**20),
-            (100, 2**20),
-            (1024, 2**20),
+            # (10, 2**20),
+            # (100, 2**20),
+            # (1024, 2**20),
             # TODO: Perhaps OOM is occurring and the worker is shutting down.
             #   The runner has received a shutdown signal.
             #   This can happen when the runner service is stopped,
@@ -605,13 +610,14 @@ class TestS3FileSystem:
     @pytest.mark.parametrize(
         ["base", "exp"],
         [
+            # TODO: Comment out some test cases because of the high cost of AWS for testing.
             (1, 2**10),
-            (10, 2**10),
-            (100, 2**10),
+            # (10, 2**10),
+            # (100, 2**10),
             (1, 2**20),
-            (10, 2**20),
-            (100, 2**20),
-            (1024, 2**20),
+            # (10, 2**20),
+            # (100, 2**20),
+            # (1024, 2**20),
             # TODO: Perhaps OOM is occurring and the worker is shutting down.
             #   The runner has received a shutdown signal.
             #   This can happen when the runner service is stopped,
@@ -736,12 +742,13 @@ class TestS3FileSystem:
     @pytest.mark.parametrize(
         ["line_count"],
         [
+            # TODO: Comment out some test cases because of the high cost of AWS for testing.
             (1 * (2**20),),  # Generates files of about 2 MB.
-            (2 * (2**20),),  # 4MB
-            (3 * (2**20),),  # 6MB
-            (4 * (2**20),),  # 8MB
-            (5 * (2**20),),  # 10MB
-            (6 * (2**20),),  # 12MB
+            # (2 * (2**20),),  # 4MB
+            # (3 * (2**20),),  # 6MB
+            # (4 * (2**20),),  # 8MB
+            # (5 * (2**20),),  # 10MB
+            # (6 * (2**20),),  # 12MB
         ],
     )
     def test_pandas_write_csv(self, line_count):
