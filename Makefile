@@ -1,39 +1,32 @@
 .PHONY: fmt
 fmt:
-	hatch run fmt
+	# TODO: https://github.com/astral-sh/uv/issues/5903
+	uvx ruff check --select I --fix .
+	uvx ruff format .
 
 .PHONY: chk
 chk:
-	hatch run chk
+	uvx ruff check .
+	uvx ruff format --check .
+	uv run mypy .
 
 .PHONY: test
 test: chk
-	hatch run test
-
-.PHONY: test-all
-test-all: chk
-	hatch -e test run test
+	uv run pytest -n 8 --cov pyathena --cov-report html --cov-report term tests/pyathena/
 
 .PHONY: test-sqla
 test-sqla:
-	hatch run test-sqla
+	uv run pytest -n 8 --cov pyathena --cov-report html --cov-report term tests/sqlalchemy/
 
-.PHONY: test-sqla-all
-test-sqla-all:
-	hatch -e test run test-sqla
-
-.PHONY: lock
-lock:
-	rm -rf ./requirements/
-	hatch env run -- python --version
-	hatch env run --env test -- python --version
-
-.PHONY: upgrade-lock
-upgrade-lock:
-	rm -rf ./requirements/
-	PIP_COMPILE_UPGRADE=1 hatch env run -- python --version
-	PIP_COMPILE_UPGRADE=1 hatch env run --env test -- python --version
+.PHONY: tox
+tox:
+	uvx tox run
 
 .PHONY: docs
 docs:
-	cd ./docs && $(MAKE) clean html
+	cd ./docs && uv run $(MAKE) clean html
+
+.PHONY: tool
+tool:
+	uv tool install ruff
+	uv tool install tox --with tox-uv --with tox-gh-actions

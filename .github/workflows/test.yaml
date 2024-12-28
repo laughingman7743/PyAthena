@@ -3,7 +3,7 @@ name: Test
 on:
   push:
   schedule:
-    - cron:  "0 0 * * 0"
+    - cron:  '0 0 * * 0'
 
 permissions:
   id-token: write
@@ -22,17 +22,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.9, "3.10", "3.11", "3.12", "3.13"]
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+      # TODO: In the case of Python 3.13, the following error occurs, so install Python using setup-python.
+      #   ../meson.build:44:2: ERROR: Problem encountered: Cannot compile
+      #   `Python.h`. Perhaps you need to install python-dev|python-devel
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install hatch
-        run: pipx install hatch
+        if: matrix.python-version == '3.13'
+      - run: |
+          make tool
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -43,5 +51,4 @@ jobs:
 
       - name: Test
         run: |
-          hatch -e test.py${{ matrix.python-version }} run test
-          hatch -e test.py${{ matrix.python-version }} run test-sqla
+          make tox
