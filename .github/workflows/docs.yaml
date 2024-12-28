@@ -3,7 +3,7 @@ name: Docs
 on:
   workflow_dispatch:
   push:
-    branches: ["master"]
+    branches: ['master']
 
 permissions:
   contents: read
@@ -11,26 +11,26 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: 'pages'
   cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      PYTHON_VERSION: "3.12"
+      PYTHON_VERSION: '3.12'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Pages
-        uses: actions/configure-pages@v4
-      - uses: actions/setup-python@v5
+        uses: actions/configure-pages@v5
+      - uses: astral-sh/setup-uv@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install hatch
-        run: pipx install hatch
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
       - run: |
-          hatch run make docs
+          uv sync --group dev
+          make docs
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
 
 permissions:
   id-token: write
@@ -14,25 +14,24 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      PYTHON_VERSION: "3.12"
+      PYTHON_VERSION: '3.12'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install hatch
-        run: pipx install hatch
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
 
       - name: Build
         run: |
-          hatch build
+          uv build -v
       - name: Publish release distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: dist/*
           generate_release_notes: true
