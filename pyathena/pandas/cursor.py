@@ -182,7 +182,10 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         return self
 
     def executemany(
-        self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]], **kwargs
+        self,
+        operation: str,
+        seq_of_parameters: List[Optional[Union[Dict[str, Any], List[str]]]],
+        **kwargs,
     ) -> None:
         for parameters in seq_of_parameters:
             self.execute(operation, parameters, **kwargs)

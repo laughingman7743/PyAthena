@@ -217,7 +217,10 @@ class SparkBaseCursor(BaseCursor, metaclass=ABCMeta):
         self._terminate_session()
 
     def executemany(
-        self, operation: str, seq_of_parameters: List[Optional[Dict[str, Any]]], **kwargs
+        self,
+        operation: str,
+        seq_of_parameters: List[Optional[Union[Dict[str, Any], List[str]]]],
+        **kwargs,
     ) -> None:
         raise NotSupportedError
 
