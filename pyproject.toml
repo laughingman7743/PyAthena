@@ -101,7 +101,7 @@ exclude = [
     ".venv",
     ".tox",
 ]
-target-version = "py38"
+target-version = "py39"
 
 [tool.ruff.lint]
 # https://docs.astral.sh/ruff/rules/
