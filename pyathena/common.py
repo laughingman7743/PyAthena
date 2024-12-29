@@ -654,11 +654,11 @@ class BaseCursor(metaclass=ABCMeta):
             _logger.exception("Failed to cancel query.")
             raise OperationalError(*e.args) from e
 
-    def setinputsizes(self, sizes):
+    def setinputsizes(self, sizes):  # noqa: B027
         """Does nothing by default"""
         pass
 
-    def setoutputsize(self, size, column=None):
+    def setoutputsize(self, size, column=None):  # noqa: B027
         """Does nothing by default"""
         pass
 

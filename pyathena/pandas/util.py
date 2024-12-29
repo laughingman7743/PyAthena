@@ -60,7 +60,7 @@ def reset_index(df: "DataFrame", index_label: Optional[str] = None) -> None:
     try:
         df.reset_index(inplace=True)
     except ValueError as e:
-        raise ValueError(f"Duplicate name in index/columns: {e}")
+        raise ValueError("Duplicate name in index/columns") from e
 
 
 def as_pandas(cursor: "Cursor", coerce_float: bool = False) -> "DataFrame":

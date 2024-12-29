@@ -141,7 +141,7 @@ class Connection(Generic[ConnectionCursor]):
         converter: Optional[Converter] = None,
         formatter: Optional[Formatter] = None,
         retry_config: Optional[RetryConfig] = None,
-        cursor_class: Optional[Type[ConnectionCursor]] = cast(Type[ConnectionCursor], Cursor),
+        cursor_class: Optional[Type[ConnectionCursor]] = None,
         cursor_kwargs: Optional[Dict[str, Any]] = None,
         kill_on_interrupt: bool = True,
         session: Optional[Session] = None,

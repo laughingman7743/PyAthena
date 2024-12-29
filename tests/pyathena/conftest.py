@@ -106,7 +106,7 @@ def create_engine(**kwargs):
 
 def _cursor(cursor_class, request):
     if not hasattr(request, "param"):
-        setattr(request, "param", {})
+        setattr(request, "param", {})  # noqa: B010
     with contextlib.closing(
         connect(schema_name=ENV.schema, cursor_class=cursor_class, **request.param)
     ) as conn:
@@ -175,7 +175,7 @@ def spark_cursor(request):
     from pyathena.spark.cursor import SparkCursor
 
     if not hasattr(request, "param"):
-        setattr(request, "param", {})
+        setattr(request, "param", {})  # noqa: B010
     request.param.update({"work_group": ENV.spark_work_group})
     yield from _cursor(SparkCursor, request)
 
@@ -185,7 +185,7 @@ def async_spark_cursor(request):
     from pyathena.spark.async_cursor import AsyncSparkCursor
 
     if not hasattr(request, "param"):
-        setattr(request, "param", {})
+        setattr(request, "param", {})  # noqa: B010
     request.param.update({"work_group": ENV.spark_work_group})
     yield from _cursor(AsyncSparkCursor, request)
 
@@ -193,7 +193,7 @@ def async_spark_cursor(request):
 @pytest.fixture
 def engine(request):
     if not hasattr(request, "param"):
-        setattr(request, "param", {})
+        setattr(request, "param", {})  # noqa: B010
     engine_ = create_engine(**request.param)
     try:
         with contextlib.closing(engine_.connect()) as conn:

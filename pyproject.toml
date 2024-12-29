@@ -111,8 +111,8 @@ select = [
     "F",  # pyflakes
     "I",  # isort
     "N",  # pep8-naming
+    "B",  # flake8-bugbear
     # "SIM",  # flake8-simplify
-    # "B",  # flake8-bugbear
     # "C4",  # flake8-comprehensions
     # "UP",  # pyupgrade
 ]
