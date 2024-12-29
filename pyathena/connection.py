@@ -234,7 +234,7 @@ class Connection(Generic[ConnectionCursor]):
         self._converter = converter
         self._formatter = formatter if formatter else DefaultParameterFormatter()
         self._retry_config = retry_config if retry_config else RetryConfig()
-        self.cursor_class = cast(Type[ConnectionCursor], cursor_class)
+        self.cursor_class = cursor_class if cursor_class else cast(Type[ConnectionCursor], Cursor)
         self.cursor_kwargs = cursor_kwargs if cursor_kwargs else {}
         self.kill_on_interrupt = kill_on_interrupt
         self.result_reuse_enable = result_reuse_enable
