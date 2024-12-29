@@ -128,7 +128,7 @@ class TestS3FileSystem:
     @pytest.fixture(scope="class")
     def fs(self, request):
         if not hasattr(request, "param"):
-            setattr(request, "param", {})
+            setattr(request, "param", {})  # noqa: B010
         return S3FileSystem(connect(), **request.param)
 
     @pytest.mark.parametrize(
@@ -757,7 +757,7 @@ class TestS3FileSystem:
         with tempfile.NamedTemporaryFile("w+t") as tmp:
             tmp.write("col1")
             tmp.write("\n")
-            for i in range(0, line_count):
+            for _ in range(0, line_count):
                 tmp.write("a")
                 tmp.write("\n")
             tmp.flush()

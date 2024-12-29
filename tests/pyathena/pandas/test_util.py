@@ -79,27 +79,25 @@ def test_as_pandas(cursor):
     )
     df = as_pandas(cursor)
     rows = [
-        tuple(
-            [
-                row["col_boolean"],
-                row["col_tinyint"],
-                row["col_smallint"],
-                row["col_int"],
-                row["col_bigint"],
-                row["col_float"],
-                row["col_double"],
-                row["col_string"],
-                row["col_timestamp"],
-                row["col_time"],
-                row["col_date"],
-                row["col_binary"],
-                row["col_array"],
-                row["col_array_json"],
-                row["col_map"],
-                row["col_map_json"],
-                row["col_struct"],
-                row["col_decimal"],
-            ]
+        (
+            row["col_boolean"],
+            row["col_tinyint"],
+            row["col_smallint"],
+            row["col_int"],
+            row["col_bigint"],
+            row["col_float"],
+            row["col_double"],
+            row["col_string"],
+            row["col_timestamp"],
+            row["col_time"],
+            row["col_date"],
+            row["col_binary"],
+            row["col_array"],
+            row["col_array_json"],
+            row["col_map"],
+            row["col_map_json"],
+            row["col_struct"],
+            row["col_decimal"],
         )
         for _, row in df.iterrows()
     ]
@@ -135,7 +133,7 @@ def test_as_pandas_integer_na_values(cursor):
         """
     )
     df = as_pandas(cursor, coerce_float=True)
-    rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
+    rows = [(row["a"], row["b"]) for _, row in df.iterrows()]
     # TODO AssertionError: Lists differ:
     #  [(1.0, 2.0), (1.0, nan), (nan, nan)] != [(1.0, 2.0), (1.0, nan), (nan, nan)]
     # assert rows == [
@@ -153,7 +151,7 @@ def test_as_pandas_boolean_na_values(cursor):
         """
     )
     df = as_pandas(cursor)
-    rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
+    rows = [(row["a"], row["b"]) for _, row in df.iterrows()]
     assert rows == [(True, False), (False, None), (None, None)]
 
 
@@ -467,7 +465,7 @@ def test_to_sql_with_index(cursor):
 def test_to_sql_with_partitions(cursor):
     df = pd.DataFrame(
         {
-            "col_int": np.int32([i for i in range(10)]),
+            "col_int": np.int32(range(10)),
             "col_bigint": np.int64([12345 for _ in range(10)]),
             "col_string": ["a" for _ in range(10)],
         }
@@ -493,7 +491,7 @@ def test_to_sql_with_partitions(cursor):
 def test_to_sql_with_multiple_partitions(cursor):
     df = pd.DataFrame(
         {
-            "col_int": np.int32([i for i in range(10)]),
+            "col_int": np.int32(range(10)),
             "col_bigint": np.int64([12345 for _ in range(10)]),
             "col_string": ["a" for _ in range(5)] + ["b" for _ in range(5)],
         }

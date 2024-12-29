@@ -547,14 +547,13 @@ class AthenaTableMetadata:
     def compression(self) -> Optional[str]:
         if "write.compression" in self._parameters:  # text or json
             return self._parameters["write.compression"]
-        elif "serde.param.write.compression" in self._parameters:  # text or json
+        if "serde.param.write.compression" in self._parameters:  # text or json
             return self._parameters["serde.param.write.compression"]
-        elif "parquet.compress" in self._parameters:  # parquet
+        if "parquet.compress" in self._parameters:  # parquet
             return self._parameters["parquet.compress"]
-        elif "orc.compress" in self._parameters:  # orc
+        if "orc.compress" in self._parameters:  # orc
             return self._parameters["orc.compress"]
-        else:
-            return None
+        return None
 
     @property
     def serde_properties(self) -> Dict[str, str]:

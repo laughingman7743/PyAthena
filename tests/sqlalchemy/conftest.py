@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import contextlib
 from urllib.parse import quote_plus
 
 from sqlalchemy.testing.plugin.pytestplugin import *  # noqa
@@ -32,11 +33,8 @@ def pytest_sessionstart(session):
 
 @create_db.for_db("awsathena")
 def _awsathena_create_db(cfg, eng, ident):
-    with eng.begin() as conn:
-        try:
-            _awsathena_drop_db(cfg, conn, ident)
-        except Exception:
-            pass
+    with eng.begin() as conn, contextlib.suppress(Exception):
+        _awsathena_drop_db(cfg, conn, ident)
 
     with eng.begin() as conn:
         conn.exec_driver_sql(f"CREATE DATABASE {ident}")

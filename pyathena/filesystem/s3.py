@@ -125,11 +125,11 @@ class S3FileSystem(AbstractFileSystem):
         if anon:
             config_kwargs.update({"signature_version": UNSIGNED})
         else:
-            creds = dict(
-                aws_access_key_id=kwargs.pop("key", kwargs.pop("username", None)),
-                aws_secret_access_key=kwargs.pop("secret", kwargs.pop("password", None)),
-                aws_session_token=kwargs.pop("token", None),
-            )
+            creds = {
+                "aws_access_key_id": kwargs.pop("key", kwargs.pop("username", None)),
+                "aws_secret_access_key": kwargs.pop("secret", kwargs.pop("password", None)),
+                "aws_session_token": kwargs.pop("token", None),
+            }
             kwargs.update(**creds)
             client_kwargs.update(**creds)
 
@@ -148,8 +148,7 @@ class S3FileSystem(AbstractFileSystem):
         match = S3FileSystem.PATTERN_PATH.search(path)
         if match:
             return match.group("bucket"), match.group("key"), match.group("version_id")
-        else:
-            raise ValueError(f"Invalid S3 path format {path}.")
+        raise ValueError(f"Invalid S3 path format {path}.")
 
     def _head_bucket(self, bucket, refresh: bool = False) -> Optional[S3Object]:
         if bucket not in self.dircache or refresh:
@@ -299,10 +298,7 @@ class S3FileSystem(AbstractFileSystem):
                 self.dircache[path] = files
         else:
             cache = self.dircache[path]
-            if not isinstance(cache, list):
-                files = [cache]
-            else:
-                files = cache
+            files = cache if isinstance(cache, list) else [cache]
         return files
 
     def ls(
@@ -317,7 +313,7 @@ class S3FileSystem(AbstractFileSystem):
                 file = self._head_object(path, refresh=refresh)
                 if file:
                     files = [file]
-        return [f for f in files] if detail else [f.name for f in files]
+        return list(files) if detail else [f.name for f in files]
 
     def info(self, path: str, **kwargs) -> S3Object:
         refresh = kwargs.pop("refresh", False)
@@ -350,20 +346,19 @@ class S3FileSystem(AbstractFileSystem):
 
                 if cache:
                     return cache
-                else:
-                    return S3Object(
-                        init={
-                            "ContentLength": 0,
-                            "ContentType": None,
-                            "StorageClass": S3StorageClass.S3_STORAGE_CLASS_DIRECTORY,
-                            "ETag": None,
-                            "LastModified": None,
-                        },
-                        type=S3ObjectType.S3_OBJECT_TYPE_DIRECTORY,
-                        bucket=bucket,
-                        key=key.rstrip("/") if key else None,
-                        version_id=version_id,
-                    )
+                return S3Object(
+                    init={
+                        "ContentLength": 0,
+                        "ContentType": None,
+                        "StorageClass": S3StorageClass.S3_STORAGE_CLASS_DIRECTORY,
+                        "ETag": None,
+                        "LastModified": None,
+                    },
+                    type=S3ObjectType.S3_OBJECT_TYPE_DIRECTORY,
+                    bucket=bucket,
+                    key=key.rstrip("/") if key else None,
+                    version_id=version_id,
+                )
         if key:
             object_info = self._head_object(path, refresh=refresh, version_id=version_id)
             if object_info:
@@ -372,8 +367,7 @@ class S3FileSystem(AbstractFileSystem):
             bucket_info = self._head_bucket(path, refresh=refresh)
             if bucket_info:
                 return bucket_info
-            else:
-                raise FileNotFoundError(path)
+            raise FileNotFoundError(path)
 
         response = self._call(
             self._client.list_objects_v2,
@@ -400,8 +394,7 @@ class S3FileSystem(AbstractFileSystem):
                 key=key.rstrip("/") if key else None,
                 version_id=version_id,
             )
-        else:
-            raise FileNotFoundError(path)
+        raise FileNotFoundError(path)
 
     def find(
         self,
@@ -426,8 +419,7 @@ class S3FileSystem(AbstractFileSystem):
                 files = []
         if detail:
             return {f.name: f for f in files}
-        else:
-            return [f.name for f in files]
+        return [f.name for f in files]
 
     def exists(self, path: str, **kwargs) -> bool:
         path = self._strip_protocol(path)
@@ -440,10 +432,7 @@ class S3FileSystem(AbstractFileSystem):
                 if self._ls_from_cache(path):
                     return True
                 info = self.info(path)
-                if info:
-                    return True
-                else:
-                    return False
+                return bool(info)
             except FileNotFoundError:
                 return False
         elif self.dircache.get(bucket, False):
@@ -455,10 +444,7 @@ class S3FileSystem(AbstractFileSystem):
             except FileNotFoundError:
                 pass
             file = self._head_bucket(bucket)
-            if file:
-                return True
-            else:
-                return False
+            return bool(file)
 
     def rm_file(self, path: str, **kwargs) -> None:
         bucket, key, version_id = self.parse_path(path)
@@ -725,11 +711,13 @@ class S3FileSystem(AbstractFileSystem):
             if content_type is not None:
                 kwargs["ContentType"] = content_type
 
-        with self.open(rpath, "wb", s3_additional_kwargs=kwargs) as remote:
-            with open(lpath, "rb") as local:
-                while data := local.read(remote.blocksize):
-                    remote.write(data)
-                    callback.relative_update(len(data))
+        with (
+            self.open(rpath, "wb", s3_additional_kwargs=kwargs) as remote,
+            open(lpath, "rb") as local,
+        ):
+            while data := local.read(remote.blocksize):
+                remote.write(data)
+                callback.relative_update(len(data))
 
         self.invalidate_cache(rpath)
 
@@ -737,20 +725,18 @@ class S3FileSystem(AbstractFileSystem):
         if os.path.isdir(lpath):
             return
 
-        with open(lpath, "wb") as local:
-            with self.open(rpath, "rb", **kwargs) as remote:
-                callback.set_size(remote.size)
-                while data := remote.read(remote.blocksize):
-                    local.write(data)
-                    callback.relative_update(len(data))
+        with open(lpath, "wb") as local, self.open(rpath, "rb", **kwargs) as remote:
+            callback.set_size(remote.size)
+            while data := remote.read(remote.blocksize):
+                local.write(data)
+                callback.relative_update(len(data))
 
     def checksum(self, path: str, **kwargs):
         refresh = kwargs.pop("refresh", False)
         info = self.info(path, refresh=refresh)
         if info.get("type") != S3ObjectType.S3_OBJECT_TYPE_DIRECTORY:
             return int(info.get("etag").strip('"').split("-")[0], 16)
-        else:
-            return int(tokenize(info), 16)
+        return int(tokenize(info), 16)
 
     def sign(self, path: str, expiration: int = 3600, **kwargs):
         bucket, key, version_id = self.parse_path(path)
@@ -947,10 +933,7 @@ class S3FileSystem(AbstractFileSystem):
         return S3CompleteMultipartUpload(response)
 
     def _call(self, method: Union[str, Callable[..., Any]], **kwargs) -> Dict[str, Any]:
-        if isinstance(method, str):
-            func = getattr(self._client, method)
-        else:
-            func = method
+        func = getattr(self._client, method) if isinstance(method, str) else method
         response = retry_api_call(
             func, config=self._retry_config, logger=_logger, **kwargs, **self.request_kwargs
         )
@@ -1235,9 +1218,8 @@ class S3File(AbstractBufferedFile):
                 if range_end > end:
                     ranges.append((range_start, end))
                     break
-                else:
-                    ranges.append((range_start, range_end))
-                    range_start += worker_block_size
+                ranges.append((range_start, range_end))
+                range_start += worker_block_size
         else:
             ranges.append((start, end))
         return ranges

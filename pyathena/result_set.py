@@ -330,11 +330,10 @@ class AthenaResultSet(CursorIterator):
             self._fetch()
         if not self._rows:
             return None
-        else:
-            if self._rownumber is None:
-                self._rownumber = 0
-            self._rownumber += 1
-            return self._rows.popleft()
+        if self._rownumber is None:
+            self._rownumber = 0
+        self._rownumber += 1
+        return self._rows.popleft()
 
     def fetchmany(
         self, size: Optional[int] = None

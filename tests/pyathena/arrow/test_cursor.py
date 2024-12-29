@@ -259,7 +259,7 @@ class TestArrowCursor:
         table = arrow_cursor.execute("SELECT * FROM one_row").as_arrow()
         assert table.shape[0] == 1
         assert table.shape[1] == 1
-        assert [row for row in zip(*table.to_pydict().values())] == [(1,)]
+        assert list(zip(*table.to_pydict().values())) == [(1,)]
 
     @pytest.mark.parametrize(
         "arrow_cursor",
@@ -270,7 +270,7 @@ class TestArrowCursor:
         table = arrow_cursor.execute("SELECT * FROM many_rows").as_arrow()
         assert table.shape[0] == 10000
         assert table.shape[1] == 1
-        assert [row for row in zip(*table.to_pydict().values())] == [(i,) for i in range(10000)]
+        assert list(zip(*table.to_pydict().values())) == [(i,) for i in range(10000)]
 
     def test_complex_as_arrow(self, arrow_cursor):
         table = arrow_cursor.execute(
@@ -323,7 +323,7 @@ class TestArrowCursor:
                 pa.field("col_decimal", pa.string()),
             ]
         )
-        assert [row for row in zip(*table.to_pydict().values())] == [
+        assert list(zip(*table.to_pydict().values())) == [
             (
                 True,
                 127,
@@ -406,7 +406,7 @@ class TestArrowCursor:
                 pa.field("col_decimal", pa.decimal128(10, 1)),
             ]
         )
-        assert [row for row in zip(*table.to_pydict().values())] == [
+        assert list(zip(*table.to_pydict().values())) == [
             (
                 True,
                 127,
@@ -450,9 +450,8 @@ class TestArrowCursor:
         pytest.raises(ProgrammingError, arrow_cursor.cancel)
 
     def test_open_close(self):
-        with contextlib.closing(connect()) as conn:
-            with conn.cursor(ArrowCursor):
-                pass
+        with contextlib.closing(connect()) as conn, conn.cursor(ArrowCursor):
+            pass
 
     def test_no_ops(self):
         conn = connect()
@@ -522,7 +521,7 @@ class TestArrowCursor:
             [{"a": a, "b": b} for a, b in rows],
         )
         arrow_cursor.execute(f"SELECT * FROM {table_name}")
-        assert sorted(arrow_cursor.fetchall()) == [(a, b) for a, b in rows]
+        assert sorted(arrow_cursor.fetchall()) == list(rows)
 
     @pytest.mark.parametrize(
         "arrow_cursor",

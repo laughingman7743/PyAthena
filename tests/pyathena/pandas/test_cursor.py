@@ -295,25 +295,23 @@ class TestPandasCursor:
             ("col_decimal", "decimal", None, None, 10, 1, "NULLABLE"),
         ]
         rows = [
-            tuple(
-                [
-                    row[0],
-                    row[1],
-                    row[2],
-                    row[3],
-                    row[4],
-                    row[5],
-                    row[6],
-                    row[7],
-                    row[8],
-                    row[9],
-                    row[10],
-                    row[11],
-                    [a for a in row[12]],
-                    row[13],
-                    row[14],
-                    row[15],
-                ]
+            (
+                row[0],
+                row[1],
+                row[2],
+                row[3],
+                row[4],
+                row[5],
+                row[6],
+                row[7],
+                row[8],
+                row[9],
+                row[10],
+                row[11],
+                list(row[12]),
+                row[13],
+                row[14],
+                row[15],
             )
             for row in pandas_cursor.fetchall()
         ]
@@ -333,7 +331,7 @@ class TestPandasCursor:
                 b"123",
                 # ValueError: The truth value of an array with more than one element is ambiguous.
                 # Use a.any() or a.all()
-                [a for a in np.array([1, 2], dtype=np.int32)],
+                list(np.array([1, 2], dtype=np.int32)),
                 [(1, 2), (3, 4)],
                 {"a": 1, "b": 2},
                 Decimal("0.1"),
@@ -412,26 +410,24 @@ class TestPandasCursor:
             ("col_struct.b", "integer", None, None, 10, 0, "NULLABLE"),
         ]
         rows = [
-            tuple(
-                [
-                    row[0],
-                    row[1],
-                    row[2],
-                    row[3],
-                    row[4],
-                    row[5],
-                    row[6],
-                    row[7],
-                    row[8],
-                    row[9],
-                    row[10],
-                    row[11],
-                    [a for a in row[12]],
-                    row[13],
-                    row[14],
-                    row[15],
-                    row[16],
-                ]
+            (
+                row[0],
+                row[1],
+                row[2],
+                row[3],
+                row[4],
+                row[5],
+                row[6],
+                row[7],
+                row[8],
+                row[9],
+                row[10],
+                row[11],
+                list(row[12]),
+                row[13],
+                row[14],
+                row[15],
+                row[16],
             )
             for row in pandas_cursor.fetchall()
         ]
@@ -451,7 +447,7 @@ class TestPandasCursor:
                 b"123",
                 # ValueError: The truth value of an array with more than one element is ambiguous.
                 # Use a.any() or a.all()
-                [a for a in np.array([1, 2], dtype=np.int32)],
+                list(np.array([1, 2], dtype=np.int32)),
                 {1: 2, 3: 4},
                 # In the case of fastparquet, decimal types are handled as floats.
                 0.1,
@@ -550,75 +546,69 @@ class TestPandasCursor:
             df = pd.concat((d for d in df), ignore_index=True)
         assert df.shape[0] == 1
         assert df.shape[1] == 19
-        dtypes = tuple(
-            [
-                df["col_boolean"].dtype.type,
-                df["col_tinyint"].dtype.type,
-                df["col_smallint"].dtype.type,
-                df["col_int"].dtype.type,
-                df["col_bigint"].dtype.type,
-                df["col_float"].dtype.type,
-                df["col_double"].dtype.type,
-                df["col_string"].dtype.type,
-                df["col_varchar"].dtype.type,
-                df["col_timestamp"].dtype.type,
-                df["col_time"].dtype.type,
-                df["col_date"].dtype.type,
-                df["col_binary"].dtype.type,
-                df["col_array"].dtype.type,
-                df["col_array_json"].dtype.type,
-                df["col_map"].dtype.type,
-                df["col_map_json"].dtype.type,
-                df["col_struct"].dtype.type,
-                df["col_decimal"].dtype.type,
-            ]
+        dtypes = (
+            df["col_boolean"].dtype.type,
+            df["col_tinyint"].dtype.type,
+            df["col_smallint"].dtype.type,
+            df["col_int"].dtype.type,
+            df["col_bigint"].dtype.type,
+            df["col_float"].dtype.type,
+            df["col_double"].dtype.type,
+            df["col_string"].dtype.type,
+            df["col_varchar"].dtype.type,
+            df["col_timestamp"].dtype.type,
+            df["col_time"].dtype.type,
+            df["col_date"].dtype.type,
+            df["col_binary"].dtype.type,
+            df["col_array"].dtype.type,
+            df["col_array_json"].dtype.type,
+            df["col_map"].dtype.type,
+            df["col_map_json"].dtype.type,
+            df["col_struct"].dtype.type,
+            df["col_decimal"].dtype.type,
         )
-        assert dtypes == tuple(
-            [
-                np.bool_,
-                np.int64,
-                np.int64,
-                np.int64,
-                np.int64,
-                np.float64,
-                np.float64,
-                np.object_,
-                np.object_,
-                np.datetime64,
-                np.object_,
-                np.datetime64,
-                np.object_,
-                np.object_,
-                np.object_,
-                np.object_,
-                np.object_,
-                np.object_,
-                np.object_,
-            ]
+        assert dtypes == (
+            np.bool_,
+            np.int64,
+            np.int64,
+            np.int64,
+            np.int64,
+            np.float64,
+            np.float64,
+            np.object_,
+            np.object_,
+            np.datetime64,
+            np.object_,
+            np.datetime64,
+            np.object_,
+            np.object_,
+            np.object_,
+            np.object_,
+            np.object_,
+            np.object_,
+            np.object_,
         )
         rows = [
-            tuple(
-                [
-                    row["col_boolean"],
-                    row["col_tinyint"],
-                    row["col_smallint"],
-                    row["col_int"],
-                    row["col_bigint"],
-                    row["col_float"],
-                    row["col_double"],
-                    row["col_string"],
-                    row["col_varchar"],
-                    row["col_timestamp"],
-                    row["col_time"],
-                    row["col_date"],
-                    row["col_binary"],
-                    row["col_array"],
-                    row["col_array_json"],
-                    row["col_map"],
-                    row["col_map_json"],
-                    row["col_struct"],
-                    row["col_decimal"],
-                ]
+            (
+                row["col_boolean"],
+                row["col_tinyint"],
+                row["col_smallint"],
+                row["col_int"],
+                row["col_bigint"],
+                row["col_float"],
+                row["col_double"],
+                row["col_string"],
+                row["col_varchar"],
+                row["col_timestamp"],
+                row["col_time"],
+                row["col_date"],
+                row["col_binary"],
+                row["col_array"],
+                row["col_array_json"],
+                row["col_map"],
+                row["col_map_json"],
+                row["col_struct"],
+                row["col_decimal"],
             )
             for _, row in df.iterrows()
         ]
@@ -681,66 +671,60 @@ class TestPandasCursor:
         ).as_pandas()
         assert df.shape[0] == 1
         assert df.shape[1] == 16
-        dtypes = tuple(
-            [
-                df["col_boolean"].dtype.type,
-                df["col_tinyint"].dtype.type,
-                df["col_smallint"].dtype.type,
-                df["col_int"].dtype.type,
-                df["col_bigint"].dtype.type,
-                df["col_float"].dtype.type,
-                df["col_double"].dtype.type,
-                df["col_string"].dtype.type,
-                df["col_varchar"].dtype.type,
-                df["col_timestamp"].dtype.type,
-                df["col_date"].dtype.type,
-                df["col_binary"].dtype.type,
-                df["col_array"].dtype.type,
-                df["col_map"].dtype.type,
-                df["col_struct"].dtype.type,
-                df["col_decimal"].dtype.type,
-            ]
+        dtypes = (
+            df["col_boolean"].dtype.type,
+            df["col_tinyint"].dtype.type,
+            df["col_smallint"].dtype.type,
+            df["col_int"].dtype.type,
+            df["col_bigint"].dtype.type,
+            df["col_float"].dtype.type,
+            df["col_double"].dtype.type,
+            df["col_string"].dtype.type,
+            df["col_varchar"].dtype.type,
+            df["col_timestamp"].dtype.type,
+            df["col_date"].dtype.type,
+            df["col_binary"].dtype.type,
+            df["col_array"].dtype.type,
+            df["col_map"].dtype.type,
+            df["col_struct"].dtype.type,
+            df["col_decimal"].dtype.type,
         )
-        assert dtypes == tuple(
-            [
-                np.bool_,
-                np.int8,
-                np.int16,
-                np.int32,
-                np.int64,
-                np.float32,
-                np.float64,
-                np.object_,
-                np.object_,
-                np.datetime64,
-                np.object_,
-                np.object_,
-                np.object_,
-                np.object_,
-                np.object_,
-                np.object_,
-            ]
+        assert dtypes == (
+            np.bool_,
+            np.int8,
+            np.int16,
+            np.int32,
+            np.int64,
+            np.float32,
+            np.float64,
+            np.object_,
+            np.object_,
+            np.datetime64,
+            np.object_,
+            np.object_,
+            np.object_,
+            np.object_,
+            np.object_,
+            np.object_,
         )
         rows = [
-            tuple(
-                [
-                    row["col_boolean"],
-                    row["col_tinyint"],
-                    row["col_smallint"],
-                    row["col_int"],
-                    row["col_bigint"],
-                    row["col_float"],
-                    row["col_double"],
-                    row["col_string"],
-                    row["col_varchar"],
-                    row["col_timestamp"],
-                    row["col_date"],
-                    row["col_binary"],
-                    [a for a in row["col_array"]],
-                    row["col_map"],
-                    row["col_struct"],
-                    row["col_decimal"],
-                ]
+            (
+                row["col_boolean"],
+                row["col_tinyint"],
+                row["col_smallint"],
+                row["col_int"],
+                row["col_bigint"],
+                row["col_float"],
+                row["col_double"],
+                row["col_string"],
+                row["col_varchar"],
+                row["col_timestamp"],
+                row["col_date"],
+                row["col_binary"],
+                list(row["col_array"]),
+                row["col_map"],
+                row["col_struct"],
+                row["col_decimal"],
             )
             for _, row in df.iterrows()
         ]
@@ -760,7 +744,7 @@ class TestPandasCursor:
                 b"123",
                 # ValueError: The truth value of an array with more than one element is ambiguous.
                 # Use a.any() or a.all()
-                [a for a in np.array([1, 2], dtype=np.int32)],
+                list(np.array([1, 2], dtype=np.int32)),
                 [(1, 2), (3, 4)],
                 {"a": 1, "b": 2},
                 Decimal("0.1"),
@@ -803,71 +787,65 @@ class TestPandasCursor:
         ).as_pandas()
         assert df.shape[0] == 1
         assert df.shape[1] == 17
-        dtypes = tuple(
-            [
-                df["col_boolean"].dtype.type,
-                df["col_tinyint"].dtype.type,
-                df["col_smallint"].dtype.type,
-                df["col_int"].dtype.type,
-                df["col_bigint"].dtype.type,
-                df["col_float"].dtype.type,
-                df["col_double"].dtype.type,
-                df["col_string"].dtype.type,
-                df["col_varchar"].dtype.type,
-                df["col_timestamp"].dtype.type,
-                df["col_date"].dtype.type,
-                df["col_binary"].dtype.type,
-                df["col_array"].dtype.type,
-                df["col_map"].dtype.type,
-                df["col_decimal"].dtype.type,
-                # In the case of fastparquet, child elements of struct types are handled
-                # as fields separated by dots.
-                df["col_struct.a"].dtype.type,
-                df["col_struct.b"].dtype.type,
-            ]
+        dtypes = (
+            df["col_boolean"].dtype.type,
+            df["col_tinyint"].dtype.type,
+            df["col_smallint"].dtype.type,
+            df["col_int"].dtype.type,
+            df["col_bigint"].dtype.type,
+            df["col_float"].dtype.type,
+            df["col_double"].dtype.type,
+            df["col_string"].dtype.type,
+            df["col_varchar"].dtype.type,
+            df["col_timestamp"].dtype.type,
+            df["col_date"].dtype.type,
+            df["col_binary"].dtype.type,
+            df["col_array"].dtype.type,
+            df["col_map"].dtype.type,
+            df["col_decimal"].dtype.type,
+            # In the case of fastparquet, child elements of struct types are handled
+            # as fields separated by dots.
+            df["col_struct.a"].dtype.type,
+            df["col_struct.b"].dtype.type,
         )
-        assert dtypes == tuple(
-            [
-                np.bool_,
-                np.int8,
-                np.int16,
-                np.int32,
-                np.int64,
-                np.float32,
-                np.float64,
-                np.object_,
-                np.object_,
-                np.datetime64,
-                np.datetime64,
-                np.object_,
-                np.object_,
-                np.object_,
-                np.float64,
-                np.int32,
-                np.int32,
-            ]
+        assert dtypes == (
+            np.bool_,
+            np.int8,
+            np.int16,
+            np.int32,
+            np.int64,
+            np.float32,
+            np.float64,
+            np.object_,
+            np.object_,
+            np.datetime64,
+            np.datetime64,
+            np.object_,
+            np.object_,
+            np.object_,
+            np.float64,
+            np.int32,
+            np.int32,
         )
         rows = [
-            tuple(
-                [
-                    row["col_boolean"],
-                    row["col_tinyint"],
-                    row["col_smallint"],
-                    row["col_int"],
-                    row["col_bigint"],
-                    row["col_float"],
-                    row["col_double"],
-                    row["col_string"],
-                    row["col_varchar"],
-                    row["col_timestamp"],
-                    row["col_date"],
-                    row["col_binary"],
-                    [a for a in row["col_array"]],
-                    row["col_map"],
-                    row["col_decimal"],
-                    row["col_struct.a"],
-                    row["col_struct.b"],
-                ]
+            (
+                row["col_boolean"],
+                row["col_tinyint"],
+                row["col_smallint"],
+                row["col_int"],
+                row["col_bigint"],
+                row["col_float"],
+                row["col_double"],
+                row["col_string"],
+                row["col_varchar"],
+                row["col_timestamp"],
+                row["col_date"],
+                row["col_binary"],
+                list(row["col_array"]),
+                row["col_map"],
+                row["col_decimal"],
+                row["col_struct.a"],
+                row["col_struct.b"],
             )
             for _, row in df.iterrows()
         ]
@@ -887,7 +865,7 @@ class TestPandasCursor:
                 b"123",
                 # ValueError: The truth value of an array with more than one element is ambiguous.
                 # Use a.any() or a.all()
-                [a for a in np.array([1, 2], dtype=np.int32)],
+                list(np.array([1, 2], dtype=np.int32)),
                 {1: 2, 3: 4},
                 # In the case of fastparquet, decimal types are handled as floats.
                 0.1,
@@ -919,9 +897,8 @@ class TestPandasCursor:
         pytest.raises(ProgrammingError, pandas_cursor.cancel)
 
     def test_open_close(self):
-        with contextlib.closing(connect()) as conn:
-            with conn.cursor(PandasCursor):
-                pass
+        with contextlib.closing(connect()) as conn, conn.cursor(PandasCursor):
+            pass
 
     def test_no_ops(self):
         conn = connect()
@@ -1016,18 +993,16 @@ class TestPandasCursor:
         ).as_pandas()
         if pandas_cursor._unload:
             rows = [
-                tuple(
-                    [
-                        True if math.isnan(row["a"]) else row["a"],
-                        True if math.isnan(row["b"]) else row["b"],
-                    ]
+                (
+                    True if math.isnan(row["a"]) else row["a"],
+                    True if math.isnan(row["b"]) else row["b"],
                 )
                 for _, row in df.iterrows()
             ]
             # If the UNLOAD option is enabled, it is converted to float for some reason.
             assert rows == [(1.0, 2.0), (1.0, True), (True, True)]
         else:
-            rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
+            rows = [(row["a"], row["b"]) for _, row in df.iterrows()]
             assert rows == [(1, 2), (1, pd.NA), (pd.NA, pd.NA)]
 
     @pytest.mark.parametrize(
@@ -1047,7 +1022,7 @@ class TestPandasCursor:
             """,
             engine=parquet_engine,
         ).as_pandas()
-        rows = [tuple([row["col"]]) for _, row in df.iterrows()]
+        rows = [(row["col"],) for _, row in df.iterrows()]
         np.testing.assert_equal(rows, [(0.33,), (np.nan,)])
 
     @pytest.mark.parametrize(
@@ -1069,17 +1044,15 @@ class TestPandasCursor:
         ).as_pandas()
         if parquet_engine == "fastparquet":
             rows = [
-                tuple(
-                    [
-                        True if math.isnan(row["a"]) else row["a"],
-                        True if math.isnan(row["b"]) else row["b"],
-                    ]
+                (
+                    True if math.isnan(row["a"]) else row["a"],
+                    True if math.isnan(row["b"]) else row["b"],
                 )
                 for _, row in df.iterrows()
             ]
             assert rows == [(1.0, 0.0), (0.0, True), (True, True)]
         else:
-            rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
+            rows = [(row["a"], row["b"]) for _, row in df.iterrows()]
             assert rows == [(True, False), (False, None), (None, None)]
 
     @pytest.mark.parametrize(
@@ -1102,7 +1075,7 @@ class TestPandasCursor:
             [{"a": a, "b": b} for a, b in rows],
         )
         pandas_cursor.execute(f"SELECT * FROM {table_name}", engine=parquet_engine)
-        assert sorted(pandas_cursor.fetchall()) == [(a, b) for a, b in rows]
+        assert sorted(pandas_cursor.fetchall()) == list(rows)
 
     @pytest.mark.parametrize(
         "pandas_cursor, parquet_engine",
@@ -1199,14 +1172,7 @@ class TestPandasCursor:
     def test_null_decimal_value(self, pandas_cursor, parquet_engine):
         pandas_cursor.execute("SELECT CAST(null AS DECIMAL) AS col_decimal", engine=parquet_engine)
         if parquet_engine == "fastparquet":
-            rows = [
-                tuple(
-                    [
-                        True if math.isnan(row[0]) else row[0],
-                    ]
-                )
-                for row in pandas_cursor.fetchall()
-            ]
+            rows = [(True if math.isnan(row[0]) else row[0],) for row in pandas_cursor.fetchall()]
             assert rows == [(True,)]
         else:
             assert pandas_cursor.fetchall() == [(None,)]

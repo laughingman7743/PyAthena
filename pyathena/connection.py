@@ -141,7 +141,7 @@ class Connection(Generic[ConnectionCursor]):
         converter: Optional[Converter] = None,
         formatter: Optional[Formatter] = None,
         retry_config: Optional[RetryConfig] = None,
-        cursor_class: Optional[Type[ConnectionCursor]] = cast(Type[ConnectionCursor], Cursor),
+        cursor_class: Optional[Type[ConnectionCursor]] = None,
         cursor_kwargs: Optional[Dict[str, Any]] = None,
         kill_on_interrupt: bool = True,
         session: Optional[Session] = None,
@@ -234,8 +234,8 @@ class Connection(Generic[ConnectionCursor]):
         self._converter = converter
         self._formatter = formatter if formatter else DefaultParameterFormatter()
         self._retry_config = retry_config if retry_config else RetryConfig()
-        self.cursor_class = cast(Type[ConnectionCursor], cursor_class)
-        self.cursor_kwargs = cursor_kwargs if cursor_kwargs else dict()
+        self.cursor_class = cursor_class if cursor_class else cast(Type[ConnectionCursor], Cursor)
+        self.cursor_kwargs = cursor_kwargs if cursor_kwargs else {}
         self.kill_on_interrupt = kill_on_interrupt
         self.result_reuse_enable = result_reuse_enable
         self.result_reuse_minutes = result_reuse_minutes

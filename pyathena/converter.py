@@ -117,12 +117,12 @@ class Converter(metaclass=ABCMeta):
         if mappings:
             self._mappings = mappings
         else:
-            self._mappings = dict()
+            self._mappings = {}
         self._default = default
         if types:
             self._types = types
         else:
-            self._types = dict()
+            self._types = {}
 
     @property
     def mappings(self) -> Dict[str, Callable[[Optional[str]], Optional[Any]]]:

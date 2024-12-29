@@ -62,7 +62,7 @@ class DefaultPandasTypeConverter(Converter):
 class DefaultPandasUnloadTypeConverter(Converter):
     def __init__(self) -> None:
         super().__init__(
-            mappings=dict(),
+            mappings={},
             default=_to_default,
         )
 

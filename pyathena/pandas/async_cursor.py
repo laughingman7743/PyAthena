@@ -64,8 +64,7 @@ class AsyncPandasCursor(AsyncCursor):
     ) -> Union[DefaultPandasTypeConverter, Any]:
         if unload:
             return DefaultPandasUnloadTypeConverter()
-        else:
-            return DefaultPandasTypeConverter()
+        return DefaultPandasTypeConverter()
 
     @property
     def arraysize(self) -> int:
@@ -87,7 +86,7 @@ class AsyncPandasCursor(AsyncCursor):
         kwargs: Optional[Dict[str, Any]] = None,
     ) -> AthenaPandasResultSet:
         if kwargs is None:
-            kwargs = dict()
+            kwargs = {}
         query_execution = cast(AthenaQueryExecution, self._poll(query_id))
         return AthenaPandasResultSet(
             connection=self._connection,

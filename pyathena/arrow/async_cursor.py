@@ -60,8 +60,7 @@ class AsyncArrowCursor(AsyncCursor):
     ) -> Union[DefaultArrowTypeConverter, DefaultArrowUnloadTypeConverter, Any]:
         if unload:
             return DefaultArrowUnloadTypeConverter()
-        else:
-            return DefaultArrowTypeConverter()
+        return DefaultArrowTypeConverter()
 
     @property
     def arraysize(self) -> int:
@@ -80,7 +79,7 @@ class AsyncArrowCursor(AsyncCursor):
         kwargs: Optional[Dict[str, Any]] = None,
     ) -> AthenaArrowResultSet:
         if kwargs is None:
-            kwargs = dict()
+            kwargs = {}
         query_execution = cast(AthenaQueryExecution, self._poll(query_id))
         return AthenaArrowResultSet(
             connection=self._connection,

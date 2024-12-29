@@ -107,14 +107,13 @@ class SparkBaseCursor(BaseCursor, metaclass=ABCMeta):
             session_status = self._get_session_status(session_id)
             if session_status.state in [AthenaSessionStatus.STATE_IDLE]:
                 break
-            elif session_status in [
+            if session_status in [
                 AthenaSessionStatus.STATE_TERMINATED,
                 AthenaSessionStatus.STATE_DEGRADED,
                 AthenaSessionStatus.STATE_FAILED,
             ]:
                 raise OperationalError(session_status.state_change_reason)
-            else:
-                time.sleep(self._poll_interval)
+            time.sleep(self._poll_interval)
 
     def _exists_session(self, session_id: str) -> bool:
         request = {"SessionId": session_id}
@@ -132,8 +131,7 @@ class SparkBaseCursor(BaseCursor, metaclass=ABCMeta):
             ):
                 _logger.exception(f"Session: {session_id} not found.")
                 return False
-            else:
-                raise OperationalError(*e.args) from e
+            raise OperationalError(*e.args) from e
         else:
             self._wait_for_idle_session(session_id)
             return True
@@ -185,8 +183,7 @@ class SparkBaseCursor(BaseCursor, metaclass=ABCMeta):
                 AthenaCalculationExecutionStatus.STATE_CANCELED,
             ]:
                 return self._get_calculation_execution(query_id)
-            else:
-                time.sleep(self._poll_interval)
+            time.sleep(self._poll_interval)
 
     def _poll(self, query_id: str) -> Union[AthenaQueryExecution, AthenaCalculationExecution]:
         try:

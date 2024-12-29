@@ -85,8 +85,7 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
 
         if isinstance(self._reader, TextFileReader):
             return self._reader.get_chunk(size)
-        else:
-            return next(self._reader)
+        return next(self._reader)
 
 
 class AthenaPandasResultSet(AthenaResultSet):
@@ -141,10 +140,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._fs = self.__s3_file_system()
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
             df = self._as_pandas()
-            if self.is_unload:
-                trunc_date = _no_trunc_date
-            else:
-                trunc_date = self._trunc_date
+            trunc_date = _no_trunc_date if self.is_unload else self._trunc_date
             self._df_iter = DataFrameIterator(df, trunc_date)
         else:
             import pandas as pd
@@ -169,8 +165,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                 "Trying to import the above resulted in these errors:"
                 f"{error_msgs}"
             )
-        else:
-            return self._engine
+        return self._engine
 
     def __s3_file_system(self):
         from pyathena.filesystem.s3 import S3FileSystem
@@ -320,7 +315,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             }
         elif engine == "fastparquet":
             unload_location = f"{self._unload_location}*"
-            kwargs = dict()
+            kwargs = {}
         else:
             raise ProgrammingError("Engine must be one of `pyarrow`, `fastparquet`.")
         kwargs.update(self._kwargs)
@@ -379,7 +374,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             engine = self._get_engine()
             df = self._read_parquet(engine)
             if df.empty:
-                self._metadata = tuple()
+                self._metadata = ()
             else:
                 self._metadata = self._read_parquet_schema(engine)
         else:
@@ -389,8 +384,7 @@ class AthenaPandasResultSet(AthenaResultSet):
     def as_pandas(self) -> Union[DataFrameIterator, "DataFrame"]:
         if self._chunksize is None:
             return next(self._df_iter)
-        else:
-            return self._df_iter
+        return self._df_iter
 
     def close(self) -> None:
         import pandas as pd

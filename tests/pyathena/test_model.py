@@ -332,7 +332,7 @@ class TestAthenaTableMetadata:
             "serialization.format": "1",
             "write.compression": "GZIP",
         }
-        for key in actual.table_properties.keys():
+        for key in actual.table_properties:
             assert not key.startswith("serde.param.")
         assert actual.row_format == "SERDE 'org.openx.data.jsonserde.JsonSerDe'"
         assert (
@@ -353,7 +353,7 @@ class TestAthenaTableMetadata:
         assert actual.serde_serialization_lib == "org.apache.hive.hcatalog.data.JsonSerDe"
         assert actual.compression == "SNAPPY"
         assert not actual.serde_properties
-        for key in actual.table_properties.keys():
+        for key in actual.table_properties:
             assert not key.startswith("serde.param.")
         assert actual.row_format == "SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'"
         assert (
@@ -383,7 +383,7 @@ class TestAthenaTableMetadata:
         assert actual.serde_properties == {
             "serialization.format": "1",
         }
-        for key in actual.table_properties.keys():
+        for key in actual.table_properties:
             assert not key.startswith("serde.param.")
         assert (
             actual.row_format
@@ -408,7 +408,7 @@ class TestAthenaTableMetadata:
         assert actual.serde_serialization_lib == "org.apache.hadoop.hive.ql.io.orc.OrcSerde"
         assert actual.compression == "SNAPPY"
         assert not actual.serde_properties
-        for key in actual.table_properties.keys():
+        for key in actual.table_properties:
             assert not key.startswith("serde.param.")
         assert actual.row_format == "SERDE 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'"
         assert (
@@ -429,7 +429,7 @@ class TestAthenaTableMetadata:
         assert actual.serde_serialization_lib == "org.apache.hadoop.hive.serde2.avro.AvroSerDe"
         assert actual.compression is None
         assert not actual.serde_properties
-        for key in actual.table_properties.keys():
+        for key in actual.table_properties:
             assert not key.startswith("serde.param.")
         assert actual.row_format == "SERDE 'org.apache.hadoop.hive.serde2.avro.AvroSerDe'"
         assert (

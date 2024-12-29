@@ -226,7 +226,7 @@ class TestAsyncArrowCursor:
         table = future.result().as_arrow()
         assert table.shape[0] == 1
         assert table.shape[1] == 1
-        assert [row for row in zip(*table.to_pydict().values())] == [(1,)]
+        assert list(zip(*table.to_pydict().values())) == [(1,)]
 
     @pytest.mark.parametrize(
         "async_arrow_cursor",
@@ -238,7 +238,7 @@ class TestAsyncArrowCursor:
         table = future.result().as_arrow()
         assert table.shape[0] == 10000
         assert table.shape[1] == 1
-        assert [row for row in zip(*table.to_pydict().values())] == [(i,) for i in range(10000)]
+        assert list(zip(*table.to_pydict().values())) == [(i,) for i in range(10000)]
 
     def test_cancel(self, async_arrow_cursor):
         query_id, future = async_arrow_cursor.execute(
@@ -258,9 +258,8 @@ class TestAsyncArrowCursor:
         assert result_set.fetchall() == []
 
     def test_open_close(self):
-        with contextlib.closing(connect()) as conn:
-            with conn.cursor(AsyncArrowCursor):
-                pass
+        with contextlib.closing(connect()) as conn, conn.cursor(AsyncArrowCursor):
+            pass
 
     def test_no_ops(self):
         conn = connect()

@@ -21,8 +21,7 @@ def parse_output_location(output_location: str) -> Tuple[str, str]:
     match = PATTERN_OUTPUT_LOCATION.search(output_location)
     if match:
         return match.group("bucket"), match.group("key")
-    else:
-        raise DataError("Unknown `output_location` format.")
+    raise DataError("Unknown `output_location` format.")
 
 
 def strtobool(val):
@@ -34,10 +33,9 @@ def strtobool(val):
     val = val.lower()
     if val in ("y", "yes", "t", "true", "on", "1"):
         return 1
-    elif val in ("n", "no", "f", "false", "off", "0"):
+    if val in ("n", "no", "f", "false", "off", "0"):
         return 0
-    else:
-        raise ValueError(f"invalid truth value {val!r}")
+    raise ValueError(f"invalid truth value {val!r}")
 
 
 class RetryConfig:

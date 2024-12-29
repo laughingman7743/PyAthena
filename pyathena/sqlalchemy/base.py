@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import contextlib
 import re
 from typing import (
     TYPE_CHECKING,
@@ -350,7 +351,7 @@ SELECT_STATEMENT_RESERVED_WORDS: Set[str] = {
     "WINDOW",
     "WITH",
 }
-RESERVED_WORDS: Set[str] = set(sorted(DDL_RESERVED_WORDS | SELECT_STATEMENT_RESERVED_WORDS))
+RESERVED_WORDS: Set[str] = set(DDL_RESERVED_WORDS | SELECT_STATEMENT_RESERVED_WORDS)
 
 ischema_names: Dict[str, Type[Any]] = {
     "boolean": types.BOOLEAN,
@@ -441,17 +442,19 @@ class AthenaStatementCompiler(SQLCompiler):
 
     def format_from_hint_text(self, sqltext, table, hint, iscrud):
         hint_upper = hint.upper()
-        if any(
-            [
-                hint_upper.startswith("FOR TIMESTAMP AS OF"),
-                hint_upper.startswith("FOR SYSTEM_TIME AS OF"),
-                hint_upper.startswith("FOR VERSION AS OF"),
-                hint_upper.startswith("FOR SYSTEM_VERSION AS OF"),
-            ]
+        if (
+            any(
+                [
+                    hint_upper.startswith("FOR TIMESTAMP AS OF"),
+                    hint_upper.startswith("FOR SYSTEM_TIME AS OF"),
+                    hint_upper.startswith("FOR VERSION AS OF"),
+                    hint_upper.startswith("FOR SYSTEM_VERSION AS OF"),
+                ]
+            )
+            and "AS" in sqltext
         ):
-            if "AS" in sqltext:
-                _, alias = sqltext.split(" AS ", 1)
-                return f"{table.original.fullname} {hint} AS {alias}"
+            _, alias = sqltext.split(" AS ", 1)
+            return f"{table.original.fullname} {hint} AS {alias}"
 
         return f"{sqltext} {hint}"
 
@@ -475,10 +478,9 @@ class AthenaTypeCompiler(GenericTypeCompiler):
     def visit_DECIMAL(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         if type_.precision is None:
             return "DECIMAL"
-        elif type_.scale is None:
+        if type_.scale is None:
             return f"DECIMAL({type_.precision})"
-        else:
-            return f"DECIMAL({type_.precision}, {type_.scale})"
+        return f"DECIMAL({type_.precision}, {type_.scale})"
 
     def visit_TINYINT(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return "TINYINT"
@@ -703,11 +705,10 @@ class AthenaDDLCompiler(DDLCompiler):
                     "`location` or `s3_staging_dir` parameter is required "
                     "in the connection string"
                 )
-            else:
-                raise exc.CompileError(
-                    "The location of the table should be specified "
-                    "by the dialect keyword argument `awsathena_location`"
-                )
+            raise exc.CompileError(
+                "The location of the table should be specified "
+                "by the dialect keyword argument `awsathena_location`"
+            )
         return "\n".join(text)
 
     def _get_table_properties(
@@ -898,11 +899,8 @@ class AthenaDDLCompiler(DDLCompiler):
         if ("table_type" in table_properties) and ("iceberg" in table_properties):
             is_iceberg = True
 
-        if is_iceberg:
-            # https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html
-            text = ["\nCREATE TABLE"]
-        else:
-            text = ["\nCREATE EXTERNAL TABLE"]
+        # https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html
+        text = ["\nCREATE TABLE"] if is_iceberg else ["\nCREATE EXTERNAL TABLE"]
 
         if create.if_not_exists:
             text.append("IF NOT EXISTS")
@@ -1003,7 +1001,7 @@ class AthenaDialect(DefaultDialect):
 
     ischema_names: Dict[str, Type[Any]] = ischema_names
 
-    _connect_options: Dict[str, Any] = dict()  # type: ignore
+    _connect_options: Dict[str, Any] = {}  # type: ignore
     _pattern_column_type: Pattern[str] = re.compile(r"^([a-zA-Z]+)(?:$|[\(|<](.+)[\)|>]$)")
 
     def __init__(self, json_deserializer=None, json_serializer=None, **kwargs):
@@ -1030,7 +1028,7 @@ class AthenaDialect(DefaultDialect):
         #   {aws_access_key_id}:{aws_secret_access_key}@athena.{region_name}.amazonaws.com:443/
         #   {schema_name}?s3_staging_dir={s3_staging_dir}&...
         self._connect_options = self._create_connect_args(url)
-        return cast(Tuple[str], tuple()), self._connect_options
+        return cast(Tuple[str], ()), self._connect_options
 
     def _create_connect_args(self, url: "URL") -> Dict[str, Any]:
         opts: Dict[str, Any] = {
@@ -1046,11 +1044,9 @@ class AthenaDialect(DefaultDialect):
         opts.update(url.query)
         if "verify" in opts:
             verify = opts["verify"]
-            try:
+            # If a ValueError occurs, it is probably the file name of the CA certificate being used.
+            with contextlib.suppress(ValueError):
                 verify = bool(strtobool(verify))
-            except ValueError:
-                # Probably a file name of the CA cert bundle to use
-                pass
             opts.update({"verify": verify})
         if "duration_seconds" in opts:
             opts.update({"duration_seconds": int(opts["duration_seconds"])})
@@ -1150,7 +1146,7 @@ class AthenaDialect(DefaultDialect):
     ):
         try:
             columns = self.get_columns(connection, table_name, schema)
-            return True if columns else False
+            return bool(columns)
         except exc.NoSuchTableError:
             return False
 
@@ -1166,7 +1162,7 @@ class AthenaDialect(DefaultDialect):
         except exc.OperationalError as e:
             raise exc.NoSuchTableError(f"{schema}.{view_name}") from e
         else:
-            return "\n".join([r for r in res])
+            return "\n".join(res)
 
     @reflection.cache
     def get_columns(

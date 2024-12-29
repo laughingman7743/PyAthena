@@ -59,8 +59,7 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
     ) -> Union[DefaultArrowTypeConverter, DefaultArrowUnloadTypeConverter, Any]:
         if unload:
             return DefaultArrowUnloadTypeConverter()
-        else:
-            return DefaultArrowTypeConverter()
+        return DefaultArrowTypeConverter()
 
     @property
     def arraysize(self) -> int:
