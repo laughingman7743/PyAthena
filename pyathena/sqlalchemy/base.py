@@ -478,10 +478,9 @@ class AthenaTypeCompiler(GenericTypeCompiler):
     def visit_DECIMAL(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         if type_.precision is None:
             return "DECIMAL"
-        elif type_.scale is None:
+        if type_.scale is None:
             return f"DECIMAL({type_.precision})"
-        else:
-            return f"DECIMAL({type_.precision}, {type_.scale})"
+        return f"DECIMAL({type_.precision}, {type_.scale})"
 
     def visit_TINYINT(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return "TINYINT"
@@ -706,11 +705,10 @@ class AthenaDDLCompiler(DDLCompiler):
                     "`location` or `s3_staging_dir` parameter is required "
                     "in the connection string"
                 )
-            else:
-                raise exc.CompileError(
-                    "The location of the table should be specified "
-                    "by the dialect keyword argument `awsathena_location`"
-                )
+            raise exc.CompileError(
+                "The location of the table should be specified "
+                "by the dialect keyword argument `awsathena_location`"
+            )
         return "\n".join(text)
 
     def _get_table_properties(

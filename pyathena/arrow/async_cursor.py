@@ -60,8 +60,7 @@ class AsyncArrowCursor(AsyncCursor):
     ) -> Union[DefaultArrowTypeConverter, DefaultArrowUnloadTypeConverter, Any]:
         if unload:
             return DefaultArrowUnloadTypeConverter()
-        else:
-            return DefaultArrowTypeConverter()
+        return DefaultArrowTypeConverter()
 
     @property
     def arraysize(self) -> int:

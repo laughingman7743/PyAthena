@@ -78,8 +78,7 @@ class CursorIterator(metaclass=ABCMeta):
         row = self.fetchone()
         if row is None:
             raise StopIteration
-        else:
-            return row
+        return row
 
     def __iter__(self):
         return self
@@ -482,8 +481,7 @@ class BaseCursor(metaclass=ABCMeta):
                 AthenaQueryExecution.STATE_CANCELLED,
             ]:
                 return query_execution
-            else:
-                time.sleep(self._poll_interval)
+            time.sleep(self._poll_interval)
 
     def _poll(self, query_id: str) -> Union[AthenaQueryExecution, AthenaCalculationExecution]:
         try:

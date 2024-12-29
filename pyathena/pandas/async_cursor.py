@@ -64,8 +64,7 @@ class AsyncPandasCursor(AsyncCursor):
     ) -> Union[DefaultPandasTypeConverter, Any]:
         if unload:
             return DefaultPandasUnloadTypeConverter()
-        else:
-            return DefaultPandasTypeConverter()
+        return DefaultPandasTypeConverter()
 
     @property
     def arraysize(self) -> int:

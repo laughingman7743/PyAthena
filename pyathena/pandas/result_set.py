@@ -85,8 +85,7 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
 
         if isinstance(self._reader, TextFileReader):
             return self._reader.get_chunk(size)
-        else:
-            return next(self._reader)
+        return next(self._reader)
 
 
 class AthenaPandasResultSet(AthenaResultSet):
@@ -166,8 +165,7 @@ class AthenaPandasResultSet(AthenaResultSet):
                 "Trying to import the above resulted in these errors:"
                 f"{error_msgs}"
             )
-        else:
-            return self._engine
+        return self._engine
 
     def __s3_file_system(self):
         from pyathena.filesystem.s3 import S3FileSystem
@@ -386,8 +384,7 @@ class AthenaPandasResultSet(AthenaResultSet):
     def as_pandas(self) -> Union[DataFrameIterator, "DataFrame"]:
         if self._chunksize is None:
             return next(self._df_iter)
-        else:
-            return self._df_iter
+        return self._df_iter
 
     def close(self) -> None:
         import pandas as pd

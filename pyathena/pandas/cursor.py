@@ -81,8 +81,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
     ) -> Union[DefaultPandasTypeConverter, Any]:
         if unload:
             return DefaultPandasUnloadTypeConverter()
-        else:
-            return DefaultPandasTypeConverter()
+        return DefaultPandasTypeConverter()
 
     @property
     def arraysize(self) -> int:

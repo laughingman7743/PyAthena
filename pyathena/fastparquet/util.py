@@ -37,34 +37,29 @@ def get_athena_type(type_: "SchemaElement") -> Tuple[str, int, int]:
 
     if type_.type in [Type.BOOLEAN]:
         return "boolean", 0, 0
-    elif type_.type in [Type.INT32]:
+    if type_.type in [Type.INT32]:
         if type_.converted_type == ConvertedType.DATE:
             return "date", 0, 0
-        else:
-            return "integer", 10, 0
-    elif type_.type in [Type.INT64]:
+        return "integer", 10, 0
+    if type_.type in [Type.INT64]:
         return "bigint", 19, 0
-    elif type_.type in [Type.INT96]:
+    if type_.type in [Type.INT96]:
         return "timestamp", 3, 0
-    elif type_.type in [Type.FLOAT]:
+    if type_.type in [Type.FLOAT]:
         return "float", 17, 0
-    elif type_.type in [Type.DOUBLE]:
+    if type_.type in [Type.DOUBLE]:
         return "double", 17, 0
-    elif type_.type in [Type.BYTE_ARRAY, Type.FIXED_LEN_BYTE_ARRAY]:
+    if type_.type in [Type.BYTE_ARRAY, Type.FIXED_LEN_BYTE_ARRAY]:
         if type_.converted_type == ConvertedType.UTF8:
             return "varchar", 2147483647, 0
-        elif type_.converted_type == ConvertedType.DECIMAL:
+        if type_.converted_type == ConvertedType.DECIMAL:
             return "decimal", type_.precision, type_.scale
-        else:
-            return "varbinary", 1073741824, 0
-    else:
-        if type_.converted_type == ConvertedType.LIST:
-            return "array", 0, 0
-        elif type_.converted_type == ConvertedType.MAP:
-            return "map", 0, 0
-        else:
-            children = getattr(type_, "children", [])
-            if type_.type is None and type_.converted_type is None and children:
-                return "row", 0, 0
-            else:
-                return "string", 2147483647, 0
+        return "varbinary", 1073741824, 0
+    if type_.converted_type == ConvertedType.LIST:
+        return "array", 0, 0
+    if type_.converted_type == ConvertedType.MAP:
+        return "map", 0, 0
+    children = getattr(type_, "children", [])
+    if type_.type is None and type_.converted_type is None and children:
+        return "row", 0, 0
+    return "string", 2147483647, 0

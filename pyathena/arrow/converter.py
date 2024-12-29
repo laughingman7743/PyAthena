@@ -22,10 +22,9 @@ _logger = logging.getLogger(__name__)  # type: ignore
 def _to_date(value: Optional[Union[str, datetime]]) -> Optional[date]:
     if value is None:
         return None
-    elif isinstance(value, datetime):
+    if isinstance(value, datetime):
         return value.date()
-    else:
-        return datetime.strptime(value, "%Y-%m-%d").date()
+    return datetime.strptime(value, "%Y-%m-%d").date()
 
 
 _DEFAULT_ARROW_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {

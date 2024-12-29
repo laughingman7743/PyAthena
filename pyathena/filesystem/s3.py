@@ -148,8 +148,7 @@ class S3FileSystem(AbstractFileSystem):
         match = S3FileSystem.PATTERN_PATH.search(path)
         if match:
             return match.group("bucket"), match.group("key"), match.group("version_id")
-        else:
-            raise ValueError(f"Invalid S3 path format {path}.")
+        raise ValueError(f"Invalid S3 path format {path}.")
 
     def _head_bucket(self, bucket, refresh: bool = False) -> Optional[S3Object]:
         if bucket not in self.dircache or refresh:
@@ -347,20 +346,19 @@ class S3FileSystem(AbstractFileSystem):
 
                 if cache:
                     return cache
-                else:
-                    return S3Object(
-                        init={
-                            "ContentLength": 0,
-                            "ContentType": None,
-                            "StorageClass": S3StorageClass.S3_STORAGE_CLASS_DIRECTORY,
-                            "ETag": None,
-                            "LastModified": None,
-                        },
-                        type=S3ObjectType.S3_OBJECT_TYPE_DIRECTORY,
-                        bucket=bucket,
-                        key=key.rstrip("/") if key else None,
-                        version_id=version_id,
-                    )
+                return S3Object(
+                    init={
+                        "ContentLength": 0,
+                        "ContentType": None,
+                        "StorageClass": S3StorageClass.S3_STORAGE_CLASS_DIRECTORY,
+                        "ETag": None,
+                        "LastModified": None,
+                    },
+                    type=S3ObjectType.S3_OBJECT_TYPE_DIRECTORY,
+                    bucket=bucket,
+                    key=key.rstrip("/") if key else None,
+                    version_id=version_id,
+                )
         if key:
             object_info = self._head_object(path, refresh=refresh, version_id=version_id)
             if object_info:
@@ -369,8 +367,7 @@ class S3FileSystem(AbstractFileSystem):
             bucket_info = self._head_bucket(path, refresh=refresh)
             if bucket_info:
                 return bucket_info
-            else:
-                raise FileNotFoundError(path)
+            raise FileNotFoundError(path)
 
         response = self._call(
             self._client.list_objects_v2,
@@ -397,8 +394,7 @@ class S3FileSystem(AbstractFileSystem):
                 key=key.rstrip("/") if key else None,
                 version_id=version_id,
             )
-        else:
-            raise FileNotFoundError(path)
+        raise FileNotFoundError(path)
 
     def find(
         self,
@@ -423,8 +419,7 @@ class S3FileSystem(AbstractFileSystem):
                 files = []
         if detail:
             return {f.name: f for f in files}
-        else:
-            return [f.name for f in files]
+        return [f.name for f in files]
 
     def exists(self, path: str, **kwargs) -> bool:
         path = self._strip_protocol(path)
@@ -741,8 +736,7 @@ class S3FileSystem(AbstractFileSystem):
         info = self.info(path, refresh=refresh)
         if info.get("type") != S3ObjectType.S3_OBJECT_TYPE_DIRECTORY:
             return int(info.get("etag").strip('"').split("-")[0], 16)
-        else:
-            return int(tokenize(info), 16)
+        return int(tokenize(info), 16)
 
     def sign(self, path: str, expiration: int = 3600, **kwargs):
         bucket, key, version_id = self.parse_path(path)
@@ -1224,9 +1218,8 @@ class S3File(AbstractBufferedFile):
                 if range_end > end:
                     ranges.append((range_start, end))
                     break
-                else:
-                    ranges.append((range_start, range_end))
-                    range_start += worker_block_size
+                ranges.append((range_start, range_end))
+                range_start += worker_block_size
         else:
             ranges.append((start, end))
         return ranges

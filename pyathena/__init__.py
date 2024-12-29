@@ -28,14 +28,12 @@ class DBAPITypeObject(FrozenSet[str]):
     def __eq__(self, other: object):
         if isinstance(other, frozenset):
             return frozenset.__eq__(self, other)
-        else:
-            return other in self
+        return other in self
 
     def __ne__(self, other: object):
         if isinstance(other, frozenset):
             return frozenset.__ne__(self, other)
-        else:
-            return other not in self
+        return other not in self
 
     def __hash__(self):
         return frozenset.__hash__(self)

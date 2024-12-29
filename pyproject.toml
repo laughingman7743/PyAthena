@@ -88,7 +88,8 @@ path = "pyathena/__init__.py"
 norecursedirs = [
     "benchmarks",
     ".venv",
-    ".tox"
+    ".tox",
+    "docs.*",
 ]
 
 [tool.sqla_testing]
@@ -100,6 +101,7 @@ line-length = 100
 exclude = [
     ".venv",
     ".tox",
+    "docs",
 ]
 target-version = "py39"
 
@@ -114,6 +116,7 @@ select = [
     "B",  # flake8-bugbear
     "C4",  # flake8-comprehensions
     "SIM",  # flake8-simplify
+    "RET",  # flake8-return
     # "UP",  # pyupgrade
 ]
 
@@ -135,6 +138,7 @@ exclude = [
     "tests.*",
     ".venv.*",
     ".tox.*",
+    "docs.*",
 ]
 
 [tool.tox]
