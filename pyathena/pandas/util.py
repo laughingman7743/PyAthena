@@ -148,7 +148,6 @@ def to_sql(
     max_workers: int = (cpu_count() or 1) * 5,
     repair_table=True,
 ) -> None:
-    # TODO Supports orc, avro, json, csv or tsv format
     if if_exists not in ("fail", "replace", "append"):
         raise ValueError(f"`{if_exists}` is not valid for if_exists")
     if compression is not None and not AthenaCompression.is_valid(compression):
