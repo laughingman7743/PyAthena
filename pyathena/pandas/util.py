@@ -189,18 +189,17 @@ def to_sql(
     if if_exists == "fail":
         if table:
             raise OperationalError(f"Table `{schema}.{name}` already exists.")
-    elif if_exists == "replace":
-        if table:
-            cursor.execute(
-                textwrap.dedent(
-                    f"""
-                    DROP TABLE `{schema}`.`{name}`
-                    """
-                )
+    elif if_exists == "replace" and table:
+        cursor.execute(
+            textwrap.dedent(
+                f"""
+                DROP TABLE `{schema}`.`{name}`
+                """
             )
-            objects = bucket.objects.filter(Prefix=key_prefix)
-            if list(objects.limit(1)):
-                objects.delete()
+        )
+        objects = bucket.objects.filter(Prefix=key_prefix)
+        if list(objects.limit(1)):
+            objects.delete()
 
     if index:
         reset_index(df, index_label)

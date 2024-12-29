@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import contextlib
 import re
 from typing import (
     TYPE_CHECKING,
@@ -441,17 +442,19 @@ class AthenaStatementCompiler(SQLCompiler):
 
     def format_from_hint_text(self, sqltext, table, hint, iscrud):
         hint_upper = hint.upper()
-        if any(
-            [
-                hint_upper.startswith("FOR TIMESTAMP AS OF"),
-                hint_upper.startswith("FOR SYSTEM_TIME AS OF"),
-                hint_upper.startswith("FOR VERSION AS OF"),
-                hint_upper.startswith("FOR SYSTEM_VERSION AS OF"),
-            ]
+        if (
+            any(
+                [
+                    hint_upper.startswith("FOR TIMESTAMP AS OF"),
+                    hint_upper.startswith("FOR SYSTEM_TIME AS OF"),
+                    hint_upper.startswith("FOR VERSION AS OF"),
+                    hint_upper.startswith("FOR SYSTEM_VERSION AS OF"),
+                ]
+            )
+            and "AS" in sqltext
         ):
-            if "AS" in sqltext:
-                _, alias = sqltext.split(" AS ", 1)
-                return f"{table.original.fullname} {hint} AS {alias}"
+            _, alias = sqltext.split(" AS ", 1)
+            return f"{table.original.fullname} {hint} AS {alias}"
 
         return f"{sqltext} {hint}"
 
@@ -898,11 +901,8 @@ class AthenaDDLCompiler(DDLCompiler):
         if ("table_type" in table_properties) and ("iceberg" in table_properties):
             is_iceberg = True
 
-        if is_iceberg:
-            # https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html
-            text = ["\nCREATE TABLE"]
-        else:
-            text = ["\nCREATE EXTERNAL TABLE"]
+        # https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html
+        text = ["\nCREATE TABLE"] if is_iceberg else ["\nCREATE EXTERNAL TABLE"]
 
         if create.if_not_exists:
             text.append("IF NOT EXISTS")
@@ -1046,11 +1046,9 @@ class AthenaDialect(DefaultDialect):
         opts.update(url.query)
         if "verify" in opts:
             verify = opts["verify"]
-            try:
+            # If a ValueError occurs, it is probably the file name of the CA certificate being used.
+            with contextlib.suppress(ValueError):
                 verify = bool(strtobool(verify))
-            except ValueError:
-                # Probably a file name of the CA cert bundle to use
-                pass
             opts.update({"verify": verify})
         if "duration_seconds" in opts:
             opts.update({"duration_seconds": int(opts["duration_seconds"])})
@@ -1150,7 +1148,7 @@ class AthenaDialect(DefaultDialect):
     ):
         try:
             columns = self.get_columns(connection, table_name, schema)
-            return True if columns else False
+            return bool(columns)
         except exc.NoSuchTableError:
             return False
 

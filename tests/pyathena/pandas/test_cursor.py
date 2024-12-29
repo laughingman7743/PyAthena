@@ -897,9 +897,8 @@ class TestPandasCursor:
         pytest.raises(ProgrammingError, pandas_cursor.cancel)
 
     def test_open_close(self):
-        with contextlib.closing(connect()) as conn:
-            with conn.cursor(PandasCursor):
-                pass
+        with contextlib.closing(connect()) as conn, conn.cursor(PandasCursor):
+            pass
 
     def test_no_ops(self):
         conn = connect()

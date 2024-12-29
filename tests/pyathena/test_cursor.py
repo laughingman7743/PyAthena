@@ -230,10 +230,8 @@ class TestCursor:
         assert cursor.description is None
 
     def test_description_failed(self, cursor):
-        try:
+        with contextlib.suppress(DatabaseError):
             cursor.execute("blah_blah")
-        except DatabaseError:
-            pass
         assert cursor.description is None
 
     def test_bad_query(self, cursor):
@@ -387,9 +385,8 @@ class TestCursor:
     def test_open_close(self):
         with contextlib.closing(connect()):
             pass
-        with contextlib.closing(connect()) as conn:
-            with conn.cursor():
-                pass
+        with contextlib.closing(connect()) as conn, conn.cursor():
+            pass
 
     def test_unicode(self, cursor):
         unicode_str = "王兢"
@@ -572,10 +569,12 @@ class TestCursor:
 
     def test_multiple_connection(self):
         def execute_other_thread():
-            with contextlib.closing(connect(schema_name=ENV.schema)) as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute("SELECT * FROM one_row")
-                    return cursor.fetchall()
+            with (
+                contextlib.closing(connect(schema_name=ENV.schema)) as conn,
+                conn.cursor() as cursor,
+            ):
+                cursor.execute("SELECT * FROM one_row")
+                return cursor.fetchall()
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             fs = [executor.submit(execute_other_thread) for _ in range(2)]

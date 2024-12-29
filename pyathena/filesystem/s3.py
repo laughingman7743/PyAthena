@@ -299,10 +299,7 @@ class S3FileSystem(AbstractFileSystem):
                 self.dircache[path] = files
         else:
             cache = self.dircache[path]
-            if not isinstance(cache, list):
-                files = [cache]
-            else:
-                files = cache
+            files = cache if isinstance(cache, list) else [cache]
         return files
 
     def ls(
@@ -440,10 +437,7 @@ class S3FileSystem(AbstractFileSystem):
                 if self._ls_from_cache(path):
                     return True
                 info = self.info(path)
-                if info:
-                    return True
-                else:
-                    return False
+                return bool(info)
             except FileNotFoundError:
                 return False
         elif self.dircache.get(bucket, False):
@@ -455,10 +449,7 @@ class S3FileSystem(AbstractFileSystem):
             except FileNotFoundError:
                 pass
             file = self._head_bucket(bucket)
-            if file:
-                return True
-            else:
-                return False
+            return bool(file)
 
     def rm_file(self, path: str, **kwargs) -> None:
         bucket, key, version_id = self.parse_path(path)
@@ -725,11 +716,13 @@ class S3FileSystem(AbstractFileSystem):
             if content_type is not None:
                 kwargs["ContentType"] = content_type
 
-        with self.open(rpath, "wb", s3_additional_kwargs=kwargs) as remote:
-            with open(lpath, "rb") as local:
-                while data := local.read(remote.blocksize):
-                    remote.write(data)
-                    callback.relative_update(len(data))
+        with (
+            self.open(rpath, "wb", s3_additional_kwargs=kwargs) as remote,
+            open(lpath, "rb") as local,
+        ):
+            while data := local.read(remote.blocksize):
+                remote.write(data)
+                callback.relative_update(len(data))
 
         self.invalidate_cache(rpath)
 
@@ -737,12 +730,11 @@ class S3FileSystem(AbstractFileSystem):
         if os.path.isdir(lpath):
             return
 
-        with open(lpath, "wb") as local:
-            with self.open(rpath, "rb", **kwargs) as remote:
-                callback.set_size(remote.size)
-                while data := remote.read(remote.blocksize):
-                    local.write(data)
-                    callback.relative_update(len(data))
+        with open(lpath, "wb") as local, self.open(rpath, "rb", **kwargs) as remote:
+            callback.set_size(remote.size)
+            while data := remote.read(remote.blocksize):
+                local.write(data)
+                callback.relative_update(len(data))
 
     def checksum(self, path: str, **kwargs):
         refresh = kwargs.pop("refresh", False)
@@ -947,10 +939,7 @@ class S3FileSystem(AbstractFileSystem):
         return S3CompleteMultipartUpload(response)
 
     def _call(self, method: Union[str, Callable[..., Any]], **kwargs) -> Dict[str, Any]:
-        if isinstance(method, str):
-            func = getattr(self._client, method)
-        else:
-            func = method
+        func = getattr(self._client, method) if isinstance(method, str) else method
         response = retry_api_call(
             func, config=self._retry_config, logger=_logger, **kwargs, **self.request_kwargs
         )

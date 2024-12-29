@@ -450,9 +450,8 @@ class TestArrowCursor:
         pytest.raises(ProgrammingError, arrow_cursor.cancel)
 
     def test_open_close(self):
-        with contextlib.closing(connect()) as conn:
-            with conn.cursor(ArrowCursor):
-                pass
+        with contextlib.closing(connect()) as conn, conn.cursor(ArrowCursor):
+            pass
 
     def test_no_ops(self):
         conn = connect()

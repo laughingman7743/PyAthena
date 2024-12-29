@@ -393,9 +393,8 @@ class TestAsyncPandasCursor:
         assert result_set.fetchall() == []
 
     def test_open_close(self):
-        with contextlib.closing(connect()) as conn:
-            with conn.cursor(AsyncPandasCursor):
-                pass
+        with contextlib.closing(connect()) as conn, conn.cursor(AsyncPandasCursor):
+            pass
 
     def test_no_ops(self):
         conn = connect()

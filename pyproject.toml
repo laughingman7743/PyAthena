@@ -113,7 +113,7 @@ select = [
     "N",  # pep8-naming
     "B",  # flake8-bugbear
     "C4",  # flake8-comprehensions
-    # "SIM",  # flake8-simplify
+    "SIM",  # flake8-simplify
     # "UP",  # pyupgrade
 ]
 

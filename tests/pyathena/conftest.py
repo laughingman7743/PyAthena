@@ -13,16 +13,14 @@ from tests.pyathena.util import read_query
 
 def pytest_sessionstart(session):
     _upload_rows()
-    with contextlib.closing(connect()) as conn:
-        with conn.cursor() as cursor:
-            _create_database(cursor)
-            _create_table(cursor)
+    with contextlib.closing(connect()) as conn, conn.cursor() as cursor:
+        _create_database(cursor)
+        _create_table(cursor)
 
 
 def pytest_sessionfinish(session):
-    with contextlib.closing(connect()) as conn:
-        with conn.cursor() as cursor:
-            _drop_database(cursor)
+    with contextlib.closing(connect()) as conn, conn.cursor() as cursor:
+        _drop_database(cursor)
     _delete_rows()
 
 
@@ -107,11 +105,13 @@ def create_engine(**kwargs):
 def _cursor(cursor_class, request):
     if not hasattr(request, "param"):
         setattr(request, "param", {})  # noqa: B010
-    with contextlib.closing(
-        connect(schema_name=ENV.schema, cursor_class=cursor_class, **request.param)
-    ) as conn:
-        with conn.cursor() as cursor:
-            yield cursor
+    with (
+        contextlib.closing(
+            connect(schema_name=ENV.schema, cursor_class=cursor_class, **request.param)
+        ) as conn,
+        conn.cursor() as cursor,
+    ):
+        yield cursor
 
 
 @pytest.fixture

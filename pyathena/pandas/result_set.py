@@ -141,10 +141,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._fs = self.__s3_file_system()
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
             df = self._as_pandas()
-            if self.is_unload:
-                trunc_date = _no_trunc_date
-            else:
-                trunc_date = self._trunc_date
+            trunc_date = _no_trunc_date if self.is_unload else self._trunc_date
             self._df_iter = DataFrameIterator(df, trunc_date)
         else:
             import pandas as pd
