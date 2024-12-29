@@ -626,7 +626,7 @@ class TestCursor:
         # rowcount is not supported for executemany
         assert cursor.rowcount == -1
         cursor.execute("SELECT * FROM execute_many")
-        assert sorted(cursor.fetchall()) == [(a, b) for a, b in rows]
+        assert sorted(cursor.fetchall()) == list(rows)
 
     def test_executemany_fetch(self, cursor):
         cursor.executemany("SELECT %(x)d FROM one_row", [{"x": i} for i in range(1, 2)])

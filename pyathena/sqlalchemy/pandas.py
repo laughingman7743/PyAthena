@@ -12,7 +12,7 @@ class AthenaPandasDialect(AthenaDialect):
 
         opts = super()._create_connect_args(url)
         opts.update({"cursor_class": PandasCursor})
-        cursor_kwargs = dict()
+        cursor_kwargs = {}
         if "unload" in opts:
             cursor_kwargs.update({"unload": bool(strtobool(opts.pop("unload")))})
         if "engine" in opts:

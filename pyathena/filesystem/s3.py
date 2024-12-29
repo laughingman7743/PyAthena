@@ -125,11 +125,11 @@ class S3FileSystem(AbstractFileSystem):
         if anon:
             config_kwargs.update({"signature_version": UNSIGNED})
         else:
-            creds = dict(
-                aws_access_key_id=kwargs.pop("key", kwargs.pop("username", None)),
-                aws_secret_access_key=kwargs.pop("secret", kwargs.pop("password", None)),
-                aws_session_token=kwargs.pop("token", None),
-            )
+            creds = {
+                "aws_access_key_id": kwargs.pop("key", kwargs.pop("username", None)),
+                "aws_secret_access_key": kwargs.pop("secret", kwargs.pop("password", None)),
+                "aws_session_token": kwargs.pop("token", None),
+            }
             kwargs.update(**creds)
             client_kwargs.update(**creds)
 
@@ -317,7 +317,7 @@ class S3FileSystem(AbstractFileSystem):
                 file = self._head_object(path, refresh=refresh)
                 if file:
                     files = [file]
-        return [f for f in files] if detail else [f.name for f in files]
+        return list(files) if detail else [f.name for f in files]
 
     def info(self, path: str, **kwargs) -> S3Object:
         refresh = kwargs.pop("refresh", False)

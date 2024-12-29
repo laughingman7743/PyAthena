@@ -497,18 +497,16 @@ class TestAsyncPandasCursor:
         df = future.result().as_pandas()
         if async_pandas_cursor._unload:
             rows = [
-                tuple(
-                    [
-                        True if math.isnan(row["a"]) else row["a"],
-                        True if math.isnan(row["b"]) else row["b"],
-                    ]
+                (
+                    True if math.isnan(row["a"]) else row["a"],
+                    True if math.isnan(row["b"]) else row["b"],
                 )
                 for _, row in df.iterrows()
             ]
             # If the UNLOAD option is enabled, it is converted to float for some reason.
             assert rows == [(1.0, 2.0), (1.0, True), (True, True)]
         else:
-            rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
+            rows = [(row["a"], row["b"]) for _, row in df.iterrows()]
             assert rows == [(1, 2), (1, pd.NA), (pd.NA, pd.NA)]
 
     @pytest.mark.parametrize(
@@ -529,7 +527,7 @@ class TestAsyncPandasCursor:
             engine=parquet_engine,
         )
         df = future.result().as_pandas()
-        rows = [tuple([row["col"]]) for _, row in df.iterrows()]
+        rows = [(row["col"],) for _, row in df.iterrows()]
         np.testing.assert_equal(rows, [(0.33,), (np.nan,)])
 
     @pytest.mark.parametrize(
@@ -552,17 +550,15 @@ class TestAsyncPandasCursor:
         df = future.result().as_pandas()
         if parquet_engine == "fastparquet":
             rows = [
-                tuple(
-                    [
-                        True if math.isnan(row["a"]) else row["a"],
-                        True if math.isnan(row["b"]) else row["b"],
-                    ]
+                (
+                    True if math.isnan(row["a"]) else row["a"],
+                    True if math.isnan(row["b"]) else row["b"],
                 )
                 for _, row in df.iterrows()
             ]
             assert rows == [(1.0, 0.0), (0.0, True), (True, True)]
         else:
-            rows = [tuple([row["a"], row["b"]]) for _, row in df.iterrows()]
+            rows = [(row["a"], row["b"]) for _, row in df.iterrows()]
             assert rows == [(True, False), (False, None), (None, None)]
 
     @pytest.mark.parametrize(
@@ -649,14 +645,7 @@ class TestAsyncPandasCursor:
         )
         result_set = future.result()
         if parquet_engine == "fastparquet":
-            rows = [
-                tuple(
-                    [
-                        True if math.isnan(row[0]) else row[0],
-                    ]
-                )
-                for row in result_set.fetchall()
-            ]
+            rows = [(True if math.isnan(row[0]) else row[0],) for row in result_set.fetchall()]
             assert rows == [(True,)]
         else:
             assert result_set.fetchall() == [(None,)]

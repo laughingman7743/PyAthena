@@ -82,7 +82,7 @@ class DefaultArrowTypeConverter(Converter):
 class DefaultArrowUnloadTypeConverter(Converter):
     def __init__(self) -> None:
         super().__init__(
-            mappings=dict(),
+            mappings={},
             default=_to_default,
         )
 

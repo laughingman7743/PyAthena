@@ -80,7 +80,7 @@ class AthenaArrowResultSet(AthenaResultSet):
         else:
             import pyarrow as pa
 
-            self._table = pa.Table.from_pydict(dict())
+            self._table = pa.Table.from_pydict({})
         self._batches = iter(self._table.to_batches(arraysize))
 
     def __s3_file_system(self):
@@ -199,14 +199,14 @@ class AthenaArrowResultSet(AthenaResultSet):
         if not self.output_location:
             raise ProgrammingError("OutputLocation is none or empty.")
         if not self.output_location.endswith((".csv", ".txt")):
-            return pa.Table.from_pydict(dict())
+            return pa.Table.from_pydict({})
         if self.substatement_type and self.substatement_type.upper() in (
             "UPDATE",
             "DELETE",
             "MERGE",
             "VACUUM_TABLE",
         ):
-            return pa.Table.from_pydict(dict())
+            return pa.Table.from_pydict({})
         length = self._get_content_length()
         if length and self.output_location.endswith(".txt"):
             description = self.description if self.description else []
@@ -232,7 +232,7 @@ class AthenaArrowResultSet(AthenaResultSet):
                 escape_char=False,
             )
         else:
-            return pa.Table.from_pydict(dict())
+            return pa.Table.from_pydict({})
 
         bucket, key = parse_output_location(self.output_location)
         try:
@@ -256,7 +256,7 @@ class AthenaArrowResultSet(AthenaResultSet):
 
         manifests = self._read_data_manifest()
         if not manifests:
-            return pa.Table.from_pydict(dict())
+            return pa.Table.from_pydict({})
         if not self._unload_location:
             self._unload_location = "/".join(manifests[0].split("/")[:-1]) + "/"
 
@@ -283,5 +283,5 @@ class AthenaArrowResultSet(AthenaResultSet):
         import pyarrow as pa
 
         super().close()
-        self._table = pa.Table.from_pydict(dict())
+        self._table = pa.Table.from_pydict({})
         self._batches = []

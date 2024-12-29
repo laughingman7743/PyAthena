@@ -350,7 +350,7 @@ SELECT_STATEMENT_RESERVED_WORDS: Set[str] = {
     "WINDOW",
     "WITH",
 }
-RESERVED_WORDS: Set[str] = set(sorted(DDL_RESERVED_WORDS | SELECT_STATEMENT_RESERVED_WORDS))
+RESERVED_WORDS: Set[str] = set(DDL_RESERVED_WORDS | SELECT_STATEMENT_RESERVED_WORDS)
 
 ischema_names: Dict[str, Type[Any]] = {
     "boolean": types.BOOLEAN,
@@ -1003,7 +1003,7 @@ class AthenaDialect(DefaultDialect):
 
     ischema_names: Dict[str, Type[Any]] = ischema_names
 
-    _connect_options: Dict[str, Any] = dict()  # type: ignore
+    _connect_options: Dict[str, Any] = {}  # type: ignore
     _pattern_column_type: Pattern[str] = re.compile(r"^([a-zA-Z]+)(?:$|[\(|<](.+)[\)|>]$)")
 
     def __init__(self, json_deserializer=None, json_serializer=None, **kwargs):
@@ -1030,7 +1030,7 @@ class AthenaDialect(DefaultDialect):
         #   {aws_access_key_id}:{aws_secret_access_key}@athena.{region_name}.amazonaws.com:443/
         #   {schema_name}?s3_staging_dir={s3_staging_dir}&...
         self._connect_options = self._create_connect_args(url)
-        return cast(Tuple[str], tuple()), self._connect_options
+        return cast(Tuple[str], ()), self._connect_options
 
     def _create_connect_args(self, url: "URL") -> Dict[str, Any]:
         opts: Dict[str, Any] = {
@@ -1166,7 +1166,7 @@ class AthenaDialect(DefaultDialect):
         except exc.OperationalError as e:
             raise exc.NoSuchTableError(f"{schema}.{view_name}") from e
         else:
-            return "\n".join([r for r in res])
+            return "\n".join(res)
 
     @reflection.cache
     def get_columns(

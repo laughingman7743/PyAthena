@@ -320,7 +320,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             }
         elif engine == "fastparquet":
             unload_location = f"{self._unload_location}*"
-            kwargs = dict()
+            kwargs = {}
         else:
             raise ProgrammingError("Engine must be one of `pyarrow`, `fastparquet`.")
         kwargs.update(self._kwargs)
@@ -379,7 +379,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             engine = self._get_engine()
             df = self._read_parquet(engine)
             if df.empty:
-                self._metadata = tuple()
+                self._metadata = ()
             else:
                 self._metadata = self._read_parquet_schema(engine)
         else:
