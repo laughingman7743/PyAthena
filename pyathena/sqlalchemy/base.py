@@ -702,8 +702,7 @@ class AthenaDDLCompiler(DDLCompiler):
         else:
             if connect_opts:
                 raise exc.CompileError(
-                    "`location` or `s3_staging_dir` parameter is required "
-                    "in the connection string"
+                    "`location` or `s3_staging_dir` parameter is required in the connection string"
                 )
             raise exc.CompileError(
                 "The location of the table should be specified "
