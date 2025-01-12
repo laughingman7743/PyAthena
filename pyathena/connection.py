@@ -175,9 +175,9 @@ class Connection(Generic[ConnectionCursor]):
         self.profile_name = profile_name
         self.config: Optional[Config] = config if config else Config()
 
-        assert (
-            self.s3_staging_dir or self.work_group
-        ), "Required argument `s3_staging_dir` or `work_group` not found."
+        assert self.s3_staging_dir or self.work_group, (
+            "Required argument `s3_staging_dir` or `work_group` not found."
+        )
 
         if session:
             self._session = session

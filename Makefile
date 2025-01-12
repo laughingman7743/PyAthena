@@ -28,5 +28,5 @@ docs:
 
 .PHONY: tool
 tool:
-	uv tool install ruff
-	uv tool install tox --with tox-uv --with tox-gh-actions
+	uv tool install ruff@0.9.1
+	uv tool install tox@4.23.2 --with tox-uv --with tox-gh-actions
