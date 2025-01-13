@@ -1,3 +1,6 @@
+RUFF_VERSION := 0.9.1
+TOX_VERSION := 4.23.2
+
 .PHONY: fmt
 fmt:
 	# TODO: https://github.com/astral-sh/uv/issues/5903
@@ -28,5 +31,5 @@ docs:
 
 .PHONY: tool
 tool:
-	uv tool install ruff@0.9.1
-	uv tool install tox@4.23.2 --with tox-uv --with tox-gh-actions
+	uv tool install ruff@$(RUFF_VERSION)
+	uv tool install tox@$(TOX_VERSION) --with tox-uv --with tox-gh-actions
