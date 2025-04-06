@@ -60,6 +60,7 @@ class Connection(Generic[ConnectionCursor]):
         "endpoint_url",
         "region_name",
         "config",
+        "use_fips_endpoint",
     ]
 
     @overload
