@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
+from typing import TYPE_CHECKING
+
 from pyathena.sqlalchemy.base import AthenaDialect
 from pyathena.util import strtobool
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 
 class AthenaPandasDialect(AthenaDialect):
@@ -22,3 +27,7 @@ class AthenaPandasDialect(AthenaDialect):
         if cursor_kwargs:
             opts.update({"cursor_kwargs": cursor_kwargs})
         return [[], opts]
+
+    @classmethod
+    def import_dbapi(cls) -> "ModuleType":
+        return super().import_dbapi()
