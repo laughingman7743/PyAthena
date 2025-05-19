@@ -206,7 +206,9 @@ class AthenaPandasResultSet(AthenaResultSet):
         description = self.description if self.description else []
         times = [d[0] for d in description if d[1] in ("time", "time with time zone")]
         if times:
-            df.loc[:, times] = df.loc[:, times].apply(lambda r: r.dt.time)
+            truncated = df.loc[:, times].apply(lambda r: r.dt.time)
+            for time in times:
+                df.isetitem(df.columns.get_loc(time), truncated[time])
         return df
 
     def fetchone(
