@@ -702,8 +702,7 @@ class AthenaDDLCompiler(DDLCompiler):
         else:
             if connect_opts:
                 raise exc.CompileError(
-                    "`location` or `s3_staging_dir` parameter is required "
-                    "in the connection string"
+                    "`location` or `s3_staging_dir` parameter is required in the connection string"
                 )
             raise exc.CompileError(
                 "The location of the table should be specified "
@@ -1105,7 +1104,7 @@ class AthenaDialect(DefaultDialect):
 
     def get_table_names(self, connection: "Connection", schema: Optional[str] = None, **kw):
         # Tables created by Athena are always classified as `EXTERNAL_TABLE`,
-        # but Athena can also query tables classified as `MANAGED_TABLE`.
+        # but Athena can also query tables classified as `MANAGED_TABLE`, `EXTERNAL`, or `customer`.
         # Managed Tables are created by default when creating tables via Spark when
         # Glue has been enabled as the Hive Metastore for Elastic Map Reduce (EMR) clusters.
         # With Athena Federation, tables in the database that are connected to Athena via lambda
@@ -1114,7 +1113,7 @@ class AthenaDialect(DefaultDialect):
         return [
             t.name
             for t in tables
-            if t.table_type in ["EXTERNAL_TABLE", "MANAGED_TABLE", "EXTERNAL"]
+            if t.table_type in ["EXTERNAL_TABLE", "MANAGED_TABLE", "EXTERNAL", "customer"]
         ]
 
     def get_view_names(self, connection: "Connection", schema: Optional[str] = None, **kw):

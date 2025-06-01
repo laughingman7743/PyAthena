@@ -253,8 +253,7 @@ class TestS3FileSystem:
 
     def test_ls_dirs(self, fs):
         dir_ = (
-            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
-            f"filesystem/test_ls_dirs"
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/filesystem/test_ls_dirs"
         )
         for i in range(5):
             fs.pipe(f"{dir_}/prefix/test_{i}", bytes(i))
@@ -362,10 +361,7 @@ class TestS3FileSystem:
 
     def test_find(self, fs):
         # TODO maxdepsth and withdirs options
-        dir_ = (
-            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
-            f"filesystem/test_find"
-        )
+        dir_ = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/filesystem/test_find"
         for i in range(5):
             fs.pipe(f"{dir_}/prefix/test_{i}", bytes(i))
         fs.touch(f"{dir_}/prefix2")
@@ -393,10 +389,7 @@ class TestS3FileSystem:
         pass
 
     def test_glob(self, fs):
-        dir_ = (
-            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
-            f"filesystem/test_glob"
-        )
+        dir_ = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/filesystem/test_glob"
         path = f"{dir_}/nested/test_{uuid.uuid4()}"
         fs.touch(path)
 
@@ -433,8 +426,7 @@ class TestS3FileSystem:
 
     def test_rm_file(self, fs):
         dir_ = (
-            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/"
-            f"filesystem/test_rm_rile"
+            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/filesystem/test_rm_rile"
         )
         file = f"{dir_}/{uuid.uuid4()}"
         fs.touch(file)
@@ -444,9 +436,7 @@ class TestS3FileSystem:
         assert not fs.exists(dir_)
 
     def test_rm(self, fs):
-        dir_ = (
-            f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/" f"filesystem/test_rm"
-        )
+        dir_ = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/filesystem/test_rm"
         file = f"{dir_}/{uuid.uuid4()}"
         fs.touch(file)
         fs.rm(file)

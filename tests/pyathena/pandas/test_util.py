@@ -573,6 +573,5 @@ def test_to_sql_invalid_args(cursor):
             partitions=["partition_key"],
         )
     assert str(exc_info.value) == (
-        "Partition key: `partition_key` contains None values, "
-        "no data will be written to the table."
+        "Partition key: `partition_key` contains None values, no data will be written to the table."
     )

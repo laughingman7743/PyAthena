@@ -235,7 +235,7 @@ class TestAthenaTableMetadata:
             "parquet.compress": "SNAPPY",
             "serde.param.serialization.format": "1",
             "serde.serialization.lib": (
-                "org.apache.hadoop.hive.ql.io.parquet.serde." "ParquetHiveSerDe"
+                "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
             ),
             "transient_lastDdlTime": "1234567890",
         }
