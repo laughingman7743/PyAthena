@@ -31,6 +31,8 @@ The project supports different cursor implementations for various use cases:
 ## Development Guidelines
 
 ### Code Style and Quality
+
+#### Commands
 ```bash
 # Format code (auto-fix imports and format)
 make fmt
@@ -51,11 +53,66 @@ make tox
 make docs
 ```
 
+#### Docstring Style
+Use Google style docstrings for all public methods and complex internal methods:
+
+```python
+def method_name(self, param1: str, param2: Optional[int] = None) -> List[str]:
+    """Brief description of what the method does.
+
+    Longer description if needed, explaining the method's behavior,
+    edge cases, or important details.
+
+    Args:
+        param1: Description of the first parameter.
+        param2: Description of the optional parameter.
+
+    Returns:
+        Description of the return value.
+
+    Raises:
+        ValueError: When invalid parameters are provided.
+    """
+```
+
 ### Testing Requirements
+
+#### General Guidelines
 1. **Unit Tests**: All new features must include unit tests
 2. **Integration Tests**: Test actual AWS Athena interactions when modifying query execution logic
 3. **SQLAlchemy Compliance**: Ensure SQLAlchemy dialect tests pass when modifying dialect code
 4. **Mock AWS Services**: Use `moto` or similar for testing AWS interactions without real resources
+
+#### Writing Tests
+- Place tests in `tests/pyathena/` mirroring the source structure
+- Use pytest fixtures for common setup (see `conftest.py`)
+- Test both success and error cases
+- For filesystem operations, test edge cases like empty results, missing files, etc.
+
+Example test structure:
+```python
+def test_find_maxdepth(self, fs):
+    """Test find with maxdepth parameter."""
+    # Setup test data
+    dir_ = f"s3://{ENV.s3_staging_bucket}/test_path"
+    fs.touch(f"{dir_}/file0.txt")
+    fs.touch(f"{dir_}/level1/file1.txt")
+    
+    # Test maxdepth=0
+    result = fs.find(dir_, maxdepth=0)
+    assert len(result) == 1
+    assert fs._strip_protocol(f"{dir_}/file0.txt") in result
+    
+    # Test edge cases and error conditions
+    with pytest.raises(ValueError):
+        fs.find("s3://", maxdepth=0)
+```
+
+#### Test Organization
+- Group related tests in classes (e.g., `TestS3FileSystem`)
+- Use descriptive test names that explain what is being tested
+- Keep tests focused and independent
+- Clean up test data after each test when using real AWS resources
 
 ### Common Development Tasks
 
@@ -94,6 +151,8 @@ pyathena/
 │   └── requirements.py   # SQLAlchemy requirements
 │
 └── filesystem/           # S3 filesystem abstractions
+    ├── s3.py             # S3FileSystem implementation (fsspec compatible)
+    └── s3_object.py      # S3 object representations
 ```
 
 ### Important Implementation Details
@@ -114,6 +173,21 @@ pyathena/
 - All exceptions inherit from `pyathena.error.Error`
 - Follow DB API 2.0 exception hierarchy
 - Provide meaningful error messages that include Athena query IDs when available
+
+#### S3 FileSystem Operations
+- `S3FileSystem` implements fsspec's `AbstractFileSystem` interface
+- Key methods include `ls()`, `find()`, `get()`, `put()`, `rm()`, etc.
+- `find()` method supports:
+  - `maxdepth`: Limits directory traversal depth (uses recursive approach for efficiency)
+  - `withdirs`: Controls whether directories are included in results (default: False)
+- Cache management uses `(path, delimiter)` as key to handle different listing modes
+- Always extract reusable logic into helper methods (e.g., `_extract_parent_directories()`)
+
+When implementing filesystem methods:
+1. **Consider s3fs compatibility** - Many users migrate from s3fs, so matching its behavior is important
+2. **Optimize for S3's API** - Use delimiter="/" for recursive operations to minimize API calls
+3. **Handle edge cases** - Empty paths, trailing slashes, bucket-only paths
+4. **Test with real S3** - Mock tests may not catch S3-specific behaviors
 
 ### Performance Considerations
 1. **Result Caching**: Utilize Athena's result reuse feature (engine v3) when possible

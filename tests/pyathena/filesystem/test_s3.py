@@ -360,7 +360,6 @@ class TestS3FileSystem:
         assert info.version_id == version_id
 
     def test_find(self, fs):
-        # TODO maxdepsth and withdirs options
         dir_ = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/filesystem/test_find"
         for i in range(5):
             fs.pipe(f"{dir_}/prefix/test_{i}", bytes(i))
@@ -383,6 +382,63 @@ class TestS3FileSystem:
             fs._strip_protocol(f"{dir_}/prefix/test_1")
         ].name == fs._strip_protocol(f"{dir_}/prefix/test_1")
         assert test_1_detail[fs._strip_protocol(f"{dir_}/prefix/test_1")].size == 1
+
+    def test_find_maxdepth(self, fs):
+        dir_ = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/filesystem/test_find_maxdepth"
+        # Create files at different depths
+        fs.touch(f"{dir_}/file0.txt")
+        fs.touch(f"{dir_}/level1/file1.txt")
+        fs.touch(f"{dir_}/level1/level2/file2.txt")
+        fs.touch(f"{dir_}/level1/level2/level3/file3.txt")
+
+        # Test maxdepth=0 (only files in the root)
+        result = fs.find(dir_, maxdepth=0)
+        assert len(result) == 1
+        assert fs._strip_protocol(f"{dir_}/file0.txt") in result
+
+        # Test maxdepth=1 (files in root and level1)
+        result = fs.find(dir_, maxdepth=1)
+        assert len(result) == 2
+        assert fs._strip_protocol(f"{dir_}/file0.txt") in result
+        assert fs._strip_protocol(f"{dir_}/level1/file1.txt") in result
+
+        # Test maxdepth=2 (files in root, level1, and level2)
+        result = fs.find(dir_, maxdepth=2)
+        assert len(result) == 3
+        assert fs._strip_protocol(f"{dir_}/level1/level2/file2.txt") in result
+
+        # Test no maxdepth (all files)
+        result = fs.find(dir_)
+        assert len(result) == 4
+
+    def test_find_withdirs(self, fs):
+        dir_ = f"s3://{ENV.s3_staging_bucket}/{ENV.s3_staging_key}{ENV.schema}/filesystem/test_find_withdirs"
+        # Create directory structure with files
+        fs.touch(f"{dir_}/file1.txt")
+        fs.touch(f"{dir_}/subdir1/file2.txt")
+        fs.touch(f"{dir_}/subdir1/subdir2/file3.txt")
+        fs.touch(f"{dir_}/subdir3/file4.txt")
+
+        # Test default behavior (withdirs=False)
+        result = fs.find(dir_)
+        assert len(result) == 4  # Only files
+        for r in result:
+            assert r.endswith(".txt")
+
+        # Test withdirs=True
+        result = fs.find(dir_, withdirs=True)
+        assert len(result) > 4  # Files and directories
+
+        # Verify directories are included
+        dirs = [r for r in result if not r.endswith(".txt")]
+        assert len(dirs) > 0
+        assert any("subdir1" in d for d in dirs)
+        assert any("subdir2" in d for d in dirs)
+        assert any("subdir3" in d for d in dirs)
+
+        # Test withdirs=False explicitly
+        result = fs.find(dir_, withdirs=False)
+        assert len(result) == 4  # Only files
 
     def test_du(self):
         # TODO

@@ -250,55 +250,57 @@ class S3FileSystem(AbstractFileSystem):
         bucket, key, version_id = self.parse_path(path)
         if key:
             prefix = f"{key}/{prefix if prefix else ''}"
-        if path not in self.dircache or refresh:
-            files: List[S3Object] = []
-            while True:
-                request: Dict[Any, Any] = {
-                    "Bucket": bucket,
-                    "Prefix": prefix,
-                    "Delimiter": delimiter,
-                }
-                if next_token:
-                    request.update({"ContinuationToken": next_token})
-                if max_keys:
-                    request.update({"MaxKeys": max_keys})
-                response = self._call(
-                    self._client.list_objects_v2,
-                    **request,
+
+        # Create a cache key that includes the delimiter
+        cache_key = (path, delimiter)
+        if cache_key in self.dircache and not refresh:
+            return cast(List[S3Object], self.dircache[cache_key])
+
+        files: List[S3Object] = []
+        while True:
+            request: Dict[Any, Any] = {
+                "Bucket": bucket,
+                "Prefix": prefix,
+                "Delimiter": delimiter,
+            }
+            if next_token:
+                request.update({"ContinuationToken": next_token})
+            if max_keys:
+                request.update({"MaxKeys": max_keys})
+            response = self._call(
+                self._client.list_objects_v2,
+                **request,
+            )
+            files.extend(
+                S3Object(
+                    init={
+                        "ContentLength": 0,
+                        "ContentType": None,
+                        "StorageClass": S3StorageClass.S3_STORAGE_CLASS_DIRECTORY,
+                        "ETag": None,
+                        "LastModified": None,
+                    },
+                    type=S3ObjectType.S3_OBJECT_TYPE_DIRECTORY,
+                    bucket=bucket,
+                    key=c["Prefix"][:-1].rstrip("/"),
+                    version_id=version_id,
                 )
-                files.extend(
-                    S3Object(
-                        init={
-                            "ContentLength": 0,
-                            "ContentType": None,
-                            "StorageClass": S3StorageClass.S3_STORAGE_CLASS_DIRECTORY,
-                            "ETag": None,
-                            "LastModified": None,
-                        },
-                        type=S3ObjectType.S3_OBJECT_TYPE_DIRECTORY,
-                        bucket=bucket,
-                        key=c["Prefix"][:-1].rstrip("/"),
-                        version_id=version_id,
-                    )
-                    for c in response.get("CommonPrefixes", [])
+                for c in response.get("CommonPrefixes", [])
+            )
+            files.extend(
+                S3Object(
+                    init=c,
+                    type=S3ObjectType.S3_OBJECT_TYPE_FILE,
+                    bucket=bucket,
+                    key=c["Key"],
                 )
-                files.extend(
-                    S3Object(
-                        init=c,
-                        type=S3ObjectType.S3_OBJECT_TYPE_FILE,
-                        bucket=bucket,
-                        key=c["Key"],
-                    )
-                    for c in response.get("Contents", [])
-                )
-                next_token = response.get("NextContinuationToken")
-                if not next_token:
-                    break
-            if files:
-                self.dircache[path] = files
-        else:
-            cache = self.dircache[path]
-            files = cache if isinstance(cache, list) else [cache]
+                for c in response.get("Contents", [])
+            )
+            next_token = response.get("NextContinuationToken")
+            if not next_token:
+                break
+        if files:
+            self.dircache[cache_key] = files
         return files
 
     def ls(
@@ -396,6 +398,122 @@ class S3FileSystem(AbstractFileSystem):
             )
         raise FileNotFoundError(path)
 
+    def _extract_parent_directories(
+        self, files: List[S3Object], bucket: str, base_key: Optional[str]
+    ) -> List[S3Object]:
+        """Extract parent directory objects from file paths.
+
+        When listing files without delimiter, S3 doesn't return directory entries.
+        This method creates directory objects by analyzing file paths.
+
+        Args:
+            files: List of S3Object instances representing files.
+            bucket: S3 bucket name.
+            base_key: Base key path to calculate relative paths from.
+
+        Returns:
+            List of S3Object instances representing directories.
+        """
+        dirs = set()
+        base_key = base_key.rstrip("/") if base_key else ""
+
+        for f in files:
+            if f.key and f.type == S3ObjectType.S3_OBJECT_TYPE_FILE:
+                # Extract directory paths from file paths
+                f_key = f.key
+                if base_key and f_key.startswith(base_key + "/"):
+                    relative_path = f_key[len(base_key) + 1 :]
+                elif not base_key:
+                    relative_path = f_key
+                else:
+                    continue
+
+                # Get all parent directories
+                parts = relative_path.split("/")
+                for i in range(1, len(parts)):
+                    if base_key:
+                        dir_path = base_key + "/" + "/".join(parts[:i])
+                    else:
+                        dir_path = "/".join(parts[:i])
+                    dirs.add(dir_path)
+
+        # Create S3Object instances for directories
+        directory_objects = []
+        for dir_path in dirs:
+            dir_obj = S3Object(
+                init={
+                    "ContentLength": 0,
+                    "ContentType": None,
+                    "StorageClass": S3StorageClass.S3_STORAGE_CLASS_DIRECTORY,
+                    "ETag": None,
+                    "LastModified": None,
+                },
+                type=S3ObjectType.S3_OBJECT_TYPE_DIRECTORY,
+                bucket=bucket,
+                key=dir_path,
+                version_id=None,
+            )
+            directory_objects.append(dir_obj)
+
+        return directory_objects
+
+    def _find(
+        self,
+        path: str,
+        maxdepth: Optional[int] = None,
+        withdirs: Optional[bool] = None,
+        **kwargs,
+    ) -> List[S3Object]:
+        path = self._strip_protocol(path)
+        if path in ["", "/"]:
+            raise ValueError("Cannot traverse all files in S3.")
+        bucket, key, _ = self.parse_path(path)
+        prefix = kwargs.pop("prefix", "")
+
+        # When maxdepth is specified, use a recursive approach with delimiter
+        if maxdepth is not None:
+            result: List[S3Object] = []
+
+            # List files and directories at current level
+            current_items = self._ls_dirs(path, prefix=prefix, delimiter="/")
+
+            for item in current_items:
+                if item.type == S3ObjectType.S3_OBJECT_TYPE_FILE:
+                    # Add files
+                    result.append(item)
+                elif item.type == S3ObjectType.S3_OBJECT_TYPE_DIRECTORY:
+                    # Add directory if withdirs is True
+                    if withdirs:
+                        result.append(item)
+
+                    # Recursively explore subdirectory if depth allows
+                    if maxdepth > 0:
+                        sub_path = f"s3://{bucket}/{item.key}"
+                        sub_results = self._find(
+                            sub_path, maxdepth=maxdepth - 1, withdirs=withdirs, **kwargs
+                        )
+                        result.extend(sub_results)
+
+            return result
+
+        # For unlimited depth, use the original approach (get all files at once)
+        files = self._ls_dirs(path, prefix=prefix, delimiter="")
+        if not files and key:
+            try:
+                files = [self.info(path)]
+            except FileNotFoundError:
+                files = []
+
+        # If withdirs is True, we need to derive directories from file paths
+        if withdirs:
+            files.extend(self._extract_parent_directories(files, bucket, key))
+
+        # Filter directories if withdirs is False (default)
+        if withdirs is False or withdirs is None:
+            files = [f for f in files if f.type != S3ObjectType.S3_OBJECT_TYPE_DIRECTORY]
+
+        return files
+
     def find(
         self,
         path: str,
@@ -404,19 +522,7 @@ class S3FileSystem(AbstractFileSystem):
         detail: bool = False,
         **kwargs,
     ) -> Union[Dict[str, S3Object], List[str]]:
-        # TODO: Support maxdepth and withdirs
-        path = self._strip_protocol(path)
-        if path in ["", "/"]:
-            raise ValueError("Cannot traverse all files in S3.")
-        bucket, key, _ = self.parse_path(path)
-        prefix = kwargs.pop("prefix", "")
-
-        files = self._ls_dirs(path, prefix=prefix, delimiter="")
-        if not files and key:
-            try:
-                files = [self.info(path)]
-            except FileNotFoundError:
-                files = []
+        files = self._find(path=path, maxdepth=maxdepth, withdirs=withdirs, **kwargs)
         if detail:
             return {f.name: f for f in files}
         return [f.name for f in files]
