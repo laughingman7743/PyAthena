@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import contextlib
+import logging
 import re
 import time
 from concurrent import futures
@@ -16,6 +17,8 @@ from pyathena.error import DatabaseError, NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from tests import ENV
 from tests.pyathena.conftest import connect
+
+_logger = logging.getLogger(__name__)
 
 
 class TestCursor:
@@ -749,3 +752,152 @@ class TestDictCursor:
         assert dict_cursor.fetchall() == [{"number_of_rows": 1}]
         dict_cursor.execute("SELECT a FROM many_rows ORDER BY a")
         assert dict_cursor.fetchall() == [{"a": i} for i in range(10000)]
+
+
+class TestComplexDataTypes:
+    """Test complex data types (STRUCT, ARRAY, MAP) with actual Athena queries."""
+
+    def test_struct_types(self, cursor):
+        """Test various STRUCT type scenarios to understand Athena's behavior."""
+        test_cases = [
+            # Basic struct
+            ("SELECT ROW('John', 30) AS simple_struct", "simple_struct"),
+            # Named struct fields
+            (
+                "SELECT CAST(ROW('Alice', 25) AS ROW(name VARCHAR, age INTEGER)) AS named_struct",
+                "named_struct",
+            ),
+            # Struct with special characters
+            ("SELECT ROW('Hello, world', 'x=y+1') AS special_chars_struct", "special_chars_struct"),
+            # Struct with quotes
+            ("SELECT ROW('He said \"hello\"', 'It's working') AS quotes_struct", "quotes_struct"),
+            # Struct with NULL values
+            ("SELECT ROW('Alice', NULL, 'active') AS null_struct", "null_struct"),
+            # Nested struct
+            (
+                "SELECT ROW(ROW('John', 30), ROW('Engineer', 'Tech')) AS nested_struct",
+                "nested_struct",
+            ),
+            # Struct as JSON (recommended for complex cases)
+            ("SELECT CAST(ROW('Alice', 25, 'Hello, world') AS JSON) AS json_struct", "json_struct"),
+        ]
+
+        _logger.info("=== STRUCT Type Test Results ===")
+        for query, description in test_cases:
+            cursor.execute(query)
+            result = cursor.fetchone()
+            struct_value = result[0]
+            _logger.info(f"{description}: {struct_value!r} (type: {type(struct_value).__name__})")
+
+            # Basic validation
+            assert struct_value is not None, f"STRUCT value should not be None for {description}"
+
+            # Test if our converter can handle it
+            if isinstance(struct_value, str):
+                from pyathena.converter import _to_struct
+
+                converted = _to_struct(struct_value)
+                _logger.info(f"  -> Converted: {converted!r}")
+                # Add assertion to verify conversion worked when expected
+                if converted is not None:
+                    assert isinstance(converted, dict), f"Converted value should be dict for {description}"
+
+    def test_array_types(self, cursor):
+        """Test various ARRAY type scenarios."""
+        test_cases = [
+            # Simple array
+            ("SELECT ARRAY[1, 2, 3, 4, 5] AS simple_array", "simple_array"),
+            # String array
+            ("SELECT ARRAY['apple', 'banana', 'cherry'] AS string_array", "string_array"),
+            # Array with special characters
+            (
+                "SELECT ARRAY['Hello, world', 'x=y+1', 'It's working'] AS special_array",
+                "special_array",
+            ),
+            # Array of structs
+            ("SELECT ARRAY[ROW('Alice', 25), ROW('Bob', 30)] AS struct_array", "struct_array"),
+            # Nested arrays
+            ("SELECT ARRAY[ARRAY[1, 2], ARRAY[3, 4]] AS nested_array", "nested_array"),
+            # Array as JSON
+            ("SELECT CAST(ARRAY['Alice', 'Bob', 'Charlie'] AS JSON) AS json_array", "json_array"),
+        ]
+
+        _logger.info("=== ARRAY Type Test Results ===")
+        for query, description in test_cases:
+            cursor.execute(query)
+            result = cursor.fetchone()
+            array_value = result[0]
+            _logger.info(f"{description}: {array_value!r} (type: {type(array_value).__name__})")
+
+            # Basic validation
+            assert array_value is not None, f"ARRAY value should not be None for {description}"
+
+    def test_map_types(self, cursor):
+        """Test various MAP type scenarios."""
+        test_cases = [
+            # Simple map
+            (
+                "SELECT MAP(ARRAY[1, 2, 3], ARRAY['one', 'two', 'three']) AS simple_map",
+                "simple_map",
+            ),
+            # String key map
+            (
+                "SELECT MAP(ARRAY['name', 'age', 'city'], ARRAY['John', '30', 'Tokyo']) AS string_map",
+                "string_map",
+            ),
+            # Map with special characters
+            (
+                "SELECT MAP(ARRAY['msg', 'formula'], ARRAY['Hello, world', 'x=y+1']) AS special_map",
+                "special_map",
+            ),
+            # Map with struct values
+            (
+                "SELECT MAP(ARRAY['person1', 'person2'], ARRAY[ROW('Alice', 25), ROW('Bob', 30)]) AS struct_value_map",
+                "struct_value_map",
+            ),
+            # Map as JSON
+            (
+                "SELECT CAST(MAP(ARRAY['name', 'age'], ARRAY['Alice', '25']) AS JSON) AS json_map",
+                "json_map",
+            ),
+        ]
+
+        _logger.info("=== MAP Type Test Results ===")
+        for query, description in test_cases:
+            cursor.execute(query)
+            result = cursor.fetchone()
+            map_value = result[0]
+            _logger.info(f"{description}: {map_value!r} (type: {type(map_value).__name__})")
+
+            # Basic validation
+            assert map_value is not None, f"MAP value should not be None for {description}"
+
+    def test_complex_combinations(self, cursor):
+        """Test complex combinations of data types."""
+        test_cases = [
+            # Struct containing array and map
+            (
+                "SELECT ROW(ARRAY[1, 2, 3], MAP(ARRAY['a', 'b'], ARRAY[1, 2])) AS struct_with_collections",
+                "struct_with_collections",
+            ),
+            # Array of maps
+            (
+                "SELECT ARRAY[MAP(ARRAY['name'], ARRAY['Alice']), MAP(ARRAY['name'], ARRAY['Bob'])] AS array_of_maps",
+                "array_of_maps",
+            ),
+            # Map with array values
+            (
+                "SELECT MAP(ARRAY['numbers', 'letters'], ARRAY[ARRAY[1, 2, 3], ARRAY['a', 'b', 'c']]) AS map_with_arrays",
+                "map_with_arrays",
+            ),
+        ]
+
+        _logger.info("=== Complex Combinations Test Results ===")
+        for query, description in test_cases:
+            cursor.execute(query)
+            result = cursor.fetchone()
+            complex_value = result[0]
+            _logger.info(f"{description}: {complex_value!r} (type: {type(complex_value).__name__})")
+
+            # Basic validation
+            assert complex_value is not None, f"Complex value should not be None for {description}"

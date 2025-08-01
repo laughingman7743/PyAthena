@@ -17,7 +17,7 @@ from sqlalchemy.sql.ddl import CreateTable
 from sqlalchemy.sql.schema import Column, MetaData, Table
 from sqlalchemy.sql.selectable import TextualSelect
 
-from pyathena.sqlalchemy.types import TINYINT, Tinyint
+from pyathena.sqlalchemy.types import TINYINT, AthenaStruct, Tinyint
 from tests.pyathena.conftest import ENV
 
 
@@ -255,8 +255,8 @@ class TestSQLAlchemyAthena:
             date(2017, 1, 2),
             b"123",
             "[1, 2]",
-            "{1=2, 3=4}",
-            "{a=1, b=2}",
+            "{1=2, 3=4}",  # map type remains as string
+            {"a": 1, "b": 2},  # row type now converted to dict
             Decimal("0.1"),
         ]
         assert isinstance(one_row_complex.c.col_boolean.type, types.BOOLEAN)
