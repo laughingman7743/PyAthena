@@ -78,6 +78,16 @@ def _to_json(varchar_value: Optional[str]) -> Optional[Any]:
     return json.loads(varchar_value)
 
 
+def _to_struct(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
+    if varchar_value is None:
+        return None
+    try:
+        result = json.loads(varchar_value)
+        return result if isinstance(result, dict) else None
+    except json.JSONDecodeError:
+        return None
+
+
 def _to_default(varchar_value: Optional[str]) -> Optional[str]:
     return varchar_value
 
@@ -101,7 +111,7 @@ _DEFAULT_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {
     "varbinary": _to_binary,
     "array": _to_default,
     "map": _to_default,
-    "row": _to_default,
+    "row": _to_struct,
     "decimal": _to_decimal,
     "json": _to_json,
 }
