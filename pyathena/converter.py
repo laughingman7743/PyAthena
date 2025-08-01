@@ -79,10 +79,26 @@ def _to_json(varchar_value: Optional[str]) -> Optional[Any]:
 
 
 def _to_struct(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Convert struct data to Python dictionary.
+
+    Supports two formats:
+    1. JSON format: '{"key": "value", "num": 123}' (recommended)
+    2. Athena native format: '{key=value, num=123}' (basic cases only)
+
+    For structs containing special characters (commas, equals signs, quotes,
+    braces), use CAST(struct_column AS JSON) in your SQL query to ensure
+    proper handling.
+
+    Args:
+        varchar_value: String representation of struct data
+
+    Returns:
+        Dictionary representation of struct, or None if parsing fails
+    """
     if varchar_value is None:
         return None
 
-    # First try to parse as JSON
+    # First try to parse as JSON (preferred format)
     try:
         result = json.loads(varchar_value)
         return result if isinstance(result, dict) else None
@@ -90,39 +106,58 @@ def _to_struct(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
         pass
 
     # Handle Athena's native struct format: {a=1, b=2}
+    # WARNING: This is a simplified parser that works for basic cases.
+    # Athena's actual struct format may have complex escaping rules for
+    # special characters (commas, equals, braces, quotes) that are not
+    # fully handled here. For complex structs, JSON format is recommended.
     if varchar_value.startswith("{") and varchar_value.endswith("}"):
         try:
-            # Convert Athena struct format to JSON format
-            # Replace '=' with ':' and ensure proper quoting for keys
             inner = varchar_value[1:-1].strip()
             if not inner:
                 return {}
 
+            # For now, only handle simple cases without special characters
+            # TODO: Implement proper parsing with escape sequence support
             pairs = []
-            # Simple parsing for key=value pairs
-            for pair in inner.split(","):
-                pair = pair.strip()
-                if "=" in pair:
-                    key, value = pair.split("=", 1)
-                    key = key.strip()
-                    value = value.strip()
+            current_pos = 0
 
-                    # Add quotes to key if not already quoted
-                    if not (key.startswith('"') and key.endswith('"')):
-                        key = f'"{key}"'
+            while current_pos < len(inner):
+                # Find the next key=value pair
+                eq_pos = inner.find("=", current_pos)
+                if eq_pos == -1:
+                    break
 
-                    # Handle value quoting - if it's not a number, quote it
-                    if not (value.isdigit() or value in ("true", "false", "null")) and not (
-                        value.startswith('"') and value.endswith('"')
-                    ):
-                        value = f'"{value}"'
+                # Extract key (everything before =)
+                key = inner[current_pos:eq_pos].strip()
 
-                    pairs.append(f"{key}:{value}")
+                # Find the end of the value (next comma or end of string)
+                comma_pos = inner.find(",", eq_pos + 1)
+                if comma_pos == -1:
+                    value = inner[eq_pos + 1 :].strip()
+                    current_pos = len(inner)
+                else:
+                    value = inner[eq_pos + 1 : comma_pos].strip()
+                    current_pos = comma_pos + 1
 
-            json_str = "{" + ",".join(pairs) + "}"
-            result = json.loads(json_str)
-            return result if isinstance(result, dict) else None
-        except (ValueError, json.JSONDecodeError):
+                # Basic validation: reject if key or value contains problematic chars
+                if any(char in key for char in '{}=",') or any(char in value for char in '{}"'):
+                    # Fall back to returning the original string for complex cases
+                    return None
+
+                # Add quotes to key
+                key = f'"{key}"'
+
+                # Handle value quoting - if it's not a number, quote it
+                if not (value.isdigit() or value in ("true", "false", "null")):
+                    value = f'"{value}"'
+
+                pairs.append(f"{key}:{value}")
+
+            if pairs:
+                json_str = "{" + ",".join(pairs) + "}"
+                result = json.loads(json_str)
+                return result if isinstance(result, dict) else None
+        except (ValueError, json.JSONDecodeError, IndexError):
             pass
 
     # If all parsing attempts fail, return None

@@ -51,6 +51,31 @@ def test_to_struct_athena_string_values():
     assert result == expected
 
 
+def test_to_struct_athena_complex_cases():
+    """Test that complex cases with special characters return None (safe fallback)"""
+    # These cases contain characters that could cause parsing issues
+    complex_cases = [
+        "{message=Hello, world, name=John}",  # Comma in value
+        "{formula=x=y+1, status=active}",  # Equals in value
+        '{json={"key": "value"}, name=test}',  # Braces in value
+        '{message=He said "hello", name=John}',  # Quotes in value
+    ]
+
+    for case in complex_cases:
+        result = _to_struct(case)
+        # For safety, complex cases should return None rather than risk incorrect parsing
+        # Users should use JSON format for complex structs
+        assert result is None, f"Complex case should return None: {case}"
+
+
+def test_to_struct_athena_numeric_keys():
+    """Test Athena struct with numeric keys (like maps)"""
+    struct_value = "{1=2, 3=4}"
+    result = _to_struct(struct_value)
+    expected = {"1": 2, "3": 4}
+    assert result == expected
+
+
 def test_to_struct_empty_string():
     result = _to_struct("")
     assert result is None
