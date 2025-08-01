@@ -35,7 +35,7 @@ class TestAthenaTypeCompiler:
     def test_visit_struct_no_fields_attribute(self):
         # Test struct type without fields attribute
         compiler = AthenaTypeCompiler()
-        struct_type = type('MockStruct', (), {})()
+        struct_type = type("MockStruct", (), {})()
         result = compiler.visit_struct(struct_type)
         assert result == "ROW()"
 

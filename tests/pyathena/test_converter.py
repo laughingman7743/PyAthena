@@ -35,15 +35,15 @@ def test_to_struct_empty_string():
 
 def test_to_struct_non_dict_json():
     # Arrays and other non-dict JSON should return None
-    array_json = '[1, 2, 3]'
+    array_json = "[1, 2, 3]"
     result = _to_struct(array_json)
     assert result is None
-    
+
     string_json = '"just a string"'
     result = _to_struct(string_json)
     assert result is None
-    
-    number_json = '42'
+
+    number_json = "42"
     result = _to_struct(number_json)
     assert result is None
 
