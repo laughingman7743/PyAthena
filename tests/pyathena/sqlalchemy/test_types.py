@@ -48,3 +48,19 @@ class TestAthenaStruct:
     def test_struct_uppercase_visit_name(self):
         struct_type = STRUCT()
         assert struct_type.__visit_name__ == "STRUCT"
+
+    def test_empty_struct(self):
+        struct_type = AthenaStruct()
+        assert len(struct_type.fields) == 0
+
+    def test_mixed_field_definitions(self):
+        struct_type = AthenaStruct("name", ("age", Integer), ("active", String()))
+        assert len(struct_type.fields) == 3
+        assert isinstance(struct_type.fields["name"], sqltypes.String)
+        assert isinstance(struct_type.fields["age"], sqltypes.Integer)
+        assert isinstance(struct_type.fields["active"], sqltypes.String)
+
+    def test_field_access_nonexistent_key(self):
+        struct_type = AthenaStruct(("name", String))
+        with pytest.raises(KeyError):
+            struct_type["nonexistent"]

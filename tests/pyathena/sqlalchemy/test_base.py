@@ -275,7 +275,9 @@ class TestSQLAlchemyAthena:
         assert isinstance(one_row_complex.c.col_binary.type, types.BINARY)
         assert isinstance(one_row_complex.c.col_array.type, types.String)
         assert isinstance(one_row_complex.c.col_map.type, types.String)
-        assert isinstance(one_row_complex.c.col_struct.type, types.String)
+        # With struct support, col_struct should now be recognized as AthenaStruct
+        from pyathena.sqlalchemy.types import AthenaStruct
+        assert isinstance(one_row_complex.c.col_struct.type, AthenaStruct)
         assert isinstance(
             one_row_complex.c.col_decimal.type,
             types.DECIMAL,
@@ -321,7 +323,10 @@ class TestSQLAlchemyAthena:
         assert isinstance(dialect._get_column_type("binary"), types.BINARY)
         assert isinstance(dialect._get_column_type("array<integer>"), types.String)
         assert isinstance(dialect._get_column_type("map<int, int>"), types.String)
-        assert isinstance(dialect._get_column_type("struct<a: int, b: int>"), types.String)
+        # With struct support, struct types should be recognized as AthenaStruct
+        from pyathena.sqlalchemy.types import AthenaStruct
+        assert isinstance(dialect._get_column_type("struct<a: int, b: int>"), AthenaStruct)
+        assert isinstance(dialect._get_column_type("row<name: string, age: int>"), AthenaStruct)
         decimal_with_args = dialect._get_column_type("decimal(10,1)")
         assert isinstance(decimal_with_args, types.DECIMAL)
         assert decimal_with_args.precision == 10

@@ -31,3 +31,16 @@ class TestAthenaTypeCompiler:
         assert "id INTEGER" in result
         assert "title STRING" in result or "title VARCHAR" in result
         assert result.endswith(")")
+
+    def test_visit_struct_no_fields_attribute(self):
+        # Test struct type without fields attribute
+        compiler = AthenaTypeCompiler()
+        struct_type = type('MockStruct', (), {})()
+        result = compiler.visit_struct(struct_type)
+        assert result == "ROW()"
+
+    def test_visit_struct_single_field(self):
+        compiler = AthenaTypeCompiler()
+        struct_type = AthenaStruct(("name", String))
+        result = compiler.visit_struct(struct_type)
+        assert result == "ROW(name STRING)" or result == "ROW(name VARCHAR)"
