@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional, Set
 
 from sqlalchemy.sql.compiler import ILLEGAL_INITIAL_CHARACTERS, IdentifierPreparer
 
-from pyathena.sqlalchemy.base import DDL_RESERVED_WORDS, SELECT_STATEMENT_RESERVED_WORDS
+from pyathena.sqlalchemy.constants import DDL_RESERVED_WORDS, SELECT_STATEMENT_RESERVED_WORDS
 
 if TYPE_CHECKING:
     from sqlalchemy import Dialect
