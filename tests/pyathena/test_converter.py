@@ -28,6 +28,29 @@ def test_to_struct_invalid_json():
     assert result is None
 
 
+def test_to_struct_athena_native_format():
+    """Test conversion of Athena's native struct format {a=1, b=2}"""
+    struct_value = "{a=1, b=2}"
+    result = _to_struct(struct_value)
+    expected = {"a": 1, "b": 2}
+    assert result == expected
+
+
+def test_to_struct_athena_empty_struct():
+    """Test conversion of empty Athena struct {}"""
+    struct_value = "{}"
+    result = _to_struct(struct_value)
+    assert result == {}
+
+
+def test_to_struct_athena_string_values():
+    """Test Athena struct with string values"""
+    struct_value = "{name=John, city=Tokyo}"
+    result = _to_struct(struct_value)
+    expected = {"name": "John", "city": "Tokyo"}
+    assert result == expected
+
+
 def test_to_struct_empty_string():
     result = _to_struct("")
     assert result is None
@@ -74,9 +97,8 @@ class TestDefaultTypeConverter:
     def test_struct_conversion_athena_format(self):
         """Test conversion of actual Athena struct format like {a=1, b=2}"""
         converter = DefaultTypeConverter()
-        # This is how Athena actually returns struct data in some cases
-        # For now, our converter expects JSON format, but this test documents the behavior
+        # This is how Athena actually returns struct data
         result = converter.convert("row", "{a=1, b=2}")
-        # Currently returns None because it's not valid JSON
-        # This could be enhanced in the future to parse Athena's struct format
-        assert result is None
+        # Now supports Athena's native struct format
+        expected = {"a": 1, "b": 2}
+        assert result == expected

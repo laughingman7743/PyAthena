@@ -81,11 +81,52 @@ def _to_json(varchar_value: Optional[str]) -> Optional[Any]:
 def _to_struct(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
     if varchar_value is None:
         return None
+
+    # First try to parse as JSON
     try:
         result = json.loads(varchar_value)
         return result if isinstance(result, dict) else None
     except json.JSONDecodeError:
-        return None
+        pass
+
+    # Handle Athena's native struct format: {a=1, b=2}
+    if varchar_value.startswith("{") and varchar_value.endswith("}"):
+        try:
+            # Convert Athena struct format to JSON format
+            # Replace '=' with ':' and ensure proper quoting for keys
+            inner = varchar_value[1:-1].strip()
+            if not inner:
+                return {}
+
+            pairs = []
+            # Simple parsing for key=value pairs
+            for pair in inner.split(","):
+                pair = pair.strip()
+                if "=" in pair:
+                    key, value = pair.split("=", 1)
+                    key = key.strip()
+                    value = value.strip()
+
+                    # Add quotes to key if not already quoted
+                    if not (key.startswith('"') and key.endswith('"')):
+                        key = f'"{key}"'
+
+                    # Handle value quoting - if it's not a number, quote it
+                    if not (value.isdigit() or value in ("true", "false", "null")) and not (
+                        value.startswith('"') and value.endswith('"')
+                    ):
+                        value = f'"{value}"'
+
+                    pairs.append(f"{key}:{value}")
+
+            json_str = "{" + ",".join(pairs) + "}"
+            result = json.loads(json_str)
+            return result if isinstance(result, dict) else None
+        except (ValueError, json.JSONDecodeError):
+            pass
+
+    # If all parsing attempts fail, return None
+    return None
 
 
 def _to_default(varchar_value: Optional[str]) -> Optional[str]:
