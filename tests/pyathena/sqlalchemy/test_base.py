@@ -276,7 +276,6 @@ class TestSQLAlchemyAthena:
         assert isinstance(one_row_complex.c.col_array.type, types.String)
         assert isinstance(one_row_complex.c.col_map.type, types.String)
         # With struct support, col_struct should now be recognized as AthenaStruct
-        from pyathena.sqlalchemy.types import AthenaStruct
 
         assert isinstance(one_row_complex.c.col_struct.type, AthenaStruct)
         assert isinstance(
@@ -325,7 +324,6 @@ class TestSQLAlchemyAthena:
         assert isinstance(dialect._get_column_type("array<integer>"), types.String)
         assert isinstance(dialect._get_column_type("map<int, int>"), types.String)
         # With struct support, struct types should be recognized as AthenaStruct
-        from pyathena.sqlalchemy.types import AthenaStruct
 
         assert isinstance(dialect._get_column_type("struct<a: int, b: int>"), AthenaStruct)
         assert isinstance(dialect._get_column_type("row<name: string, age: int>"), AthenaStruct)

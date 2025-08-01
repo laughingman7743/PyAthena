@@ -32,6 +32,43 @@ The project supports different cursor implementations for various use cases:
 
 ### Code Style and Quality
 
+#### Import Guidelines
+**CRITICAL: Runtime Imports are Prohibited**
+- **NEVER** use `import` or `from ... import` statements inside functions, methods, or conditional blocks
+- **ALWAYS** place all imports at the top of the file, after the license header and module docstring
+- This applies to all files: source code, tests, scripts, documentation examples
+- Runtime imports cause issues with static analysis, code completion, dependency tracking, and can mask import errors
+
+**Bad Examples:**
+```python
+def my_function():
+    from some_module import something  # NEVER do this
+    import os  # NEVER do this
+    if condition:
+        from optional import feature  # NEVER do this
+```
+
+**Good Examples:**
+```python
+# At the top of the file, after license header
+from __future__ import annotations
+
+import os
+from some_module import something
+from typing import Optional
+
+# Optional dependencies can be handled with TYPE_CHECKING
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from optional import feature
+
+def my_function():
+    # Use imported modules here
+    return something.process()
+```
+
+**Exception for Optional Dependencies**: The PyAthena codebase does use runtime imports for optional dependencies like `pyarrow` and `pandas` in the main source code. However, when contributing new code or modifying tests, avoid runtime imports unless absolutely necessary for optional dependency handling.
+
 #### Commands
 ```bash
 # Format code (auto-fix imports and format)

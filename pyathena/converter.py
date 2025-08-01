@@ -139,7 +139,7 @@ def _to_struct(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
                     value = inner[eq_pos + 1 : comma_pos].strip()
                     current_pos = comma_pos + 1
 
-                # Basic validation: reject if key or value contains problematic chars  
+                # Basic validation: reject if key or value contains problematic chars
                 if any(char in key for char in '{}=",') or any(char in value for char in '{}=",'):
                     # Fall back to returning the original string for complex cases
                     return None

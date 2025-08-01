@@ -12,6 +12,7 @@ from random import randint
 import pytest
 
 from pyathena import BINARY, BOOLEAN, DATE, DATETIME, JSON, NUMBER, STRING, TIME
+from pyathena.converter import _to_struct
 from pyathena.cursor import Cursor
 from pyathena.error import DatabaseError, NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
@@ -794,13 +795,13 @@ class TestComplexDataTypes:
 
             # Test if our converter can handle it
             if isinstance(struct_value, str):
-                from pyathena.converter import _to_struct
-
                 converted = _to_struct(struct_value)
                 _logger.info(f"  -> Converted: {converted!r}")
                 # Add assertion to verify conversion worked when expected
                 if converted is not None:
-                    assert isinstance(converted, dict), f"Converted value should be dict for {description}"
+                    assert isinstance(converted, dict), (
+                        f"Converted value should be dict for {description}"
+                    )
 
     def test_array_types(self, cursor):
         """Test various ARRAY type scenarios."""
@@ -842,17 +843,26 @@ class TestComplexDataTypes:
             ),
             # String key map
             (
-                "SELECT MAP(ARRAY['name', 'age', 'city'], ARRAY['John', '30', 'Tokyo']) AS string_map",
+                (
+                    "SELECT MAP(ARRAY['name', 'age', 'city'], "
+                    "ARRAY['John', '30', 'Tokyo']) AS string_map"
+                ),
                 "string_map",
             ),
             # Map with special characters
             (
-                "SELECT MAP(ARRAY['msg', 'formula'], ARRAY['Hello, world', 'x=y+1']) AS special_map",
+                (
+                    "SELECT MAP(ARRAY['msg', 'formula'], "
+                    "ARRAY['Hello, world', 'x=y+1']) AS special_map"
+                ),
                 "special_map",
             ),
             # Map with struct values
             (
-                "SELECT MAP(ARRAY['person1', 'person2'], ARRAY[ROW('Alice', 25), ROW('Bob', 30)]) AS struct_value_map",
+                (
+                    "SELECT MAP(ARRAY['person1', 'person2'], "
+                    "ARRAY[ROW('Alice', 25), ROW('Bob', 30)]) AS struct_value_map"
+                ),
                 "struct_value_map",
             ),
             # Map as JSON
@@ -877,17 +887,26 @@ class TestComplexDataTypes:
         test_cases = [
             # Struct containing array and map
             (
-                "SELECT ROW(ARRAY[1, 2, 3], MAP(ARRAY['a', 'b'], ARRAY[1, 2])) AS struct_with_collections",
+                (
+                    "SELECT ROW(ARRAY[1, 2, 3], "
+                    "MAP(ARRAY['a', 'b'], ARRAY[1, 2])) AS struct_with_collections"
+                ),
                 "struct_with_collections",
             ),
             # Array of maps
             (
-                "SELECT ARRAY[MAP(ARRAY['name'], ARRAY['Alice']), MAP(ARRAY['name'], ARRAY['Bob'])] AS array_of_maps",
+                (
+                    "SELECT ARRAY[MAP(ARRAY['name'], ARRAY['Alice']), "
+                    "MAP(ARRAY['name'], ARRAY['Bob'])] AS array_of_maps"
+                ),
                 "array_of_maps",
             ),
             # Map with array values
             (
-                "SELECT MAP(ARRAY['numbers', 'letters'], ARRAY[ARRAY[1, 2, 3], ARRAY['a', 'b', 'c']]) AS map_with_arrays",
+                (
+                    "SELECT MAP(ARRAY['numbers', 'letters'], "
+                    "ARRAY[ARRAY[1, 2, 3], ARRAY['a', 'b', 'c']]) AS map_with_arrays"
+                ),
                 "map_with_arrays",
             ),
         ]
