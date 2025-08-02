@@ -302,3 +302,168 @@ or :code:`table_name$history` metadata. Again the hint goes after the select sta
 .. code:: sql
 
         SELECT * FROM table_name FOR VERSION AS OF 949530903748831860
+
+Complex Data Types
+------------------
+
+STRUCT Type Support
+~~~~~~~~~~~~~~~~~~~
+
+PyAthena provides comprehensive support for Amazon Athena's STRUCT (also known as ROW) data types, enabling you to work with complex nested data structures in your Python applications.
+
+Basic Usage
+^^^^^^^^^^^
+
+.. code:: python
+
+    from sqlalchemy import Column, String, Integer, Table, MetaData
+    from pyathena.sqlalchemy.types import AthenaStruct
+
+    # Define a table with STRUCT columns
+    users = Table('users', metadata,
+        Column('id', Integer),
+        Column('profile', AthenaStruct(
+            ('name', String),
+            ('age', Integer),
+            ('email', String)
+        )),
+        Column('settings', AthenaStruct(
+            ('theme', String),
+            ('notifications', AthenaStruct(
+                ('email', String),
+                ('push', String)
+            ))
+        ))
+    )
+
+This generates the following SQL structure:
+
+.. code:: sql
+
+    CREATE TABLE users (
+        id INTEGER,
+        profile ROW(name STRING, age INTEGER, email STRING),
+        settings ROW(theme STRING, notifications ROW(email STRING, push STRING))
+    )
+
+Querying STRUCT Data
+^^^^^^^^^^^^^^^^^^^^
+
+PyAthena automatically converts STRUCT data between different formats:
+
+.. code:: python
+
+    from sqlalchemy import create_engine, select
+
+    # Query STRUCT data using ROW constructor
+    result = connection.execute(
+        select().from_statement(
+            text("SELECT ROW('John Doe', 30, 'john@example.com') as profile")
+        )
+    ).fetchone()
+    
+    # Access STRUCT fields as dictionary
+    profile = result.profile  # {"0": "John Doe", "1": 30, "2": "john@example.com"}
+
+Named STRUCT Fields
+^^^^^^^^^^^^^^^^^^^
+
+For better readability, use JSON casting to get named fields:
+
+.. code:: python
+
+    # Using CAST AS JSON for named field access
+    result = connection.execute(
+        select().from_statement(
+            text("SELECT CAST(ROW('John', 30) AS JSON) as user_data")
+        )
+    ).fetchone()
+    
+    # Parse JSON result
+    import json
+    user_data = json.loads(result.user_data)  # ["John", 30]
+
+Data Format Support
+^^^^^^^^^^^^^^^^^^^
+
+PyAthena supports multiple STRUCT data formats:
+
+**Athena Native Format:**
+
+.. code:: python
+
+    # Input: "{name=John, age=30}"
+    # Output: {"name": "John", "age": 30}
+
+**JSON Format (Recommended):**
+
+.. code:: python
+
+    # Input: '{"name": "John", "age": 30}'  
+    # Output: {"name": "John", "age": 30}
+
+**Unnamed STRUCT Format:**
+
+.. code:: python
+
+    # Input: "{Alice, 25}"
+    # Output: {"0": "Alice", "1": 25}
+
+Performance Considerations
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- **JSON Format**: Recommended for complex nested structures
+- **Native Format**: Optimized for simple key-value pairs
+- **Smart Detection**: PyAthena automatically detects the format to avoid unnecessary parsing overhead
+
+Best Practices
+^^^^^^^^^^^^^^
+
+1. **Use JSON casting** for complex nested structures:
+
+   .. code:: sql
+
+       SELECT CAST(complex_struct AS JSON) FROM table_name
+
+2. **Define clear field types** in AthenaStruct definitions:
+
+   .. code:: python
+
+       AthenaStruct(
+           ('user_id', Integer),
+           ('profile', AthenaStruct(
+               ('name', String),
+               ('preferences', AthenaStruct(
+                   ('theme', String),
+                   ('language', String)
+               ))
+           ))
+       )
+
+3. **Handle NULL values** appropriately in your application logic:
+
+   .. code:: python
+
+       if result.struct_column is not None:
+           # Process struct data
+           field_value = result.struct_column.get('field_name')
+
+Migration from Raw Strings
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Before (raw string handling):**
+
+.. code:: python
+
+    result = cursor.execute("SELECT struct_column FROM table").fetchone()
+    raw_data = result[0]  # "{\"name\": \"John\", \"age\": 30}"
+    import json
+    parsed_data = json.loads(raw_data)
+
+**After (automatic conversion):**
+
+.. code:: python
+
+    result = cursor.execute("SELECT struct_column FROM table").fetchone()
+    struct_data = result[0]  # {"name": "John", "age": 30} - automatically converted
+    name = struct_data['name']  # Direct access

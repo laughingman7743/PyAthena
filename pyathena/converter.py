@@ -78,6 +78,123 @@ def _to_json(varchar_value: Optional[str]) -> Optional[Any]:
     return json.loads(varchar_value)
 
 
+def _to_struct(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Convert struct data to Python dictionary.
+
+    Supports two formats:
+    1. JSON format: '{"key": "value", "num": 123}' (recommended)
+    2. Athena native format: '{key=value, num=123}' (basic cases only)
+
+    For complex structs, use CAST(struct_column AS JSON) in your SQL query.
+
+    Args:
+        varchar_value: String representation of struct data
+
+    Returns:
+        Dictionary representation of struct, or None if parsing fails
+    """
+    if varchar_value is None:
+        return None
+
+    # Quick check: if it doesn't look like a struct, return None
+    if not (varchar_value.startswith("{") and varchar_value.endswith("}")):
+        return None
+
+    # Optimize: Check if it looks like JSON vs Athena native format
+    # JSON objects typically have quoted keys: {"key": value}
+    # Athena native format has unquoted keys: {key=value}
+    inner_preview = varchar_value[1:10] if len(varchar_value) > 10 else varchar_value[1:-1]
+
+    if '"' in inner_preview or varchar_value.startswith('{"'):
+        # Likely JSON format - try JSON parsing
+        try:
+            result = json.loads(varchar_value)
+            return result if isinstance(result, dict) else None
+        except json.JSONDecodeError:
+            # If JSON parsing fails, fall back to native format parsing
+            pass
+
+    inner = varchar_value[1:-1].strip()
+    if not inner:
+        return {}
+
+    try:
+        if "=" in inner:
+            # Named struct: {a=1, b=2}
+            return _parse_named_struct(inner)
+        # Unnamed struct: {Alice, 25}
+        return _parse_unnamed_struct(inner)
+    except Exception:
+        return None
+
+
+def _parse_named_struct(inner: str) -> Optional[Dict[str, Any]]:
+    """Parse named struct format: a=1, b=2.
+
+    Args:
+        inner: Interior content of struct without braces.
+
+    Returns:
+        Dictionary with parsed key-value pairs, or None if no valid pairs found.
+    """
+    result = {}
+
+    # Simple split by comma for basic cases
+    pairs = [pair.strip() for pair in inner.split(",")]
+
+    for pair in pairs:
+        if "=" not in pair:
+            continue
+
+        key, value = pair.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+
+        # Skip pairs with special characters (safety check)
+        if any(char in key for char in '{}="') or any(char in value for char in '{}="'):
+            continue
+
+        # Convert value to appropriate type
+        result[key] = _convert_value(value)
+
+    return result if result else None
+
+
+def _parse_unnamed_struct(inner: str) -> Dict[str, Any]:
+    """Parse unnamed struct format: Alice, 25.
+
+    Args:
+        inner: Interior content of struct without braces.
+
+    Returns:
+        Dictionary with indexed keys mapping to parsed values.
+    """
+    values = [v.strip() for v in inner.split(",")]
+    return {str(i): _convert_value(value) for i, value in enumerate(values)}
+
+
+def _convert_value(value: str) -> Any:
+    """Convert string value to appropriate Python type.
+
+    Args:
+        value: String value to convert.
+
+    Returns:
+        Converted value as int, float, bool, None, or string.
+    """
+    if value.lower() == "null":
+        return None
+    if value.lower() == "true":
+        return True
+    if value.lower() == "false":
+        return False
+    if value.isdigit() or value.startswith("-") and value[1:].isdigit():
+        return int(value)
+    if "." in value and value.replace(".", "", 1).replace("-", "", 1).isdigit():
+        return float(value)
+    return value
+
+
 def _to_default(varchar_value: Optional[str]) -> Optional[str]:
     return varchar_value
 
@@ -101,7 +218,7 @@ _DEFAULT_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {
     "varbinary": _to_binary,
     "array": _to_default,
     "map": _to_default,
-    "row": _to_default,
+    "row": _to_struct,
     "decimal": _to_decimal,
     "json": _to_json,
 }
