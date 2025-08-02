@@ -96,16 +96,23 @@ def _to_struct(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
     if varchar_value is None:
         return None
 
-    # First try JSON parsing (preferred)
-    try:
-        result = json.loads(varchar_value)
-        return result if isinstance(result, dict) else None
-    except json.JSONDecodeError:
-        pass
-
-    # Handle Athena native format: {a=1, b=2} or {Alice, 25}
+    # Quick check: if it doesn't look like a struct, return None
     if not (varchar_value.startswith("{") and varchar_value.endswith("}")):
         return None
+
+    # Optimize: Check if it looks like JSON vs Athena native format
+    # JSON objects typically have quoted keys: {"key": value}
+    # Athena native format has unquoted keys: {key=value}
+    inner_preview = varchar_value[1:10] if len(varchar_value) > 10 else varchar_value[1:-1]
+
+    if '"' in inner_preview or varchar_value.startswith('{"'):
+        # Likely JSON format - try JSON parsing
+        try:
+            result = json.loads(varchar_value)
+            return result if isinstance(result, dict) else None
+        except json.JSONDecodeError:
+            # If JSON parsing fails, fall back to native format parsing
+            pass
 
     inner = varchar_value[1:-1].strip()
     if not inner:
