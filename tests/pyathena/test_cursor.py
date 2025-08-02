@@ -779,8 +779,8 @@ class TestComplexDataTypes:
                 "SELECT ROW(ROW('John', 30), ROW('Engineer', 'Tech')) AS nested_struct",
                 "nested_struct",
             ),
-            # Struct as JSON (recommended for complex cases)
-            ("SELECT CAST(ROW('Alice', 25, 'Hello, world') AS JSON) AS json_struct", "json_struct"),
+            # Struct as JSON (using to_json function)
+            ("SELECT to_json(ROW('Alice', 25, 'Hello, world')) AS json_struct", "json_struct"),
         ]
 
         _logger.info("=== STRUCT Type Test Results ===")
@@ -834,8 +834,8 @@ class TestComplexDataTypes:
             ("SELECT ARRAY[ROW('Alice', 25), ROW('Bob', 30)] AS struct_array", "struct_array"),
             # Nested arrays
             ("SELECT ARRAY[ARRAY[1, 2], ARRAY[3, 4]] AS nested_array", "nested_array"),
-            # Array as JSON
-            ("SELECT CAST(ARRAY['Alice', 'Bob', 'Charlie'] AS JSON) AS json_array", "json_array"),
+            # Array as JSON (using to_json function instead of CAST)
+            ("SELECT to_json(ARRAY['Alice', 'Bob', 'Charlie']) AS json_array", "json_array"),
         ]
 
         _logger.info("=== ARRAY Type Test Results ===")
@@ -887,9 +887,9 @@ class TestComplexDataTypes:
                 ),
                 "struct_value_map",
             ),
-            # Map as JSON
+            # Map as JSON (using to_json function)
             (
-                "SELECT CAST(MAP(ARRAY['name', 'age'], ARRAY['Alice', '25']) AS JSON) AS json_map",
+                "SELECT to_json(MAP(ARRAY['name', 'age'], ARRAY['Alice', '25'])) AS json_map",
                 "json_map",
             ),
         ]
@@ -930,11 +930,11 @@ class TestComplexDataTypes:
                 ),
                 "array_of_maps",
             ),
-            # Map with array values
+            # Map with array values (using consistent types)
             (
                 (
                     "SELECT MAP(ARRAY['numbers', 'letters'], "
-                    "ARRAY[ARRAY[1, 2, 3], ARRAY['a', 'b', 'c']]) AS map_with_arrays"
+                    "ARRAY[ARRAY['1', '2', '3'], ARRAY['a', 'b', 'c']]) AS map_with_arrays"
                 ),
                 "map_with_arrays",
             ),

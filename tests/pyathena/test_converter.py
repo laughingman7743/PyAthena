@@ -51,6 +51,22 @@ def test_to_struct_athena_string_values():
     assert result == expected
 
 
+def test_to_struct_athena_unnamed_struct():
+    """Test conversion of unnamed Athena struct {Alice, 25}"""
+    struct_value = "{Alice, 25}"
+    result = _to_struct(struct_value)
+    expected = {"0": "Alice", "1": 25}
+    assert result == expected
+
+
+def test_to_struct_athena_unnamed_struct_mixed():
+    """Test unnamed struct with mixed data types"""
+    struct_value = "{John, 30, true}"
+    result = _to_struct(struct_value)
+    expected = {"0": "John", "1": 30, "2": "true"}
+    assert result == expected
+
+
 def test_to_struct_athena_complex_cases():
     """Test that complex cases with special characters return None (safe fallback)"""
     # These cases contain characters that could cause parsing issues

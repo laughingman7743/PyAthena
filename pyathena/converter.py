@@ -105,44 +105,49 @@ def _to_struct(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
     except json.JSONDecodeError:
         pass
 
-    # Handle Athena's native struct format: {a=1, b=2}
+    # Handle Athena's native struct format: {a=1, b=2} or {Alice, 25}
     # WARNING: This is a simplified parser that works for basic cases.
     # Athena's actual struct format may have complex escaping rules for
-    # special characters (commas, equals, braces, quotes) that are not
-    # fully handled here. For complex structs, JSON format is recommended.
+    # special characters that are not fully handled here.
+    # For complex structs, JSON format is recommended.
     if varchar_value.startswith("{") and varchar_value.endswith("}"):
         try:
             inner = varchar_value[1:-1].strip()
             if not inner:
                 return {}
 
-            # For now, only handle simple cases without special characters
-            # TODO: Implement proper parsing with escape sequence support
-            pairs = []
-            current_pos = 0
+            # Check if this is a named struct (contains =) or unnamed struct
+            # (comma-separated values)
+            if "=" in inner:
+                # Named struct format: {a=1, b=2}
+                pairs = []
+                current_pos = 0
 
-            while current_pos < len(inner):
-                # Find the next key=value pair
-                eq_pos = inner.find("=", current_pos)
-                if eq_pos == -1:
-                    break
+                while current_pos < len(inner):
+                    # Find the next key=value pair
+                    eq_pos = inner.find("=", current_pos)
+                    if eq_pos == -1:
+                        break
 
-                # Extract key (everything before =)
-                key = inner[current_pos:eq_pos].strip()
+                    # Extract key (everything before =)
+                    key = inner[current_pos:eq_pos].strip()
 
-                # Find the end of the value (next comma or end of string)
-                comma_pos = inner.find(",", eq_pos + 1)
-                if comma_pos == -1:
-                    value = inner[eq_pos + 1 :].strip()
-                    current_pos = len(inner)
-                else:
-                    value = inner[eq_pos + 1 : comma_pos].strip()
-                    current_pos = comma_pos + 1
+                    # Find the end of the value (next comma or end of string)
+                    comma_pos = inner.find(",", eq_pos + 1)
+                    if comma_pos == -1:
+                        value = inner[eq_pos + 1 :].strip()
+                        current_pos = len(inner)
+                    else:
+                        value = inner[eq_pos + 1 : comma_pos].strip()
+                        current_pos = comma_pos + 1
 
-                # Basic validation: reject if key or value contains problematic chars
-                if any(char in key for char in '{}=",') or any(char in value for char in '{}=",'):
-                    # Fall back to returning the original string for complex cases
-                    return None
+                    # Basic validation: reject if key or value contains problematic chars
+                    problematic_chars = '{}=",'
+                    if any(char in key for char in problematic_chars) or any(
+                        char in value for char in problematic_chars
+                    ):
+                        # Fall back to returning the original string for complex cases
+                        return None
 
                 # Add quotes to key
                 key = f'"{key}"'
@@ -153,10 +158,31 @@ def _to_struct(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
 
                 pairs.append(f"{key}:{value}")
 
-            if pairs:
-                json_str = "{" + ",".join(pairs) + "}"
-                result = json.loads(json_str)
-                return result if isinstance(result, dict) else None
+                if pairs:
+                    json_str = "{" + ",".join(pairs) + "}"
+                    result = json.loads(json_str)
+                    return result if isinstance(result, dict) else None
+            else:
+                # Unnamed struct format: {Alice, 25} - convert to indexed dict
+                # Split by comma and create indexed keys
+                values = [v.strip() for v in inner.split(",")]
+                if values:
+                    # Create indexed dictionary: {"0": "Alice", "1": "25"}
+                    indexed_dict: Dict[str, Any] = {}
+                    for i, value in enumerate(values):
+                        # Try to convert numbers
+                        try:
+                            # Check if it's an integer
+                            if value.isdigit() or (value.startswith("-") and value[1:].isdigit()):
+                                indexed_dict[str(i)] = int(value)
+                            # Check if it's a float
+                            elif "." in value:
+                                indexed_dict[str(i)] = float(value)
+                            else:
+                                indexed_dict[str(i)] = value
+                        except ValueError:
+                            indexed_dict[str(i)] = value
+                    return indexed_dict
         except (ValueError, json.JSONDecodeError, IndexError):
             pass
 
