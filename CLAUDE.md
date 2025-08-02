@@ -119,6 +119,27 @@ def method_name(self, param1: str, param2: Optional[int] = None) -> List[str]:
 2. **Integration Tests**: Test actual AWS Athena interactions when modifying query execution logic
 3. **SQLAlchemy Compliance**: Ensure SQLAlchemy dialect tests pass when modifying dialect code
 4. **Mock AWS Services**: Use `moto` or similar for testing AWS interactions without real resources
+5. **LINT First**: **ALWAYS** run `make chk` before running tests - ensure code passes all quality checks first
+
+#### Local Testing Environment
+To run tests locally, you need to set the following environment variables:
+
+```bash
+export AWS_DEFAULT_REGION=us-west-2
+export AWS_ATHENA_S3_STAGING_DIR=s3://your-staging-bucket/path/
+export AWS_ATHENA_WORKGROUP=primary
+export AWS_ATHENA_SPARK_WORKGROUP=spark-primary
+```
+
+**CRITICAL: Pre-test Requirements**
+```bash
+# ALWAYS run quality checks first - tests will fail if code doesn't pass lint
+make chk
+
+# Only after lint passes, install dependencies and run tests
+uv sync
+uv run pytest tests/pyathena/test_file.py -v
+```
 
 #### Writing Tests
 - Place tests in `tests/pyathena/` mirroring the source structure
