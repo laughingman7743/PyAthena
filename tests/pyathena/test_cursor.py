@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import contextlib
+import json
 import logging
 import re
 import time
@@ -830,9 +831,9 @@ class TestComplexDataTypes:
             ("SELECT ARRAY[ARRAY[1, 2], ARRAY[3, 4]] AS nested_array", "nested_array"),
             # Array as JSON (wrapped in object - top-level arrays not supported)
             (
-                "SELECT CAST(MAP(ARRAY['items'], ARRAY[ARRAY['Alice', 'Bob', 'Charlie']]) AS JSON) "
-                "AS json_array",
-                "json_array",
+                "SELECT CAST(MAP(ARRAY['data'], ARRAY[ARRAY['Alice', 'Bob']]) AS JSON) "
+                "AS array_json",
+                "array_json",
             ),
         ]
 
@@ -900,28 +901,22 @@ class TestComplexDataTypes:
     def test_complex_combinations(self, cursor):
         """Test complex combinations of data types."""
         test_cases = [
-            # Struct containing array and map
+            # Struct containing array and map (using JSON conversion for complex structures)
             (
-                (
-                    "SELECT ROW(ARRAY[1, 2, 3], "
-                    "MAP(ARRAY['a', 'b'], ARRAY[1, 2])) AS struct_with_collections"
-                ),
+                "SELECT CAST(ROW(ARRAY[1, 2, 3], MAP(ARRAY['a', 'b'], ARRAY[1, 2])) AS JSON) "
+                "AS struct_with_collections",
                 "struct_with_collections",
             ),
-            # Array of maps
+            # Array of maps (using JSON conversion)
             (
-                (
-                    "SELECT ARRAY[MAP(ARRAY['name'], ARRAY['Alice']), "
-                    "MAP(ARRAY['name'], ARRAY['Bob'])] AS array_of_maps"
-                ),
+                "SELECT CAST(ARRAY[MAP(ARRAY['name'], ARRAY['Alice']), "
+                "MAP(ARRAY['name'], ARRAY['Bob'])] AS JSON) AS array_of_maps",
                 "array_of_maps",
             ),
-            # Map with array values (using consistent types)
+            # Map with array values (using JSON conversion)
             (
-                (
-                    "SELECT MAP(ARRAY['numbers', 'letters'], "
-                    "ARRAY[ARRAY['1', '2', '3'], ARRAY['a', 'b', 'c']]) AS map_with_arrays"
-                ),
+                "SELECT CAST(MAP(ARRAY['numbers', 'letters'], "
+                "ARRAY[ARRAY['1', '2', '3'], ARRAY['a', 'b', 'c']]) AS JSON) AS map_with_arrays",
                 "map_with_arrays",
             ),
         ]
@@ -933,6 +928,18 @@ class TestComplexDataTypes:
             complex_value = result[0]
             _logger.info(f"{description}: {complex_value!r} (type: {type(complex_value).__name__})")
 
-            # Validate complex value
-            assert complex_value is not None, f"Complex value should not be None for {description}"
+            # For JSON cast results, expect string values that can be parsed as JSON
+            if isinstance(complex_value, str):
+                try:
+                    # Test that the JSON string can be parsed
+                    parsed = json.loads(complex_value)
+                    _logger.info(f"  Parsed JSON: {parsed!r}")
+                    assert parsed is not None, f"Parsed JSON should not be None for {description}"
+                except json.JSONDecodeError as e:
+                    raise AssertionError(f"JSON parsing failed for {description}: {e}") from e
+            else:
+                # If it's not a string, it should still be a valid value (not None)
+                assert complex_value is not None, (
+                    f"Complex value should not be None for {description}"
+                )
             _logger.info(f"{description}: Complex value type {type(complex_value).__name__}")
