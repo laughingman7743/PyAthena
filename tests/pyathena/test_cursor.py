@@ -790,33 +790,27 @@ class TestComplexDataTypes:
             struct_value = result[0]
             _logger.info(f"{description}: {struct_value!r} (type: {type(struct_value).__name__})")
 
-            # Debug: Log the actual struct value we received
-            _logger.warning(
-                f"DEBUG - {description}: Raw value = {struct_value!r}, "
-                f"Type = {type(struct_value).__name__}"
-            )
+            # Validate struct value and converter behavior
+            assert struct_value is not None, f"STRUCT value should not be None for {description}"
 
-            # Test if our converter can handle it
+            # Test struct conversion behavior
             if isinstance(struct_value, str):
                 converted = _to_struct(struct_value)
-                _logger.info(f"  -> Converted: {converted!r}")
-                # For now, just log conversion results without failing tests
+                _logger.info(f"{description}: Converted {struct_value!r} -> {converted!r}")
+                # For string structs, conversion should succeed or return None for complex cases
                 if converted is not None:
-                    _logger.info("  -> Successfully converted to dict")
-                else:
-                    _logger.warning(f"  -> Conversion failed - unable to parse: {struct_value!r}")
-            elif struct_value is None:
-                _logger.error(
-                    f"  -> ERROR: {description} returned None - query or type mapping issue"
-                )
+                    assert isinstance(converted, dict), (
+                        f"Converted struct should be dict for {description}"
+                    )
+            elif isinstance(struct_value, dict):
+                # Already converted by the cursor converter
+                _logger.info(f"{description}: Already converted to dict: {struct_value!r}")
             else:
-                _logger.info(
-                    f"  -> Non-string struct value: {struct_value!r} "
-                    f"(type: {type(struct_value).__name__})"
+                # Log unexpected types for debugging but don't fail
+                _logger.warning(
+                    f"{description}: Unexpected type {type(struct_value).__name__}: "
+                    f"{struct_value!r}"
                 )
-
-            # For now, allow None values while we debug
-            # TODO: Re-enable strict assertions once we understand Athena's actual behavior
 
     def test_array_types(self, cursor):
         """Test various ARRAY type scenarios."""
@@ -845,15 +839,9 @@ class TestComplexDataTypes:
             array_value = result[0]
             _logger.info(f"{description}: {array_value!r} (type: {type(array_value).__name__})")
 
-            # Debug: Log the actual array value we received
-            _logger.warning(
-                f"DEBUG - {description}: Raw value = {array_value!r}, "
-                f"Type = {type(array_value).__name__}"
-            )
-
-            # For now, allow None values while we debug
-            if array_value is None:
-                _logger.error(f"  -> ERROR: {description} returned None - query or syntax issue")
+            # Validate array value
+            assert array_value is not None, f"ARRAY value should not be None for {description}"
+            _logger.info(f"{description}: Array value type {type(array_value).__name__}")
 
     def test_map_types(self, cursor):
         """Test various MAP type scenarios."""
@@ -901,15 +889,9 @@ class TestComplexDataTypes:
             map_value = result[0]
             _logger.info(f"{description}: {map_value!r} (type: {type(map_value).__name__})")
 
-            # Debug: Log the actual map value we received
-            _logger.warning(
-                f"DEBUG - {description}: Raw value = {map_value!r}, "
-                f"Type = {type(map_value).__name__}"
-            )
-
-            # For now, allow None values while we debug
-            if map_value is None:
-                _logger.error(f"  -> ERROR: {description} returned None - query or syntax issue")
+            # Validate map value
+            assert map_value is not None, f"MAP value should not be None for {description}"
+            _logger.info(f"{description}: Map value type {type(map_value).__name__}")
 
     def test_complex_combinations(self, cursor):
         """Test complex combinations of data types."""
@@ -947,12 +929,6 @@ class TestComplexDataTypes:
             complex_value = result[0]
             _logger.info(f"{description}: {complex_value!r} (type: {type(complex_value).__name__})")
 
-            # Debug: Log the actual complex value we received
-            _logger.warning(
-                f"DEBUG - {description}: Raw value = {complex_value!r}, "
-                f"Type = {type(complex_value).__name__}"
-            )
-
-            # For now, allow None values while we debug
-            if complex_value is None:
-                _logger.error(f"  -> ERROR: {description} returned None - query or syntax issue")
+            # Validate complex value
+            assert complex_value is not None, f"Complex value should not be None for {description}"
+            _logger.info(f"{description}: Complex value type {type(complex_value).__name__}")
