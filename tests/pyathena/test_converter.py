@@ -101,11 +101,21 @@ def test_to_struct_athena_complex_cases():
         )
 
 
-def test_to_struct_athena_numeric_keys():
-    """Test Athena struct with numeric keys (like maps)"""
-    struct_value = "{1=2, 3=4}"
-    result = _to_struct(struct_value)
+def test_to_map_athena_numeric_keys():
+    """Test Athena map with numeric keys"""
+    from pyathena.converter import _to_map
+
+    map_value = "{1=2, 3=4}"
+    result = _to_map(map_value)
     expected = {"1": 2, "3": 4}
+    assert result == expected
+
+
+def test_to_struct_named_fields():
+    """Test Athena struct with named fields"""
+    struct_value = "{name=John, age=30}"
+    result = _to_struct(struct_value)
+    expected = {"name": "John", "age": 30}
     assert result == expected
 
 
