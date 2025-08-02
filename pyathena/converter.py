@@ -141,25 +141,25 @@ def _to_struct(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
                         value = inner[eq_pos + 1 : comma_pos].strip()
                         current_pos = comma_pos + 1
 
-                    # Basic validation: reject if key or value contains truly problematic chars
+                    # Basic validation: skip problematic pairs but continue processing others
                     # Allow basic comma separation, but reject nested structures
                     if any(char in key for char in '{}="') or any(char in value for char in '{}="'):
-                        # Fall back to returning the original string for complex cases
-                        return None
+                        # Skip this problematic pair but continue with others
+                        continue
 
-                # Add quotes to key
-                key = f'"{key}"'
+                    # Add quotes to key
+                    key = f'"{key}"'
 
-                # Handle value quoting - if it's not a number, quote it
-                if not (
-                    value.isdigit()
-                    or (value.startswith("-") and value[1:].isdigit())
-                    or value.replace(".", "", 1).isdigit()
-                    or value in ("true", "false", "null")
-                ):
-                    value = f'"{value}"'
+                    # Handle value quoting - if it's not a number, quote it
+                    if not (
+                        value.isdigit()
+                        or (value.startswith("-") and value[1:].isdigit())
+                        or value.replace(".", "", 1).isdigit()
+                        or value in ("true", "false", "null")
+                    ):
+                        value = f'"{value}"'
 
-                pairs.append(f"{key}:{value}")
+                    pairs.append(f"{key}:{value}")
 
                 if pairs:
                     json_str = "{" + ",".join(pairs) + "}"
