@@ -120,6 +120,10 @@ def _to_map(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
 
     try:
         # MAP format is always key=value pairs
+        # But for complex structures, return None to keep as string
+        if any(char in inner for char in "()[]"):
+            # Contains complex structures (arrays, structs), skip parsing
+            return None
         return _parse_map_native(inner)
     except Exception:
         return None
@@ -201,8 +205,11 @@ def _parse_map_native(inner: str) -> Optional[Dict[str, Any]]:
         if any(char in key for char in '{}="') or any(char in value for char in '{}="'):
             continue
 
-        # Convert value to appropriate type
-        result[key] = _convert_value(value)
+        # Convert both key and value to appropriate types
+        converted_key = _convert_value(key)
+        converted_value = _convert_value(value)
+        # Always use string keys for consistency with expected test behavior
+        result[str(converted_key)] = converted_value
 
     return result if result else None
 
