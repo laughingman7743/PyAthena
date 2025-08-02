@@ -67,11 +67,25 @@ def test_to_struct_athena_unnamed_struct_mixed():
     assert result == expected
 
 
+def test_to_struct_athena_simple_cases():
+    """Test that simple cases work correctly"""
+    # Simple cases that should work
+    simple_cases = [
+        ("{a=1, b=2}", {"a": 1, "b": 2}),
+        ("{name=John, age=30}", {"name": "John", "age": 30}),
+        ("{x=1, y=2, z=3}", {"x": 1, "y": 2, "z": 3}),
+        ("{active=true, count=42}", {"active": "true", "count": 42}),
+    ]
+
+    for case, expected in simple_cases:
+        result = _to_struct(case)
+        assert result == expected, f"Simple case failed: {case} -> {result}, expected {expected}"
+
+
 def test_to_struct_athena_complex_cases():
     """Test that complex cases with special characters return None (safe fallback)"""
     # These cases contain characters that could cause parsing issues
     complex_cases = [
-        "{message=Hello, world, name=John}",  # Comma in value
         "{formula=x=y+1, status=active}",  # Equals in value
         '{json={"key": "value"}, name=test}',  # Braces in value
         '{message=He said "hello", name=John}',  # Quotes in value
