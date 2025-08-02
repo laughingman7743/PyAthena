@@ -63,7 +63,7 @@ def test_to_struct_athena_unnamed_struct_mixed():
     """Test unnamed struct with mixed data types"""
     struct_value = "{John, 30, true}"
     result = _to_struct(struct_value)
-    expected = {"0": "John", "1": 30, "2": "true"}
+    expected = {"0": "John", "1": 30, "2": True}
     assert result == expected
 
 

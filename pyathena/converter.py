@@ -85,9 +85,7 @@ def _to_struct(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
     1. JSON format: '{"key": "value", "num": 123}' (recommended)
     2. Athena native format: '{key=value, num=123}' (basic cases only)
 
-    For structs containing special characters (commas, equals signs, quotes,
-    braces), use CAST(struct_column AS JSON) in your SQL query to ensure
-    proper handling.
+    For complex structs, use CAST(struct_column AS JSON) in your SQL query.
 
     Args:
         varchar_value: String representation of struct data
@@ -98,99 +96,96 @@ def _to_struct(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
     if varchar_value is None:
         return None
 
-    # First try to parse as JSON (preferred format)
+    # First try JSON parsing (preferred)
     try:
         result = json.loads(varchar_value)
         return result if isinstance(result, dict) else None
     except json.JSONDecodeError:
         pass
 
-    # Handle Athena's native struct format: {a=1, b=2} or {Alice, 25}
-    # WARNING: This is a simplified parser that works for basic cases.
-    # Athena's actual struct format may have complex escaping rules for
-    # special characters that are not fully handled here.
-    # For complex structs, JSON format is recommended.
-    if varchar_value.startswith("{") and varchar_value.endswith("}"):
-        try:
-            inner = varchar_value[1:-1].strip()
-            if not inner:
-                return {}
+    # Handle Athena native format: {a=1, b=2} or {Alice, 25}
+    if not (varchar_value.startswith("{") and varchar_value.endswith("}")):
+        return None
 
-            # Check if this is a named struct (contains =) or unnamed struct
-            # (comma-separated values)
-            if "=" in inner:
-                # Named struct format: {a=1, b=2}
-                pairs = []
-                current_pos = 0
+    inner = varchar_value[1:-1].strip()
+    if not inner:
+        return {}
 
-                while current_pos < len(inner):
-                    # Find the next key=value pair
-                    eq_pos = inner.find("=", current_pos)
-                    if eq_pos == -1:
-                        break
+    try:
+        if "=" in inner:
+            # Named struct: {a=1, b=2}
+            return _parse_named_struct(inner)
+        # Unnamed struct: {Alice, 25}
+        return _parse_unnamed_struct(inner)
+    except Exception:
+        return None
 
-                    # Extract key (everything before =)
-                    key = inner[current_pos:eq_pos].strip()
 
-                    # Find the end of the value (next comma or end of string)
-                    comma_pos = inner.find(",", eq_pos + 1)
-                    if comma_pos == -1:
-                        value = inner[eq_pos + 1 :].strip()
-                        current_pos = len(inner)
-                    else:
-                        value = inner[eq_pos + 1 : comma_pos].strip()
-                        current_pos = comma_pos + 1
+def _parse_named_struct(inner: str) -> Optional[Dict[str, Any]]:
+    """Parse named struct format: a=1, b=2.
 
-                    # Basic validation: skip problematic pairs but continue processing others
-                    # Allow basic comma separation, but reject nested structures
-                    if any(char in key for char in '{}="') or any(char in value for char in '{}="'):
-                        # Skip this problematic pair but continue with others
-                        continue
+    Args:
+        inner: Interior content of struct without braces.
 
-                    # Add quotes to key
-                    key = f'"{key}"'
+    Returns:
+        Dictionary with parsed key-value pairs, or None if no valid pairs found.
+    """
+    result = {}
 
-                    # Handle value quoting - if it's not a number, quote it
-                    if not (
-                        value.isdigit()
-                        or (value.startswith("-") and value[1:].isdigit())
-                        or value.replace(".", "", 1).isdigit()
-                        or value in ("true", "false", "null")
-                    ):
-                        value = f'"{value}"'
+    # Simple split by comma for basic cases
+    pairs = [pair.strip() for pair in inner.split(",")]
 
-                    pairs.append(f"{key}:{value}")
+    for pair in pairs:
+        if "=" not in pair:
+            continue
 
-                if pairs:
-                    json_str = "{" + ",".join(pairs) + "}"
-                    result = json.loads(json_str)
-                    return result if isinstance(result, dict) else None
-            else:
-                # Unnamed struct format: {Alice, 25} - convert to indexed dict
-                # Split by comma and create indexed keys
-                values = [v.strip() for v in inner.split(",")]
-                if values:
-                    # Create indexed dictionary: {"0": "Alice", "1": "25"}
-                    indexed_dict: Dict[str, Any] = {}
-                    for i, value in enumerate(values):
-                        # Try to convert numbers
-                        try:
-                            # Check if it's an integer
-                            if value.isdigit() or (value.startswith("-") and value[1:].isdigit()):
-                                indexed_dict[str(i)] = int(value)
-                            # Check if it's a float
-                            elif "." in value:
-                                indexed_dict[str(i)] = float(value)
-                            else:
-                                indexed_dict[str(i)] = value
-                        except ValueError:
-                            indexed_dict[str(i)] = value
-                    return indexed_dict
-        except (ValueError, json.JSONDecodeError, IndexError):
-            pass
+        key, value = pair.split("=", 1)
+        key = key.strip()
+        value = value.strip()
 
-    # If all parsing attempts fail, return None
-    return None
+        # Skip pairs with special characters (safety check)
+        if any(char in key for char in '{}="') or any(char in value for char in '{}="'):
+            continue
+
+        # Convert value to appropriate type
+        result[key] = _convert_value(value)
+
+    return result if result else None
+
+
+def _parse_unnamed_struct(inner: str) -> Dict[str, Any]:
+    """Parse unnamed struct format: Alice, 25.
+
+    Args:
+        inner: Interior content of struct without braces.
+
+    Returns:
+        Dictionary with indexed keys mapping to parsed values.
+    """
+    values = [v.strip() for v in inner.split(",")]
+    return {str(i): _convert_value(value) for i, value in enumerate(values)}
+
+
+def _convert_value(value: str) -> Any:
+    """Convert string value to appropriate Python type.
+
+    Args:
+        value: String value to convert.
+
+    Returns:
+        Converted value as int, float, bool, None, or string.
+    """
+    if value.lower() == "null":
+        return None
+    if value.lower() == "true":
+        return True
+    if value.lower() == "false":
+        return False
+    if value.isdigit() or value.startswith("-") and value[1:].isdigit():
+        return int(value)
+    if "." in value and value.replace(".", "", 1).replace("-", "", 1).isdigit():
+        return float(value)
+    return value
 
 
 def _to_default(varchar_value: Optional[str]) -> Optional[str]:
