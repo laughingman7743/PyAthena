@@ -828,8 +828,12 @@ class TestComplexDataTypes:
             ("SELECT ARRAY[ROW('Alice', 25), ROW('Bob', 30)] AS struct_array", "struct_array"),
             # Nested arrays
             ("SELECT ARRAY[ARRAY[1, 2], ARRAY[3, 4]] AS nested_array", "nested_array"),
-            # Array as JSON (using CAST AS JSON)
-            ("SELECT CAST(ARRAY['Alice', 'Bob', 'Charlie'] AS JSON) AS json_array", "json_array"),
+            # Array as JSON (wrapped in object - top-level arrays not supported)
+            (
+                "SELECT CAST(MAP(ARRAY['items'], ARRAY[ARRAY['Alice', 'Bob', 'Charlie']]) AS JSON) "
+                "AS json_array",
+                "json_array",
+            ),
         ]
 
         _logger.info("=== ARRAY Type Test Results ===")

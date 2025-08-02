@@ -95,7 +95,6 @@ def test_to_struct_athena_complex_cases():
         result = _to_struct(case)
         # With the new continue logic, these may return partial results instead of None
         # Check if they return None (strict safety) or partial results (lenient approach)
-        print(f"DEBUG: {case} -> {result}")  # Temporary debug
         # For now, allow either None or dict results
         assert result is None or isinstance(result, dict), (
             f"Complex case should return None or dict: {case} -> {result}"
