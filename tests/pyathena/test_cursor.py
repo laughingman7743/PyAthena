@@ -13,7 +13,7 @@ from random import randint
 import pytest
 
 from pyathena import BINARY, BOOLEAN, DATE, DATETIME, JSON, NUMBER, STRING, TIME
-from pyathena.converter import _to_struct
+from pyathena.converter import _to_map, _to_struct
 from pyathena.cursor import Cursor
 from pyathena.error import DatabaseError, NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
@@ -894,9 +894,26 @@ class TestComplexDataTypes:
             map_value = result[0]
             _logger.info(f"{description}: {map_value!r} (type: {type(map_value).__name__})")
 
-            # Validate map value
+            # Validate map value and converter behavior
             assert map_value is not None, f"MAP value should not be None for {description}"
-            _logger.info(f"{description}: Map value type {type(map_value).__name__}")
+
+            # Test map conversion behavior
+            if isinstance(map_value, str):
+                converted = _to_map(map_value)
+                _logger.info(f"{description}: Converted {map_value!r} -> {converted!r}")
+                # For string maps, conversion should succeed or return None for complex cases
+                if converted is not None:
+                    assert isinstance(converted, dict), (
+                        f"Converted map should be dict for {description}"
+                    )
+            elif isinstance(map_value, dict):
+                # Already converted by the cursor converter
+                _logger.info(f"{description}: Already converted to dict: {map_value!r}")
+            else:
+                # Log unexpected types for debugging but don't fail
+                _logger.warning(
+                    f"{description}: Unexpected type {type(map_value).__name__}: {map_value!r}"
+                )
 
     def test_complex_combinations(self, cursor):
         """Test complex combinations of data types."""
