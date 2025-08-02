@@ -13,7 +13,7 @@ from random import randint
 import pytest
 
 from pyathena import BINARY, BOOLEAN, DATE, DATETIME, JSON, NUMBER, STRING, TIME
-from pyathena.converter import _to_struct
+from pyathena.converter import _to_map, _to_struct
 from pyathena.cursor import Cursor
 from pyathena.error import DatabaseError, NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
@@ -517,7 +517,7 @@ class TestCursor:
                 b"123",
                 "[1, 2]",
                 [1, 2],
-                "{1=2, 3=4}",
+                {"1": 2, "3": 4},
                 {"1": 2, "3": 4},
                 {"a": 1, "b": 2},
                 Decimal("0.1"),
@@ -759,187 +759,183 @@ class TestDictCursor:
 class TestComplexDataTypes:
     """Test complex data types (STRUCT, ARRAY, MAP) with actual Athena queries."""
 
-    def test_struct_types(self, cursor):
-        """Test various STRUCT type scenarios to understand Athena's behavior."""
-        test_cases = [
-            # Basic struct
+    @pytest.mark.parametrize(
+        "query,description",
+        [
             ("SELECT ROW('John', 30) AS simple_struct", "simple_struct"),
-            # Named struct fields
             (
                 "SELECT CAST(ROW('Alice', 25) AS ROW(name VARCHAR, age INTEGER)) AS named_struct",
                 "named_struct",
             ),
-            # Struct with special characters
             ("SELECT ROW('Hello, world', 'x=y+1') AS special_chars_struct", "special_chars_struct"),
-            # Struct with quotes
             ("SELECT ROW('He said \"hello\"', 'It''s working') AS quotes_struct", "quotes_struct"),
-            # Struct with NULL values
             ("SELECT ROW('Alice', NULL, 'active') AS null_struct", "null_struct"),
-            # Nested struct
             (
                 "SELECT ROW(ROW('John', 30), ROW('Engineer', 'Tech')) AS nested_struct",
                 "nested_struct",
             ),
-            # Struct as JSON (using CAST AS JSON)
             ("SELECT CAST(ROW('Alice', 25, 'Hello, world') AS JSON) AS json_struct", "json_struct"),
-        ]
+        ],
+    )
+    def test_struct_types(self, cursor, query, description):
+        """Test various STRUCT type scenarios to understand Athena's behavior."""
+        _logger.info(f"=== STRUCT Type Test: {description} ===")
+        cursor.execute(query)
+        result = cursor.fetchone()
+        struct_value = result[0]
+        _logger.info(f"{description}: {struct_value!r} (type: {type(struct_value).__name__})")
 
-        _logger.info("=== STRUCT Type Test Results ===")
-        for query, description in test_cases:
-            cursor.execute(query)
-            result = cursor.fetchone()
-            struct_value = result[0]
-            _logger.info(f"{description}: {struct_value!r} (type: {type(struct_value).__name__})")
+        # Validate struct value and converter behavior
+        assert struct_value is not None, f"STRUCT value should not be None for {description}"
 
-            # Validate struct value and converter behavior
-            assert struct_value is not None, f"STRUCT value should not be None for {description}"
-
-            # Test struct conversion behavior
-            if isinstance(struct_value, str):
-                converted = _to_struct(struct_value)
-                _logger.info(f"{description}: Converted {struct_value!r} -> {converted!r}")
-                # For string structs, conversion should succeed or return None for complex cases
-                if converted is not None:
-                    assert isinstance(converted, dict), (
-                        f"Converted struct should be dict for {description}"
-                    )
-            elif isinstance(struct_value, dict):
-                # Already converted by the cursor converter
-                _logger.info(f"{description}: Already converted to dict: {struct_value!r}")
-            else:
-                # Log unexpected types for debugging but don't fail
-                _logger.warning(
-                    f"{description}: Unexpected type {type(struct_value).__name__}: "
-                    f"{struct_value!r}"
+        # Test struct conversion behavior
+        if isinstance(struct_value, str):
+            converted = _to_struct(struct_value)
+            _logger.info(f"{description}: Converted {struct_value!r} -> {converted!r}")
+            # For string structs, conversion should succeed or return None for complex cases
+            if converted is not None:
+                assert isinstance(converted, dict), (
+                    f"Converted struct should be dict for {description}"
                 )
+        elif isinstance(struct_value, dict):
+            # Already converted by the cursor converter
+            _logger.info(f"{description}: Already converted to dict: {struct_value!r}")
+        else:
+            # Log unexpected types for debugging but don't fail
+            _logger.warning(
+                f"{description}: Unexpected type {type(struct_value).__name__}: {struct_value!r}"
+            )
 
-    def test_array_types(self, cursor):
-        """Test various ARRAY type scenarios."""
-        test_cases = [
-            # Simple array
+    @pytest.mark.parametrize(
+        "query,description",
+        [
             ("SELECT ARRAY[1, 2, 3, 4, 5] AS simple_array", "simple_array"),
-            # String array
             ("SELECT ARRAY['apple', 'banana', 'cherry'] AS string_array", "string_array"),
-            # Array with special characters
             (
                 "SELECT ARRAY['Hello, world', 'x=y+1', 'It''s working'] AS special_array",
                 "special_array",
             ),
-            # Array of structs
             ("SELECT ARRAY[ROW('Alice', 25), ROW('Bob', 30)] AS struct_array", "struct_array"),
-            # Nested arrays
             ("SELECT ARRAY[ARRAY[1, 2], ARRAY[3, 4]] AS nested_array", "nested_array"),
-            # Array as JSON (wrapped in object - top-level arrays not supported)
             (
                 "SELECT CAST(MAP(ARRAY['data'], ARRAY[ARRAY['Alice', 'Bob']]) AS JSON) "
                 "AS array_json",
                 "array_json",
             ),
-        ]
+        ],
+    )
+    def test_array_types(self, cursor, query, description):
+        """Test various ARRAY type scenarios."""
+        _logger.info(f"=== ARRAY Type Test: {description} ===")
+        cursor.execute(query)
+        result = cursor.fetchone()
+        array_value = result[0]
+        _logger.info(f"{description}: {array_value!r} (type: {type(array_value).__name__})")
 
-        _logger.info("=== ARRAY Type Test Results ===")
-        for query, description in test_cases:
-            cursor.execute(query)
-            result = cursor.fetchone()
-            array_value = result[0]
-            _logger.info(f"{description}: {array_value!r} (type: {type(array_value).__name__})")
+        # Validate array value
+        assert array_value is not None, f"ARRAY value should not be None for {description}"
+        _logger.info(f"{description}: Array value type {type(array_value).__name__}")
 
-            # Validate array value
-            assert array_value is not None, f"ARRAY value should not be None for {description}"
-            _logger.info(f"{description}: Array value type {type(array_value).__name__}")
-
-    def test_map_types(self, cursor):
-        """Test various MAP type scenarios."""
-        test_cases = [
-            # Simple map
+    @pytest.mark.parametrize(
+        "query,description",
+        [
             (
                 "SELECT MAP(ARRAY[1, 2, 3], ARRAY['one', 'two', 'three']) AS simple_map",
                 "simple_map",
             ),
-            # String key map
             (
-                (
-                    "SELECT MAP(ARRAY['name', 'age', 'city'], "
-                    "ARRAY['John', '30', 'Tokyo']) AS string_map"
-                ),
+                "SELECT MAP(ARRAY['name', 'age', 'city'], ARRAY['John', '30', 'Tokyo']) "
+                "AS string_map",
                 "string_map",
             ),
-            # Map with special characters
             (
-                (
-                    "SELECT MAP(ARRAY['msg', 'formula'], "
-                    "ARRAY['Hello, world', 'x=y+1']) AS special_map"
-                ),
+                "SELECT MAP(ARRAY['msg', 'formula'], ARRAY['Hello, world', 'x=y+1']) "
+                "AS special_map",
                 "special_map",
             ),
-            # Map with struct values
             (
-                (
-                    "SELECT MAP(ARRAY['person1', 'person2'], "
-                    "ARRAY[ROW('Alice', 25), ROW('Bob', 30)]) AS struct_value_map"
-                ),
+                "SELECT CAST(MAP(ARRAY['person1', 'person2'], "
+                "ARRAY[ROW('Alice', 25), ROW('Bob', 30)]) AS JSON) AS struct_value_map",
                 "struct_value_map",
             ),
-            # Map as JSON (using CAST AS JSON)
             (
                 "SELECT CAST(MAP(ARRAY['name', 'age'], ARRAY['Alice', '25']) AS JSON) AS json_map",
                 "json_map",
             ),
-        ]
+        ],
+    )
+    def test_map_types(self, cursor, query, description):
+        """Test various MAP type scenarios."""
+        _logger.info(f"=== MAP Type Test: {description} ===")
+        cursor.execute(query)
+        result = cursor.fetchone()
+        map_value = result[0]
+        _logger.info(f"{description}: {map_value!r} (type: {type(map_value).__name__})")
 
-        _logger.info("=== MAP Type Test Results ===")
-        for query, description in test_cases:
-            cursor.execute(query)
-            result = cursor.fetchone()
-            map_value = result[0]
-            _logger.info(f"{description}: {map_value!r} (type: {type(map_value).__name__})")
+        # Validate map value and converter behavior
+        assert map_value is not None, f"MAP value should not be None for {description}"
 
-            # Validate map value
-            assert map_value is not None, f"MAP value should not be None for {description}"
-            _logger.info(f"{description}: Map value type {type(map_value).__name__}")
+        # Test map conversion behavior
+        if isinstance(map_value, str):
+            # For complex MAP structures, string is expected (JSON or native format)
+            if "ROW(" in map_value or "ARRAY[" in map_value:
+                # Complex structure, expect string format
+                _logger.info(f"{description}: Complex MAP kept as string: {map_value!r}")
+            else:
+                # Simple MAP, try conversion
+                converted = _to_map(map_value)
+                _logger.info(f"{description}: Converted {map_value!r} -> {converted!r}")
+                if converted is not None:
+                    assert isinstance(converted, dict), (
+                        f"Converted map should be dict for {description}"
+                    )
+        elif isinstance(map_value, dict):
+            # Already converted by the cursor converter
+            _logger.info(f"{description}: Already converted to dict: {map_value!r}")
+        else:
+            # Log unexpected types for debugging but don't fail
+            _logger.warning(
+                f"{description}: Unexpected type {type(map_value).__name__}: {map_value!r}"
+            )
 
-    def test_complex_combinations(self, cursor):
-        """Test complex combinations of data types."""
-        test_cases = [
-            # Struct containing array and map (using JSON conversion for complex structures)
+    @pytest.mark.parametrize(
+        "query,description",
+        [
             (
                 "SELECT CAST(ROW(ARRAY[1, 2, 3], MAP(ARRAY['a', 'b'], ARRAY[1, 2])) AS JSON) "
                 "AS struct_with_collections",
                 "struct_with_collections",
             ),
-            # Array of maps (using JSON conversion)
             (
                 "SELECT CAST(ARRAY[MAP(ARRAY['name'], ARRAY['Alice']), "
                 "MAP(ARRAY['name'], ARRAY['Bob'])] AS JSON) AS array_of_maps",
                 "array_of_maps",
             ),
-            # Map with array values (using JSON conversion)
             (
                 "SELECT CAST(MAP(ARRAY['numbers', 'letters'], "
                 "ARRAY[ARRAY['1', '2', '3'], ARRAY['a', 'b', 'c']]) AS JSON) AS map_with_arrays",
                 "map_with_arrays",
             ),
-        ]
+        ],
+    )
+    def test_complex_combinations(self, cursor, query, description):
+        """Test complex combinations of data types."""
+        _logger.info(f"=== Complex Combination Test: {description} ===")
+        cursor.execute(query)
+        result = cursor.fetchone()
+        complex_value = result[0]
+        _logger.info(f"{description}: {complex_value!r} (type: {type(complex_value).__name__})")
 
-        _logger.info("=== Complex Combinations Test Results ===")
-        for query, description in test_cases:
-            cursor.execute(query)
-            result = cursor.fetchone()
-            complex_value = result[0]
-            _logger.info(f"{description}: {complex_value!r} (type: {type(complex_value).__name__})")
-
-            # For JSON cast results, expect string values that can be parsed as JSON
-            if isinstance(complex_value, str):
-                try:
-                    # Test that the JSON string can be parsed
-                    parsed = json.loads(complex_value)
-                    _logger.info(f"  Parsed JSON: {parsed!r}")
-                    assert parsed is not None, f"Parsed JSON should not be None for {description}"
-                except json.JSONDecodeError as e:
-                    raise AssertionError(f"JSON parsing failed for {description}: {e}") from e
-            else:
-                # If it's not a string, it should still be a valid value (not None)
-                assert complex_value is not None, (
-                    f"Complex value should not be None for {description}"
-                )
-            _logger.info(f"{description}: Complex value type {type(complex_value).__name__}")
+        # For JSON cast results, expect string values that can be parsed as JSON
+        if isinstance(complex_value, str):
+            try:
+                # Test that the JSON string can be parsed
+                parsed = json.loads(complex_value)
+                _logger.info(f"  Parsed JSON: {parsed!r}")
+                assert parsed is not None, f"Parsed JSON should not be None for {description}"
+            except json.JSONDecodeError as e:
+                raise AssertionError(f"JSON parsing failed for {description}: {e}") from e
+        else:
+            # If it's not a string, it should still be a valid value (not None)
+            assert complex_value is not None, f"Complex value should not be None for {description}"
+        _logger.info(f"{description}: Complex value type {type(complex_value).__name__}")

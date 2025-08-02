@@ -5,7 +5,7 @@ from unittest.mock import Mock
 from sqlalchemy import Integer, String
 
 from pyathena.sqlalchemy.compiler import AthenaTypeCompiler
-from pyathena.sqlalchemy.types import STRUCT, AthenaStruct
+from pyathena.sqlalchemy.types import MAP, STRUCT, AthenaMap, AthenaStruct
 
 
 class TestAthenaTypeCompiler:
@@ -51,3 +51,32 @@ class TestAthenaTypeCompiler:
         struct_type = AthenaStruct(("name", String))
         result = compiler.visit_struct(struct_type)
         assert result == "ROW(name STRING)" or result == "ROW(name VARCHAR)"
+
+    def test_visit_map_default(self):
+        dialect = Mock()
+        compiler = AthenaTypeCompiler(dialect)
+        map_type = AthenaMap()
+        result = compiler.visit_map(map_type)
+        assert result == "MAP<STRING, STRING>"
+
+    def test_visit_map_with_types(self):
+        dialect = Mock()
+        compiler = AthenaTypeCompiler(dialect)
+        map_type = AthenaMap(String, Integer)
+        result = compiler.visit_map(map_type)
+        assert result == "MAP<STRING, INTEGER>" or result == "MAP<VARCHAR, INTEGER>"
+
+    def test_visit_map_uppercase(self):
+        dialect = Mock()
+        compiler = AthenaTypeCompiler(dialect)
+        map_type = MAP(Integer, String)
+        result = compiler.visit_MAP(map_type)
+        assert result == "MAP<INTEGER, STRING>" or result == "MAP<INTEGER, VARCHAR>"
+
+    def test_visit_map_no_attributes(self):
+        # Test map type without key_type/value_type attributes
+        dialect = Mock()
+        compiler = AthenaTypeCompiler(dialect)
+        map_type = type("MockMap", (), {})()
+        result = compiler.visit_map(map_type)
+        assert result == "MAP<STRING, STRING>"

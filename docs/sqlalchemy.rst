@@ -467,3 +467,142 @@ Migration from Raw Strings
     result = cursor.execute("SELECT struct_column FROM table").fetchone()
     struct_data = result[0]  # {"name": "John", "age": 30} - automatically converted
     name = struct_data['name']  # Direct access
+
+MAP Type Support
+~~~~~~~~~~~~~~~~
+
+PyAthena provides comprehensive support for Amazon Athena's MAP data types, enabling you to work with key-value data structures in your Python applications.
+
+Basic Usage
+^^^^^^^^^^^
+
+.. code:: python
+
+    from sqlalchemy import Column, String, Integer, Table, MetaData
+    from pyathena.sqlalchemy.types import AthenaMap
+
+    # Define a table with MAP columns
+    products = Table('products', metadata,
+        Column('id', Integer),
+        Column('attributes', AthenaMap(String, String)),
+        Column('metrics', AthenaMap(String, Integer)),
+        Column('categories', AthenaMap(Integer, String))
+    )
+
+This generates the following SQL structure:
+
+.. code:: sql
+
+    CREATE TABLE products (
+        id INTEGER,
+        attributes MAP<STRING, STRING>,
+        metrics MAP<STRING, INTEGER>,
+        categories MAP<INTEGER, STRING>
+    )
+
+Querying MAP Data
+^^^^^^^^^^^^^^^^^
+
+PyAthena automatically converts MAP data between different formats:
+
+.. code:: python
+
+    from sqlalchemy import create_engine, select
+
+    # Query MAP data using MAP constructor
+    result = connection.execute(
+        select().from_statement(
+            text("SELECT MAP(ARRAY['name', 'category'], ARRAY['Laptop', 'Electronics']) as product_info")
+        )
+    ).fetchone()
+    
+    # Access MAP data as dictionary
+    product_info = result.product_info  # {"name": "Laptop", "category": "Electronics"}
+
+Advanced MAP Operations
+^^^^^^^^^^^^^^^^^^^^^^^
+
+For complex MAP operations, use JSON casting:
+
+.. code:: python
+
+    # Using CAST AS JSON for complex MAP operations
+    result = connection.execute(
+        select().from_statement(
+            text("SELECT CAST(MAP(ARRAY['price', 'rating'], ARRAY['999', '4.5']) AS JSON) as data")
+        )
+    ).fetchone()
+    
+    # Parse JSON result
+    import json
+    data = json.loads(result.data)  # {"price": "999", "rating": "4.5"}
+
+Data Format Support
+^^^^^^^^^^^^^^^^^^^
+
+PyAthena supports multiple MAP data formats:
+
+**Athena Native Format:**
+
+.. code:: python
+
+    # Input: "{name=Laptop, category=Electronics}"
+    # Output: {"name": "Laptop", "category": "Electronics"}
+
+**JSON Format (Recommended):**
+
+.. code:: python
+
+    # Input: '{"name": "Laptop", "category": "Electronics"}'  
+    # Output: {"name": "Laptop", "category": "Electronics"}
+
+Performance Considerations
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- **JSON Format**: Recommended for complex nested structures
+- **Native Format**: Optimized for simple key-value pairs
+- **Smart Detection**: PyAthena automatically detects the format to avoid unnecessary parsing overhead
+
+Best Practices
+^^^^^^^^^^^^^^
+
+1. **Use JSON casting** for complex nested structures:
+
+   .. code:: sql
+
+       SELECT CAST(complex_map AS JSON) FROM table_name
+
+2. **Define clear key-value types** in AthenaMap definitions:
+
+   .. code:: python
+
+       AthenaMap(String, Integer)  # String keys, Integer values
+       AthenaMap(Integer, AthenaStruct(...))  # Integer keys, STRUCT values
+
+3. **Handle NULL values** appropriately in your application logic:
+
+   .. code:: python
+
+       if result.map_column is not None:
+           # Process map data
+           value = result.map_column.get('key_name')
+
+Migration from Raw Strings
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Before (raw string handling):**
+
+.. code:: python
+
+    result = cursor.execute("SELECT map_column FROM table").fetchone()
+    raw_data = result[0]  # "{\"key1\": \"value1\", \"key2\": \"value2\"}"
+    import json
+    parsed_data = json.loads(raw_data)
+
+**After (automatic conversion):**
+
+.. code:: python
+
+    result = cursor.execute("SELECT map_column FROM table").fetchone()
+    map_data = result[0]  # {"key1": "value1", "key2": "value2"} - automatically converted
+    value = map_data['key1']  # Direct access

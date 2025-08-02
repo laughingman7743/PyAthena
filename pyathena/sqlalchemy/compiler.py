@@ -151,6 +151,16 @@ class AthenaTypeCompiler(GenericTypeCompiler):
     def visit_STRUCT(self, type_, **kw):  # noqa: N802
         return self.visit_struct(type_, **kw)
 
+    def visit_map(self, type_, **kw):  # noqa: N802
+        if hasattr(type_, "key_type") and hasattr(type_, "value_type"):
+            key_type_str = self.process(type_.key_type, **kw)
+            value_type_str = self.process(type_.value_type, **kw)
+            return f"MAP<{key_type_str}, {value_type_str}>"
+        return "MAP<STRING, STRING>"
+
+    def visit_MAP(self, type_, **kw):  # noqa: N802
+        return self.visit_map(type_, **kw)
+
 
 class AthenaStatementCompiler(SQLCompiler):
     def visit_char_length_func(self, fn: "FunctionElement[Any]", **kw):
