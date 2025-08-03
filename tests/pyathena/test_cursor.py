@@ -13,7 +13,7 @@ from random import randint
 import pytest
 
 from pyathena import BINARY, BOOLEAN, DATE, DATETIME, JSON, NUMBER, STRING, TIME
-from pyathena.converter import _to_map, _to_struct
+from pyathena.converter import _to_array, _to_map, _to_struct
 from pyathena.cursor import Cursor
 from pyathena.error import DatabaseError, NotSupportedError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
@@ -939,3 +939,193 @@ class TestComplexDataTypes:
             # If it's not a string, it should still be a valid value (not None)
             assert complex_value is not None, f"Complex value should not be None for {description}"
         _logger.info(f"{description}: Complex value type {type(complex_value).__name__}")
+
+    @pytest.mark.parametrize(
+        "query,description",
+        [
+            ("SELECT ARRAY[1, 2, 3, 4, 5] AS simple_array", "simple_array"),
+            ("SELECT ARRAY['apple', 'banana', 'cherry'] AS string_array", "string_array"),
+            ("SELECT ARRAY[true, false, null] AS boolean_array", "boolean_array"),
+            ("SELECT ARRAY[1.5, 2.7, 3.14] AS float_array", "float_array"),
+            ("SELECT ARRAY[] AS empty_array", "empty_array"),
+            ("SELECT ARRAY[1, null, 3, null, 5] AS null_elements_array", "null_elements_array"),
+            (
+                "SELECT ARRAY[CAST(1 AS VARCHAR), 'mixed', 'true', 'null', '2.5'] AS mixed_array",
+                "mixed_array",
+            ),
+            (
+                "SELECT ARRAY[CAST(1.23 AS DECIMAL(10,2)), CAST(4.56 AS DECIMAL(10,2))] "
+                "AS decimal_array",
+                "decimal_array",
+            ),
+            (
+                "SELECT ARRAY[DATE '2023-01-01', DATE '2023-12-31'] AS date_array",
+                "date_array",
+            ),
+            (
+                "SELECT ARRAY[TIMESTAMP '2023-01-01 12:00:00'] AS timestamp_array",
+                "timestamp_array",
+            ),
+        ],
+    )
+    def test_array_types_basic(self, cursor, query, description):
+        """Test basic ARRAY type scenarios."""
+        _logger.info(f"=== ARRAY Type Test: {description} ===")
+        cursor.execute(query)
+        result = cursor.fetchone()
+        array_value = result[0]
+        _logger.info(f"{description}: {array_value!r} (type: {type(array_value).__name__})")
+
+        # Validate array value
+        assert array_value is not None or description == "empty_array", (
+            f"ARRAY value should not be None for {description}"
+        )
+        if description == "empty_array":
+            assert array_value == [], f"Empty array should be [] for {description}"
+        else:
+            assert isinstance(array_value, list), f"ARRAY value should be list for {description}"
+        _logger.info(f"{description}: Array value type {type(array_value).__name__}")
+
+    @pytest.mark.parametrize(
+        "query,description",
+        [
+            (
+                "SELECT ARRAY[ROW(1, 'Alice'), ROW(2, 'Bob'), ROW(3, 'Charlie')] AS struct_array",
+                "struct_array",
+            ),
+            (
+                "SELECT ARRAY[ROW('name', 'John', 25), ROW('name', 'Jane', 30)] "
+                "AS unnamed_struct_array",
+                "unnamed_struct_array",
+            ),
+            (
+                "SELECT ARRAY[{name: 'John', age: 25}, {name: 'Jane', age: 30}] "
+                "AS named_struct_array",
+                "named_struct_array",
+            ),
+        ],
+    )
+    def test_array_types_with_structs(self, cursor, query, description):
+        """Test ARRAY types containing STRUCT elements."""
+        _logger.info(f"=== ARRAY with STRUCT Test: {description} ===")
+        cursor.execute(query)
+        result = cursor.fetchone()
+        array_value = result[0]
+        _logger.info(f"{description}: {array_value!r} (type: {type(array_value).__name__})")
+
+        # Validate array value
+        assert array_value is not None, f"ARRAY value should not be None for {description}"
+        assert isinstance(array_value, list), f"ARRAY value should be list for {description}"
+        assert len(array_value) > 0, f"ARRAY should not be empty for {description}"
+
+        # Check first element is a dict (converted struct)
+        first_element = array_value[0]
+        assert isinstance(first_element, dict), (
+            f"First array element should be dict (struct) for {description}"
+        )
+        _logger.info(f"{description}: First element: {first_element!r}")
+
+    @pytest.mark.parametrize(
+        "query,description",
+        [
+            (
+                "SELECT CAST(ARRAY[1, 2, 3] AS JSON) AS json_array",
+                "json_array",
+            ),
+            (
+                "SELECT CAST(ARRAY['a', 'b', 'c'] AS JSON) AS json_string_array",
+                "json_string_array",
+            ),
+            (
+                "SELECT CAST(ARRAY[ROW(1, 'Alice'), ROW(2, 'Bob')] AS JSON) AS json_struct_array",
+                "json_struct_array",
+            ),
+        ],
+    )
+    def test_array_types_json_cast(self, cursor, query, description):
+        """Test ARRAY types with JSON casting."""
+        _logger.info(f"=== ARRAY JSON Cast Test: {description} ===")
+        cursor.execute(query)
+        result = cursor.fetchone()
+        array_value = result[0]
+        _logger.info(f"{description}: {array_value!r} (type: {type(array_value).__name__})")
+
+        # Validate array value
+        assert array_value is not None, f"ARRAY value should not be None for {description}"
+        assert isinstance(array_value, list), (
+            f"JSON cast ARRAY value should be list for {description}"
+        )
+        _logger.info(f"{description}: JSON cast array type {type(array_value).__name__}")
+
+    @pytest.mark.parametrize(
+        "query,description",
+        [
+            ("SELECT CARDINALITY(ARRAY[1, 2, 3, 4, 5]) AS array_size", "array_size"),
+            ("SELECT ARRAY[10, 20, 30, 40][2] AS array_element", "array_element"),
+            ("SELECT ARRAY[1, 2] || ARRAY[3, 4] AS array_concat", "array_concat"),
+            ("SELECT CONTAINS(ARRAY[1, 2, 3], 2) AS array_contains", "array_contains"),
+        ],
+    )
+    def test_array_operations(self, cursor, query, description):
+        """Test ARRAY operations and functions."""
+        _logger.info(f"=== ARRAY Operation Test: {description} ===")
+        cursor.execute(query)
+        result = cursor.fetchone()
+        operation_result = result[0]
+        _logger.info(
+            f"{description}: {operation_result!r} (type: {type(operation_result).__name__})"
+        )
+
+        # Validate operation result
+        assert operation_result is not None, (
+            f"ARRAY operation result should not be None for {description}"
+        )
+
+        # Type-specific validations
+        if description == "array_size":
+            assert operation_result == 5, f"Array size should be 5 for {description}"
+        elif description == "array_element":
+            assert operation_result == 20, f"Array element [2] should be 20 for {description}"
+        elif description == "array_concat":
+            assert operation_result == [1, 2, 3, 4], (
+                f"Array concat should be [1,2,3,4] for {description}"
+            )
+        elif description == "array_contains":
+            assert operation_result is True, f"Array contains should be True for {description}"
+
+    def test_array_converter_behavior(self, cursor):
+        """Test ARRAY converter behavior with different formats."""
+        _logger.info("=== ARRAY Converter Behavior Test ===")
+
+        # Test simple array conversion
+        cursor.execute("SELECT ARRAY[1, 2, 3] AS simple")
+        result = cursor.fetchone()
+        simple_array = result[0]
+        _logger.info(f"Simple array: {simple_array!r}")
+        assert simple_array == [1, 2, 3]
+
+        # Test array with struct conversion
+        cursor.execute("SELECT ARRAY[{a: 1, b: 2}, {a: 3, b: 4}] AS struct_array")
+        result = cursor.fetchone()
+        struct_array = result[0]
+        _logger.info(f"Struct array: {struct_array!r}")
+        assert isinstance(struct_array, list)
+        assert len(struct_array) == 2
+        assert isinstance(struct_array[0], dict)
+
+        # Test converter function directly
+        test_cases = [
+            ("[1, 2, 3]", [1, 2, 3]),
+            ('["a", "b", "c"]', ["a", "b", "c"]),
+            ("[{a: 1, b: 2}]", [{"a": 1, "b": 2}]),
+            ("[]", []),
+            (None, None),
+            ("invalid", None),
+        ]
+
+        for test_input, expected in test_cases:
+            result = _to_array(test_input)
+            _logger.info(f"Converter test: {test_input!r} -> {result!r}")
+            assert result == expected, (
+                f"Converter failed for {test_input}: expected {expected}, got {result}"
+            )

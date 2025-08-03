@@ -2,7 +2,7 @@
 
 import pytest
 
-from pyathena.converter import DefaultTypeConverter, _to_struct
+from pyathena.converter import DefaultTypeConverter, _to_array, _to_struct
 
 
 @pytest.mark.parametrize(
@@ -74,6 +74,38 @@ def test_to_map_athena_numeric_keys():
     assert result == expected
 
 
+def test_to_array_athena_numeric_elements():
+    """Test Athena array with numeric elements"""
+    array_value = "[1, 2, 3, 4]"
+    result = _to_array(array_value)
+    expected = [1, 2, 3, 4]
+    assert result == expected
+
+
+def test_to_array_athena_mixed_elements():
+    """Test Athena array with mixed type elements"""
+    array_value = "[1, hello, true, null]"
+    result = _to_array(array_value)
+    expected = [1, "hello", True, None]
+    assert result == expected
+
+
+def test_to_array_athena_struct_elements():
+    """Test Athena array with struct elements"""
+    array_value = "[{name=John, age=30}, {name=Jane, age=25}]"
+    result = _to_array(array_value)
+    expected = [{"name": "John", "age": 30}, {"name": "Jane", "age": 25}]
+    assert result == expected
+
+
+def test_to_array_athena_unnamed_struct_elements():
+    """Test Athena array with unnamed struct elements"""
+    array_value = "[{Alice, 25}, {Bob, 30}]"
+    result = _to_array(array_value)
+    expected = [{"0": "Alice", "1": 25}, {"0": "Bob", "1": 30}]
+    assert result == expected
+
+
 @pytest.mark.parametrize(
     "input_value",
     [
@@ -85,6 +117,101 @@ def test_to_map_athena_numeric_keys():
 def test_to_struct_non_dict_json(input_value):
     """Test that non-dict JSON formats return None."""
     result = _to_struct(input_value)
+    assert result is None
+
+
+@pytest.mark.parametrize(
+    "input_value,expected",
+    [
+        (None, None),
+        (
+            "[1, 2, 3, 4, 5]",
+            [1, 2, 3, 4, 5],
+        ),
+        (
+            '["apple", "banana", "cherry"]',
+            ["apple", "banana", "cherry"],
+        ),
+        (
+            "[true, false, null]",
+            [True, False, None],
+        ),
+        (
+            '[{"name": "John", "age": 30}, {"name": "Jane", "age": 25}]',
+            [{"name": "John", "age": 30}, {"name": "Jane", "age": 25}],
+        ),
+        ("not valid json", None),
+        ("", None),
+        ("[]", []),
+    ],
+)
+def test_to_array_json_formats(input_value, expected):
+    """Test ARRAY conversion for various JSON formats and edge cases."""
+    result = _to_array(input_value)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "input_value,expected",
+    [
+        ("[1, 2, 3]", [1, 2, 3]),
+        ("[]", []),
+        ("[apple, banana, cherry]", ["apple", "banana", "cherry"]),
+        ("[{Alice, 25}, {Bob, 30}]", [{"0": "Alice", "1": 25}, {"0": "Bob", "1": 30}]),
+        (
+            "[{name=John, age=30}, {name=Jane, age=25}]",
+            [{"name": "John", "age": 30}, {"name": "Jane", "age": 25}],
+        ),
+        ("[true, false, null]", [True, False, None]),
+        ("[1, 2.5, hello]", [1, 2.5, "hello"]),
+    ],
+)
+def test_to_array_athena_native_formats(input_value, expected):
+    """Test ARRAY conversion for Athena native formats."""
+    result = _to_array(input_value)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "input_value,expected",
+    [
+        ("[ARRAY[1, 2], ARRAY[3, 4]]", None),  # Nested arrays (native format)
+        ("[[1, 2], [3, 4]]", [[1, 2], [3, 4]]),  # Nested arrays (JSON format - parseable)
+        ("[MAP(ARRAY['key'], ARRAY['value'])]", None),  # Complex nested structures
+    ],
+)
+def test_to_array_complex_nested_cases(input_value, expected):
+    """Test complex nested array cases behavior."""
+    result = _to_array(input_value)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "input_value",
+    [
+        '"just a string"',  # String JSON
+        "42",  # Number JSON
+        '{"key": "value"}',  # Object JSON
+    ],
+)
+def test_to_array_non_array_json(input_value):
+    """Test that non-array JSON formats return None."""
+    result = _to_array(input_value)
+    assert result is None
+
+
+@pytest.mark.parametrize(
+    "input_value",
+    [
+        "not an array",  # Not bracketed
+        "[unclosed array",  # Malformed
+        "closed array]",  # Malformed
+        "[{malformed struct}",  # Malformed struct
+    ],
+)
+def test_to_array_invalid_formats(input_value):
+    """Test that invalid array formats return None."""
+    result = _to_array(input_value)
     assert result is None
 
 
@@ -103,4 +230,22 @@ class TestDefaultTypeConverter:
         """Test DefaultTypeConverter STRUCT conversion for various input formats."""
         converter = DefaultTypeConverter()
         result = converter.convert("row", input_value)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "input_value,expected",
+        [
+            ("[1, 2, 3]", [1, 2, 3]),
+            ('["a", "b", "c"]', ["a", "b", "c"]),
+            (None, None),
+            ("", None),
+            ("invalid json", None),
+            ("[apple, banana]", ["apple", "banana"]),
+            ("[]", []),
+        ],
+    )
+    def test_array_conversion(self, input_value, expected):
+        """Test DefaultTypeConverter ARRAY conversion for various input formats."""
+        converter = DefaultTypeConverter()
+        result = converter.convert("array", input_value)
         assert result == expected
