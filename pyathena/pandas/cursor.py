@@ -74,7 +74,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         self._block_size = block_size
         self._cache_type = cache_type
         self._max_workers = max_workers
-        self._connection_callback = on_start_query_execution
+        self._on_start_query_execution = on_start_query_execution
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaPandasResultSet] = None
 
@@ -163,7 +163,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
 
         # Call user callback immediately after start_query_execution
         # Priority: execute parameter > connection default > none
-        callback = on_start_query_execution or self._connection_callback
+        callback = on_start_query_execution or self._on_start_query_execution
         if callback:
             callback(self.query_id)
         query_execution = cast(AthenaQueryExecution, self._poll(self.query_id))

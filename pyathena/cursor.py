@@ -44,7 +44,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaResultSet] = None
         self._result_set_class = AthenaResultSet
-        self._connection_callback = on_start_query_execution
+        self._on_start_query_execution = on_start_query_execution
 
     @property
     def result_set(self) -> Optional[AthenaResultSet]:
@@ -128,7 +128,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
 
         # Call user callback immediately after start_query_execution
         # Priority: execute parameter > connection default > none
-        callback = on_start_query_execution or self._connection_callback
+        callback = on_start_query_execution or self._on_start_query_execution
         if callback:
             callback(self.query_id)
 
