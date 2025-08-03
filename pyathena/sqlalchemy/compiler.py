@@ -10,6 +10,7 @@ from sqlalchemy.sql.compiler import (
     IdentifierPreparer,
     SQLCompiler,
 )
+from sqlalchemy.sql.elements import BindParameter
 from sqlalchemy.sql.schema import Column
 
 from pyathena.model import (
@@ -177,6 +178,33 @@ class AthenaTypeCompiler(GenericTypeCompiler):
 class AthenaStatementCompiler(SQLCompiler):
     def visit_char_length_func(self, fn: "FunctionElement[Any]", **kw):
         return f"length{self.function_argspec(fn, **kw)}"
+
+    def visit_filter_func(self, fn: "FunctionElement[Any]", **kw) -> str:
+        """Compile Athena filter() function with lambda expressions.
+
+        Supports syntax: filter(array_expr, lambda_expr)
+        Example: filter(ARRAY[1, 2, 3], x -> x > 1)
+        """
+        if len(fn.clauses.clauses) != 2:
+            raise exc.CompileError(
+                f"filter() function expects exactly 2 arguments, got {len(fn.clauses.clauses)}"
+            )
+
+        array_expr = fn.clauses.clauses[0]
+        lambda_expr = fn.clauses.clauses[1]
+
+        # Process the array expression normally
+        array_sql = self.process(array_expr, **kw)
+
+        # Process lambda expression - handle string literals as lambda expressions
+        if isinstance(lambda_expr, BindParameter) and isinstance(lambda_expr.value, str):
+            # Handle string literal lambda expressions like 'x -> x > 0'
+            lambda_sql = lambda_expr.value
+        else:
+            # Process as regular SQL expression
+            lambda_sql = self.process(lambda_expr, **kw)
+
+        return f"filter({array_sql}, {lambda_sql})"
 
     def visit_cast(self, cast: "Cast[Any]", **kwargs):
         if (isinstance(cast.type, types.VARCHAR) and cast.type.length is None) or isinstance(
