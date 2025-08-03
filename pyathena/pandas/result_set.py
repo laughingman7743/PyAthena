@@ -89,7 +89,11 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
 
 
 class AthenaPandasResultSet(AthenaResultSet):
-    _parse_dates: List[str] = [
+    # Minimum file size threshold for PyArrow CSV engine compatibility
+    # Files smaller than this may cause parsing issues with PyArrow
+    _PYARROW_MIN_FILE_SIZE_BYTES: int = 100
+
+    _PARSE_DATES: List[str] = [
         "date",
         "time",
         "time with time zone",
@@ -193,6 +197,14 @@ class AthenaPandasResultSet(AthenaResultSet):
                         f"{', '.join(incompatible_params)}. Falling back to optimal engine."
                     )
                     return self._get_optimal_csv_engine(file_size_bytes)
+
+                # Check if file is too small for PyArrow (likely to cause parsing issues)
+                if file_size_bytes is not None and file_size_bytes < self._PYARROW_MIN_FILE_SIZE_BYTES:
+                    _logger.warning(
+                        f"PyArrow engine requested but file is very small ({file_size_bytes} bytes), "
+                        "which may cause parsing issues. Using Python engine instead."
+                    )
+                    return "python"
 
                 try:
                     self._get_available_engine(["pyarrow"])
@@ -323,7 +335,7 @@ class AthenaPandasResultSet(AthenaResultSet):
     @property
     def parse_dates(self) -> List[Optional[Any]]:
         description = self.description if self.description else []
-        return [d[0] for d in description if d[1] in self._parse_dates]
+        return [d[0] for d in description if d[1] in self._PARSE_DATES]
 
     def _trunc_date(self, df: "DataFrame") -> "DataFrame":
         description = self.description if self.description else []
@@ -388,6 +400,11 @@ class AthenaPandasResultSet(AthenaResultSet):
         ):
             return pd.DataFrame()
         length = self._get_content_length()
+
+        # Handle empty files
+        if length == 0:
+            return pd.DataFrame()
+
         if length and self.output_location.endswith(".txt"):
             sep = "\t"
             header = None
