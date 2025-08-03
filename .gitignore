@@ -21,3 +21,5 @@ cover/
 .tmp
 .venv
 docs/_build
+.mcp.json
+.serena
