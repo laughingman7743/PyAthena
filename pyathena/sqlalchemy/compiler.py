@@ -17,6 +17,7 @@ from pyathena.model import (
     AthenaPartitionTransform,
     AthenaRowFormatSerde,
 )
+from pyathena.sqlalchemy.types import AthenaMap, AthenaStruct
 
 if TYPE_CHECKING:
     from sqlalchemy import (
@@ -140,19 +141,21 @@ class AthenaTypeCompiler(GenericTypeCompiler):
         return self.visit_string(type_, **kw)
 
     def visit_struct(self, type_, **kw):  # noqa: N802
-        if hasattr(type_, "fields") and type_.fields:
-            field_specs = []
-            for field_name, field_type in type_.fields.items():
-                field_type_str = self.process(field_type, **kw)
-                field_specs.append(f"{field_name} {field_type_str}")
-            return f"ROW({', '.join(field_specs)})"
+        if isinstance(type_, AthenaStruct):
+            if type_.fields:
+                field_specs = []
+                for field_name, field_type in type_.fields.items():
+                    field_type_str = self.process(field_type, **kw)
+                    field_specs.append(f"{field_name} {field_type_str}")
+                return f"ROW({', '.join(field_specs)})"
+            return "ROW()"
         return "ROW()"
 
     def visit_STRUCT(self, type_, **kw):  # noqa: N802
         return self.visit_struct(type_, **kw)
 
     def visit_map(self, type_, **kw):  # noqa: N802
-        if hasattr(type_, "key_type") and hasattr(type_, "value_type"):
+        if isinstance(type_, AthenaMap):
             key_type_str = self.process(type_.key_type, **kw)
             value_type_str = self.process(type_.value_type, **kw)
             return f"MAP<{key_type_str}, {value_type_str}>"
