@@ -173,6 +173,20 @@ class AthenaPandasResultSet(AthenaResultSet):
         # Use self._engine if it's a valid CSV engine
         if self._engine in ("c", "python", "pyarrow"):
             if self._engine == "pyarrow":
+                # Check PyArrow compatibility with current configuration
+                incompatible_params = []
+                if self._chunksize is not None:
+                    incompatible_params.append("chunksize")
+                if self._quoting != 1:  # PyArrow doesn't support custom quoting
+                    incompatible_params.append("quoting")
+
+                if incompatible_params:
+                    _logger.warning(
+                        f"PyArrow engine requested but incompatible with parameters: "
+                        f"{', '.join(incompatible_params)}. Falling back to optimal engine."
+                    )
+                    return self._get_optimal_csv_engine(file_size_bytes)
+
                 try:
                     self._get_available_engine(["pyarrow"])
                     return "pyarrow"
@@ -180,7 +194,6 @@ class AthenaPandasResultSet(AthenaResultSet):
                     _logger.warning(
                         "PyArrow engine requested but not available, falling back to optimal engine"
                     )
-                    # Use optimal fallback based on file size
                     return self._get_optimal_csv_engine(file_size_bytes)
             return self._engine
 
@@ -222,34 +235,21 @@ class AthenaPandasResultSet(AthenaResultSet):
         )
 
     def _get_optimal_csv_engine(self, file_size_bytes: Optional[int] = None) -> str:
-        """Get the optimal CSV engine based on availability and file size.
+        """Get the optimal CSV engine based on file size, prioritizing compatibility.
 
         Args:
             file_size_bytes: Size of the CSV file in bytes.
 
         Returns:
-            CSV engine to use ('pyarrow', 'c', or 'python').
+            CSV engine to use ('c' or 'python'). PyArrow is only used when explicitly specified.
         """
-        # PyArrow engine doesn't support chunksize, so avoid it when chunking is needed
-        if self._chunksize is not None:
-            # When chunking is required, choose between C and Python based on file size
-            if file_size_bytes and file_size_bytes > 50 * 1024 * 1024:  # 50MB+
-                # Use Python engine for large files to avoid C parser int32 limits
-                return "python"
-            # Use C engine for smaller files (better performance)
-            return "c"
-
-        # Try PyArrow first (best performance and memory efficiency) when not chunking
-        try:
-            self._get_available_engine(["pyarrow"])
-            return "pyarrow"
-        except ImportError:
-            # PyArrow not available, choose between C and Python based on file size
-            if file_size_bytes and file_size_bytes > 50 * 1024 * 1024:  # 50MB+
-                # Use Python engine for large files to avoid C parser int32 limits
-                return "python"
-            # Use C engine for smaller files (better performance)
-            return "c"
+        # Prioritize compatibility over performance - use traditional engines by default
+        # PyArrow has many parameter limitations (chunksize, quoting, etc.)
+        if file_size_bytes and file_size_bytes > 50 * 1024 * 1024:  # 50MB+
+            # Use Python engine for large files to avoid C parser int32 limits
+            return "python"
+        # Use C engine for smaller files (better performance)
+        return "c"
 
     def _auto_determine_chunksize(self, file_size_bytes: int) -> Optional[int]:
         """Automatically determine appropriate chunksize for large files to avoid memory issues.

@@ -916,34 +916,16 @@ class TestPandasCursor:
             result_set._engine = "auto"
             result_set._chunksize = None  # No chunking by default
 
-            # Small file should prefer C engine (when PyArrow unavailable)
-            with patch.object(result_set, "_get_available_engine", side_effect=ImportError):
-                engine = result_set._get_optimal_csv_engine(1024)  # 1KB
-                assert engine == "c"
+            # Small file should prefer C engine (compatibility-first approach)
+            engine = result_set._get_optimal_csv_engine(1024)  # 1KB
+            assert engine == "c"
 
-            # Large file should prefer Python engine (when PyArrow unavailable)
-            with patch.object(result_set, "_get_available_engine", side_effect=ImportError):
-                engine = result_set._get_optimal_csv_engine(100 * 1024 * 1024)  # 100MB
-                assert engine == "python"
+            # Large file should prefer Python engine (avoid C parser int32 limits)
+            engine = result_set._get_optimal_csv_engine(100 * 1024 * 1024)  # 100MB
+            assert engine == "python"
 
-            # When PyArrow available and no chunking, should always prefer it
-            with patch.object(result_set, "_get_available_engine", return_value="pyarrow"):
-                engine = result_set._get_optimal_csv_engine(1024)
-                assert engine == "pyarrow"
-
-                engine = result_set._get_optimal_csv_engine(100 * 1024 * 1024)
-                assert engine == "pyarrow"
-
-            # When chunking is enabled, should avoid PyArrow (compatibility issue)
-            result_set._chunksize = 1000
-            with patch.object(result_set, "_get_available_engine", return_value="pyarrow"):
-                # Small file with chunking should use C engine
-                engine = result_set._get_optimal_csv_engine(1024)
-                assert engine == "c"
-
-                # Large file with chunking should use Python engine
-                engine = result_set._get_optimal_csv_engine(100 * 1024 * 1024)
-                assert engine == "python"
+            # PyArrow is no longer automatically preferred for compatibility reasons
+            # It's only used when explicitly specified and compatible
 
     def test_auto_determine_chunksize(self):
         """Test _auto_determine_chunksize method behavior."""
@@ -970,6 +952,8 @@ class TestPandasCursor:
         # Mock the parent class initialization
         with patch("pyathena.pandas.result_set.AthenaResultSet.__init__"):
             result_set = AthenaPandasResultSet.__new__(AthenaPandasResultSet)
+            result_set._chunksize = None  # Default values
+            result_set._quoting = 1
 
             # Test C engine specification
             result_set._engine = "c"
@@ -981,13 +965,35 @@ class TestPandasCursor:
             engine = result_set._get_csv_engine()
             assert engine == "python"
 
-            # Test PyArrow specification (when available)
+            # Test PyArrow specification (when available and compatible)
             result_set._engine = "pyarrow"
             with patch.object(result_set, "_get_available_engine", return_value="pyarrow"):
                 engine = result_set._get_csv_engine()
                 assert engine == "pyarrow"
 
+            # Test PyArrow with incompatible chunksize
+            result_set._chunksize = 1000
+            with (
+                patch.object(result_set, "_get_available_engine", return_value="pyarrow"),
+                patch.object(result_set, "_get_optimal_csv_engine", return_value="c") as mock_opt,
+            ):
+                engine = result_set._get_csv_engine()
+                assert engine == "c"
+                mock_opt.assert_called_once()
+
+            # Test PyArrow with incompatible quoting
+            result_set._chunksize = None
+            result_set._quoting = 0  # Non-default quoting
+            with (
+                patch.object(result_set, "_get_available_engine", return_value="pyarrow"),
+                patch.object(result_set, "_get_optimal_csv_engine", return_value="c") as mock_opt,
+            ):
+                engine = result_set._get_csv_engine()
+                assert engine == "c"
+                mock_opt.assert_called_once()
+
             # Test PyArrow specification (when unavailable)
+            result_set._quoting = 1  # Reset to default
             with (
                 patch.object(result_set, "_get_available_engine", side_effect=ImportError),
                 patch.object(result_set, "_get_optimal_csv_engine", return_value="c") as mock_opt,
