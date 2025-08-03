@@ -845,8 +845,8 @@ A practical example for monitoring long-running queries:
 
 .. code:: python
 
-    import threading
     import time
+    from concurrent.futures import ThreadPoolExecutor
     from sqlalchemy import create_engine, text
 
     # Global storage for query IDs
@@ -860,15 +860,13 @@ A practical example for monitoring long-running queries:
         print(f"Query {query_id} started at {time.ctime()}")
 
     def monitor_queries():
-        """Background thread to monitor long-running queries"""
-        while True:
-            current_time = time.time()
-            for query_id, info in list(active_queries.items()):
-                if info['status'] == 'running':
-                    elapsed = current_time - info['start_time']
-                    if elapsed > 300:  # 5 minutes
-                        print(f"Warning: Query {query_id} running for {elapsed:.1f}s")
-            time.sleep(30)  # Check every 30 seconds
+        """Monitor long-running queries"""
+        current_time = time.time()
+        for query_id, info in list(active_queries.items()):
+            if info['status'] == 'running':
+                elapsed = current_time - info['start_time']
+                if elapsed > 300:  # 5 minutes
+                    print(f"Warning: Query {query_id} running for {elapsed:.1f}s")
 
     conn_str = "awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/"
     engine = create_engine(
@@ -876,17 +874,23 @@ A practical example for monitoring long-running queries:
         connect_args={"on_start_query_execution": track_query}
     )
 
-    # Start monitoring thread
-    monitor_thread = threading.Thread(target=monitor_queries, daemon=True)
-    monitor_thread.start()
-
-    with engine.connect() as connection:
-        # This query will be tracked
-        result = connection.execute(text("SELECT * FROM very_large_table"))
-        
-        # Mark as completed
-        for query_id in list(active_queries.keys()):
-            active_queries[query_id]['status'] = 'completed'
+    # Use ThreadPoolExecutor for background monitoring
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        with engine.connect() as connection:
+            # Start monitoring task
+            monitor_future = executor.submit(monitor_queries)
+            
+            try:
+                # This query will be tracked
+                result = connection.execute(text("SELECT * FROM very_large_table"))
+                print("Query completed successfully")
+            finally:
+                # Mark queries as completed
+                for query_id in list(active_queries.keys()):
+                    active_queries[query_id]['status'] = 'completed'
+                
+                # Wait for monitoring to complete
+                monitor_future.result(timeout=1)
 
 Multiple callbacks
 ^^^^^^^^^^^^^^^^^^^

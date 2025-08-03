@@ -360,8 +360,8 @@ A common use case is to enable query cancellation from another thread:
 
 .. code:: python
 
-    import threading
     import time
+    from concurrent.futures import ThreadPoolExecutor
     from pyathena import connect
 
     # Global variable to store query ID
@@ -372,10 +372,11 @@ A common use case is to enable query cancellation from another thread:
         current_query_id = query_id
         print(f"Query started: {query_id}")
 
-    def cancel_if_needed():
-        time.sleep(10)  # Wait 10 seconds
+    def cancel_after_delay(cursor, delay_seconds):
+        """Cancel query after specified delay."""
+        time.sleep(delay_seconds)
         if current_query_id:
-            cursor.cancel()  # Cancel the query
+            cursor.cancel()
             print(f"Cancelled query: {current_query_id}")
 
     cursor = connect(
@@ -384,15 +385,19 @@ A common use case is to enable query cancellation from another thread:
         on_start_query_execution=store_query_id
     ).cursor()
 
-    # Start cancellation thread
-    cancel_thread = threading.Thread(target=cancel_if_needed)
-    cancel_thread.start()
+    # Use ThreadPoolExecutor for proper thread management
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        # Start cancellation task (cancel after 10 seconds)
+        cancel_future = executor.submit(cancel_after_delay, cursor, 10)
 
-    try:
-        cursor.execute("SELECT * FROM very_large_table")
-        print("Query completed successfully")
-    except Exception as e:
-        print(f"Query failed or was cancelled: {e}")
+        try:
+            cursor.execute("SELECT * FROM very_large_table")
+            print("Query completed successfully")
+        except Exception as e:
+            print(f"Query failed or was cancelled: {e}")
+        
+        # Wait for cancellation task to complete (if needed)
+        cancel_future.result(timeout=1)
 
 Multiple callbacks
 ~~~~~~~~~~~~~~~~~~~
