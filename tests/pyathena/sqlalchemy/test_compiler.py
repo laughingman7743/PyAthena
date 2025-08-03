@@ -5,7 +5,7 @@ from unittest.mock import Mock
 from sqlalchemy import Integer, String
 
 from pyathena.sqlalchemy.compiler import AthenaTypeCompiler
-from pyathena.sqlalchemy.types import MAP, STRUCT, AthenaMap, AthenaStruct
+from pyathena.sqlalchemy.types import ARRAY, MAP, STRUCT, AthenaArray, AthenaMap, AthenaStruct
 
 
 class TestAthenaTypeCompiler:
@@ -80,3 +80,32 @@ class TestAthenaTypeCompiler:
         map_type = type("MockMap", (), {})()
         result = compiler.visit_map(map_type)
         assert result == "MAP<STRING, STRING>"
+
+    def test_visit_array_default(self):
+        dialect = Mock()
+        compiler = AthenaTypeCompiler(dialect)
+        array_type = AthenaArray()
+        result = compiler.visit_array(array_type)
+        assert result == "ARRAY<STRING>"
+
+    def test_visit_array_with_type(self):
+        dialect = Mock()
+        compiler = AthenaTypeCompiler(dialect)
+        array_type = AthenaArray(Integer)
+        result = compiler.visit_array(array_type)
+        assert result == "ARRAY<INTEGER>"
+
+    def test_visit_array_uppercase(self):
+        dialect = Mock()
+        compiler = AthenaTypeCompiler(dialect)
+        array_type = ARRAY(String)
+        result = compiler.visit_ARRAY(array_type)
+        assert result == "ARRAY<STRING>" or result == "ARRAY<VARCHAR>"
+
+    def test_visit_array_no_attributes(self):
+        # Test array type without item_type attribute
+        dialect = Mock()
+        compiler = AthenaTypeCompiler(dialect)
+        array_type = type("MockArray", (), {})()
+        result = compiler.visit_array(array_type)
+        assert result == "ARRAY<STRING>"

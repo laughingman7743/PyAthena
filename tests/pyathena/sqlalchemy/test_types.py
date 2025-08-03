@@ -3,7 +3,7 @@ import pytest
 from sqlalchemy import Integer, String
 from sqlalchemy.sql import sqltypes
 
-from pyathena.sqlalchemy.types import MAP, STRUCT, AthenaMap, AthenaStruct
+from pyathena.sqlalchemy.types import ARRAY, MAP, STRUCT, AthenaArray, AthenaMap, AthenaStruct
 
 
 class TestAthenaStruct:
@@ -98,3 +98,50 @@ class TestAthenaMap:
         map_type = AthenaMap(String, Integer())
         assert isinstance(map_type.key_type, sqltypes.String)
         assert isinstance(map_type.value_type, sqltypes.Integer)
+
+
+class TestAthenaArray:
+    def test_creation_with_default(self):
+        array_type = AthenaArray()
+        assert isinstance(array_type.item_type, sqltypes.String)
+
+    def test_creation_with_type_class(self):
+        array_type = AthenaArray(Integer)
+        assert isinstance(array_type.item_type, sqltypes.Integer)
+
+    def test_creation_with_type_instance(self):
+        array_type = AthenaArray(Integer())
+        assert isinstance(array_type.item_type, sqltypes.Integer)
+
+    def test_creation_with_string_type(self):
+        array_type = AthenaArray(String)
+        assert isinstance(array_type.item_type, sqltypes.String)
+
+    def test_python_type(self):
+        array_type = AthenaArray()
+        assert array_type.python_type is list
+
+    def test_visit_name(self):
+        array_type = AthenaArray()
+        assert array_type.__visit_name__ == "array"
+
+    def test_array_uppercase_visit_name(self):
+        array_type = ARRAY()
+        assert array_type.__visit_name__ == "ARRAY"
+
+    def test_array_with_complex_type(self):
+        array_type = AthenaArray(AthenaStruct(("name", String), ("age", Integer)))
+        assert isinstance(array_type.item_type, AthenaStruct)
+        assert "name" in array_type.item_type.fields
+        assert "age" in array_type.item_type.fields
+
+    def test_array_with_nested_array(self):
+        array_type = AthenaArray(AthenaArray(Integer))
+        assert isinstance(array_type.item_type, AthenaArray)
+        assert isinstance(array_type.item_type.item_type, sqltypes.Integer)
+
+    def test_array_with_map_type(self):
+        array_type = AthenaArray(AthenaMap(String, Integer))
+        assert isinstance(array_type.item_type, AthenaMap)
+        assert isinstance(array_type.item_type.key_type, sqltypes.String)
+        assert isinstance(array_type.item_type.value_type, sqltypes.Integer)

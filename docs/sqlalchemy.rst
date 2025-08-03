@@ -606,3 +606,181 @@ Migration from Raw Strings
     result = cursor.execute("SELECT map_column FROM table").fetchone()
     map_data = result[0]  # {"key1": "value1", "key2": "value2"} - automatically converted
     value = map_data['key1']  # Direct access
+
+ARRAY Type Support
+~~~~~~~~~~~~~~~~~~
+
+PyAthena provides comprehensive support for Amazon Athena's ARRAY data types, enabling you to work with ordered collections of data in your Python applications.
+
+Basic Usage
+^^^^^^^^^^^
+
+.. code:: python
+
+    from sqlalchemy import Column, String, Integer, Table, MetaData
+    from pyathena.sqlalchemy.types import AthenaArray
+
+    # Define a table with ARRAY columns
+    orders = Table('orders', metadata,
+        Column('id', Integer),
+        Column('item_ids', AthenaArray(Integer)),
+        Column('tags', AthenaArray(String)),
+        Column('categories', AthenaArray(String))
+    )
+
+This creates a table definition equivalent to:
+
+.. code:: sql
+
+    CREATE TABLE orders (
+        id INTEGER,
+        item_ids ARRAY<INTEGER>,
+        tags ARRAY<STRING>,
+        categories ARRAY<STRING>
+    )
+
+Querying ARRAY Data
+^^^^^^^^^^^^^^^^^^^
+
+PyAthena automatically converts ARRAY data between different formats:
+
+.. code:: python
+
+    from sqlalchemy import create_engine, select
+
+    # Query ARRAY data using ARRAY constructor
+    result = connection.execute(
+        select().from_statement(
+            text("SELECT ARRAY[1, 2, 3, 4, 5] as item_ids")
+        )
+    ).fetchone()
+    
+    # Access ARRAY data as Python list
+    item_ids = result.item_ids  # [1, 2, 3, 4, 5]
+
+Complex ARRAY Operations
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+For arrays containing complex data types:
+
+.. code:: python
+
+    # Arrays with STRUCT elements
+    result = connection.execute(
+        select().from_statement(
+            text("SELECT ARRAY[ROW('Alice', 25), ROW('Bob', 30)] as users")
+        )
+    ).fetchone()
+    
+    users = result.users  # [{"0": "Alice", "1": 25}, {"0": "Bob", "1": 30}]
+
+    # Using CAST AS JSON for complex ARRAY operations
+    result = connection.execute(
+        select().from_statement(
+            text("SELECT CAST(ARRAY[1, 2, 3] AS JSON) as data")
+        )
+    ).fetchone()
+    
+    # Parse JSON result
+    import json
+    if isinstance(result.data, str):
+        array_data = json.loads(result.data)  # [1, 2, 3]
+    else:
+        array_data = result.data  # Already converted to list
+
+Data Format Support
+^^^^^^^^^^^^^^^^^^^
+
+PyAthena supports multiple ARRAY data formats:
+
+**Athena Native Format:**
+
+.. code:: python
+
+    # Input: '[1, 2, 3]'
+    # Output: [1, 2, 3]
+
+    # Input: '[apple, banana, cherry]'  
+    # Output: ["apple", "banana", "cherry"]
+
+**JSON Format:**
+
+.. code:: python
+
+    # Input: '[1, 2, 3]'
+    # Output: [1, 2, 3]
+    
+    # Input: '["apple", "banana", "cherry"]'
+    # Output: ["apple", "banana", "cherry"]
+
+**Complex Nested Arrays:**
+
+.. code:: python
+
+    # Input: '[{name=John, age=30}, {name=Jane, age=25}]'
+    # Output: [{"name": "John", "age": 30}, {"name": "Jane", "age": 25}]
+
+Type Definitions
+^^^^^^^^^^^^^^^^
+
+AthenaArray supports various item types:
+
+.. code:: python
+
+    from pyathena.sqlalchemy.types import AthenaArray, AthenaStruct, AthenaMap
+
+    # Simple arrays
+    AthenaArray(String)      # ARRAY<STRING>
+    AthenaArray(Integer)     # ARRAY<INTEGER>
+    
+    # Arrays of complex types
+    AthenaArray(AthenaStruct(...))  # ARRAY<STRUCT<...>>
+    AthenaArray(AthenaMap(...))     # ARRAY<MAP<...>>
+    
+    # Nested arrays
+    AthenaArray(AthenaArray(Integer))  # ARRAY<ARRAY<INTEGER>>
+
+Best Practices
+^^^^^^^^^^^^^^
+
+1. **Use appropriate item types** in AthenaArray definitions:
+
+   .. code:: python
+
+       AthenaArray(Integer)  # For numeric arrays
+       AthenaArray(String)   # For string arrays
+       AthenaArray(AthenaStruct(...))  # For arrays of structs
+
+2. **Use CAST AS JSON** for complex array operations:
+
+   .. code:: sql
+
+       SELECT CAST(complex_array AS JSON) FROM table_name
+
+3. **Handle NULL values** appropriately in your application logic:
+
+   .. code:: python
+
+       if result.array_column is not None:
+           # Process array data
+           first_item = result.array_column[0] if result.array_column else None
+
+Migration from Raw Strings
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Before (raw string handling):**
+
+.. code:: python
+
+    result = cursor.execute("SELECT array_column FROM table").fetchone()
+    raw_data = result[0]  # "[1, 2, 3]"
+    import json
+    parsed_data = json.loads(raw_data)
+
+**After (automatic conversion):**
+
+.. code:: python
+
+    result = cursor.execute("SELECT array_column FROM table").fetchone()
+    array_data = result[0]  # [1, 2, 3] - automatically converted
+    first_item = array_data[0]  # Direct access

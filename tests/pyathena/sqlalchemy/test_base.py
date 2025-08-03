@@ -254,7 +254,7 @@ class TestSQLAlchemyAthena:
             datetime(2017, 1, 1, 0, 0, 0),
             date(2017, 1, 2),
             b"123",
-            "[1, 2]",
+            [1, 2],
             {"1": 2, "3": 4},  # map type now converted to dict
             {"a": 1, "b": 2},  # row type now converted to dict
             Decimal("0.1"),
