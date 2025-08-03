@@ -906,6 +906,90 @@ class TestPandasCursor:
         cursor.close()
         conn.close()
 
+    def test_get_optimal_csv_engine(self):
+        """Test _get_optimal_csv_engine method behavior."""
+        from unittest.mock import Mock, patch
+        
+        from pyathena.pandas.result_set import AthenaPandasResultSet
+        
+        # Mock the parent class initialization
+        with patch('pyathena.pandas.result_set.AthenaResultSet.__init__'):
+            result_set = AthenaPandasResultSet.__new__(AthenaPandasResultSet)
+            result_set._engine = "auto"
+            
+            # Small file should prefer C engine (when PyArrow unavailable)
+            with patch.object(result_set, '_get_available_engine', side_effect=ImportError):
+                engine = result_set._get_optimal_csv_engine(1024)  # 1KB
+                assert engine == "c"
+            
+            # Large file should prefer Python engine (when PyArrow unavailable)
+            with patch.object(result_set, '_get_available_engine', side_effect=ImportError):
+                engine = result_set._get_optimal_csv_engine(100 * 1024 * 1024)  # 100MB
+                assert engine == "python"
+            
+            # When PyArrow available, should always prefer it
+            with patch.object(result_set, '_get_available_engine', return_value="pyarrow"):
+                engine = result_set._get_optimal_csv_engine(1024)
+                assert engine == "pyarrow"
+                
+                engine = result_set._get_optimal_csv_engine(100 * 1024 * 1024)
+                assert engine == "pyarrow"
+
+    def test_auto_determine_chunksize(self):
+        """Test _auto_determine_chunksize method behavior."""
+        from unittest.mock import patch
+        
+        from pyathena.pandas.result_set import AthenaPandasResultSet
+        
+        # Mock the parent class initialization
+        with patch('pyathena.pandas.result_set.AthenaResultSet.__init__'):
+            result_set = AthenaPandasResultSet.__new__(AthenaPandasResultSet)
+            
+            # Small file - no chunking
+            chunksize = result_set._auto_determine_chunksize(10 * 1024 * 1024)  # 10MB
+            assert chunksize is None
+            
+            # Medium file - 50K chunks
+            chunksize = result_set._auto_determine_chunksize(150 * 1024 * 1024)  # 150MB
+            assert chunksize == 50_000
+            
+            # Large file - 100K chunks  
+            chunksize = result_set._auto_determine_chunksize(300 * 1024 * 1024)  # 300MB
+            assert chunksize == 100_000
+
+    def test_get_csv_engine_explicit_specification(self):
+        """Test _get_csv_engine respects explicit engine specification."""
+        from unittest.mock import patch
+        
+        from pyathena.pandas.result_set import AthenaPandasResultSet
+        
+        # Mock the parent class initialization
+        with patch('pyathena.pandas.result_set.AthenaResultSet.__init__'):
+            result_set = AthenaPandasResultSet.__new__(AthenaPandasResultSet)
+            
+            # Test C engine specification
+            result_set._engine = "c"
+            engine = result_set._get_csv_engine()
+            assert engine == "c"
+            
+            # Test Python engine specification
+            result_set._engine = "python"
+            engine = result_set._get_csv_engine()
+            assert engine == "python"
+            
+            # Test PyArrow specification (when available)
+            result_set._engine = "pyarrow"
+            with patch.object(result_set, '_get_available_engine', return_value="pyarrow"):
+                engine = result_set._get_csv_engine()
+                assert engine == "pyarrow"
+            
+            # Test PyArrow specification (when unavailable)
+            with patch.object(result_set, '_get_available_engine', side_effect=ImportError):
+                with patch.object(result_set, '_get_optimal_csv_engine', return_value="c") as mock_optimal:
+                    engine = result_set._get_csv_engine()
+                    assert engine == "c"
+                    mock_optimal.assert_called_once()
+
     @pytest.mark.parametrize(
         "pandas_cursor, parquet_engine, chunksize",
         [
