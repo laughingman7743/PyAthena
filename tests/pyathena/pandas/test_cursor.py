@@ -7,7 +7,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 import numpy as np
 import pandas as pd
@@ -967,13 +967,21 @@ class TestPandasCursor:
 
             # Test PyArrow specification (when available and compatible)
             result_set._engine = "pyarrow"
-            with patch.object(result_set, "_get_available_engine", return_value="pyarrow"):
+            with (
+                patch.object(result_set, "_get_available_engine", return_value="pyarrow"),
+                patch.object(
+                    type(result_set), "converters", new_callable=PropertyMock, return_value={}
+                ),
+            ):
                 engine = result_set._get_csv_engine()
                 assert engine == "pyarrow"
 
             # Test PyArrow with incompatible chunksize (via parameter)
             with (
                 patch.object(result_set, "_get_available_engine", return_value="pyarrow"),
+                patch.object(
+                    type(result_set), "converters", new_callable=PropertyMock, return_value={}
+                ),
                 patch.object(result_set, "_get_optimal_csv_engine", return_value="c") as mock_opt,
             ):
                 engine = result_set._get_csv_engine(chunksize=1000)
@@ -984,6 +992,9 @@ class TestPandasCursor:
             result_set._chunksize = 1000
             with (
                 patch.object(result_set, "_get_available_engine", return_value="pyarrow"),
+                patch.object(
+                    type(result_set), "converters", new_callable=PropertyMock, return_value={}
+                ),
                 patch.object(result_set, "_get_optimal_csv_engine", return_value="c") as mock_opt,
             ):
                 engine = result_set._get_csv_engine()
@@ -995,6 +1006,25 @@ class TestPandasCursor:
             result_set._quoting = 0  # Non-default quoting
             with (
                 patch.object(result_set, "_get_available_engine", return_value="pyarrow"),
+                patch.object(
+                    type(result_set), "converters", new_callable=PropertyMock, return_value={}
+                ),
+                patch.object(result_set, "_get_optimal_csv_engine", return_value="c") as mock_opt,
+            ):
+                engine = result_set._get_csv_engine()
+                assert engine == "c"
+                mock_opt.assert_called_once()
+
+            # Test PyArrow with incompatible converters
+            result_set._quoting = 1  # Reset to default
+            with (
+                patch.object(result_set, "_get_available_engine", return_value="pyarrow"),
+                patch.object(
+                    type(result_set),
+                    "converters",
+                    new_callable=PropertyMock,
+                    return_value={"col1": str},
+                ),
                 patch.object(result_set, "_get_optimal_csv_engine", return_value="c") as mock_opt,
             ):
                 engine = result_set._get_csv_engine()
@@ -1002,9 +1032,11 @@ class TestPandasCursor:
                 mock_opt.assert_called_once()
 
             # Test PyArrow specification (when unavailable)
-            result_set._quoting = 1  # Reset to default
             with (
                 patch.object(result_set, "_get_available_engine", side_effect=ImportError),
+                patch.object(
+                    type(result_set), "converters", new_callable=PropertyMock, return_value={}
+                ),
                 patch.object(result_set, "_get_optimal_csv_engine", return_value="c") as mock_opt,
             ):
                 engine = result_set._get_csv_engine()

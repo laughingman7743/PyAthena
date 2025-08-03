@@ -184,6 +184,8 @@ class AthenaPandasResultSet(AthenaResultSet):
                     incompatible_params.append("chunksize")
                 if self._quoting != 1:  # PyArrow doesn't support custom quoting
                     incompatible_params.append("quoting")
+                if self.converters:  # PyArrow doesn't support converters
+                    incompatible_params.append("converters")
 
                 if incompatible_params:
                     _logger.warning(
@@ -437,6 +439,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         # Remove parameters not supported by PyArrow engine
         if csv_engine == "pyarrow":
             read_csv_kwargs.pop("quoting", None)
+            read_csv_kwargs.pop("converters", None)
             # PyArrow doesn't support chunksize either, but we handle that in engine selection
 
         # Set low_memory=False for Python engine with large files (non-chunked)
