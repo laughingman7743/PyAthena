@@ -1420,5 +1420,3 @@ class TestPandasCursor:
         assert len(callback_results) == 1
         assert callback_results[0] == pandas_cursor.query_id
         assert pandas_cursor.query_id is not None
-
-

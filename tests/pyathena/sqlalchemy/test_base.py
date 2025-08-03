@@ -19,7 +19,6 @@ from sqlalchemy.sql.schema import Column, MetaData, Table
 from sqlalchemy.sql.selectable import TextualSelect
 
 from pyathena.sqlalchemy.types import TINYINT, AthenaArray, AthenaMap, AthenaStruct, Tinyint
-from tests import SQLALCHEMY_CONNECTION_STRING
 from tests.pyathena.conftest import ENV
 
 
@@ -2233,3 +2232,32 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
         assert len(query_ids) == 1
         assert query_ids[0] is not None
         assert isinstance(query_ids[0], str)
+
+    def test_sqlalchemy_connection_level_callback(self, engine):
+        """Test connection-level callback functionality through SQLAlchemy engine creation."""
+        query_ids: List[str] = []
+
+        def callback_function(query_id: str) -> None:
+            query_ids.append(query_id)
+
+        # Get the existing engine configuration from fixture
+        existing_engine, _ = engine
+
+        # Create a new engine with the same URL but add callback via connect_args
+        engine_with_callback = create_engine(
+            existing_engine.url, connect_args={"on_start_query_execution": callback_function}
+        )
+
+        with engine_with_callback.connect() as conn:
+            # Execute a simple query that should trigger the connection-level callback
+            result = conn.execute(text("SELECT 3 as connection_test"))
+            rows = result.fetchall()
+
+            # Verify query executed successfully
+            assert len(rows) == 1
+            assert rows[0].connection_test == 3
+
+            # Verify callback was called from connection-level setting
+            assert len(query_ids) == 1
+            assert query_ids[0] is not None
+            assert isinstance(query_ids[0], str)
