@@ -2053,10 +2053,10 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
         ddl_string = str(create_ddl)
 
         # Verify MAP types are correctly compiled
-        assert "attributes MAP<STRING,STRING>" in ddl_string
-        assert "metrics MAP<STRING,INTEGER>" in ddl_string
-        assert "complex_map MAP<STRING,ROW(value STRING, count INTEGER)>" in ddl_string
-        assert "nested_map MAP<STRING,ARRAY<STRING>>" in ddl_string
+        assert "attributes MAP<STRING, STRING>" in ddl_string
+        assert "metrics MAP<STRING, INTEGER>" in ddl_string
+        assert "complex_map MAP<STRING, ROW(value STRING, count INTEGER)>" in ddl_string
+        assert "nested_map MAP<STRING, ARRAY<STRING>>" in ddl_string
 
     def test_create_table_with_struct_types(self, engine):
         """Test DDL compilation for STRUCT types."""
@@ -2100,7 +2100,7 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
         assert "user_info ROW(name STRING, age INTEGER, email STRING)" in ddl_string
         assert (
             "nested_struct ROW(personal ROW(first_name STRING, last_name STRING), "
-            "preferences MAP<STRING,STRING>)" in ddl_string
+            "preferences MAP<STRING, STRING>)" in ddl_string
         )
         assert "struct_with_array ROW(tags ARRAY<STRING>, scores ARRAY<INTEGER>)" in ddl_string
 
@@ -2135,7 +2135,7 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
 
         # Verify complex nested type is correctly compiled
         expected_type = (
-            "data ARRAY<MAP<STRING,ROW(value STRING, metadata MAP<STRING,STRING>, "
+            "data ARRAY<MAP<STRING, ROW(value STRING, metadata MAP<STRING, STRING>, "
             "tags ARRAY<STRING>)>>"
         )
         assert expected_type in ddl_string
