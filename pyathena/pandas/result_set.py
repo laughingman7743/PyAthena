@@ -189,6 +189,7 @@ class AthenaPandasResultSet(AthenaResultSet):
 
                 try:
                     self._get_available_engine(["pyarrow"])
+                    _logger.info("Using PyArrow CSV engine (explicitly requested and compatible).")
                     return "pyarrow"
                 except ImportError:
                     _logger.warning(
@@ -199,7 +200,17 @@ class AthenaPandasResultSet(AthenaResultSet):
 
         # If self._engine is "auto" or a parquet engine, auto-determine for CSV
         if self._engine in ("auto", "fastparquet"):
-            return self._get_optimal_csv_engine(file_size_bytes)
+            selected_engine = self._get_optimal_csv_engine(file_size_bytes)
+            if (
+                file_size_bytes
+                and file_size_bytes > 50 * 1024 * 1024
+                and selected_engine == "python"
+            ):
+                _logger.info(
+                    f"Using Python CSV engine for large file ({file_size_bytes} bytes) "
+                    "to avoid C parser integer overflow issues."
+                )
+            return selected_engine
 
         # Fallback for unknown engine values
         _logger.warning(f"Unknown engine '{self._engine}', defaulting to optimal CSV engine")
@@ -384,13 +395,11 @@ class AthenaPandasResultSet(AthenaResultSet):
 
         # Auto-determine chunksize if not set and file is large
         effective_chunksize = self._chunksize
-        use_auto_chunking = False
         original_chunksize = self._chunksize  # Store original value
         if effective_chunksize is None and length:
             auto_chunksize = self._auto_determine_chunksize(length)
             if auto_chunksize:
                 effective_chunksize = auto_chunksize
-                use_auto_chunking = True
                 # Temporarily set _chunksize so _get_csv_engine can see it
                 self._chunksize = auto_chunksize
                 _logger.info(
@@ -400,12 +409,6 @@ class AthenaPandasResultSet(AthenaResultSet):
 
         # Determine CSV engine using self._engine
         csv_engine = self._get_csv_engine(length)
-        use_auto_engine = (
-            csv_engine in ("pyarrow", "python")
-            and self._engine in ("auto", "pyarrow", "fastparquet")
-            and length
-            and length > 10 * 1024 * 1024
-        )
 
         # Prepare read_csv parameters with safeguards for large datasets
         read_csv_kwargs = {
@@ -443,17 +446,6 @@ class AthenaPandasResultSet(AthenaResultSet):
             and length > 50 * 1024 * 1024
         ):
             read_csv_kwargs["low_memory"] = False
-
-        # Log automatic engine selection
-        if use_auto_engine and not use_auto_chunking:
-            if csv_engine == "pyarrow":
-                _logger.info(
-                    "Using PyArrow CSV engine for large file (fastest and most memory efficient)."
-                )
-            elif csv_engine == "python":
-                _logger.info(
-                    "Using Python CSV engine for large file to avoid integer overflow issues."
-                )
 
         # Apply user kwargs
         read_csv_kwargs.update(self._kwargs)
