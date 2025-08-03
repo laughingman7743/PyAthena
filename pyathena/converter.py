@@ -103,7 +103,8 @@ def _to_array(varchar_value: Optional[str]) -> Optional[List[Any]]:
     # Optimize: Try JSON parsing first (most reliable)
     try:
         result = json.loads(varchar_value)
-        return result if isinstance(result, list) else None
+        if isinstance(result, list):
+            return result
     except json.JSONDecodeError:
         # If JSON parsing fails, fall back to basic parsing for simple cases
         pass
@@ -113,11 +114,11 @@ def _to_array(varchar_value: Optional[str]) -> Optional[List[Any]]:
         return []
 
     try:
-        # Simple array format: [1, 2, 3] or [a, b, c]
-        # For complex structures, return None to keep as string
-        if any(char in inner for char in "{}()[]"):
-            # Contains complex structures, skip parsing
+        # For nested arrays, too complex for basic parsing
+        if "[" in inner:
+            # Contains nested arrays - too complex for basic parsing
             return None
+        # Try native parsing (including struct arrays)
         return _parse_array_native(inner)
     except Exception:
         return None
@@ -225,7 +226,7 @@ def _to_struct(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
 
 
 def _parse_array_native(inner: str) -> Optional[List[Any]]:
-    """Parse array native format: 1, 2, 3 or a, b, c.
+    """Parse array native format: 1, 2, 3 or {a, b}, {c, d}.
 
     Args:
         inner: Interior content of array without brackets.
@@ -235,15 +236,23 @@ def _parse_array_native(inner: str) -> Optional[List[Any]]:
     """
     result = []
 
-    # Simple split by comma for basic cases
-    items = [item.strip() for item in inner.split(",")]
+    # Smart split by comma - respect brace groupings
+    items = _split_array_items(inner)
 
     for item in items:
         if not item:
             continue
 
-        # Skip items with special characters (safety check)
-        if any(char in item for char in '{}[]()="'):
+        # Handle struct (ROW) values in format {a, b, c} or {key=value, ...}
+        if item.strip().startswith("{") and item.strip().endswith("}"):
+            # This is a struct value - parse it as a struct
+            struct_value = _to_struct(item.strip())
+            if struct_value is not None:
+                result.append(struct_value)
+            continue
+
+        # Skip items with nested arrays or complex quoting (safety check)
+        if any(char in item for char in '[]="'):
             continue
 
         # Convert item to appropriate type
@@ -251,6 +260,44 @@ def _parse_array_native(inner: str) -> Optional[List[Any]]:
         result.append(converted_item)
 
     return result if result else None
+
+
+def _split_array_items(inner: str) -> List[str]:
+    """Split array items by comma, respecting brace and bracket groupings.
+
+    Args:
+        inner: Interior content of array without brackets.
+
+    Returns:
+        List of item strings.
+    """
+    items = []
+    current_item = ""
+    brace_depth = 0
+    bracket_depth = 0
+
+    for char in inner:
+        if char == "{":
+            brace_depth += 1
+        elif char == "}":
+            brace_depth -= 1
+        elif char == "[":
+            bracket_depth += 1
+        elif char == "]":
+            bracket_depth -= 1
+        elif char == "," and brace_depth == 0 and bracket_depth == 0:
+            # Top-level comma - end current item
+            items.append(current_item.strip())
+            current_item = ""
+            continue
+
+        current_item += char
+
+    # Add the last item
+    if current_item.strip():
+        items.append(current_item.strip())
+
+    return items
 
 
 def _parse_map_native(inner: str) -> Optional[Dict[str, Any]]:
