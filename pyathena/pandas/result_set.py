@@ -185,7 +185,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         effective_chunksize = chunksize if chunksize is not None else self._chunksize
 
         if self._engine == "pyarrow":
-            return self._get_pyarrow_engine_if_compatible(file_size_bytes, effective_chunksize)
+            return self._get_pyarrow_engine(file_size_bytes, effective_chunksize)
 
         if self._engine in ("c", "python"):
             return self._engine
@@ -193,10 +193,8 @@ class AthenaPandasResultSet(AthenaResultSet):
         # Auto-selection for "auto" or unknown engine values
         return self._get_optimal_csv_engine(file_size_bytes)
 
-    def _get_pyarrow_engine_if_compatible(
-        self, file_size_bytes: Optional[int], chunksize: Optional[int]
-    ) -> str:
-        """Check PyArrow compatibility and return appropriate engine."""
+    def _get_pyarrow_engine(self, file_size_bytes: Optional[int], chunksize: Optional[int]) -> str:
+        """Get PyArrow engine if compatible, otherwise return optimal engine."""
         # Check parameter compatibility
         if chunksize is not None or self._quoting != 1 or self.converters:
             return self._get_optimal_csv_engine(file_size_bytes)
