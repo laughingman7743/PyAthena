@@ -429,6 +429,11 @@ class AthenaPandasResultSet(AthenaResultSet):
             "engine": csv_engine,
         }
 
+        # Remove parameters not supported by PyArrow engine
+        if csv_engine == "pyarrow":
+            read_csv_kwargs.pop("quoting", None)
+            # PyArrow doesn't support chunksize either, but we handle that in engine selection
+
         # Set low_memory=False for Python engine with large files (non-chunked)
         # PyArrow engine doesn't support low_memory parameter
         if (
