@@ -199,10 +199,14 @@ class AthenaPandasResultSet(AthenaResultSet):
                     return self._get_optimal_csv_engine(file_size_bytes)
 
                 # Check if file is too small for PyArrow (likely to cause parsing issues)
-                if file_size_bytes is not None and file_size_bytes < self._PYARROW_MIN_FILE_SIZE_BYTES:
+                if (
+                    file_size_bytes is not None
+                    and file_size_bytes < self._PYARROW_MIN_FILE_SIZE_BYTES
+                ):
                     _logger.warning(
-                        f"PyArrow engine requested but file is very small ({file_size_bytes} bytes), "
-                        "which may cause parsing issues. Using Python engine instead."
+                        f"PyArrow engine requested but file is very small "
+                        f"({file_size_bytes} bytes), which may cause parsing issues. "
+                        "Using Python engine instead."
                     )
                     return "python"
 
