@@ -17,7 +17,7 @@ from pyathena.model import (
     AthenaPartitionTransform,
     AthenaRowFormatSerde,
 )
-from pyathena.sqlalchemy.types import AthenaMap, AthenaStruct
+from pyathena.sqlalchemy.types import AthenaArray, AthenaMap, AthenaStruct
 
 if TYPE_CHECKING:
     from sqlalchemy import (
@@ -163,6 +163,15 @@ class AthenaTypeCompiler(GenericTypeCompiler):
 
     def visit_MAP(self, type_, **kw):  # noqa: N802
         return self.visit_map(type_, **kw)
+
+    def visit_array(self, type_, **kw):  # noqa: N802
+        if isinstance(type_, AthenaArray):
+            item_type_str = self.process(type_.item_type, **kw)
+            return f"ARRAY<{item_type_str}>"
+        return "ARRAY<STRING>"
+
+    def visit_ARRAY(self, type_, **kw):  # noqa: N802
+        return self.visit_array(type_, **kw)
 
 
 class AthenaStatementCompiler(SQLCompiler):

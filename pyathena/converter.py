@@ -8,7 +8,7 @@ from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from datetime import date, datetime, time
 from decimal import Decimal
-from typing import Any, Callable, Dict, Optional, Type
+from typing import Any, Callable, Dict, List, Optional, Type
 
 from dateutil.tz import gettz
 
@@ -76,6 +76,51 @@ def _to_json(varchar_value: Optional[str]) -> Optional[Any]:
     if varchar_value is None:
         return None
     return json.loads(varchar_value)
+
+
+def _to_array(varchar_value: Optional[str]) -> Optional[List[Any]]:
+    """Convert array data to Python list.
+
+    Supports two formats:
+    1. JSON format: '[1, 2, 3]' or '["a", "b", "c"]' (recommended)
+    2. Athena native format: '[1, 2, 3]' (basic cases only)
+
+    For complex arrays, use CAST(array_column AS JSON) in your SQL query.
+
+    Args:
+        varchar_value: String representation of array data
+
+    Returns:
+        List representation of array, or None if parsing fails
+    """
+    if varchar_value is None:
+        return None
+
+    # Quick check: if it doesn't look like an array, return None
+    if not (varchar_value.startswith("[") and varchar_value.endswith("]")):
+        return None
+
+    # Optimize: Try JSON parsing first (most reliable)
+    try:
+        result = json.loads(varchar_value)
+        return result if isinstance(result, list) else None
+    except json.JSONDecodeError:
+        # If JSON parsing fails, fall back to basic parsing for simple cases
+        pass
+
+    inner = varchar_value[1:-1].strip()
+    if not inner:
+        return []
+
+    try:
+        # Simple array format: [1, 2, 3] or [a, b, c]
+        # For complex structures, return None to keep as string
+        if any(char in inner for char in "{}()[]"):
+            # Contains complex structures, skip parsing
+            return None
+        return _parse_array_native(inner)
+    except Exception:
+        return None
 
 
 def _to_map(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
@@ -177,6 +222,35 @@ def _to_struct(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
         return _parse_unnamed_struct(inner)
     except Exception:
         return None
+
+
+def _parse_array_native(inner: str) -> Optional[List[Any]]:
+    """Parse array native format: 1, 2, 3 or a, b, c.
+
+    Args:
+        inner: Interior content of array without brackets.
+
+    Returns:
+        List with parsed values, or None if no valid values found.
+    """
+    result = []
+
+    # Simple split by comma for basic cases
+    items = [item.strip() for item in inner.split(",")]
+
+    for item in items:
+        if not item:
+            continue
+
+        # Skip items with special characters (safety check)
+        if any(char in item for char in '{}[]()="'):
+            continue
+
+        # Convert item to appropriate type
+        converted_item = _convert_value(item)
+        result.append(converted_item)
+
+    return result if result else None
 
 
 def _parse_map_native(inner: str) -> Optional[Dict[str, Any]]:
@@ -302,7 +376,7 @@ _DEFAULT_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {
     "date": _to_date,
     "time": _to_time,
     "varbinary": _to_binary,
-    "array": _to_default,
+    "array": _to_array,
     "map": _to_map,
     "row": _to_struct,
     "decimal": _to_decimal,

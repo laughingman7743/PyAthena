@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from sqlalchemy.sql import sqltypes
 from sqlalchemy.sql.type_api import TypeEngine
@@ -106,3 +106,24 @@ class AthenaMap(TypeEngine[Dict[str, Any]]):
 
 class MAP(AthenaMap):
     __visit_name__ = "MAP"
+
+
+class AthenaArray(TypeEngine[List[Any]]):
+    __visit_name__ = "array"
+
+    def __init__(self, item_type: Any = None) -> None:
+        if item_type is None:
+            self.item_type: TypeEngine[Any] = sqltypes.String()
+        elif isinstance(item_type, TypeEngine):
+            self.item_type = item_type
+        else:
+            # Assume it's a SQLAlchemy type class and instantiate it
+            self.item_type = item_type()
+
+    @property
+    def python_type(self) -> type:
+        return list
+
+
+class ARRAY(AthenaArray):
+    __visit_name__ = "ARRAY"
