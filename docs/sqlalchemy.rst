@@ -888,11 +888,11 @@ A practical example for monitoring long-running queries:
         for query_id in list(active_queries.keys()):
             active_queries[query_id]['status'] = 'completed'
 
-Priority system
-^^^^^^^^^^^^^^^
+Multiple callbacks
+^^^^^^^^^^^^^^^^^^^
 
 When both connection-level and execution_options callbacks are specified,
-the execution_options callback takes priority:
+both callbacks will be invoked:
 
 .. code:: python
 
@@ -900,9 +900,11 @@ the execution_options callback takes priority:
 
     def connection_callback(query_id):
         print(f"Connection callback: {query_id}")
+        # Global monitoring for all queries
 
     def execution_callback(query_id):
         print(f"Execution callback: {query_id}")
+        # Specific handling for this query
 
     conn_str = "awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/"
     engine = create_engine(
@@ -911,7 +913,7 @@ the execution_options callback takes priority:
     )
 
     with engine.connect() as connection:
-        # This will use execution_callback, not connection_callback
+        # This will invoke both connection_callback and execution_callback
         result = connection.execute(
             text("SELECT 1").execution_options(
                 on_start_query_execution=execution_callback

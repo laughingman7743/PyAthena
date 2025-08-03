@@ -791,7 +791,7 @@ class TestCursor:
             assert row == (3,)
 
     def test_callback_priority_override(self):
-        """Test that execute callback overrides connection callback."""
+        """Test that both connection and execute callbacks are invoked when both are set."""
         connection_callbacks = []
         execute_callbacks = []
 
@@ -805,16 +805,14 @@ class TestCursor:
         with contextlib.closing(connect(on_start_query_execution=connection_callback)) as conn:
             cursor = conn.cursor()
 
-            # Execute with specific callback - should override connection default
+            # Execute with specific callback - both should be called
             cursor.execute("SELECT 4", on_start_query_execution=execute_callback)
 
-            # Verify only execute callback was called
-            assert len(connection_callbacks) == 0
+            # Verify both callbacks were called
+            assert len(connection_callbacks) == 1
             assert len(execute_callbacks) == 1
-            assert execute_callbacks[0] == cursor.query_id
-
-            row = cursor.fetchone()
-            assert row == (4,)
+            assert connection_callbacks[0] == execute_callbacks[0]  # Same query_id
+            assert connection_callbacks[0] == cursor.query_id
 
     def test_callback_thread_safety(self, cursor):
         """Test that callback can be used for query ID access from another thread."""

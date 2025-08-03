@@ -161,11 +161,12 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
             paramstyle=paramstyle,
         )
 
-        # Call user callback immediately after start_query_execution
-        # Priority: execute parameter > connection default > none
-        callback = on_start_query_execution or self._on_start_query_execution
-        if callback:
-            callback(self.query_id)
+        # Call user callbacks immediately after start_query_execution
+        # Both connection-level and execute-level callbacks are invoked if set
+        if self._on_start_query_execution:
+            self._on_start_query_execution(self.query_id)
+        if on_start_query_execution:
+            on_start_query_execution(self.query_id)
         query_execution = cast(AthenaQueryExecution, self._poll(self.query_id))
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
             self.result_set = AthenaPandasResultSet(

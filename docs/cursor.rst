@@ -308,7 +308,7 @@ as soon as the ``start_query_execution`` API call is made, before waiting for qu
 This is useful for monitoring, logging, or cancelling long-running queries from another thread.
 
 The ``on_start_query_execution`` callback can be configured at both the connection level and 
-the execute level, with execute-level callbacks taking priority.
+the execute level. When both are set, both callbacks will be invoked.
 
 Connection-level callback
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -394,11 +394,11 @@ A common use case is to enable query cancellation from another thread:
     except Exception as e:
         print(f"Query failed or was cancelled: {e}")
 
-Callback priority
-~~~~~~~~~~~~~~~~~
+Multiple callbacks
+~~~~~~~~~~~~~~~~~~~
 
 When both connection-level and execute-level callbacks are specified, 
-the execute-level callback takes priority:
+both callbacks will be invoked:
 
 .. code:: python
 
@@ -406,9 +406,11 @@ the execute-level callback takes priority:
 
     def connection_callback(query_id):
         print(f"Connection callback: {query_id}")
+        # Log to monitoring system
 
     def execute_callback(query_id):
         print(f"Execute callback: {query_id}")
+        # Store for cancellation if needed
 
     cursor = connect(
         s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
@@ -416,7 +418,7 @@ the execute-level callback takes priority:
         on_start_query_execution=connection_callback
     ).cursor()
     
-    # This will use execute_callback, not connection_callback
+    # This will invoke both connection_callback and execute_callback
     cursor.execute(
         "SELECT 1", 
         on_start_query_execution=execute_callback
