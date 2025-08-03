@@ -93,6 +93,18 @@ class AthenaPandasResultSet(AthenaResultSet):
     # Files smaller than this may cause parsing issues with PyArrow
     _PYARROW_MIN_FILE_SIZE_BYTES: int = 100
 
+    # Large file threshold in bytes (50MB) - files larger than this are considered "large"
+    # Used for engine selection and memory optimization decisions
+    _LARGE_FILE_THRESHOLD_BYTES: int = 50 * 1024 * 1024  # 50MB
+
+    # Auto-chunking thresholds for large datasets to avoid memory issues
+    # Based on estimated row counts from file size (using average bytes per row estimate)
+    _ESTIMATED_BYTES_PER_ROW: int = 100  # Rough estimate for row size calculation
+    _AUTO_CHUNK_THRESHOLD_LARGE: int = 2_000_000  # 2M+ rows -> 100K chunk size
+    _AUTO_CHUNK_THRESHOLD_MEDIUM: int = 1_000_000  # 1M+ rows -> 50K chunk size
+    _AUTO_CHUNK_SIZE_LARGE: int = 100_000  # Chunk size for very large datasets
+    _AUTO_CHUNK_SIZE_MEDIUM: int = 50_000  # Chunk size for large datasets
+
     _PARSE_DATES: List[str] = [
         "date",
         "time",
@@ -206,9 +218,9 @@ class AthenaPandasResultSet(AthenaResultSet):
                     _logger.warning(
                         f"PyArrow engine requested but file is very small "
                         f"({file_size_bytes} bytes), which may cause parsing issues. "
-                        "Using Python engine instead."
+                        "Falling back to optimal engine."
                     )
-                    return "python"
+                    return self._get_optimal_csv_engine(file_size_bytes)
 
                 try:
                     self._get_available_engine(["pyarrow"])
@@ -226,7 +238,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             selected_engine = self._get_optimal_csv_engine(file_size_bytes)
             if (
                 file_size_bytes
-                and file_size_bytes > 50 * 1024 * 1024
+                and file_size_bytes > self._LARGE_FILE_THRESHOLD_BYTES
                 and selected_engine == "python"
             ):
                 _logger.info(
@@ -279,7 +291,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         """
         # Prioritize compatibility over performance - use traditional engines by default
         # PyArrow has many parameter limitations (chunksize, quoting, etc.)
-        if file_size_bytes and file_size_bytes > 50 * 1024 * 1024:  # 50MB+
+        if file_size_bytes and file_size_bytes > self._LARGE_FILE_THRESHOLD_BYTES:
             # Use Python engine for large files to avoid C parser int32 limits
             return "python"
         # Use C engine for smaller files (better performance)
@@ -294,16 +306,16 @@ class AthenaPandasResultSet(AthenaResultSet):
         Returns:
             Suggested chunksize or None if chunking is not needed.
         """
-        # For files larger than 50MB, consider chunking to avoid memory issues
-        if file_size_bytes > 50 * 1024 * 1024:  # 50MB
-            # Estimate rows: assume average 100 bytes per row (very rough)
-            estimated_rows = file_size_bytes // 100
-            if estimated_rows > 2_000_000:  # 2M+ rows
-                # Suggest chunk size of 100K rows for very large datasets
-                return 100_000
-            if estimated_rows > 1_000_000:  # 1M+ rows
-                # Suggest chunk size of 50K rows for large datasets
-                return 50_000
+        # For files larger than threshold, consider chunking to avoid memory issues
+        if file_size_bytes > self._LARGE_FILE_THRESHOLD_BYTES:
+            # Estimate rows using average bytes per row estimate
+            estimated_rows = file_size_bytes // self._ESTIMATED_BYTES_PER_ROW
+            if estimated_rows > self._AUTO_CHUNK_THRESHOLD_LARGE:
+                # Suggest chunk size for very large datasets
+                return self._AUTO_CHUNK_SIZE_LARGE
+            if estimated_rows > self._AUTO_CHUNK_THRESHOLD_MEDIUM:
+                # Suggest chunk size for large datasets
+                return self._AUTO_CHUNK_SIZE_MEDIUM
         return None
 
     def __s3_file_system(self):
@@ -469,7 +481,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             csv_engine == "python"
             and effective_chunksize is None
             and length
-            and length > 50 * 1024 * 1024
+            and length > self._LARGE_FILE_THRESHOLD_BYTES
         ):
             read_csv_kwargs["low_memory"] = False
 
