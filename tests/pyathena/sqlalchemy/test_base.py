@@ -234,6 +234,44 @@ class TestSQLAlchemyAthena:
         ).scalar()
         assert result == len("a string")
 
+    def test_filter_func(self, engine):
+        engine, conn = engine
+        one_row_complex = Table("one_row_complex", MetaData(schema=ENV.schema), autoload_with=conn)
+
+        # Test filter() function with array column
+        # The col_array contains [1, 2] based on the test data above
+        result = conn.execute(
+            sqlalchemy.select(
+                sqlalchemy.func.filter(
+                    one_row_complex.c.col_array, sqlalchemy.literal("x -> x > 1")
+                )
+            )
+        ).scalar()
+        # Should return [2] since only 2 is greater than 1
+        assert result == [2]
+
+        # Test filter() function with different condition
+        result_all = conn.execute(
+            sqlalchemy.select(
+                sqlalchemy.func.filter(
+                    one_row_complex.c.col_array, sqlalchemy.literal("x -> x > 0")
+                )
+            )
+        ).scalar()
+        # Should return [1, 2] since both values are greater than 0
+        assert result_all == [1, 2]
+
+        # Test filter() function with no matches
+        result_empty = conn.execute(
+            sqlalchemy.select(
+                sqlalchemy.func.filter(
+                    one_row_complex.c.col_array, sqlalchemy.literal("x -> x > 10")
+                )
+            )
+        ).scalar()
+        # Should return empty array since no values are greater than 10
+        assert result_empty == []
+
     def test_reflect_select(self, engine):
         engine, conn = engine
         one_row_complex = Table("one_row_complex", MetaData(schema=ENV.schema), autoload_with=conn)
