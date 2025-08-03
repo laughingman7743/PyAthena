@@ -6,6 +6,7 @@ from multiprocessing import cpu_count
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Dict,
     Iterable,
     List,
@@ -51,6 +52,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         max_workers: int = (cpu_count() or 1) * 5,
         result_reuse_enable: bool = False,
         result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
+        on_start_query_execution: Optional[Callable[[str], None]] = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -72,6 +74,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         self._block_size = block_size
         self._cache_type = cache_type
         self._max_workers = max_workers
+        self._connection_callback = on_start_query_execution
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaPandasResultSet] = None
 
@@ -131,6 +134,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         keep_default_na: bool = False,
         na_values: Optional[Iterable[str]] = ("",),
         quoting: int = 1,
+        on_start_query_execution: Optional[Callable[[str], None]] = None,
         **kwargs,
     ) -> PandasCursor:
         self._reset_state()
@@ -156,6 +160,12 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
             result_reuse_minutes=result_reuse_minutes,
             paramstyle=paramstyle,
         )
+
+        # Call user callback immediately after start_query_execution
+        # Priority: execute parameter > connection default > none
+        callback = on_start_query_execution or self._connection_callback
+        if callback:
+            callback(self.query_id)
         query_execution = cast(AthenaQueryExecution, self._poll(self.query_id))
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
             self.result_set = AthenaPandasResultSet(

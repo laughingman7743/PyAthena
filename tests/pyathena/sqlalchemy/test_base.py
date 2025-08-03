@@ -4,13 +4,14 @@ import textwrap
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
+from typing import List
 from urllib.parse import quote_plus
 
 import numpy as np
 import pandas as pd
 import pytest
 import sqlalchemy
-from sqlalchemy import func, select, types
+from sqlalchemy import create_engine, func, select, text, types
 from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.ddl import CreateTable
@@ -18,6 +19,7 @@ from sqlalchemy.sql.schema import Column, MetaData, Table
 from sqlalchemy.sql.selectable import TextualSelect
 
 from pyathena.sqlalchemy.types import TINYINT, AthenaArray, AthenaMap, AthenaStruct, Tinyint
+from tests import SQLALCHEMY_CONNECTION_STRING
 from tests.pyathena.conftest import ENV
 
 
@@ -2206,3 +2208,28 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
             "tags ARRAY<STRING>)>>"
         )
         assert expected_type in ddl_string
+
+    def test_sqlalchemy_execute_with_execution_options_callback(self, engine):
+        """Test callback functionality through SQLAlchemy execution_options."""
+        engine, conn = engine
+        query_ids: List[str] = []
+
+        def callback_function(query_id: str) -> None:
+            query_ids.append(query_id)
+
+        # Test SQLAlchemy execution_options with callback
+        result = conn.execute(
+            text("SELECT 2 as test_column").execution_options(
+                on_start_query_execution=callback_function
+            )
+        )
+        rows = result.fetchall()
+
+        # Verify query executed successfully
+        assert len(rows) == 1
+        assert rows[0].test_column == 2
+
+        # Verify callback was called through execution_options
+        assert len(query_ids) == 1
+        assert query_ids[0] is not None
+        assert isinstance(query_ids[0], str)
