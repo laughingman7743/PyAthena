@@ -784,3 +784,161 @@ Migration from Raw Strings
     result = cursor.execute("SELECT array_column FROM table").fetchone()
     array_data = result[0]  # [1, 2, 3] - automatically converted
     first_item = array_data[0]  # Direct access
+
+.. _sqlalchemy-query-execution-callback:
+
+Query Execution Callback
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+PyAthena provides callback support for SQLAlchemy applications to get immediate access to query IDs
+after the ``start_query_execution`` API call, enabling query monitoring and cancellation capabilities.
+
+Connection-level callback
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can set a default callback for all queries through an engine's connection parameters:
+
+.. code:: python
+
+    from sqlalchemy import create_engine, text
+
+    def query_callback(query_id):
+        print(f"SQLAlchemy query started: {query_id}")
+        # Store query_id for monitoring or cancellation
+
+    conn_str = "awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/"
+    engine = create_engine(
+        conn_str,
+        connect_args={"on_start_query_execution": query_callback}
+    )
+
+    with engine.connect() as connection:
+        result = connection.execute(text("SELECT * FROM many_rows"))
+        # query_callback will be invoked before query execution
+
+Execution options callback
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+SQLAlchemy applications can use ``execution_options`` to specify callbacks for individual queries:
+
+.. code:: python
+
+    from sqlalchemy import create_engine, text
+
+    def specific_callback(query_id):
+        print(f"Specific query callback: {query_id}")
+
+    conn_str = "awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/"
+    engine = create_engine(conn_str)
+
+    with engine.connect() as connection:
+        result = connection.execute(
+            text("SELECT * FROM many_rows").execution_options(
+                on_start_query_execution=specific_callback
+            )
+        )
+
+Query monitoring with SQLAlchemy
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A practical example for monitoring long-running queries:
+
+.. code:: python
+
+    import threading
+    import time
+    from sqlalchemy import create_engine, text
+
+    # Global storage for query IDs
+    active_queries = {}
+
+    def track_query(query_id):
+        active_queries[query_id] = {
+            'start_time': time.time(),
+            'status': 'running'
+        }
+        print(f"Query {query_id} started at {time.ctime()}")
+
+    def monitor_queries():
+        """Background thread to monitor long-running queries"""
+        while True:
+            current_time = time.time()
+            for query_id, info in list(active_queries.items()):
+                if info['status'] == 'running':
+                    elapsed = current_time - info['start_time']
+                    if elapsed > 300:  # 5 minutes
+                        print(f"Warning: Query {query_id} running for {elapsed:.1f}s")
+            time.sleep(30)  # Check every 30 seconds
+
+    conn_str = "awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/"
+    engine = create_engine(
+        conn_str,
+        connect_args={"on_start_query_execution": track_query}
+    )
+
+    # Start monitoring thread
+    monitor_thread = threading.Thread(target=monitor_queries, daemon=True)
+    monitor_thread.start()
+
+    with engine.connect() as connection:
+        # This query will be tracked
+        result = connection.execute(text("SELECT * FROM very_large_table"))
+        
+        # Mark as completed
+        for query_id in list(active_queries.keys()):
+            active_queries[query_id]['status'] = 'completed'
+
+Priority system
+^^^^^^^^^^^^^^^
+
+When both connection-level and execution_options callbacks are specified,
+the execution_options callback takes priority:
+
+.. code:: python
+
+    from sqlalchemy import create_engine, text
+
+    def connection_callback(query_id):
+        print(f"Connection callback: {query_id}")
+
+    def execution_callback(query_id):
+        print(f"Execution callback: {query_id}")
+
+    conn_str = "awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/"
+    engine = create_engine(
+        conn_str,
+        connect_args={"on_start_query_execution": connection_callback}
+    )
+
+    with engine.connect() as connection:
+        # This will use execution_callback, not connection_callback
+        result = connection.execute(
+            text("SELECT 1").execution_options(
+                on_start_query_execution=execution_callback
+            )
+        )
+
+Supported SQLAlchemy dialects
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``on_start_query_execution`` callback is supported by all PyAthena SQLAlchemy dialects:
+
+* ``awsathena`` and ``awsathena+rest`` (default cursor)
+* ``awsathena+pandas`` (pandas cursor)
+* ``awsathena+arrow`` (arrow cursor)
+
+Usage with different dialects:
+
+.. code:: python
+
+    # With pandas dialect
+    engine_pandas = create_engine(
+        "awsathena+pandas://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/",
+        connect_args={"on_start_query_execution": query_callback}
+    )
+
+    # With arrow dialect  
+    engine_arrow = create_engine(
+        "awsathena+arrow://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/",
+        connect_args={"on_start_query_execution": query_callback}
+    )

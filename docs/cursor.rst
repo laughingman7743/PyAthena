@@ -298,6 +298,143 @@ If you want to change the dictionary type (e.g., use OrderedDict), you can speci
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor(cursor=AsyncDictCursor, dict_type=OrderedDict)
 
+.. _query-execution-callback:
+
+Query Execution Callback
+-------------------------
+
+PyAthena provides a callback mechanism that allows you to get immediate access to the query ID 
+as soon as the ``start_query_execution`` API call is made, before waiting for query completion.
+This is useful for monitoring, logging, or cancelling long-running queries from another thread.
+
+The ``on_start_query_execution`` callback can be configured at both the connection level and 
+the execute level, with execute-level callbacks taking priority.
+
+Connection-level callback
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can set a default callback for all queries executed through a connection:
+
+.. code:: python
+
+    from pyathena import connect
+
+    def query_callback(query_id):
+        print(f"Query started with ID: {query_id}")
+        # You can use query_id for monitoring or cancellation
+
+    cursor = connect(
+        s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+        region_name="us-west-2",
+        on_start_query_execution=query_callback
+    ).cursor()
+    
+    cursor.execute("SELECT * FROM many_rows")  # Callback will be invoked
+
+Execute-level callback
+~~~~~~~~~~~~~~~~~~~~~~
+
+You can also specify a callback for individual query executions:
+
+.. code:: python
+
+    from pyathena import connect
+
+    def specific_callback(query_id):
+        print(f"Specific query started: {query_id}")
+
+    cursor = connect(
+        s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+        region_name="us-west-2"
+    ).cursor()
+    
+    cursor.execute(
+        "SELECT * FROM many_rows", 
+        on_start_query_execution=specific_callback
+    )
+
+Query cancellation example
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A common use case is to enable query cancellation from another thread:
+
+.. code:: python
+
+    import threading
+    import time
+    from pyathena import connect
+
+    # Global variable to store query ID
+    current_query_id = None
+
+    def store_query_id(query_id):
+        global current_query_id
+        current_query_id = query_id
+        print(f"Query started: {query_id}")
+
+    def cancel_if_needed():
+        time.sleep(10)  # Wait 10 seconds
+        if current_query_id:
+            cursor.cancel()  # Cancel the query
+            print(f"Cancelled query: {current_query_id}")
+
+    cursor = connect(
+        s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+        region_name="us-west-2",
+        on_start_query_execution=store_query_id
+    ).cursor()
+
+    # Start cancellation thread
+    cancel_thread = threading.Thread(target=cancel_if_needed)
+    cancel_thread.start()
+
+    try:
+        cursor.execute("SELECT * FROM very_large_table")
+        print("Query completed successfully")
+    except Exception as e:
+        print(f"Query failed or was cancelled: {e}")
+
+Callback priority
+~~~~~~~~~~~~~~~~~
+
+When both connection-level and execute-level callbacks are specified, 
+the execute-level callback takes priority:
+
+.. code:: python
+
+    from pyathena import connect
+
+    def connection_callback(query_id):
+        print(f"Connection callback: {query_id}")
+
+    def execute_callback(query_id):
+        print(f"Execute callback: {query_id}")
+
+    cursor = connect(
+        s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+        region_name="us-west-2",
+        on_start_query_execution=connection_callback
+    ).cursor()
+    
+    # This will use execute_callback, not connection_callback
+    cursor.execute(
+        "SELECT 1", 
+        on_start_query_execution=execute_callback
+    )
+
+Supported cursor types
+~~~~~~~~~~~~~~~~~~~~~~
+
+The ``on_start_query_execution`` callback is supported by the following cursor types:
+
+* ``Cursor`` (default cursor)
+* ``DictCursor`` 
+* ``ArrowCursor``
+* ``PandasCursor``
+
+Note: ``AsyncCursor`` and its variants do not support this callback as they already 
+return the query ID immediately through their different execution model.
+
 PandasCursor
 ------------
 
