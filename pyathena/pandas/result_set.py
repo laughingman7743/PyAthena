@@ -161,21 +161,26 @@ class AthenaPandasResultSet(AthenaResultSet):
             return self._get_available_engine(["pyarrow", "fastparquet"])
         return self._engine
 
-    def _get_csv_engine(self, file_size_bytes: Optional[int] = None) -> str:
+    def _get_csv_engine(
+        self, file_size_bytes: Optional[int] = None, chunksize: Optional[int] = None
+    ) -> str:
         """Determine the appropriate CSV engine, similar to _get_parquet_engine pattern.
 
         Args:
             file_size_bytes: Size of the CSV file in bytes.
+            chunksize: Chunksize to be used (overrides self._chunksize if provided).
 
         Returns:
             CSV engine to use ('pyarrow', 'c', or 'python').
         """
+        effective_chunksize = chunksize if chunksize is not None else self._chunksize
+
         # Use self._engine if it's a valid CSV engine
         if self._engine in ("c", "python", "pyarrow"):
             if self._engine == "pyarrow":
                 # Check PyArrow compatibility with current configuration
                 incompatible_params = []
-                if self._chunksize is not None:
+                if effective_chunksize is not None:
                     incompatible_params.append("chunksize")
                 if self._quoting != 1:  # PyArrow doesn't support custom quoting
                     incompatible_params.append("quoting")
@@ -395,20 +400,17 @@ class AthenaPandasResultSet(AthenaResultSet):
 
         # Auto-determine chunksize if not set and file is large
         effective_chunksize = self._chunksize
-        original_chunksize = self._chunksize  # Store original value
         if effective_chunksize is None and length:
             auto_chunksize = self._auto_determine_chunksize(length)
             if auto_chunksize:
                 effective_chunksize = auto_chunksize
-                # Temporarily set _chunksize so _get_csv_engine can see it
-                self._chunksize = auto_chunksize
                 _logger.info(
                     f"Large file detected ({length} bytes). "
                     f"Automatically using chunksize={auto_chunksize} for better performance."
                 )
 
         # Determine CSV engine using self._engine
-        csv_engine = self._get_csv_engine(length)
+        csv_engine = self._get_csv_engine(length, effective_chunksize)
 
         # Prepare read_csv parameters with safeguards for large datasets
         read_csv_kwargs = {
@@ -468,9 +470,6 @@ class AthenaPandasResultSet(AthenaResultSet):
                 )
                 raise OperationalError(detailed_msg) from e
             raise OperationalError(*e.args) from e
-        finally:
-            # Restore original chunksize value
-            self._chunksize = original_chunksize
 
     def _read_parquet(self, engine) -> "DataFrame":
         import pandas as pd

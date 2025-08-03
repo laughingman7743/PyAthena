@@ -971,7 +971,16 @@ class TestPandasCursor:
                 engine = result_set._get_csv_engine()
                 assert engine == "pyarrow"
 
-            # Test PyArrow with incompatible chunksize
+            # Test PyArrow with incompatible chunksize (via parameter)
+            with (
+                patch.object(result_set, "_get_available_engine", return_value="pyarrow"),
+                patch.object(result_set, "_get_optimal_csv_engine", return_value="c") as mock_opt,
+            ):
+                engine = result_set._get_csv_engine(chunksize=1000)
+                assert engine == "c"
+                mock_opt.assert_called_once()
+
+            # Test PyArrow with incompatible chunksize (via instance variable)
             result_set._chunksize = 1000
             with (
                 patch.object(result_set, "_get_available_engine", return_value="pyarrow"),
