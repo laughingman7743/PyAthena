@@ -148,24 +148,120 @@ class AthenaPandasResultSet(AthenaResultSet):
             self._df_iter = DataFrameIterator(pd.DataFrame(), _no_trunc_date)
         self._iterrows = self._df_iter.iterrows()
 
-    def _get_engine(self) -> "str":
-        if self._engine == "auto":
-            import importlib
+    def _get_parquet_engine(self) -> str:
+        """Get the parquet engine to use, handling auto-detection.
 
-            error_msgs = ""
-            for engine in ["pyarrow", "fastparquet"]:
-                try:
-                    module = importlib.import_module(engine)
-                    return module.__name__
-                except ImportError as e:
-                    error_msgs += f"\n - {str(e)}"
-            raise ImportError(
-                "Unable to find a usable engine; tried using: 'pyarrow', 'fastparquet'.\n"
-                "A suitable version of pyarrow or fastparquet is required for parquet support.\n"
-                "Trying to import the above resulted in these errors:"
-                f"{error_msgs}"
-            )
+        Returns:
+            Name of the parquet engine to use ('pyarrow' or 'fastparquet').
+
+        Raises:
+            ImportError: If no suitable parquet engine is available.
+        """
+        if self._engine == "auto":
+            return self._get_available_engine(["pyarrow", "fastparquet"])
         return self._engine
+
+    def _get_csv_engine(self, file_size_bytes: Optional[int] = None) -> str:
+        """Determine the appropriate CSV engine, similar to _get_parquet_engine pattern.
+
+        Args:
+            file_size_bytes: Size of the CSV file in bytes.
+
+        Returns:
+            CSV engine to use ('pyarrow', 'c', or 'python').
+        """
+        # Use self._engine if it's a valid CSV engine
+        if self._engine in ("c", "python", "pyarrow"):
+            if self._engine == "pyarrow":
+                try:
+                    self._get_available_engine(["pyarrow"])
+                    return "pyarrow"
+                except ImportError:
+                    _logger.warning(
+                        "PyArrow engine requested but not available, falling back to optimal engine"
+                    )
+                    # Use optimal fallback based on file size
+                    return self._get_optimal_csv_engine(file_size_bytes)
+            return self._engine
+
+        # If self._engine is "auto" or a parquet engine, auto-determine for CSV
+        if self._engine in ("auto", "fastparquet"):
+            return self._get_optimal_csv_engine(file_size_bytes)
+
+        # Fallback for unknown engine values
+        _logger.warning(f"Unknown engine '{self._engine}', defaulting to optimal CSV engine")
+        return self._get_optimal_csv_engine(file_size_bytes)
+
+    def _get_available_engine(self, engine_candidates: List[str]) -> str:
+        """Get the first available engine from a list of candidates.
+
+        Args:
+            engine_candidates: List of engine names to try in order.
+
+        Returns:
+            First available engine name.
+
+        Raises:
+            ImportError: If no engines are available.
+        """
+        import importlib
+
+        error_msgs = ""
+        for engine in engine_candidates:
+            try:
+                module = importlib.import_module(engine)
+                return module.__name__
+            except ImportError as e:
+                error_msgs += f"\n - {str(e)}"
+
+        available_engines = ", ".join(f"'{e}'" for e in engine_candidates)
+        raise ImportError(
+            f"Unable to find a usable engine; tried using: {available_engines}."
+            f"Trying to import the above resulted in these errors:"
+            f"{error_msgs}"
+        )
+
+    def _get_optimal_csv_engine(self, file_size_bytes: Optional[int] = None) -> str:
+        """Get the optimal CSV engine based on availability and file size.
+
+        Args:
+            file_size_bytes: Size of the CSV file in bytes.
+
+        Returns:
+            CSV engine to use ('pyarrow', 'c', or 'python').
+        """
+        # Try PyArrow first (best performance and memory efficiency)
+        try:
+            self._get_available_engine(["pyarrow"])
+            return "pyarrow"
+        except ImportError:
+            # PyArrow not available, choose between C and Python based on file size
+            if file_size_bytes and file_size_bytes > 50 * 1024 * 1024:  # 50MB+
+                # Use Python engine for large files to avoid C parser int32 limits
+                return "python"
+            # Use C engine for smaller files (better performance)
+            return "c"
+
+    def _auto_determine_chunksize(self, file_size_bytes: int) -> Optional[int]:
+        """Automatically determine appropriate chunksize for large files to avoid memory issues.
+
+        Args:
+            file_size_bytes: Size of the result file in bytes.
+
+        Returns:
+            Suggested chunksize or None if chunking is not needed.
+        """
+        # For files larger than 50MB, consider chunking to avoid memory issues
+        if file_size_bytes > 50 * 1024 * 1024:  # 50MB
+            # Estimate rows: assume average 100 bytes per row (very rough)
+            estimated_rows = file_size_bytes // 100
+            if estimated_rows > 2_000_000:  # 2M+ rows
+                # Suggest chunk size of 100K rows for very large datasets
+                return 100_000
+            if estimated_rows > 1_000_000:  # 1M+ rows
+                # Suggest chunk size of 50K rows for large datasets
+                return 50_000
+        return None
 
     def __s3_file_system(self):
         from pyathena.filesystem.s3 import S3FileSystem
@@ -219,6 +315,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         except StopIteration:
             return None
         else:
+            # Python int has no practical limit, but be safe with row indexing
             self._rownumber = row[0] + 1
             description = self.description if self.description else []
             return tuple([row[1][d[0]] for d in description])
@@ -275,30 +372,92 @@ class AthenaPandasResultSet(AthenaResultSet):
             names = None
         else:
             return pd.DataFrame()
+
+        # Auto-determine chunksize if not set and file is large
+        effective_chunksize = self._chunksize
+        use_auto_chunking = False
+        if effective_chunksize is None and length:
+            auto_chunksize = self._auto_determine_chunksize(length)
+            if auto_chunksize:
+                effective_chunksize = auto_chunksize
+                use_auto_chunking = True
+                _logger.info(
+                    f"Large file detected ({length} bytes). "
+                    f"Automatically using chunksize={auto_chunksize} for better performance."
+                )
+
+        # Determine CSV engine using self._engine
+        csv_engine = self._get_csv_engine(length)
+        use_auto_engine = (
+            csv_engine in ("pyarrow", "python")
+            and self._engine in ("auto", "pyarrow", "fastparquet")
+            and length
+            and length > 10 * 1024 * 1024
+        )
+
+        # Prepare read_csv parameters with safeguards for large datasets
+        read_csv_kwargs = {
+            "sep": sep,
+            "header": header,
+            "names": names,
+            "dtype": self.dtypes,
+            "converters": self.converters,
+            "parse_dates": self.parse_dates,
+            "skip_blank_lines": False,
+            "keep_default_na": self._keep_default_na,
+            "na_values": self._na_values,
+            "quoting": self._quoting,
+            "storage_options": {
+                "connection": self.connection,
+                "default_block_size": self._block_size,
+                "default_cache_type": self._cache_type,
+                "max_workers": self._max_workers,
+            },
+            "chunksize": effective_chunksize,
+            "engine": csv_engine,
+        }
+
+        # Set low_memory=False for Python engine with large files (non-chunked)
+        # PyArrow engine doesn't support low_memory parameter
+        if (
+            csv_engine == "python"
+            and effective_chunksize is None
+            and length
+            and length > 50 * 1024 * 1024
+        ):
+            read_csv_kwargs["low_memory"] = False
+
+        # Log automatic engine selection
+        if use_auto_engine and not use_auto_chunking:
+            if csv_engine == "pyarrow":
+                _logger.info(
+                    "Using PyArrow CSV engine for large file (fastest and most memory efficient)."
+                )
+            elif csv_engine == "python":
+                _logger.info(
+                    "Using Python CSV engine for large file to avoid integer overflow issues."
+                )
+
+        # Apply user kwargs
+        read_csv_kwargs.update(self._kwargs)
+
         try:
-            return pd.read_csv(
-                self.output_location,
-                sep=sep,
-                header=header,
-                names=names,
-                dtype=self.dtypes,
-                converters=self.converters,
-                parse_dates=self.parse_dates,
-                skip_blank_lines=False,
-                keep_default_na=self._keep_default_na,
-                na_values=self._na_values,
-                quoting=self._quoting,
-                storage_options={
-                    "connection": self.connection,
-                    "default_block_size": self._block_size,
-                    "default_cache_type": self._cache_type,
-                    "max_workers": self._max_workers,
-                },
-                chunksize=self._chunksize,
-                **self._kwargs,
-            )
+            return pd.read_csv(self.output_location, **read_csv_kwargs)
         except Exception as e:
             _logger.exception(f"Failed to read {self.output_location}.")
+            # Check for integer overflow related errors and suggest solutions
+            error_msg = str(e).lower()
+            if any(
+                phrase in error_msg
+                for phrase in ["signed integer", "maximum", "overflow", "int32", "c parser"]
+            ):
+                detailed_msg = (
+                    f"Large dataset processing error: {e}. "
+                    f"This is likely due to pandas C parser limitations with very large files. "
+                    f"Try using chunksize or PyArrow engine: "
+                    f"cursor = connection.cursor(PandasCursor, chunksize=100000, engine='pyarrow')"
+                )
+                raise OperationalError(detailed_msg) from e
             raise OperationalError(*e.args) from e
 
     def _read_parquet(self, engine) -> "DataFrame":
@@ -373,7 +532,7 @@ class AthenaPandasResultSet(AthenaResultSet):
 
     def _as_pandas(self) -> Union["TextFileReader", "DataFrame"]:
         if self.is_unload:
-            engine = self._get_engine()
+            engine = self._get_parquet_engine()
             df = self._read_parquet(engine)
             if df.empty:
                 self._metadata = ()
