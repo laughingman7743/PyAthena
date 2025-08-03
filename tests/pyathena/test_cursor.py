@@ -1029,16 +1029,16 @@ class TestComplexDataTypes:
         "query,description",
         [
             (
-                "SELECT CAST(ARRAY[1, 2, 3] AS JSON) AS json_array",
-                "json_array",
+                "SELECT CAST(ARRAY[1, 2, 3] AS JSON) AS arr_json",
+                "arr_json",
             ),
             (
-                "SELECT CAST(ARRAY['a', 'b', 'c'] AS JSON) AS json_string_array",
-                "json_string_array",
+                "SELECT CAST(ARRAY['a', 'b', 'c'] AS JSON) AS str_arr_json",
+                "str_arr_json",
             ),
             (
-                "SELECT CAST(ARRAY[ROW(1, 'Alice'), ROW(2, 'Bob')] AS JSON) AS json_struct_array",
-                "json_struct_array",
+                "SELECT CAST(ARRAY[ROW(1, 'Alice'), ROW(2, 'Bob')] AS JSON) AS struct_arr_json",
+                "struct_arr_json",
             ),
         ],
     )
