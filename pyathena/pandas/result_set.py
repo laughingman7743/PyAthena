@@ -89,7 +89,16 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
 
 
 class AthenaPandasResultSet(AthenaResultSet):
-    _parse_dates: List[str] = [
+    # File size thresholds and chunking configuration
+    _PYARROW_MIN_FILE_SIZE_BYTES: int = 100
+    _LARGE_FILE_THRESHOLD_BYTES: int = 50 * 1024 * 1024
+    _ESTIMATED_BYTES_PER_ROW: int = 100
+    _AUTO_CHUNK_THRESHOLD_LARGE: int = 2_000_000
+    _AUTO_CHUNK_THRESHOLD_MEDIUM: int = 1_000_000
+    _AUTO_CHUNK_SIZE_LARGE: int = 100_000
+    _AUTO_CHUNK_SIZE_MEDIUM: int = 50_000
+
+    _PARSE_DATES: List[str] = [
         "date",
         "time",
         "time with time zone",
@@ -148,24 +157,118 @@ class AthenaPandasResultSet(AthenaResultSet):
             self._df_iter = DataFrameIterator(pd.DataFrame(), _no_trunc_date)
         self._iterrows = self._df_iter.iterrows()
 
-    def _get_engine(self) -> "str":
-        if self._engine == "auto":
-            import importlib
+    def _get_parquet_engine(self) -> str:
+        """Get the parquet engine to use, handling auto-detection.
 
-            error_msgs = ""
-            for engine in ["pyarrow", "fastparquet"]:
-                try:
-                    module = importlib.import_module(engine)
-                    return module.__name__
-                except ImportError as e:
-                    error_msgs += f"\n - {str(e)}"
-            raise ImportError(
-                "Unable to find a usable engine; tried using: 'pyarrow', 'fastparquet'.\n"
-                "A suitable version of pyarrow or fastparquet is required for parquet support.\n"
-                "Trying to import the above resulted in these errors:"
-                f"{error_msgs}"
-            )
+        Returns:
+            Name of the parquet engine to use ('pyarrow' or 'fastparquet').
+
+        Raises:
+            ImportError: If no suitable parquet engine is available.
+        """
+        if self._engine == "auto":
+            return self._get_available_engine(["pyarrow", "fastparquet"])
         return self._engine
+
+    def _get_csv_engine(
+        self, file_size_bytes: Optional[int] = None, chunksize: Optional[int] = None
+    ) -> str:
+        """Determine the appropriate CSV engine based on configuration and compatibility.
+
+        Args:
+            file_size_bytes: Size of the CSV file in bytes.
+            chunksize: Chunksize parameter (overrides self._chunksize if provided).
+
+        Returns:
+            CSV engine name ('pyarrow', 'c', or 'python').
+        """
+        effective_chunksize = chunksize if chunksize is not None else self._chunksize
+
+        if self._engine == "pyarrow":
+            return self._get_pyarrow_engine(file_size_bytes, effective_chunksize)
+
+        if self._engine in ("c", "python"):
+            return self._engine
+
+        # Auto-selection for "auto" or unknown engine values
+        return self._get_optimal_csv_engine(file_size_bytes)
+
+    def _get_pyarrow_engine(self, file_size_bytes: Optional[int], chunksize: Optional[int]) -> str:
+        """Get PyArrow engine if compatible, otherwise return optimal engine."""
+        # Check parameter compatibility
+        if chunksize is not None or self._quoting != 1 or self.converters:
+            return self._get_optimal_csv_engine(file_size_bytes)
+
+        # Check file size compatibility
+        if file_size_bytes is not None and file_size_bytes < self._PYARROW_MIN_FILE_SIZE_BYTES:
+            return self._get_optimal_csv_engine(file_size_bytes)
+
+        # Check availability
+        try:
+            return self._get_available_engine(["pyarrow"])
+        except ImportError:
+            return self._get_optimal_csv_engine(file_size_bytes)
+
+    def _get_available_engine(self, engine_candidates: List[str]) -> str:
+        """Get the first available engine from a list of candidates.
+
+        Args:
+            engine_candidates: List of engine names to try in order.
+
+        Returns:
+            First available engine name.
+
+        Raises:
+            ImportError: If no engines are available.
+        """
+        import importlib
+
+        error_msgs = ""
+        for engine in engine_candidates:
+            try:
+                module = importlib.import_module(engine)
+                return module.__name__
+            except ImportError as e:
+                error_msgs += f"\n - {str(e)}"
+
+        available_engines = ", ".join(f"'{e}'" for e in engine_candidates)
+        raise ImportError(
+            f"Unable to find a usable engine; tried using: {available_engines}."
+            f"Trying to import the above resulted in these errors:"
+            f"{error_msgs}"
+        )
+
+    def _get_optimal_csv_engine(self, file_size_bytes: Optional[int] = None) -> str:
+        """Get the optimal CSV engine based on file size.
+
+        Args:
+            file_size_bytes: Size of the CSV file in bytes.
+
+        Returns:
+            'python' for large files (>50MB) to avoid C parser limits, otherwise 'c'.
+        """
+        if file_size_bytes and file_size_bytes > self._LARGE_FILE_THRESHOLD_BYTES:
+            return "python"
+        return "c"
+
+    def _auto_determine_chunksize(self, file_size_bytes: int) -> Optional[int]:
+        """Determine appropriate chunksize for large files.
+
+        Args:
+            file_size_bytes: Size of the result file in bytes.
+
+        Returns:
+            Suggested chunksize or None if chunking is not needed.
+        """
+        if file_size_bytes <= self._LARGE_FILE_THRESHOLD_BYTES:
+            return None
+
+        estimated_rows = file_size_bytes // self._ESTIMATED_BYTES_PER_ROW
+        if estimated_rows > self._AUTO_CHUNK_THRESHOLD_LARGE:
+            return self._AUTO_CHUNK_SIZE_LARGE
+        if estimated_rows > self._AUTO_CHUNK_THRESHOLD_MEDIUM:
+            return self._AUTO_CHUNK_SIZE_MEDIUM
+        return None
 
     def __s3_file_system(self):
         from pyathena.filesystem.s3 import S3FileSystem
@@ -200,7 +303,7 @@ class AthenaPandasResultSet(AthenaResultSet):
     @property
     def parse_dates(self) -> List[Optional[Any]]:
         description = self.description if self.description else []
-        return [d[0] for d in description if d[1] in self._parse_dates]
+        return [d[0] for d in description if d[1] in self._PARSE_DATES]
 
     def _trunc_date(self, df: "DataFrame") -> "DataFrame":
         description = self.description if self.description else []
@@ -264,6 +367,9 @@ class AthenaPandasResultSet(AthenaResultSet):
         ):
             return pd.DataFrame()
         length = self._get_content_length()
+        if length == 0:
+            return pd.DataFrame()
+
         if length and self.output_location.endswith(".txt"):
             sep = "\t"
             header = None
@@ -275,30 +381,61 @@ class AthenaPandasResultSet(AthenaResultSet):
             names = None
         else:
             return pd.DataFrame()
+
+        effective_chunksize = self._chunksize
+        if effective_chunksize is None and length:
+            effective_chunksize = self._auto_determine_chunksize(length)
+
+        csv_engine = self._get_csv_engine(length, effective_chunksize)
+        read_csv_kwargs = {
+            "sep": sep,
+            "header": header,
+            "names": names,
+            "dtype": self.dtypes,
+            "converters": self.converters,
+            "parse_dates": self.parse_dates,
+            "skip_blank_lines": False,
+            "keep_default_na": self._keep_default_na,
+            "na_values": self._na_values,
+            "quoting": self._quoting,
+            "storage_options": {
+                "connection": self.connection,
+                "default_block_size": self._block_size,
+                "default_cache_type": self._cache_type,
+                "max_workers": self._max_workers,
+            },
+            "chunksize": effective_chunksize,
+            "engine": csv_engine,
+        }
+
+        if csv_engine == "pyarrow":
+            read_csv_kwargs.pop("quoting", None)
+            read_csv_kwargs.pop("converters", None)
+        if (
+            csv_engine == "python"
+            and effective_chunksize is None
+            and length
+            and length > self._LARGE_FILE_THRESHOLD_BYTES
+        ):
+            read_csv_kwargs["low_memory"] = False
+        read_csv_kwargs.update(self._kwargs)
+
         try:
-            return pd.read_csv(
-                self.output_location,
-                sep=sep,
-                header=header,
-                names=names,
-                dtype=self.dtypes,
-                converters=self.converters,
-                parse_dates=self.parse_dates,
-                skip_blank_lines=False,
-                keep_default_na=self._keep_default_na,
-                na_values=self._na_values,
-                quoting=self._quoting,
-                storage_options={
-                    "connection": self.connection,
-                    "default_block_size": self._block_size,
-                    "default_cache_type": self._cache_type,
-                    "max_workers": self._max_workers,
-                },
-                chunksize=self._chunksize,
-                **self._kwargs,
-            )
+            return pd.read_csv(self.output_location, **read_csv_kwargs)
         except Exception as e:
             _logger.exception(f"Failed to read {self.output_location}.")
+            error_msg = str(e).lower()
+            if any(
+                phrase in error_msg
+                for phrase in ["signed integer", "maximum", "overflow", "int32", "c parser"]
+            ):
+                detailed_msg = (
+                    f"Large dataset processing error: {e}. "
+                    f"This is likely due to pandas C parser limitations with very large files. "
+                    f"Try using chunksize or PyArrow engine: "
+                    f"cursor = connection.cursor(PandasCursor, chunksize=100000, engine='pyarrow')"
+                )
+                raise OperationalError(detailed_msg) from e
             raise OperationalError(*e.args) from e
 
     def _read_parquet(self, engine) -> "DataFrame":
@@ -373,7 +510,7 @@ class AthenaPandasResultSet(AthenaResultSet):
 
     def _as_pandas(self) -> Union["TextFileReader", "DataFrame"]:
         if self.is_unload:
-            engine = self._get_engine()
+            engine = self._get_parquet_engine()
             df = self._read_parquet(engine)
             if df.empty:
                 self._metadata = ()
