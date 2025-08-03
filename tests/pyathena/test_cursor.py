@@ -999,8 +999,8 @@ class TestComplexDataTypes:
                 "unnamed_struct_array",
             ),
             (
-                "SELECT ARRAY[{name: 'John', age: 25}, {name: 'Jane', age: 30}] "
-                "AS named_struct_array",
+                "SELECT ARRAY[CAST(ROW('John', 25) AS ROW(name VARCHAR, age INT)), "
+                "CAST(ROW('Jane', 30) AS ROW(name VARCHAR, age INT))] AS named_struct_array",
                 "named_struct_array",
             ),
         ],
@@ -1105,7 +1105,10 @@ class TestComplexDataTypes:
         assert simple_array == [1, 2, 3]
 
         # Test array with struct conversion
-        cursor.execute("SELECT ARRAY[{a: 1, b: 2}, {a: 3, b: 4}] AS struct_array")
+        cursor.execute(
+            "SELECT ARRAY[CAST(ROW(1, 2) AS ROW(a INT, b INT)), "
+            "CAST(ROW(3, 4) AS ROW(a INT, b INT))] AS struct_array"
+        )
         result = cursor.fetchone()
         struct_array = result[0]
         _logger.info(f"Struct array: {struct_array!r}")
@@ -1117,7 +1120,7 @@ class TestComplexDataTypes:
         test_cases = [
             ("[1, 2, 3]", [1, 2, 3]),
             ('["a", "b", "c"]', ["a", "b", "c"]),
-            ("[{a: 1, b: 2}]", [{"a": 1, "b": 2}]),
+            ("[{a=1, b=2}]", [{"a": 1, "b": 2}]),
             ("[]", []),
             (None, None),
             ("invalid", None),
