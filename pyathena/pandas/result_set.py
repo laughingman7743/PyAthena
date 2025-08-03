@@ -230,7 +230,16 @@ class AthenaPandasResultSet(AthenaResultSet):
         Returns:
             CSV engine to use ('pyarrow', 'c', or 'python').
         """
-        # Try PyArrow first (best performance and memory efficiency)
+        # PyArrow engine doesn't support chunksize, so avoid it when chunking is needed
+        if self._chunksize is not None:
+            # When chunking is required, choose between C and Python based on file size
+            if file_size_bytes and file_size_bytes > 50 * 1024 * 1024:  # 50MB+
+                # Use Python engine for large files to avoid C parser int32 limits
+                return "python"
+            # Use C engine for smaller files (better performance)
+            return "c"
+
+        # Try PyArrow first (best performance and memory efficiency) when not chunking
         try:
             self._get_available_engine(["pyarrow"])
             return "pyarrow"
@@ -376,11 +385,14 @@ class AthenaPandasResultSet(AthenaResultSet):
         # Auto-determine chunksize if not set and file is large
         effective_chunksize = self._chunksize
         use_auto_chunking = False
+        original_chunksize = self._chunksize  # Store original value
         if effective_chunksize is None and length:
             auto_chunksize = self._auto_determine_chunksize(length)
             if auto_chunksize:
                 effective_chunksize = auto_chunksize
                 use_auto_chunking = True
+                # Temporarily set _chunksize so _get_csv_engine can see it
+                self._chunksize = auto_chunksize
                 _logger.info(
                     f"Large file detected ({length} bytes). "
                     f"Automatically using chunksize={auto_chunksize} for better performance."
@@ -459,6 +471,9 @@ class AthenaPandasResultSet(AthenaResultSet):
                 )
                 raise OperationalError(detailed_msg) from e
             raise OperationalError(*e.args) from e
+        finally:
+            # Restore original chunksize value
+            self._chunksize = original_chunksize
 
     def _read_parquet(self, engine) -> "DataFrame":
         import pandas as pd

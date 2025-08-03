@@ -916,6 +916,7 @@ class TestPandasCursor:
         with patch('pyathena.pandas.result_set.AthenaResultSet.__init__'):
             result_set = AthenaPandasResultSet.__new__(AthenaPandasResultSet)
             result_set._engine = "auto"
+            result_set._chunksize = None  # No chunking by default
             
             # Small file should prefer C engine (when PyArrow unavailable)
             with patch.object(result_set, '_get_available_engine', side_effect=ImportError):
@@ -927,13 +928,24 @@ class TestPandasCursor:
                 engine = result_set._get_optimal_csv_engine(100 * 1024 * 1024)  # 100MB
                 assert engine == "python"
             
-            # When PyArrow available, should always prefer it
+            # When PyArrow available and no chunking, should always prefer it
             with patch.object(result_set, '_get_available_engine', return_value="pyarrow"):
                 engine = result_set._get_optimal_csv_engine(1024)
                 assert engine == "pyarrow"
                 
                 engine = result_set._get_optimal_csv_engine(100 * 1024 * 1024)
                 assert engine == "pyarrow"
+            
+            # When chunking is enabled, should avoid PyArrow (compatibility issue)
+            result_set._chunksize = 1000
+            with patch.object(result_set, '_get_available_engine', return_value="pyarrow"):
+                # Small file with chunking should use C engine
+                engine = result_set._get_optimal_csv_engine(1024)
+                assert engine == "c"
+                
+                # Large file with chunking should use Python engine
+                engine = result_set._get_optimal_csv_engine(100 * 1024 * 1024)
+                assert engine == "python"
 
     def test_auto_determine_chunksize(self):
         """Test _auto_determine_chunksize method behavior."""
