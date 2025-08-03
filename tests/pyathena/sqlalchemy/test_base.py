@@ -159,9 +159,13 @@ class TestSQLAlchemyAthena:
         engine, conn = engine
         meta = MetaData(schema=ENV.schema)
         meta.reflect(bind=engine)
-        assert "one_row" in meta.tables
-        assert "one_row_complex" in meta.tables
-        assert "view_one_row" not in meta.tables
+        # With schema specified, table names are schema-qualified
+        schema_qualified_one_row = f"{ENV.schema}.one_row"
+        schema_qualified_one_row_complex = f"{ENV.schema}.one_row_complex"
+        schema_qualified_view_one_row = f"{ENV.schema}.view_one_row"
+        assert schema_qualified_one_row in meta.tables
+        assert schema_qualified_one_row_complex in meta.tables
+        assert schema_qualified_view_one_row not in meta.tables
 
         insp = sqlalchemy.inspect(engine)
         assert "many_rows" in insp.get_table_names(schema=ENV.schema)
@@ -170,9 +174,13 @@ class TestSQLAlchemyAthena:
         engine, conn = engine
         meta = MetaData(schema=ENV.schema)
         meta.reflect(bind=engine, views=True)
-        assert "one_row" in meta.tables
-        assert "one_row_complex" in meta.tables
-        assert "view_one_row" in meta.tables
+        # With schema specified, table names are schema-qualified
+        schema_qualified_one_row = f"{ENV.schema}.one_row"
+        schema_qualified_one_row_complex = f"{ENV.schema}.one_row_complex"
+        schema_qualified_view_one_row = f"{ENV.schema}.view_one_row"
+        assert schema_qualified_one_row in meta.tables
+        assert schema_qualified_one_row_complex in meta.tables
+        assert schema_qualified_view_one_row in meta.tables
 
         insp = sqlalchemy.inspect(engine)
         actual = insp.get_view_names(schema=ENV.schema)
