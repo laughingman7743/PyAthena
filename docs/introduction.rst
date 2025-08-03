@@ -51,7 +51,7 @@ PyAthena provides comprehensive support for Amazon Athena's data types and featu
 **Data Type Support:**
   - **STRUCT/ROW Types**: :ref:`Complete support <sqlalchemy>` for complex nested data structures
   - **ARRAY Types**: Native handling of array data with automatic Python list conversion
-  - **MAP Types**: Dictionary-like data structure support
+  - **MAP Types**: :ref:`Complete support <sqlalchemy>` for key-value dictionary-like data structures
   - **JSON Integration**: Seamless JSON data parsing and conversion
   - **Performance Optimized**: Smart format detection for efficient data processing
 

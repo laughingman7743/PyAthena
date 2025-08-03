@@ -77,3 +77,32 @@ class AthenaStruct(TypeEngine[Dict[str, Any]]):
 
 class STRUCT(AthenaStruct):
     __visit_name__ = "STRUCT"
+
+
+class AthenaMap(TypeEngine[Dict[str, Any]]):
+    __visit_name__ = "map"
+
+    def __init__(self, key_type: Any = None, value_type: Any = None) -> None:
+        if key_type is None:
+            self.key_type: TypeEngine[Any] = sqltypes.String()
+        elif isinstance(key_type, TypeEngine):
+            self.key_type = key_type
+        else:
+            # Assume it's a SQLAlchemy type class and instantiate it
+            self.key_type = key_type()
+
+        if value_type is None:
+            self.value_type: TypeEngine[Any] = sqltypes.String()
+        elif isinstance(value_type, TypeEngine):
+            self.value_type = value_type
+        else:
+            # Assume it's a SQLAlchemy type class and instantiate it
+            self.value_type = value_type()
+
+    @property
+    def python_type(self) -> type:
+        return dict
+
+
+class MAP(AthenaMap):
+    __visit_name__ = "MAP"

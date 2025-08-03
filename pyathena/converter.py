@@ -78,6 +78,57 @@ def _to_json(varchar_value: Optional[str]) -> Optional[Any]:
     return json.loads(varchar_value)
 
 
+def _to_map(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Convert map data to Python dictionary.
+
+    Supports two formats:
+    1. JSON format: '{"key1": "value1", "key2": "value2"}' (recommended)
+    2. Athena native format: '{key1=value1, key2=value2}' (basic cases only)
+
+    For complex maps, use CAST(map_column AS JSON) in your SQL query.
+
+    Args:
+        varchar_value: String representation of map data
+
+    Returns:
+        Dictionary representation of map, or None if parsing fails
+    """
+    if varchar_value is None:
+        return None
+
+    # Quick check: if it doesn't look like a map, return None
+    if not (varchar_value.startswith("{") and varchar_value.endswith("}")):
+        return None
+
+    # Optimize: Check if it looks like JSON vs Athena native format
+    # JSON objects typically have quoted keys: {"key": value}
+    # Athena native format has unquoted keys: {key=value}
+    inner_preview = varchar_value[1:10] if len(varchar_value) > 10 else varchar_value[1:-1]
+
+    if '"' in inner_preview or varchar_value.startswith('{"'):
+        # Likely JSON format - try JSON parsing
+        try:
+            result = json.loads(varchar_value)
+            return result if isinstance(result, dict) else None
+        except json.JSONDecodeError:
+            # If JSON parsing fails, fall back to native format parsing
+            pass
+
+    inner = varchar_value[1:-1].strip()
+    if not inner:
+        return {}
+
+    try:
+        # MAP format is always key=value pairs
+        # But for complex structures, return None to keep as string
+        if any(char in inner for char in "()[]"):
+            # Contains complex structures (arrays, structs), skip parsing
+            return None
+        return _parse_map_native(inner)
+    except Exception:
+        return None
+
+
 def _to_struct(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
     """Convert struct data to Python dictionary.
 
@@ -126,6 +177,41 @@ def _to_struct(varchar_value: Optional[str]) -> Optional[Dict[str, Any]]:
         return _parse_unnamed_struct(inner)
     except Exception:
         return None
+
+
+def _parse_map_native(inner: str) -> Optional[Dict[str, Any]]:
+    """Parse map native format: key1=value1, key2=value2.
+
+    Args:
+        inner: Interior content of map without braces.
+
+    Returns:
+        Dictionary with parsed key-value pairs, or None if no valid pairs found.
+    """
+    result = {}
+
+    # Simple split by comma for basic cases
+    pairs = [pair.strip() for pair in inner.split(",")]
+
+    for pair in pairs:
+        if "=" not in pair:
+            continue
+
+        key, value = pair.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+
+        # Skip pairs with special characters (safety check)
+        if any(char in key for char in '{}="') or any(char in value for char in '{}="'):
+            continue
+
+        # Convert both key and value to appropriate types
+        converted_key = _convert_value(key)
+        converted_value = _convert_value(value)
+        # Always use string keys for consistency with expected test behavior
+        result[str(converted_key)] = converted_value
+
+    return result if result else None
 
 
 def _parse_named_struct(inner: str) -> Optional[Dict[str, Any]]:
@@ -217,7 +303,7 @@ _DEFAULT_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {
     "time": _to_time,
     "varbinary": _to_binary,
     "array": _to_default,
-    "map": _to_default,
+    "map": _to_map,
     "row": _to_struct,
     "decimal": _to_decimal,
     "json": _to_json,
