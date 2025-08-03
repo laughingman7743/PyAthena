@@ -205,8 +205,7 @@ class AthenaPandasResultSet(AthenaResultSet):
 
         # Check availability
         try:
-            self._get_available_engine(["pyarrow"])
-            return "pyarrow"
+            return self._get_available_engine(["pyarrow"])
         except ImportError:
             return self._get_optimal_csv_engine(file_size_bytes)
 
