@@ -1407,3 +1407,16 @@ class TestPandasCursor:
             """
         )
         assert pandas_cursor.fetchall() == [(1,)]
+
+    def test_execute_with_callback(self, pandas_cursor):
+        """Test that callback is invoked with query_id when on_start_query_execution is provided."""
+        callback_results = []
+
+        def test_callback(query_id: str):
+            callback_results.append(query_id)
+
+        pandas_cursor.execute("SELECT 1", on_start_query_execution=test_callback)
+
+        assert len(callback_results) == 1
+        assert callback_results[0] == pandas_cursor.query_id
+        assert pandas_cursor.query_id is not None

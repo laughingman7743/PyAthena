@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 from pyathena.common import BaseCursor, CursorIterator
 from pyathena.error import OperationalError, ProgrammingError
@@ -25,6 +25,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         kill_on_interrupt: bool = True,
         result_reuse_enable: bool = False,
         result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
+        on_start_query_execution: Optional[Callable[[str], None]] = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -43,6 +44,7 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaResultSet] = None
         self._result_set_class = AthenaResultSet
+        self._on_start_query_execution = on_start_query_execution
 
     @property
     def result_set(self) -> Optional[AthenaResultSet]:
@@ -83,8 +85,34 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         result_reuse_enable: Optional[bool] = None,
         result_reuse_minutes: Optional[int] = None,
         paramstyle: Optional[str] = None,
+        on_start_query_execution: Optional[Callable[[str], None]] = None,
         **kwargs,
     ) -> Cursor:
+        """Execute a SQL query.
+
+        Args:
+            operation: SQL query string to execute
+            parameters: Query parameters (optional)
+            on_start_query_execution: Callback function called immediately after
+                                    start_query_execution API is called.
+                                    Function signature: (query_id: str) -> None
+                                    This allows early access to query_id for
+                                    monitoring/cancellation.
+            **kwargs: Additional execution parameters
+
+        Returns:
+            Cursor: Self reference for method chaining
+
+        Example with callback for early query ID access:
+            def on_execution_started(query_id):
+                print(f"Query execution started: {query_id}")
+                # Store query_id for potential cancellation from another thread
+                global current_query_id
+                current_query_id = query_id
+
+            cursor.execute("SELECT * FROM large_table",
+                         on_start_query_execution=on_execution_started)
+        """
         self._reset_state()
         self.query_id = self._execute(
             operation,
@@ -97,6 +125,14 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
             result_reuse_minutes=result_reuse_minutes,
             paramstyle=paramstyle,
         )
+
+        # Call user callbacks immediately after start_query_execution
+        # Both connection-level and execute-level callbacks are invoked if set
+        if self._on_start_query_execution:
+            self._on_start_query_execution(self.query_id)
+        if on_start_query_execution:
+            on_start_query_execution(self.query_id)
+
         query_execution = cast(AthenaQueryExecution, self._poll(self.query_id))
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
             self.result_set = self._result_set_class(

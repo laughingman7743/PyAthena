@@ -4,13 +4,14 @@ import textwrap
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
+from typing import List
 from urllib.parse import quote_plus
 
 import numpy as np
 import pandas as pd
 import pytest
 import sqlalchemy
-from sqlalchemy import func, select, types
+from sqlalchemy import create_engine, func, select, text, types
 from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.ddl import CreateTable
@@ -2206,3 +2207,57 @@ SELECT {ENV.schema}.{table_name}.id, {ENV.schema}.{table_name}.name \n\
             "tags ARRAY<STRING>)>>"
         )
         assert expected_type in ddl_string
+
+    def test_sqlalchemy_execute_with_execution_options_callback(self, engine):
+        """Test callback functionality through SQLAlchemy execution_options."""
+        engine, conn = engine
+        query_ids: List[str] = []
+
+        def callback_function(query_id: str) -> None:
+            query_ids.append(query_id)
+
+        # Test SQLAlchemy execution_options with callback
+        result = conn.execute(
+            text("SELECT 2 as test_column").execution_options(
+                on_start_query_execution=callback_function
+            )
+        )
+        rows = result.fetchall()
+
+        # Verify query executed successfully
+        assert len(rows) == 1
+        assert rows[0].test_column == 2
+
+        # Verify callback was called through execution_options
+        assert len(query_ids) == 1
+        assert query_ids[0] is not None
+        assert isinstance(query_ids[0], str)
+
+    def test_sqlalchemy_connection_level_callback(self, engine):
+        """Test connection-level callback functionality through SQLAlchemy engine creation."""
+        query_ids: List[str] = []
+
+        def callback_function(query_id: str) -> None:
+            query_ids.append(query_id)
+
+        # Get the existing engine configuration from fixture
+        existing_engine, _ = engine
+
+        # Create a new engine with the same URL but add callback via connect_args
+        engine_with_callback = create_engine(
+            existing_engine.url, connect_args={"on_start_query_execution": callback_function}
+        )
+
+        with engine_with_callback.connect() as conn:
+            # Execute a simple query that should trigger the connection-level callback
+            result = conn.execute(text("SELECT 3 as connection_test"))
+            rows = result.fetchall()
+
+            # Verify query executed successfully
+            assert len(rows) == 1
+            assert rows[0].connection_test == 3
+
+            # Verify callback was called from connection-level setting
+            assert len(query_ids) == 1
+            assert query_ids[0] is not None
+            assert isinstance(query_ids[0], str)

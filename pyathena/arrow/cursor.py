@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 from pyathena.arrow.converter import (
     DefaultArrowTypeConverter,
@@ -34,6 +34,7 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         unload: bool = False,
         result_reuse_enable: bool = False,
         result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
+        on_start_query_execution: Optional[Callable[[str], None]] = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -50,6 +51,7 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
             **kwargs,
         )
         self._unload = unload
+        self._on_start_query_execution = on_start_query_execution
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaArrowResultSet] = None
 
@@ -106,6 +108,7 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         result_reuse_enable: Optional[bool] = None,
         result_reuse_minutes: Optional[int] = None,
         paramstyle: Optional[str] = None,
+        on_start_query_execution: Optional[Callable[[str], None]] = None,
         **kwargs,
     ) -> ArrowCursor:
         self._reset_state()
@@ -131,6 +134,13 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
             result_reuse_minutes=result_reuse_minutes,
             paramstyle=paramstyle,
         )
+
+        # Call user callbacks immediately after start_query_execution
+        # Both connection-level and execute-level callbacks are invoked if set
+        if self._on_start_query_execution:
+            self._on_start_query_execution(self.query_id)
+        if on_start_query_execution:
+            on_start_query_execution(self.query_id)
         query_execution = cast(AthenaQueryExecution, self._poll(self.query_id))
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
             self.result_set = AthenaArrowResultSet(

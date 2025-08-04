@@ -7,6 +7,7 @@ import time
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Dict,
     Generic,
     List,
@@ -89,6 +90,7 @@ class Connection(Generic[ConnectionCursor]):
         config: Optional[Config] = ...,
         result_reuse_enable: bool = ...,
         result_reuse_minutes: int = ...,
+        on_start_query_execution: Optional[Callable[[str], None]] = ...,
         **kwargs,
     ) -> None: ...
 
@@ -119,6 +121,7 @@ class Connection(Generic[ConnectionCursor]):
         config: Optional[Config] = ...,
         result_reuse_enable: bool = ...,
         result_reuse_minutes: int = ...,
+        on_start_query_execution: Optional[Callable[[str], None]] = ...,
         **kwargs,
     ) -> None: ...
 
@@ -148,6 +151,7 @@ class Connection(Generic[ConnectionCursor]):
         config: Optional[Config] = None,
         result_reuse_enable: bool = False,
         result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
+        on_start_query_execution: Optional[Callable[[str], None]] = None,
         **kwargs,
     ) -> None:
         self._kwargs = {
@@ -239,6 +243,7 @@ class Connection(Generic[ConnectionCursor]):
         self.kill_on_interrupt = kill_on_interrupt
         self.result_reuse_enable = result_reuse_enable
         self.result_reuse_minutes = result_reuse_minutes
+        self.on_start_query_execution = on_start_query_execution
 
     def _assume_role(
         self,
@@ -355,6 +360,9 @@ class Connection(Generic[ConnectionCursor]):
             kill_on_interrupt=kwargs.pop("kill_on_interrupt", self.kill_on_interrupt),
             result_reuse_enable=kwargs.pop("result_reuse_enable", self.result_reuse_enable),
             result_reuse_minutes=kwargs.pop("result_reuse_minutes", self.result_reuse_minutes),
+            on_start_query_execution=kwargs.pop(
+                "on_start_query_execution", self.on_start_query_execution
+            ),
             **kwargs,
         )
 

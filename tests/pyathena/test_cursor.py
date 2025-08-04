@@ -3,6 +3,7 @@ import contextlib
 import json
 import logging
 import re
+import threading
 import time
 from concurrent import futures
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -733,6 +734,113 @@ class TestCursor:
             """
         )
         assert cursor.fetchall() == [(1,)]
+
+    def test_execute_with_callback(self, cursor):
+        """Test execute with on_start_query_execution callback."""
+        callback_results = []
+
+        def on_start(query_id):
+            # Callback should be called immediately after start_query_execution
+            assert query_id is not None
+            assert len(query_id) > 0
+            callback_results.append(query_id)
+
+        # Execute with callback
+        result = cursor.execute("SELECT 1", on_start_query_execution=on_start)
+
+        # Verify callback was called
+        assert len(callback_results) == 1
+        callback_query_id = callback_results[0]
+
+        # Verify the query ID is consistent
+        assert callback_query_id == cursor.query_id
+        assert result is cursor
+
+        # Verify the query completed successfully
+        row = cursor.fetchone()
+        assert row == (1,)
+
+    def test_connection_level_callback(self):
+        """Test connection-level default callback."""
+        callback_results = []
+
+        def connection_callback(query_id):
+            callback_results.append(("connection", query_id))
+
+        # Create connection with callback
+        with contextlib.closing(connect(on_start_query_execution=connection_callback)) as conn:
+            cursor = conn.cursor()
+
+            # Execute without callback - should use connection default
+            cursor.execute("SELECT 3")
+
+            # Verify connection callback was called
+            assert len(callback_results) == 1
+            assert callback_results[0][0] == "connection"
+            assert callback_results[0][1] == cursor.query_id
+
+            row = cursor.fetchone()
+            assert row == (3,)
+
+    def test_multiple_callbacks_invoked(self):
+        """Test that both connection and execute callbacks are invoked when both are set."""
+        connection_callbacks = []
+        execute_callbacks = []
+
+        def connection_callback(query_id):
+            connection_callbacks.append(query_id)
+
+        def execute_callback(query_id):
+            execute_callbacks.append(query_id)
+
+        # Create connection with callback
+        with contextlib.closing(connect(on_start_query_execution=connection_callback)) as conn:
+            cursor = conn.cursor()
+
+            # Execute with specific callback - both should be called
+            cursor.execute("SELECT 4", on_start_query_execution=execute_callback)
+
+            # Verify both callbacks were called
+            assert len(connection_callbacks) == 1
+            assert len(execute_callbacks) == 1
+            assert connection_callbacks[0] == execute_callbacks[0]  # Same query_id
+            assert connection_callbacks[0] == cursor.query_id
+
+    def test_callback_thread_safety(self, cursor):
+        """Test that callback can be used for query ID access from another thread."""
+        query_started = threading.Event()
+        stored_query_id = []
+
+        def on_start(query_id):
+            stored_query_id.append(query_id)
+            query_started.set()
+
+        def verify_query_id():
+            # Wait for query to start
+            query_started.wait(timeout=10)
+
+            # Verify query_id is accessible
+            if stored_query_id:
+                assert stored_query_id[0] == cursor.query_id
+
+        # Use ThreadPoolExecutor for proper thread management
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            # Start verification task
+            verify_future = executor.submit(verify_query_id)
+
+            # Execute query with callback
+            cursor.execute("SELECT 5", on_start_query_execution=on_start)
+
+            # Wait for verification to complete
+            verify_future.result(timeout=5)
+
+        # Verify events occurred
+        assert query_started.is_set()
+        assert len(stored_query_id) == 1
+
+        # Verify query completed successfully
+        row = cursor.fetchone()
+        assert row == (5,)
 
 
 class TestDictCursor:

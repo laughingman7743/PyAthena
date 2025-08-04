@@ -377,6 +377,23 @@ class AthenaDialect(DefaultDialect):
         # Athena has no support for indexes.
         return []  # pragma: no cover
 
+    def do_execute(self, cursor, statement, parameters, context=None):
+        """Execute a statement with support for execution_options."""
+        from sqlalchemy.engine.interfaces import ExecutionContext
+
+        # Check for on_start_query_execution in execution_options
+        on_start_query_execution = None
+        if isinstance(context, ExecutionContext):
+            execution_options = context.execution_options
+            if execution_options is not None:
+                on_start_query_execution = execution_options.get("on_start_query_execution")
+
+        # Execute with callback if specified
+        if on_start_query_execution is not None:
+            cursor.execute(statement, parameters, on_start_query_execution=on_start_query_execution)
+        else:
+            cursor.execute(statement, parameters)
+
     def do_rollback(self, dbapi_connection: "PoolProxiedConnection") -> None:
         # No transactions for Athena
         pass  # pragma: no cover
