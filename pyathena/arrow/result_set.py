@@ -105,12 +105,37 @@ class AthenaArrowResultSet(AthenaResultSet):
                 region=connection.region_name,
             )
         else:
-            fs = fs.S3FileSystem(
-                access_key=connection._kwargs.get("aws_access_key_id"),
-                secret_key=connection._kwargs.get("aws_secret_access_key"),
-                session_token=connection._kwargs.get("aws_session_token"),
-                region=connection.region_name,
-            )
+            # Try explicit credentials first
+            explicit_access_key = connection._kwargs.get("aws_access_key_id")
+            explicit_secret_key = connection._kwargs.get("aws_secret_access_key")
+
+            if explicit_access_key and explicit_secret_key:
+                # Use explicitly provided credentials
+                fs = fs.S3FileSystem(
+                    access_key=explicit_access_key,
+                    secret_key=explicit_secret_key,
+                    session_token=connection._kwargs.get("aws_session_token"),
+                    region=connection.region_name,
+                )
+            else:
+                # Fall back to dynamic credentials from boto3 session
+                # This handles EC2 instance profiles, temporary credentials, etc.
+                try:
+                    credentials = connection.session._session.get_credentials()
+                    if credentials:
+                        fs = fs.S3FileSystem(
+                            access_key=credentials.access_key,
+                            secret_key=credentials.secret_key,
+                            session_token=credentials.token,
+                            region=connection.region_name,
+                        )
+                    else:
+                        # Fall back to default (no explicit credentials)
+                        fs = fs.S3FileSystem(region=connection.region_name)
+                except Exception:
+                    # Fall back to default if credential retrieval fails
+                    fs = fs.S3FileSystem(region=connection.region_name)
+
         return fs
 
     @property
