@@ -356,48 +356,95 @@ You can also specify a callback for individual query executions:
 Query cancellation example
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A common use case is to enable query cancellation from another thread:
+A common use case is to cancel long-running analytical queries after a timeout:
 
 .. code:: python
 
     import time
-    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError
     from pyathena import connect
 
-    # Global variable to store query ID
-    current_query_id = None
-
-    def store_query_id(query_id):
-        global current_query_id
-        current_query_id = query_id
-        print(f"Query started: {query_id}")
-
-    def cancel_after_delay(cursor, delay_seconds):
-        """Cancel query after specified delay."""
-        time.sleep(delay_seconds)
-        if current_query_id:
-            cursor.cancel()
-            print(f"Cancelled query: {current_query_id}")
-
-    cursor = connect(
-        s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
-        region_name="us-west-2",
-        on_start_query_execution=store_query_id
-    ).cursor()
-
-    # Use ThreadPoolExecutor for proper thread management
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        # Start cancellation task (cancel after 10 seconds)
-        cancel_future = executor.submit(cancel_after_delay, cursor, 10)
-
-        try:
-            cursor.execute("SELECT * FROM very_large_table")
-            print("Query completed successfully")
-        except Exception as e:
-            print(f"Query failed or was cancelled: {e}")
+    def cancel_long_running_query():
+        """Example: Cancel a complex analytical query after 10 minutes."""
         
-        # Wait for cancellation task to complete (if needed)
-        cancel_future.result(timeout=1)
+        def track_query_start(query_id):
+            print(f"Long-running analysis started: {query_id}")
+            return query_id
+
+        def monitor_and_cancel(cursor, timeout_minutes):
+            """Monitor query and cancel if it exceeds timeout."""
+            time.sleep(timeout_minutes * 60)  # Convert to seconds
+            try:
+                cursor.cancel()
+                print(f"Query cancelled after {timeout_minutes} minutes timeout")
+            except Exception as e:
+                print(f"Cancellation failed: {e}")
+
+        cursor = connect(
+            s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+            region_name="us-west-2",
+            on_start_query_execution=track_query_start
+        ).cursor()
+
+        # Complex analytical query that might run for a long time
+        long_query = """
+        WITH daily_metrics AS (
+            SELECT 
+                date_trunc('day', timestamp_col) as day,
+                user_id,
+                COUNT(*) as events,
+                AVG(duration) as avg_duration
+            FROM large_events_table 
+            WHERE timestamp_col >= current_date - interval '1' year
+            GROUP BY 1, 2
+        ),
+        user_segments AS (
+            SELECT 
+                user_id,
+                CASE 
+                    WHEN AVG(events) > 100 THEN 'high_activity'
+                    WHEN AVG(events) > 10 THEN 'medium_activity' 
+                    ELSE 'low_activity'
+                END as segment
+            FROM daily_metrics
+            GROUP BY user_id
+        )
+        SELECT 
+            segment,
+            COUNT(DISTINCT user_id) as users,
+            AVG(events) as avg_daily_events
+        FROM daily_metrics dm
+        JOIN user_segments us ON dm.user_id = us.user_id
+        GROUP BY segment
+        ORDER BY avg_daily_events DESC
+        """
+
+        # Use ThreadPoolExecutor for timeout management
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            # Start timeout monitor (cancel after 10 minutes)
+            timeout_future = executor.submit(monitor_and_cancel, cursor, 10)
+
+            try:
+                print("Starting complex analytical query (10-minute timeout)...")
+                cursor.execute(long_query)
+                
+                # Process results
+                results = cursor.fetchall()
+                print(f"Analysis completed successfully: {len(results)} segments found")
+                for row in results:
+                    print(f"  {row[0]}: {row[1]} users, {row[2]:.1f} avg events")
+                    
+            except Exception as e:
+                print(f"Query failed or was cancelled: {e}")
+            finally:
+                # Clean up timeout monitor
+                try:
+                    timeout_future.result(timeout=1)
+                except TimeoutError:
+                    pass  # Monitor is still running, which is fine
+
+    # Run the example
+    cancel_long_running_query()
 
 Multiple callbacks
 ~~~~~~~~~~~~~~~~~~~

@@ -838,59 +838,113 @@ SQLAlchemy applications can use ``execution_options`` to specify callbacks for i
             )
         )
 
-Query monitoring with SQLAlchemy
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Query timeout management with SQLAlchemy
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A practical example for monitoring long-running queries:
+A practical example for managing long-running analytical queries with timeout:
 
 .. code:: python
 
     import time
-    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError
     from sqlalchemy import create_engine, text
 
-    # Global storage for query IDs
-    active_queries = {}
+    def run_analytics_with_timeout():
+        """Run analytics query with automatic timeout and cancellation."""
+        
+        query_info = {'query_id': None, 'connection': None}
+        
+        def track_query_start(query_id):
+            query_info['query_id'] = query_id
+            print(f"Analytics query started: {query_id}")
 
-    def track_query(query_id):
-        active_queries[query_id] = {
-            'start_time': time.time(),
-            'status': 'running'
-        }
-        print(f"Query {query_id} started at {time.ctime()}")
+        def timeout_monitor(timeout_minutes):
+            """Cancel query after timeout period."""
+            time.sleep(timeout_minutes * 60)
+            if query_info['query_id'] and query_info['connection']:
+                try:
+                    # Cancel via raw connection's cursor
+                    cursor = query_info['connection'].connection.cursor()
+                    cursor.cancel()
+                    print(f"Query {query_info['query_id']} cancelled after {timeout_minutes}min timeout")
+                except Exception as e:
+                    print(f"Cancellation attempt failed: {e}")
 
-    def monitor_queries():
-        """Monitor long-running queries"""
-        current_time = time.time()
-        for query_id, info in list(active_queries.items()):
-            if info['status'] == 'running':
-                elapsed = current_time - info['start_time']
-                if elapsed > 300:  # 5 minutes
-                    print(f"Warning: Query {query_id} running for {elapsed:.1f}s")
+        conn_str = "awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/"
+        engine = create_engine(
+            conn_str,
+            connect_args={"on_start_query_execution": track_query_start}
+        )
 
-    conn_str = "awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/"
-    engine = create_engine(
-        conn_str,
-        connect_args={"on_start_query_execution": track_query}
-    )
+        # Complex data processing query
+        analytics_query = text("""
+        WITH monthly_cohorts AS (
+            SELECT 
+                date_trunc('month', first_purchase_date) as cohort_month,
+                user_id,
+                date_trunc('month', purchase_date) as purchase_month,
+                revenue
+            FROM user_purchases 
+            WHERE first_purchase_date >= current_date - interval '2' year
+        ),
+        cohort_data AS (
+            SELECT 
+                cohort_month,
+                purchase_month,
+                COUNT(DISTINCT user_id) as users,
+                SUM(revenue) as total_revenue,
+                date_diff('month', cohort_month, purchase_month) as month_number
+            FROM monthly_cohorts
+            GROUP BY cohort_month, purchase_month
+        )
+        SELECT 
+            cohort_month,
+            month_number,
+            users,
+            total_revenue,
+            ROUND(users * 100.0 / FIRST_VALUE(users) OVER (
+                PARTITION BY cohort_month ORDER BY month_number
+            ), 2) as retention_rate
+        FROM cohort_data
+        WHERE month_number <= 12
+        ORDER BY cohort_month, month_number
+        """)
 
-    # Use ThreadPoolExecutor for background monitoring
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        with engine.connect() as connection:
-            # Start monitoring task
-            monitor_future = executor.submit(monitor_queries)
-            
-            try:
-                # This query will be tracked
-                result = connection.execute(text("SELECT * FROM very_large_table"))
-                print("Query completed successfully")
-            finally:
-                # Mark queries as completed
-                for query_id in list(active_queries.keys()):
-                    active_queries[query_id]['status'] = 'completed'
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            with engine.connect() as connection:
+                query_info['connection'] = connection
                 
-                # Wait for monitoring to complete
-                monitor_future.result(timeout=1)
+                # Start timeout monitor (15 minutes for complex analytics)
+                timeout_future = executor.submit(timeout_monitor, 15)
+
+                try:
+                    print("Starting cohort analysis (15-minute timeout)...")
+                    result = connection.execute(analytics_query)
+                    
+                    # Process results
+                    rows = result.fetchall()
+                    print(f"Cohort analysis completed: {len(rows)} data points")
+                    
+                    # Show sample results
+                    for i, row in enumerate(rows[:5]):  # First 5 rows
+                        print(f"  Cohort {row.cohort_month}: Month {row.month_number}, "
+                              f"{row.users} users, {row.retention_rate}% retention")
+                    
+                    if len(rows) > 5:
+                        print(f"  ... and {len(rows) - 5} more rows")
+                        
+                except Exception as e:
+                    print(f"Analytics query failed or was cancelled: {e}")
+                finally:
+                    # Clean up
+                    query_info['connection'] = None
+                    try:
+                        timeout_future.result(timeout=1)
+                    except TimeoutError:
+                        pass  # Timeout monitor still running
+
+    # Run the analytics example
+    run_analytics_with_timeout()
 
 Multiple callbacks
 ^^^^^^^^^^^^^^^^^^^
