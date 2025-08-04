@@ -3,6 +3,7 @@ import contextlib
 import json
 import logging
 import re
+import threading
 import time
 from concurrent import futures
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -759,15 +760,6 @@ class TestCursor:
         row = cursor.fetchone()
         assert row == (1,)
 
-    def test_execute_without_callback(self, cursor):
-        """Test normal execute without callback still works."""
-        result = cursor.execute("SELECT 2")
-        assert result is cursor
-        assert cursor.query_id is not None
-
-        row = cursor.fetchone()
-        assert row == (2,)
-
     def test_connection_level_callback(self):
         """Test connection-level default callback."""
         callback_results = []
@@ -790,7 +782,7 @@ class TestCursor:
             row = cursor.fetchone()
             assert row == (3,)
 
-    def test_callback_priority_override(self):
+    def test_multiple_callbacks_invoked(self):
         """Test that both connection and execute callbacks are invoked when both are set."""
         connection_callbacks = []
         execute_callbacks = []
@@ -816,8 +808,6 @@ class TestCursor:
 
     def test_callback_thread_safety(self, cursor):
         """Test that callback can be used for query ID access from another thread."""
-        import threading
-
         query_started = threading.Event()
         stored_query_id = []
 
@@ -833,15 +823,16 @@ class TestCursor:
             if stored_query_id:
                 assert stored_query_id[0] == cursor.query_id
 
-        # Start verification thread
-        verify_thread = threading.Thread(target=verify_query_id)
-        verify_thread.start()
+        # Use ThreadPoolExecutor for proper thread management
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            # Start verification task
+            verify_future = executor.submit(verify_query_id)
 
-        # Execute query with callback
-        cursor.execute("SELECT 5", on_start_query_execution=on_start)
+            # Execute query with callback
+            cursor.execute("SELECT 5", on_start_query_execution=on_start)
 
-        # Wait for threads to complete
-        verify_thread.join(timeout=5)
+            # Wait for verification to complete
+            verify_future.result(timeout=5)
 
         # Verify events occurred
         assert query_started.is_set()
