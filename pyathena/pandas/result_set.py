@@ -89,14 +89,20 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
 
 
 class AthenaPandasResultSet(AthenaResultSet):
-    # File size thresholds and chunking configuration
-    _PYARROW_MIN_FILE_SIZE_BYTES: int = 100
-    _LARGE_FILE_THRESHOLD_BYTES: int = 50 * 1024 * 1024
-    _ESTIMATED_BYTES_PER_ROW: int = 100
-    _AUTO_CHUNK_THRESHOLD_LARGE: int = 2_000_000
-    _AUTO_CHUNK_THRESHOLD_MEDIUM: int = 1_000_000
-    _AUTO_CHUNK_SIZE_LARGE: int = 100_000
-    _AUTO_CHUNK_SIZE_MEDIUM: int = 50_000
+    """Result set that provides pandas DataFrame results with memory optimization support.
+
+    This result set handles CSV and Parquet result files from S3, converting them to
+    pandas DataFrames with configurable chunking for memory-efficient processing.
+    """
+
+    # File size thresholds and chunking configuration - Public for user customization
+    PYARROW_MIN_FILE_SIZE_BYTES: int = 100
+    LARGE_FILE_THRESHOLD_BYTES: int = 50 * 1024 * 1024  # 50MB
+    ESTIMATED_BYTES_PER_ROW: int = 100
+    AUTO_CHUNK_THRESHOLD_LARGE: int = 2_000_000
+    AUTO_CHUNK_THRESHOLD_MEDIUM: int = 1_000_000
+    AUTO_CHUNK_SIZE_LARGE: int = 100_000
+    AUTO_CHUNK_SIZE_MEDIUM: int = 50_000
 
     _PARSE_DATES: List[str] = [
         "date",
@@ -123,8 +129,32 @@ class AthenaPandasResultSet(AthenaResultSet):
         block_size: Optional[int] = None,
         cache_type: Optional[str] = None,
         max_workers: int = (cpu_count() or 1) * 5,
+        auto_optimize_chunksize: bool = False,
         **kwargs,
     ) -> None:
+        """Initialize AthenaPandasResultSet with pandas-specific configurations.
+
+        Args:
+            connection: Database connection instance.
+            converter: Data type converter for Athena types to pandas types.
+            query_execution: Query execution metadata from Athena.
+            arraysize: Number of rows to fetch in each batch (not used for pandas processing).
+            retry_config: Retry configuration for S3 operations.
+            keep_default_na: pandas option for handling NA values.
+            na_values: Additional values to recognize as NA.
+            quoting: CSV quoting behavior.
+            unload: Whether result uses UNLOAD statement (Parquet format).
+            unload_location: S3 location for UNLOAD results.
+            engine: Parsing engine ('auto', 'c', 'python', 'pyarrow').
+            chunksize: Number of rows per chunk. If specified, takes precedence
+                      over auto_optimize_chunksize.
+            block_size: S3 read block size.
+            cache_type: S3 caching strategy.
+            max_workers: Maximum worker threads for parallel operations.
+            auto_optimize_chunksize: Enable automatic chunksize determination
+                                   for large files when chunksize is None.
+            **kwargs: Additional arguments passed to pandas.read_csv/read_parquet.
+        """
         super().__init__(
             connection=connection,
             converter=converter,
@@ -144,6 +174,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._block_size = block_size
         self._cache_type = cache_type
         self._max_workers = max_workers
+        self._auto_optimize_chunksize = auto_optimize_chunksize
         self._data_manifest: List[str] = []
         self._kwargs = kwargs
         self._fs = self.__s3_file_system()
@@ -200,7 +231,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             return self._get_optimal_csv_engine(file_size_bytes)
 
         # Check file size compatibility
-        if file_size_bytes is not None and file_size_bytes < self._PYARROW_MIN_FILE_SIZE_BYTES:
+        if file_size_bytes is not None and file_size_bytes < self.PYARROW_MIN_FILE_SIZE_BYTES:
             return self._get_optimal_csv_engine(file_size_bytes)
 
         # Check availability
@@ -247,12 +278,16 @@ class AthenaPandasResultSet(AthenaResultSet):
         Returns:
             'python' for large files (>50MB) to avoid C parser limits, otherwise 'c'.
         """
-        if file_size_bytes and file_size_bytes > self._LARGE_FILE_THRESHOLD_BYTES:
+        if file_size_bytes and file_size_bytes > self.LARGE_FILE_THRESHOLD_BYTES:
             return "python"
         return "c"
 
     def _auto_determine_chunksize(self, file_size_bytes: int) -> Optional[int]:
-        """Determine appropriate chunksize for large files.
+        """Determine appropriate chunksize for large files based on file size.
+
+        This method provides a simple file-size-based chunksize determination.
+        Users can customize the thresholds and chunk sizes by modifying the class
+        attributes (e.g., LARGE_FILE_THRESHOLD_BYTES, AUTO_CHUNK_SIZE_LARGE).
 
         Args:
             file_size_bytes: Size of the result file in bytes.
@@ -260,14 +295,16 @@ class AthenaPandasResultSet(AthenaResultSet):
         Returns:
             Suggested chunksize or None if chunking is not needed.
         """
-        if file_size_bytes <= self._LARGE_FILE_THRESHOLD_BYTES:
+        if file_size_bytes <= self.LARGE_FILE_THRESHOLD_BYTES:
             return None
 
-        estimated_rows = file_size_bytes // self._ESTIMATED_BYTES_PER_ROW
-        if estimated_rows > self._AUTO_CHUNK_THRESHOLD_LARGE:
-            return self._AUTO_CHUNK_SIZE_LARGE
-        if estimated_rows > self._AUTO_CHUNK_THRESHOLD_MEDIUM:
-            return self._AUTO_CHUNK_SIZE_MEDIUM
+        # Simple file size-based estimation
+        estimated_rows = file_size_bytes // self.ESTIMATED_BYTES_PER_ROW
+
+        if estimated_rows > self.AUTO_CHUNK_THRESHOLD_LARGE:
+            return self.AUTO_CHUNK_SIZE_LARGE
+        if estimated_rows > self.AUTO_CHUNK_THRESHOLD_MEDIUM:
+            return self.AUTO_CHUNK_SIZE_MEDIUM
         return None
 
     def __s3_file_system(self):
@@ -370,21 +407,29 @@ class AthenaPandasResultSet(AthenaResultSet):
         if length == 0:
             return pd.DataFrame()
 
-        if length and self.output_location.endswith(".txt"):
+        if self.output_location.endswith(".txt"):
             sep = "\t"
             header = None
             description = self.description if self.description else []
             names = [d[0] for d in description]
-        elif length and self.output_location.endswith(".csv"):
+        elif self.output_location.endswith(".csv"):
             sep = ","
             header = 0
             names = None
         else:
             return pd.DataFrame()
 
+        # Chunksize determination with user preference priority
         effective_chunksize = self._chunksize
-        if effective_chunksize is None and length:
+
+        # Only auto-optimize if user hasn't specified chunksize AND auto_optimize is enabled
+        if effective_chunksize is None and self._auto_optimize_chunksize:
             effective_chunksize = self._auto_determine_chunksize(length)
+            if effective_chunksize:
+                _logger.debug(
+                    f"Auto-determined chunksize: {effective_chunksize} "
+                    f"for file size: {length} bytes"
+                )
 
         csv_engine = self._get_csv_engine(length, effective_chunksize)
         read_csv_kwargs = {
@@ -408,20 +453,27 @@ class AthenaPandasResultSet(AthenaResultSet):
             "engine": csv_engine,
         }
 
+        # Engine-specific compatibility adjustments
         if csv_engine == "pyarrow":
+            # PyArrow doesn't support these pandas-specific options
             read_csv_kwargs.pop("quoting", None)
             read_csv_kwargs.pop("converters", None)
-        if (
-            csv_engine == "python"
-            and effective_chunksize is None
-            and length
-            and length > self._LARGE_FILE_THRESHOLD_BYTES
-        ):
-            read_csv_kwargs["low_memory"] = False
+
         read_csv_kwargs.update(self._kwargs)
 
         try:
-            return pd.read_csv(self.output_location, **read_csv_kwargs)
+            result = pd.read_csv(self.output_location, **read_csv_kwargs)
+
+            # Log performance information for large files
+            if length > self.LARGE_FILE_THRESHOLD_BYTES:
+                mode = "chunked" if effective_chunksize else "full"
+                _logger.info(
+                    f"Reading {length} bytes from S3 in {mode} mode using {csv_engine} engine"
+                    + (f" with chunksize={effective_chunksize}" if effective_chunksize else "")
+                )
+
+            return result
+
         except Exception as e:
             _logger.exception(f"Failed to read {self.output_location}.")
             error_msg = str(e).lower()
@@ -429,11 +481,19 @@ class AthenaPandasResultSet(AthenaResultSet):
                 phrase in error_msg
                 for phrase in ["signed integer", "maximum", "overflow", "int32", "c parser"]
             ):
+                # Enhanced error message with specific recommendations
+                file_mb = (length or 0) // (1024 * 1024)
                 detailed_msg = (
-                    f"Large dataset processing error: {e}. "
-                    f"This is likely due to pandas C parser limitations with very large files. "
-                    f"Try using chunksize or PyArrow engine: "
-                    f"cursor = connection.cursor(PandasCursor, chunksize=100000, engine='pyarrow')"
+                    f"Large dataset processing error ({file_mb}MB file): {e}. "
+                    "This is likely due to pandas C parser limitations. "
+                    "Recommended solutions:\n"
+                    "1. Set chunksize: cursor = connection.cursor(PandasCursor, chunksize=50000)\n"
+                    "2. Enable auto-optimization: "
+                    "cursor = connection.cursor(PandasCursor, auto_optimize_chunksize=True)\n"
+                    "3. Use PyArrow engine: "
+                    "cursor = connection.cursor(PandasCursor, engine='pyarrow')\n"
+                    "4. Use Python engine: "
+                    "cursor = connection.cursor(PandasCursor, engine='python')"
                 )
                 raise OperationalError(detailed_msg) from e
             raise OperationalError(*e.args) from e
