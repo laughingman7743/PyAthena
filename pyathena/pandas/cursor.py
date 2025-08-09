@@ -35,6 +35,12 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
+    """Cursor for handling pandas DataFrame results from Athena queries.
+
+    This cursor provides memory-efficient DataFrame processing with chunking support
+    and automatic chunksize optimization for large result sets.
+    """
+
     def __init__(
         self,
         s3_staging_dir: Optional[str] = None,
@@ -57,6 +63,32 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         on_start_query_execution: Optional[Callable[[str], None]] = None,
         **kwargs,
     ) -> None:
+        """Initialize PandasCursor with configuration options.
+
+        Args:
+            s3_staging_dir: S3 directory for query result staging.
+            schema_name: Default schema name for queries.
+            catalog_name: Default catalog name for queries.
+            work_group: Athena workgroup name.
+            poll_interval: Query polling interval in seconds.
+            encryption_option: S3 encryption option.
+            kms_key: KMS key for encryption.
+            kill_on_interrupt: Cancel query on interrupt signal.
+            unload: Use UNLOAD statement for faster result retrieval.
+            engine: CSV parsing engine ('auto', 'c', 'python', 'pyarrow').
+            chunksize: Number of rows per chunk for memory-efficient processing.
+                      If specified, takes precedence over auto_optimize_chunksize.
+            block_size: S3 read block size.
+            cache_type: S3 caching strategy.
+            max_workers: Maximum worker threads for parallel processing.
+            result_reuse_enable: Enable query result reuse.
+            result_reuse_minutes: Result reuse duration in minutes.
+            auto_optimize_chunksize: Enable automatic chunksize determination for
+                                   large files. Only effective when chunksize is None.
+                                   Default: False (no automatic chunking).
+            on_start_query_execution: Callback for query start events.
+            **kwargs: Additional arguments passed to pandas.read_csv.
+        """
         super().__init__(
             s3_staging_dir=s3_staging_dir,
             schema_name=schema_name,
@@ -254,19 +286,34 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         in chunks, preventing memory exhaustion when working with datasets that are
         too large to fit in memory as a single DataFrame.
 
-        Yields:
-            DataFrame: Individual chunks of the result set when chunksize is set,
-                      or the entire DataFrame as a single chunk when chunksize is None.
+        Chunking behavior:
+        - If chunksize is explicitly set, uses that value
+        - If auto_optimize_chunksize=True and chunksize=None, automatically determines
+          optimal chunksize based on file size
+        - If auto_optimize_chunksize=False and chunksize=None, yields entire DataFrame
 
-        Example:
-            # Process large result set in chunks
+        Yields:
+            DataFrame: Individual chunks of the result set when chunking is enabled,
+                      or the entire DataFrame as a single chunk when chunking is disabled.
+
+        Examples:
+            # Explicit chunksize
             cursor = connection.cursor(PandasCursor, chunksize=50000)
             cursor.execute("SELECT * FROM large_table")
             for chunk in cursor.iter_chunks():
-                # Process chunk
-                processed_chunk = chunk.groupby('category').sum()
-                # Explicitly delete to free memory
-                del chunk
+                process_chunk(chunk)
+
+            # Auto-optimization enabled
+            cursor = connection.cursor(PandasCursor, auto_optimize_chunksize=True)
+            cursor.execute("SELECT * FROM large_table")
+            for chunk in cursor.iter_chunks():
+                process_chunk(chunk)  # Chunks determined automatically for large files
+
+            # No chunking (default behavior)
+            cursor = connection.cursor(PandasCursor)
+            cursor.execute("SELECT * FROM large_table")
+            for chunk in cursor.iter_chunks():
+                process_chunk(chunk)  # Single DataFrame regardless of size
         """
         if not self.has_result_set:
             raise ProgrammingError("No result set.")

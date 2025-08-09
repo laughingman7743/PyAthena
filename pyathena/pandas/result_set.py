@@ -89,6 +89,12 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
 
 
 class AthenaPandasResultSet(AthenaResultSet):
+    """Result set that provides pandas DataFrame results with memory optimization support.
+
+    This result set handles CSV and Parquet result files from S3, converting them to
+    pandas DataFrames with configurable chunking for memory-efficient processing.
+    """
+
     # File size thresholds and chunking configuration - Public for user customization
     PYARROW_MIN_FILE_SIZE_BYTES: int = 100
     LARGE_FILE_THRESHOLD_BYTES: int = 50 * 1024 * 1024  # 50MB
@@ -126,6 +132,29 @@ class AthenaPandasResultSet(AthenaResultSet):
         auto_optimize_chunksize: bool = False,
         **kwargs,
     ) -> None:
+        """Initialize AthenaPandasResultSet with pandas-specific configurations.
+
+        Args:
+            connection: Database connection instance.
+            converter: Data type converter for Athena types to pandas types.
+            query_execution: Query execution metadata from Athena.
+            arraysize: Number of rows to fetch in each batch (not used for pandas processing).
+            retry_config: Retry configuration for S3 operations.
+            keep_default_na: pandas option for handling NA values.
+            na_values: Additional values to recognize as NA.
+            quoting: CSV quoting behavior.
+            unload: Whether result uses UNLOAD statement (Parquet format).
+            unload_location: S3 location for UNLOAD results.
+            engine: Parsing engine ('auto', 'c', 'python', 'pyarrow').
+            chunksize: Number of rows per chunk. If specified, takes precedence
+                      over auto_optimize_chunksize.
+            block_size: S3 read block size.
+            cache_type: S3 caching strategy.
+            max_workers: Maximum worker threads for parallel operations.
+            auto_optimize_chunksize: Enable automatic chunksize determination
+                                   for large files when chunksize is None.
+            **kwargs: Additional arguments passed to pandas.read_csv/read_parquet.
+        """
         super().__init__(
             connection=connection,
             converter=converter,
@@ -459,9 +488,8 @@ class AthenaPandasResultSet(AthenaResultSet):
                     "This is likely due to pandas C parser limitations. "
                     "Recommended solutions:\n"
                     "1. Set chunksize: cursor = connection.cursor(PandasCursor, chunksize=50000)\n"
-                    "2. Use auto-optimization: "
-                    "cursor = connection.cursor(PandasCursor, chunksize=50000, "
-                    "auto_optimize_chunksize=True)\n"
+                    "2. Enable auto-optimization: "
+                    "cursor = connection.cursor(PandasCursor, auto_optimize_chunksize=True)\n"
                     "3. Use PyArrow engine: "
                     "cursor = connection.cursor(PandasCursor, engine='pyarrow')\n"
                     "4. Use Python engine: "
