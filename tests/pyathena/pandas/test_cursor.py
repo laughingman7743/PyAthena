@@ -1508,18 +1508,9 @@ class TestPandasCursor:
         regular_cursor.execute(query)
         regular_df = regular_cursor.as_pandas()
 
-        # Chunked reading - create a second cursor for chunked processing
-        from pyathena.pandas.cursor import PandasCursor
-
-        chunked_cursor = PandasCursor(
-            s3_staging_dir=pandas_cursor._s3_staging_dir,
-            schema_name=pandas_cursor._schema_name,
-            catalog_name=pandas_cursor._catalog_name,
-            work_group=pandas_cursor._work_group,
-            chunksize=25,
-        )
-        chunked_cursor._connection = pandas_cursor._connection
-        chunked_cursor._converter = pandas_cursor._converter
+        # Chunked reading - reuse the same cursor but set chunksize
+        chunked_cursor = pandas_cursor
+        chunked_cursor._chunksize = 25
         chunked_cursor.execute(query)
         chunked_dfs = list(chunked_cursor.iter_chunks())
 
