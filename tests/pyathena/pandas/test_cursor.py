@@ -1439,9 +1439,11 @@ class TestPandasCursor:
         assert callback_results[0] == pandas_cursor.query_id
         assert pandas_cursor.query_id is not None
 
-    def test_pandas_cursor_auto_optimize_chunksize(self, connection):
+    def test_pandas_cursor_auto_optimize_chunksize(self, pandas_cursor):
         """Test PandasCursor with auto_optimize_chunksize enabled."""
-        cursor = connection.cursor(PandasCursor, chunksize=1000, auto_optimize_chunksize=True)
+        cursor = pandas_cursor
+        cursor._chunksize = 1000
+        cursor._auto_optimize_chunksize = True
         cursor.execute("SELECT number FROM (VALUES (1), (2), (3), (4), (5)) as t(number)")
 
         # Should return iterator when chunksize is set
@@ -1456,9 +1458,10 @@ class TestPandasCursor:
         for chunk in chunks:
             assert isinstance(chunk, pd.DataFrame)
 
-    def test_pandas_cursor_iter_chunks_with_chunksize(self, connection):
+    def test_pandas_cursor_iter_chunks_with_chunksize(self, pandas_cursor):
         """Test PandasCursor iter_chunks method with chunksize set."""
-        cursor = connection.cursor(PandasCursor, chunksize=1000)
+        cursor = pandas_cursor
+        cursor._chunksize = 1000
         cursor.execute("SELECT number FROM (VALUES (1), (2), (3), (4), (5)) as t(number)")
 
         chunk_count = 0
@@ -1469,9 +1472,10 @@ class TestPandasCursor:
 
         assert chunk_count >= 1
 
-    def test_pandas_cursor_iter_chunks_without_chunksize(self, connection):
+    def test_pandas_cursor_iter_chunks_without_chunksize(self, pandas_cursor):
         """Test PandasCursor iter_chunks method without chunksize (single DataFrame)."""
-        cursor = connection.cursor(PandasCursor)  # No chunksize
+        cursor = pandas_cursor
+        cursor._chunksize = None
         cursor.execute("SELECT number FROM (VALUES (1), (2), (3), (4), (5)) as t(number)")
 
         chunk_count = 0
@@ -1483,26 +1487,39 @@ class TestPandasCursor:
         # Should yield exactly one chunk (the entire DataFrame)
         assert chunk_count == 1
 
-    def test_pandas_cursor_auto_optimize_disabled(self, connection):
+    def test_pandas_cursor_auto_optimize_disabled(self, pandas_cursor):
         """Test PandasCursor with auto-optimization disabled (default behavior)."""
-        cursor = connection.cursor(PandasCursor, chunksize=500, auto_optimize_chunksize=False)
+        cursor = pandas_cursor
+        cursor._chunksize = 500
+        cursor._auto_optimize_chunksize = False
         cursor.execute("SELECT 1 as test_col")
 
         # Original chunksize should be preserved
         assert cursor._chunksize == 500
         assert cursor._auto_optimize_chunksize is False
 
-    def test_pandas_cursor_chunked_vs_regular_same_data(self, connection):
+    def test_pandas_cursor_chunked_vs_regular_same_data(self, pandas_cursor):
         """Test that chunked and regular reading produce the same data."""
         query = "SELECT * FROM many_rows LIMIT 100"  # Use a reasonable size for testing
 
         # Regular reading (no chunksize)
-        regular_cursor = connection.cursor(PandasCursor)
+        regular_cursor = pandas_cursor
+        regular_cursor._chunksize = None
         regular_cursor.execute(query)
         regular_df = regular_cursor.as_pandas()
 
-        # Chunked reading
-        chunked_cursor = connection.cursor(PandasCursor, chunksize=25)
+        # Chunked reading - create a second cursor for chunked processing
+        from pyathena.pandas.cursor import PandasCursor
+
+        chunked_cursor = PandasCursor(
+            s3_staging_dir=pandas_cursor._s3_staging_dir,
+            schema_name=pandas_cursor._schema_name,
+            catalog_name=pandas_cursor._catalog_name,
+            work_group=pandas_cursor._work_group,
+            chunksize=25,
+        )
+        chunked_cursor._connection = pandas_cursor._connection
+        chunked_cursor._converter = pandas_cursor._converter
         chunked_cursor.execute(query)
         chunked_dfs = list(chunked_cursor.iter_chunks())
 
@@ -1519,10 +1536,11 @@ class TestPandasCursor:
         for chunk in chunked_dfs:
             assert len(chunk) <= 25
 
-    def test_pandas_cursor_actual_chunking_behavior(self, connection):
+    def test_pandas_cursor_actual_chunking_behavior(self, pandas_cursor):
         """Test that chunking actually limits memory usage by checking chunk sizes."""
         # Use a query that returns more rows than chunksize
-        cursor = connection.cursor(PandasCursor, chunksize=10)
+        cursor = pandas_cursor
+        cursor._chunksize = 10
         cursor.execute("SELECT * FROM many_rows LIMIT 50")
 
         result = cursor.as_pandas()
@@ -1552,10 +1570,12 @@ class TestPandasCursor:
         # Last chunk should be <= 10
         assert chunk_sizes[-1] <= 10
 
-    def test_pandas_cursor_auto_optimize_actually_changes_chunksize(self, connection):
+    def test_pandas_cursor_auto_optimize_actually_changes_chunksize(self, pandas_cursor):
         """Test that auto_optimize_chunksize actually modifies the chunksize."""
         # Create a cursor with a large file simulation
-        cursor = connection.cursor(PandasCursor, chunksize=1000, auto_optimize_chunksize=True)
+        cursor = pandas_cursor
+        cursor._chunksize = 1000
+        cursor._auto_optimize_chunksize = True
 
         # Execute a small query first to initialize result_set
         cursor.execute("SELECT 1 as test_col")
@@ -1566,9 +1586,10 @@ class TestPandasCursor:
         # For a small result, chunksize should remain as set
         assert cursor._chunksize == 1000
 
-    def test_pandas_cursor_iter_chunks_consistency(self, connection):
+    def test_pandas_cursor_iter_chunks_consistency(self, pandas_cursor):
         """Test that iter_chunks() and direct iteration give same results."""
-        cursor = connection.cursor(PandasCursor, chunksize=15)
+        cursor = pandas_cursor
+        cursor._chunksize = 15
         cursor.execute("SELECT * FROM many_rows LIMIT 45")
 
         # Method 1: Using iter_chunks()
