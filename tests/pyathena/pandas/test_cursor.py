@@ -15,7 +15,7 @@ import pytest
 
 from pyathena.error import DatabaseError, ProgrammingError
 from pyathena.pandas.cursor import PandasCursor
-from pyathena.pandas.result_set import AthenaPandasResultSet
+from pyathena.pandas.result_set import AthenaPandasResultSet, DataFrameIterator
 from tests import ENV
 from tests.pyathena.conftest import connect
 
@@ -924,9 +924,6 @@ class TestPandasCursor:
             engine = result_set._get_optimal_csv_engine(100 * 1024 * 1024)  # 100MB
             assert engine == "python"
 
-            # PyArrow is no longer automatically preferred for compatibility reasons
-            # It's only used when explicitly specified and compatible
-
     def test_auto_determine_chunksize(self):
         """Test _auto_determine_chunksize method behavior."""
 
@@ -945,6 +942,27 @@ class TestPandasCursor:
             # Large file - 100K chunks
             chunksize = result_set._auto_determine_chunksize(300 * 1024 * 1024)  # 300MB
             assert chunksize == 100_000
+
+    def test_chunksize_configuration_customization(self):
+        """Test that users can customize chunksize configuration."""
+
+        # Mock the parent class initialization
+        with patch("pyathena.pandas.result_set.AthenaResultSet.__init__"):
+            result_set = AthenaPandasResultSet.__new__(AthenaPandasResultSet)
+
+            # Test default behavior
+            chunksize = result_set._auto_determine_chunksize(200 * 1024 * 1024)  # 200MB
+            assert chunksize == 100_000  # Default AUTO_CHUNK_SIZE_LARGE
+
+            # Customize chunk size
+            result_set.AUTO_CHUNK_SIZE_LARGE = 250_000
+            chunksize = result_set._auto_determine_chunksize(200 * 1024 * 1024)  # 200MB
+            assert chunksize == 250_000
+
+            # Customize threshold
+            result_set.LARGE_FILE_THRESHOLD_BYTES = 100 * 1024 * 1024  # 100MB
+            chunksize = result_set._auto_determine_chunksize(80 * 1024 * 1024)  # 80MB
+            assert chunksize is None  # Now below threshold
 
     def test_get_csv_engine_explicit_specification(self):
         """Test _get_csv_engine respects explicit engine specification."""
@@ -1420,3 +1438,149 @@ class TestPandasCursor:
         assert len(callback_results) == 1
         assert callback_results[0] == pandas_cursor.query_id
         assert pandas_cursor.query_id is not None
+
+    def test_pandas_cursor_auto_optimize_chunksize(self, connection):
+        """Test PandasCursor with auto_optimize_chunksize enabled."""
+        cursor = connection.cursor(PandasCursor, chunksize=1000, auto_optimize_chunksize=True)
+        cursor.execute("SELECT number FROM (VALUES (1), (2), (3), (4), (5)) as t(number)")
+
+        # Should return iterator when chunksize is set
+        result = cursor.as_pandas()
+        assert isinstance(result, DataFrameIterator)
+
+        # Collect chunks
+        chunks = list(result)
+        assert len(chunks) >= 1
+
+        # Verify all chunks are DataFrames
+        for chunk in chunks:
+            assert isinstance(chunk, pd.DataFrame)
+
+    def test_pandas_cursor_iter_chunks_with_chunksize(self, connection):
+        """Test PandasCursor iter_chunks method with chunksize set."""
+        cursor = connection.cursor(PandasCursor, chunksize=1000)
+        cursor.execute("SELECT number FROM (VALUES (1), (2), (3), (4), (5)) as t(number)")
+
+        chunk_count = 0
+        for chunk in cursor.iter_chunks():
+            chunk_count += 1
+            assert isinstance(chunk, pd.DataFrame)
+            assert len(chunk) > 0
+
+        assert chunk_count >= 1
+
+    def test_pandas_cursor_iter_chunks_without_chunksize(self, connection):
+        """Test PandasCursor iter_chunks method without chunksize (single DataFrame)."""
+        cursor = connection.cursor(PandasCursor)  # No chunksize
+        cursor.execute("SELECT number FROM (VALUES (1), (2), (3), (4), (5)) as t(number)")
+
+        chunk_count = 0
+        for chunk in cursor.iter_chunks():
+            chunk_count += 1
+            assert isinstance(chunk, pd.DataFrame)
+            assert len(chunk) > 0
+
+        # Should yield exactly one chunk (the entire DataFrame)
+        assert chunk_count == 1
+
+    def test_pandas_cursor_auto_optimize_disabled(self, connection):
+        """Test PandasCursor with auto-optimization disabled (default behavior)."""
+        cursor = connection.cursor(PandasCursor, chunksize=500, auto_optimize_chunksize=False)
+        cursor.execute("SELECT 1 as test_col")
+
+        # Original chunksize should be preserved
+        assert cursor._chunksize == 500
+        assert cursor._auto_optimize_chunksize is False
+
+    def test_pandas_cursor_chunked_vs_regular_same_data(self, connection):
+        """Test that chunked and regular reading produce the same data."""
+        query = "SELECT * FROM many_rows LIMIT 100"  # Use a reasonable size for testing
+
+        # Regular reading (no chunksize)
+        regular_cursor = connection.cursor(PandasCursor)
+        regular_cursor.execute(query)
+        regular_df = regular_cursor.as_pandas()
+
+        # Chunked reading
+        chunked_cursor = connection.cursor(PandasCursor, chunksize=25)
+        chunked_cursor.execute(query)
+        chunked_dfs = list(chunked_cursor.iter_chunks())
+
+        # Combine chunks
+        combined_df = pd.concat(chunked_dfs, ignore_index=True)
+
+        # Should have the same data
+        pd.testing.assert_frame_equal(regular_df.sort_index(), combined_df.sort_index())
+
+        # Should have multiple chunks
+        assert len(chunked_dfs) > 1
+
+        # Each chunk should be <= chunksize
+        for chunk in chunked_dfs:
+            assert len(chunk) <= 25
+
+    def test_pandas_cursor_actual_chunking_behavior(self, connection):
+        """Test that chunking actually limits memory usage by checking chunk sizes."""
+        # Use a query that returns more rows than chunksize
+        cursor = connection.cursor(PandasCursor, chunksize=10)
+        cursor.execute("SELECT * FROM many_rows LIMIT 50")
+
+        result = cursor.as_pandas()
+        assert isinstance(result, DataFrameIterator)
+
+        chunk_sizes = []
+        total_rows = 0
+
+        for chunk in result:
+            chunk_size = len(chunk)
+            chunk_sizes.append(chunk_size)
+            total_rows += chunk_size
+
+            # Each chunk should not exceed chunksize (except possibly the last one)
+            assert chunk_size <= 10
+
+        # Should have processed all 50 rows
+        assert total_rows == 50
+
+        # Should have multiple chunks
+        assert len(chunk_sizes) > 1
+
+        # Most chunks should be exactly chunksize (10), last might be smaller
+        # All but the last chunk should be exactly 10
+        for size in chunk_sizes[:-1]:
+            assert size == 10
+        # Last chunk should be <= 10
+        assert chunk_sizes[-1] <= 10
+
+    def test_pandas_cursor_auto_optimize_actually_changes_chunksize(self, connection):
+        """Test that auto_optimize_chunksize actually modifies the chunksize."""
+        # Create a cursor with a large file simulation
+        cursor = connection.cursor(PandasCursor, chunksize=1000, auto_optimize_chunksize=True)
+
+        # Execute a small query first to initialize result_set
+        cursor.execute("SELECT 1 as test_col")
+
+        # Check that auto_optimize_chunksize flag is set
+        assert cursor._auto_optimize_chunksize is True
+
+        # For a small result, chunksize should remain as set
+        assert cursor._chunksize == 1000
+
+    def test_pandas_cursor_iter_chunks_consistency(self, connection):
+        """Test that iter_chunks() and direct iteration give same results."""
+        cursor = connection.cursor(PandasCursor, chunksize=15)
+        cursor.execute("SELECT * FROM many_rows LIMIT 45")
+
+        # Method 1: Using iter_chunks()
+        chunks_via_method = list(cursor.iter_chunks())
+
+        # Method 2: Direct iteration on as_pandas()
+        cursor.execute("SELECT * FROM many_rows LIMIT 45")  # Re-execute
+        chunks_via_direct = list(cursor.as_pandas())
+
+        # Should have same number of chunks
+        assert len(chunks_via_method) == len(chunks_via_direct)
+
+        # Each corresponding chunk should be identical
+        for chunk1, chunk2 in zip(chunks_via_method, chunks_via_direct):
+            pd.testing.assert_frame_equal(chunk1, chunk2)

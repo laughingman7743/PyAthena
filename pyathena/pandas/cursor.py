@@ -8,6 +8,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Generator,
     Iterable,
     List,
     Optional,
@@ -24,7 +25,7 @@ from pyathena.pandas.converter import (
     DefaultPandasTypeConverter,
     DefaultPandasUnloadTypeConverter,
 )
-from pyathena.pandas.result_set import AthenaPandasResultSet
+from pyathena.pandas.result_set import AthenaPandasResultSet, DataFrameIterator
 from pyathena.result_set import WithResultSet
 
 if TYPE_CHECKING:
@@ -52,6 +53,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         max_workers: int = (cpu_count() or 1) * 5,
         result_reuse_enable: bool = False,
         result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
+        auto_optimize_chunksize: bool = False,
         on_start_query_execution: Optional[Callable[[str], None]] = None,
         **kwargs,
     ) -> None:
@@ -74,6 +76,7 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         self._block_size = block_size
         self._cache_type = cache_type
         self._max_workers = max_workers
+        self._auto_optimize_chunksize = auto_optimize_chunksize
         self._on_start_query_execution = on_start_query_execution
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaPandasResultSet] = None
@@ -189,6 +192,11 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
             )
         else:
             raise OperationalError(query_execution.state_change_reason)
+
+        # Auto-optimize chunksize if enabled and chunksize is set
+        if self._auto_optimize_chunksize and self.has_result_set and self._chunksize:
+            self._optimize_chunksize()
+
         return self
 
     def executemany(
@@ -231,8 +239,89 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         result_set = cast(AthenaPandasResultSet, self.result_set)
         return result_set.fetchall()
 
-    def as_pandas(self) -> "DataFrame":
+    def _optimize_chunksize(self) -> None:
+        """Automatically optimize chunksize based on result set characteristics.
+
+        This method optimizes the chunksize for the current result set by:
+        1. Analyzing the result file size from S3
+        2. Using the result set's auto-determination logic which considers:
+           - File size and estimated row count
+           - Number of columns in the result
+           - Data type complexity (timestamps, decimals, etc.)
+        3. Updating the result set's chunksize if a better value is suggested
+
+        The optimization only occurs when:
+        - auto_optimize_chunksize is enabled
+        - chunksize is already set (not None)
+        - A valid result set exists
+        - The result file has a determinable size
+
+        This method is automatically called after successful query execution
+        and operates silently - any errors in optimization are ignored to
+        ensure query execution continues normally.
+        """
+        if not self.has_result_set:
+            return
+
+        result_set = cast(AthenaPandasResultSet, self.result_set)
+        try:
+            file_size = result_set._get_content_length() or 0
+            if file_size > 0:
+                # Delegate to result set's chunksize auto-determination logic
+                suggested_chunksize = result_set._auto_determine_chunksize(file_size)
+                if suggested_chunksize:
+                    # Apply the optimized chunksize to the result set
+                    result_set._chunksize = suggested_chunksize
+        except Exception:
+            # Silently ignore optimization errors and continue with current chunksize
+            pass
+
+    def as_pandas(self) -> Union["DataFrame", DataFrameIterator]:
+        """Return DataFrame or DataFrameIterator based on chunksize setting.
+
+        Returns:
+            DataFrame when chunksize is None, DataFrameIterator when chunksize is set.
+        """
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaPandasResultSet, self.result_set)
         return result_set.as_pandas()
+
+    def iter_chunks(self) -> Generator["DataFrame", None, None]:
+        """Iterate over DataFrame chunks for memory-efficient processing.
+
+        This method provides an iterator interface for processing large result sets
+        in chunks, preventing memory exhaustion when working with datasets that are
+        too large to fit in memory as a single DataFrame.
+
+        Yields:
+            DataFrame: Individual chunks of the result set when chunksize is set,
+                      or the entire DataFrame as a single chunk when chunksize is None.
+
+        Example:
+            # Process large result set in chunks
+            cursor = connection.cursor(PandasCursor, chunksize=50000)
+            cursor.execute("SELECT * FROM large_table")
+            for chunk in cursor.iter_chunks():
+                # Process chunk
+                processed_chunk = chunk.groupby('category').sum()
+                # Explicitly delete to free memory
+                del chunk
+        """
+        if not self.has_result_set:
+            raise ProgrammingError("No result set.")
+
+        result = self.as_pandas()
+        if isinstance(result, DataFrameIterator):
+            # It's an iterator (chunked mode)
+            import gc
+
+            for chunk_count, chunk in enumerate(result, 1):
+                yield chunk
+
+                # Suggest garbage collection every 10 chunks for large datasets
+                if chunk_count % 10 == 0:
+                    gc.collect()
+        else:
+            # Single DataFrame - yield as one chunk
+            yield result

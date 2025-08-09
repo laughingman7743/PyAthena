@@ -397,6 +397,27 @@ This object has exactly the same interface as the ``TextFileReader`` object and 
         print(df.describe())
         print(df.head())
 
+**Memory-efficient iteration with iter_chunks()**
+
+PandasCursor provides an ``iter_chunks()`` method for convenient chunked processing:
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.pandas.cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PandasCursor).cursor()
+    
+    # Process large dataset in chunks
+    cursor.execute("SELECT * FROM large_table", chunksize=50_000)
+    for chunk in cursor.iter_chunks():
+        # Process each chunk
+        processed = chunk.groupby('category').sum()
+        # Memory can be freed after each chunk
+        del chunk
+
 You can also concatenate them into a single `pandas.DataFrame object`_ using `pandas.concat`_.
 
 .. code:: python
@@ -426,6 +447,82 @@ When all rows have been read, calling the ``get_chunk`` method will raise ``Stop
     df_iter.get_chunk(10)
     df_iter.get_chunk(10)
     df_iter.get_chunk(10)  # raise StopIteration
+
+**Auto-optimization of chunksize**
+
+PandasCursor can automatically optimize the chunksize based on the result file size:
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.pandas.cursor import PandasCursor
+
+    # Enable auto-optimization
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PandasCursor).cursor(chunksize=50_000, 
+                                                         auto_optimize_chunksize=True)
+    
+    # Chunksize will be automatically adjusted based on file size and data characteristics
+    cursor.execute("SELECT * FROM very_large_table")
+    for chunk in cursor.iter_chunks():
+        process_chunk(chunk)
+
+You can customize the auto-optimization behavior by modifying class attributes:
+
+.. code:: python
+
+    from pyathena.pandas.result_set import AthenaPandasResultSet
+    
+    # Customize thresholds and chunk sizes for your use case
+    AthenaPandasResultSet.LARGE_FILE_THRESHOLD_BYTES = 100 * 1024 * 1024  # 100MB
+    AthenaPandasResultSet.AUTO_CHUNK_SIZE_LARGE = 200_000  # Larger chunks
+    AthenaPandasResultSet.AUTO_CHUNK_SIZE_MEDIUM = 100_000
+
+**Performance tuning options**
+
+PandasCursor accepts additional pandas.read_csv() options for performance optimization:
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.pandas.cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PandasCursor).cursor()
+    
+    # High-performance reading with PyArrow engine
+    cursor.execute("SELECT * FROM large_table", 
+                   engine="pyarrow",
+                   chunksize=100_000,
+                   use_threads=True)
+    
+    # Memory-conscious reading with Python engine
+    cursor.execute("SELECT * FROM huge_table",
+                   engine="python",
+                   chunksize=25_000, 
+                   low_memory=True)
+    
+    # Fine-tuned C engine with custom buffer
+    cursor.execute("SELECT * FROM data_table",
+                   engine="c",
+                   chunksize=50_000,
+                   buffer_lines=100_000)
+    
+    # Custom data types for better performance
+    cursor.execute("SELECT * FROM typed_table",
+                   dtype={'col1': 'int64', 'col2': 'float32'},
+                   parse_dates=['timestamp_col'])
+
+Common performance options:
+
+- ``engine``: CSV parsing engine ('c', 'python', 'pyarrow')
+- ``use_threads``: Enable threading for PyArrow engine
+- ``low_memory``: Use low memory mode for Python engine
+- ``buffer_lines``: Buffer size for C engine
+- ``dtype``: Explicit column data types
+- ``parse_dates``: Columns to parse as dates
 
 Unload options
 ~~~~~~~~~~~~~~
