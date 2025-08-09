@@ -123,6 +123,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         block_size: Optional[int] = None,
         cache_type: Optional[str] = None,
         max_workers: int = (cpu_count() or 1) * 5,
+        auto_optimize_chunksize: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -144,6 +145,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._block_size = block_size
         self._cache_type = cache_type
         self._max_workers = max_workers
+        self._auto_optimize_chunksize = auto_optimize_chunksize
         self._data_manifest: List[str] = []
         self._kwargs = kwargs
         self._fs = self.__s3_file_system()
@@ -376,21 +378,23 @@ class AthenaPandasResultSet(AthenaResultSet):
         if length == 0:
             return pd.DataFrame()
 
-        if length and self.output_location.endswith(".txt"):
+        if self.output_location.endswith(".txt"):
             sep = "\t"
             header = None
             description = self.description if self.description else []
             names = [d[0] for d in description]
-        elif length and self.output_location.endswith(".csv"):
+        elif self.output_location.endswith(".csv"):
             sep = ","
             header = 0
             names = None
         else:
             return pd.DataFrame()
 
-        # Enhanced chunksize determination with logging for transparency
+        # Chunksize determination with user preference priority
         effective_chunksize = self._chunksize
-        if effective_chunksize is None and length:
+
+        # Only auto-optimize if user hasn't specified chunksize AND auto_optimize is enabled
+        if effective_chunksize is None and self._auto_optimize_chunksize:
             effective_chunksize = self._auto_determine_chunksize(length)
             if effective_chunksize:
                 _logger.debug(
@@ -432,7 +436,7 @@ class AthenaPandasResultSet(AthenaResultSet):
             result = pd.read_csv(self.output_location, **read_csv_kwargs)
 
             # Log performance information for large files
-            if length and length > self.LARGE_FILE_THRESHOLD_BYTES:
+            if length > self.LARGE_FILE_THRESHOLD_BYTES:
                 mode = "chunked" if effective_chunksize else "full"
                 _logger.info(
                     f"Reading {length} bytes from S3 in {mode} mode using {csv_engine} engine"

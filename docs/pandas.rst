@@ -450,25 +450,44 @@ When all rows have been read, calling the ``get_chunk`` method will raise ``Stop
 
 **Auto-optimization of chunksize**
 
-PandasCursor can automatically optimize the chunksize based on the result file size:
+PandasCursor can automatically determine optimal chunksize based on result file size when enabled:
 
 .. code:: python
 
     from pyathena import connect
     from pyathena.pandas.cursor import PandasCursor
 
-    # Enable auto-optimization
+    # Enable auto-optimization (chunksize will be determined automatically for large files)
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
-                     cursor_class=PandasCursor).cursor(chunksize=50_000, 
-                                                         auto_optimize_chunksize=True)
+                     cursor_class=PandasCursor).cursor(auto_optimize_chunksize=True)
     
-    # Chunksize will be automatically adjusted based on file size and data characteristics
+    # For large files, chunksize will be automatically set based on file size
     cursor.execute("SELECT * FROM very_large_table")
     for chunk in cursor.iter_chunks():
         process_chunk(chunk)
 
-You can customize the auto-optimization behavior by modifying class attributes:
+**Priority of chunksize settings:**
+
+1. **Explicit chunksize** (highest priority): Always respected
+2. **auto_optimize_chunksize=True**: Automatic determination for large files  
+3. **auto_optimize_chunksize=False** (default): No chunking, load entire DataFrame
+
+.. code:: python
+
+    # Explicit chunksize always takes precedence
+    cursor = connection.cursor(PandasCursor, chunksize=50_000, auto_optimize_chunksize=True)
+    # Will use chunksize=50_000, auto-optimization is ignored
+
+    # Auto-optimization only when chunksize is not specified
+    cursor = connection.cursor(PandasCursor, auto_optimize_chunksize=True)
+    # Will determine chunksize automatically for large files
+
+    # Default behavior - no chunking
+    cursor = connection.cursor(PandasCursor)
+    # Will load entire DataFrame regardless of file size
+
+You can customize the automatic chunksize determination by modifying class attributes:
 
 .. code:: python
 

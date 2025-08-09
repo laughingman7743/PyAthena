@@ -188,14 +188,11 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
                 block_size=kwargs.pop("block_size", self._block_size),
                 cache_type=kwargs.pop("cache_type", self._cache_type),
                 max_workers=kwargs.pop("max_workers", self._max_workers),
+                auto_optimize_chunksize=self._auto_optimize_chunksize,
                 **kwargs,
             )
         else:
             raise OperationalError(query_execution.state_change_reason)
-
-        # Auto-optimize chunksize if enabled and chunksize is set
-        if self._auto_optimize_chunksize and self.has_result_set and self._chunksize:
-            self._optimize_chunksize()
 
         return self
 
@@ -238,43 +235,6 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaPandasResultSet, self.result_set)
         return result_set.fetchall()
-
-    def _optimize_chunksize(self) -> None:
-        """Automatically optimize chunksize based on result set characteristics.
-
-        This method optimizes the chunksize for the current result set by:
-        1. Analyzing the result file size from S3
-        2. Using the result set's auto-determination logic which considers:
-           - File size and estimated row count
-           - Number of columns in the result
-           - Data type complexity (timestamps, decimals, etc.)
-        3. Updating the result set's chunksize if a better value is suggested
-
-        The optimization only occurs when:
-        - auto_optimize_chunksize is enabled
-        - chunksize is already set (not None)
-        - A valid result set exists
-        - The result file has a determinable size
-
-        This method is automatically called after successful query execution
-        and operates silently - any errors in optimization are ignored to
-        ensure query execution continues normally.
-        """
-        if not self.has_result_set:
-            return
-
-        result_set = cast(AthenaPandasResultSet, self.result_set)
-        try:
-            file_size = result_set._get_content_length() or 0
-            if file_size > 0:
-                # Delegate to result set's chunksize auto-determination logic
-                suggested_chunksize = result_set._auto_determine_chunksize(file_size)
-                if suggested_chunksize:
-                    # Apply the optimized chunksize to the result set
-                    result_set._chunksize = suggested_chunksize
-        except Exception:
-            # Silently ignore optimization errors and continue with current chunksize
-            pass
 
     def as_pandas(self) -> Union["DataFrame", DataFrameIterator]:
         """Return DataFrame or DataFrameIterator based on chunksize setting.
