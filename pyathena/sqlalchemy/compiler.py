@@ -18,6 +18,7 @@ from pyathena.model import (
     AthenaPartitionTransform,
     AthenaRowFormatSerde,
 )
+from pyathena.sqlalchemy.preparer import AthenaDDLIdentifierPreparer
 from pyathena.sqlalchemy.types import AthenaArray, AthenaMap, AthenaStruct
 
 if TYPE_CHECKING:
@@ -271,8 +272,6 @@ class AthenaDDLCompiler(DDLCompiler):
         render_schema_translate: bool = False,
         compile_kwargs: Optional[Dict[str, Any]] = None,
     ):
-        from pyathena.sqlalchemy.preparer import AthenaDDLIdentifierPreparer
-
         self._preparer = AthenaDDLIdentifierPreparer(dialect)
         super().__init__(
             dialect=dialect,
