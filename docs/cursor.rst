@@ -329,5 +329,11 @@ AsyncSparkCursor
 
 See :ref:`async-spark-cursor`.
 
+API Reference
+-------------
+
+For detailed API documentation of all cursor classes and their methods, 
+see the :ref:`api` section.
+
 .. _`DB API 2.0 (PEP 249)`: https://www.python.org/dev/peps/pep-0249/
 .. _`future object`: https://docs.python.org/3/library/concurrent.futures.html#future-objects
