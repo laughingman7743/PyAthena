@@ -75,29 +75,75 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
 
     @property
     def result_set(self) -> Optional[AthenaResultSet]:
+        """Get the result set from the last executed query.
+
+        Returns:
+            The result set object containing query results, or None if no
+            query has been executed or the query didn't return results.
+        """
         return self._result_set
 
     @result_set.setter
     def result_set(self, val) -> None:
+        """Set the result set for the cursor.
+
+        Args:
+            val: The result set object to assign.
+        """
         self._result_set = val
 
     @property
     def query_id(self) -> Optional[str]:
+        """Get the Athena query execution ID of the last executed query.
+
+        Returns:
+            The query execution ID assigned by Athena, or None if no query
+            has been executed.
+        """
         return self._query_id
 
     @query_id.setter
     def query_id(self, val) -> None:
+        """Set the Athena query execution ID.
+
+        Args:
+            val: The query execution ID to set.
+        """
         self._query_id = val
 
     @property
     def rownumber(self) -> Optional[int]:
+        """Get the current row number within the result set.
+
+        Returns:
+            The zero-based index of the current row, or None if no result set
+            is available or no rows have been fetched.
+        """
         return self.result_set.rownumber if self.result_set else None
 
     @property
     def rowcount(self) -> int:
+        """Get the number of rows affected by the last operation.
+
+        For SELECT statements, this returns the total number of rows in the
+        result set. For other operations, behavior follows DB API 2.0 specification.
+
+        Returns:
+            The number of rows, or -1 if not applicable or unknown.
+        """
         return self.result_set.rowcount if self.result_set else -1
 
     def close(self) -> None:
+        """Close the cursor and free any associated resources.
+
+        Closes the cursor and any associated result sets. This method is provided
+        for DB API 2.0 compatibility and should be called when the cursor is no
+        longer needed.
+
+        Note:
+            After calling this method, the cursor should not be used for
+            further database operations.
+        """
         if self.result_set and not self.result_set.is_closed:
             self.result_set.close()
 
@@ -179,12 +225,58 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
         seq_of_parameters: List[Optional[Union[Dict[str, Any], List[str]]]],
         **kwargs,
     ) -> None:
+        """Execute a SQL query multiple times with different parameters.
+
+        This method executes the same SQL operation multiple times, once for each
+        parameter set in the sequence. This is useful for bulk operations like
+        inserting multiple rows.
+
+        Args:
+            operation: SQL query string to execute.
+            seq_of_parameters: Sequence of parameter dictionaries or lists, one for each execution.
+            **kwargs: Additional keyword arguments passed to each execute() call.
+
+        Note:
+            This method executes each query sequentially. For better performance
+            with bulk operations, consider using batch operations where supported.
+            Operations that return result sets are not allowed with executemany.
+
+        Example:
+            >>> cursor.executemany(
+            ...     "INSERT INTO users (id, name) VALUES (%(id)s, %(name)s)",
+            ...     [
+            ...         {"id": 1, "name": "Alice"},
+            ...         {"id": 2, "name": "Bob"},
+            ...         {"id": 3, "name": "Charlie"}
+            ...     ]
+            ... )
+        """
         for parameters in seq_of_parameters:
             self.execute(operation, parameters, **kwargs)
         # Operations that have result sets are not allowed with executemany.
         self._reset_state()
 
     def cancel(self) -> None:
+        """Cancel the currently executing query.
+
+        Cancels the query execution on Amazon Athena. This method can be called
+        from a different thread to interrupt a long-running query.
+
+        Raises:
+            ProgrammingError: If no query is currently executing (query_id is None).
+
+        Example:
+            >>> import threading
+            >>> import time
+            >>>
+            >>> def cancel_after_delay():
+            ...     time.sleep(5)  # Wait 5 seconds
+            ...     cursor.cancel()
+            >>>
+            >>> # Start cancellation in separate thread
+            >>> threading.Thread(target=cancel_after_delay).start()
+            >>> cursor.execute("SELECT * FROM very_large_table")
+        """
         if not self.query_id:
             raise ProgrammingError("QueryExecutionId is none or empty.")
         self._cancel(self.query_id)
