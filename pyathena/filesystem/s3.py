@@ -349,6 +349,25 @@ class S3FileSystem(AbstractFileSystem):
     def ls(
         self, path: str, detail: bool = False, refresh: bool = False, **kwargs
     ) -> Union[List[S3Object], List[str]]:
+        """List contents of an S3 path.
+
+        Lists buckets (when path is root) or objects within a bucket/prefix.
+        Compatible with fsspec interface for filesystem operations.
+
+        Args:
+            path: S3 path to list (e.g., "s3://bucket" or "s3://bucket/prefix").
+            detail: If True, return S3Object instances; if False, return paths as strings.
+            refresh: If True, bypass cache and fetch fresh results from S3.
+            **kwargs: Additional arguments (ignored for S3).
+
+        Returns:
+            List of S3Object instances (if detail=True) or paths as strings (if detail=False).
+
+        Example:
+            >>> fs = S3FileSystem()
+            >>> fs.ls("s3://my-bucket")  # List objects in bucket
+            >>> fs.ls("s3://my-bucket/", detail=True)  # Get detailed object info
+        """
         path = self._strip_protocol(path).rstrip("/")
         if path in ["", "/"]:
             files = self._ls_buckets(refresh)
@@ -565,12 +584,51 @@ class S3FileSystem(AbstractFileSystem):
         detail: bool = False,
         **kwargs,
     ) -> Union[Dict[str, S3Object], List[str]]:
+        """Find all files below a given S3 path.
+
+        Recursively searches for files under the specified path, with optional
+        depth limiting and directory inclusion. Uses efficient S3 list operations
+        with delimiter handling for performance.
+
+        Args:
+            path: S3 path to search under (e.g., "s3://bucket/prefix").
+            maxdepth: Maximum depth to recurse (None for unlimited).
+            withdirs: Whether to include directories in results (None = default behavior).
+            detail: If True, return dict of {path: S3Object}; if False, return list of paths.
+            **kwargs: Additional arguments.
+
+        Returns:
+            Dictionary mapping paths to S3Objects (if detail=True) or
+            list of paths (if detail=False).
+
+        Example:
+            >>> fs = S3FileSystem()
+            >>> fs.find("s3://bucket/data/", maxdepth=2)  # Limit depth
+            >>> fs.find("s3://bucket/", withdirs=True)    # Include directories
+        """
         files = self._find(path=path, maxdepth=maxdepth, withdirs=withdirs, **kwargs)
         if detail:
             return {f.name: f for f in files}
         return [f.name for f in files]
 
     def exists(self, path: str, **kwargs) -> bool:
+        """Check if an S3 path exists.
+
+        Determines whether a bucket, object, or prefix exists in S3.
+        Uses caching and efficient head operations to minimize API calls.
+
+        Args:
+            path: S3 path to check (e.g., "s3://bucket" or "s3://bucket/key").
+            **kwargs: Additional arguments (unused).
+
+        Returns:
+            True if the path exists, False otherwise.
+
+        Example:
+            >>> fs = S3FileSystem()
+            >>> fs.exists("s3://my-bucket/file.txt")
+            >>> fs.exists("s3://my-bucket/")
+        """
         path = self._strip_protocol(path)
         if path in ["", "/"]:
             # The root always exists.
