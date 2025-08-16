@@ -89,10 +89,40 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
 
 
 class AthenaPandasResultSet(AthenaResultSet):
-    """Result set that provides pandas DataFrame results with memory optimization support.
+    """Result set that provides pandas DataFrame results with memory optimization.
 
     This result set handles CSV and Parquet result files from S3, converting them to
     pandas DataFrames with configurable chunking for memory-efficient processing.
+    It automatically optimizes chunk sizes based on file size and provides iterative
+    processing capabilities for large datasets.
+
+    Features:
+        - Automatic chunk size optimization based on file size
+        - Support for both CSV and Parquet result formats
+        - Memory-efficient iterative processing
+        - Automatic date/time parsing for pandas compatibility
+        - PyArrow integration for Parquet files
+
+    Attributes:
+        LARGE_FILE_THRESHOLD_BYTES: File size threshold for chunking (50MB).
+        AUTO_CHUNK_SIZE_LARGE: Default chunk size for large files (100,000 rows).
+        AUTO_CHUNK_SIZE_MEDIUM: Default chunk size for medium files (50,000 rows).
+
+    Example:
+        >>> # Used automatically by PandasCursor
+        >>> cursor = connection.cursor(PandasCursor)
+        >>> cursor.execute("SELECT * FROM large_table")
+        >>>
+        >>> # Get full DataFrame
+        >>> df = cursor.fetchall()
+        >>>
+        >>> # Or iterate through chunks for memory efficiency
+        >>> for chunk_df in cursor:
+        ...     process_chunk(chunk_df)
+
+    Note:
+        This class is used internally by PandasCursor and typically not
+        instantiated directly by users.
     """
 
     # File size thresholds and chunking configuration - Public for user customization
@@ -319,10 +349,22 @@ class AthenaPandasResultSet(AthenaResultSet):
 
     @property
     def is_unload(self):
+        """Check if this result set comes from an UNLOAD operation.
+
+        Returns:
+            True if this result set is from an UNLOAD query and unload mode
+            is enabled, False otherwise.
+        """
         return self._unload and self.query and self.query.strip().upper().startswith("UNLOAD")
 
     @property
     def dtypes(self) -> Dict[str, Type[Any]]:
+        """Get pandas-compatible data types for result columns.
+
+        Returns:
+            Dictionary mapping column names to their corresponding Python types
+            based on the converter's type mapping.
+        """
         description = self.description if self.description else []
         return {
             d[0]: self._converter.types[d[1]] for d in description if d[1] in self._converter.types

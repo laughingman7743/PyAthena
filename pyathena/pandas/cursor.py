@@ -37,8 +37,36 @@ _logger = logging.getLogger(__name__)  # type: ignore
 class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
     """Cursor for handling pandas DataFrame results from Athena queries.
 
-    This cursor provides memory-efficient DataFrame processing with chunking support
-    and automatic chunksize optimization for large result sets.
+    This cursor returns query results as pandas DataFrames with memory-efficient
+    processing through chunking support and automatic chunksize optimization
+    for large result sets. It's ideal for data analysis and data science workflows.
+
+    The cursor supports both regular CSV-based results and high-performance
+    UNLOAD operations that return results in Parquet format, which is significantly
+    faster for large datasets and preserves data types more accurately.
+
+    Attributes:
+        description: Sequence of column descriptions for the last query.
+        rowcount: Number of rows affected by the last query (-1 for SELECT queries).
+        arraysize: Default number of rows to fetch with fetchmany().
+        chunksize: Number of rows per chunk when iterating through results.
+
+    Example:
+        >>> from pyathena.pandas.cursor import PandasCursor
+        >>> cursor = connection.cursor(PandasCursor)
+        >>> cursor.execute("SELECT * FROM sales_data WHERE year = 2023")
+        >>> df = cursor.fetchall()  # Returns pandas DataFrame
+        >>> print(df.describe())
+
+        # Memory-efficient iteration for large datasets
+        >>> cursor.execute("SELECT * FROM huge_table")
+        >>> for chunk_df in cursor:
+        ...     process_chunk(chunk_df)  # Process data in chunks
+
+        # High-performance UNLOAD for large datasets
+        >>> cursor = connection.cursor(PandasCursor, unload=True)
+        >>> cursor.execute("SELECT * FROM big_table")
+        >>> df = cursor.fetchall()  # Faster Parquet-based result
     """
 
     def __init__(
@@ -172,6 +200,36 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         on_start_query_execution: Optional[Callable[[str], None]] = None,
         **kwargs,
     ) -> PandasCursor:
+        """Execute a SQL query and return results as pandas DataFrames.
+
+        Executes the SQL query on Amazon Athena and configures the result set
+        for pandas DataFrame output. Supports both regular CSV-based results
+        and high-performance UNLOAD operations with Parquet format.
+
+        Args:
+            operation: SQL query string to execute.
+            parameters: Query parameters for parameterized queries.
+            work_group: Athena workgroup to use for this query.
+            s3_staging_dir: S3 location for query results.
+            cache_size: Number of queries to check for result caching.
+            cache_expiration_time: Cache expiration time in seconds.
+            result_reuse_enable: Enable Athena result reuse for this query.
+            result_reuse_minutes: Minutes to reuse cached results.
+            paramstyle: Parameter style ('qmark' or 'pyformat').
+            keep_default_na: Whether to keep default pandas NA values.
+            na_values: Additional values to treat as NA.
+            quoting: CSV quoting behavior (pandas csv.QUOTE_* constants).
+            on_start_query_execution: Callback called when query starts.
+            **kwargs: Additional pandas read_csv/read_parquet parameters.
+
+        Returns:
+            Self reference for method chaining.
+
+        Example:
+            >>> cursor.execute("SELECT * FROM sales WHERE year = %(year)s",
+            ...                {"year": 2023})
+            >>> df = cursor.fetchall()  # Returns pandas DataFrame
+        """
         self._reset_state()
         if self._unload:
             s3_staging_dir = s3_staging_dir if s3_staging_dir else self._s3_staging_dir

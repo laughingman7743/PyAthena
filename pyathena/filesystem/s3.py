@@ -41,6 +41,49 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class S3FileSystem(AbstractFileSystem):
+    """A filesystem interface for Amazon S3 that implements the fsspec protocol.
+
+    This class provides a file-system like interface to Amazon S3, allowing you to
+    use familiar file operations (ls, open, cp, rm, etc.) with S3 objects. It's
+    designed to be compatible with s3fs while offering PyAthena-specific optimizations.
+
+    The filesystem supports standard S3 operations including:
+    - Listing objects and directories
+    - Reading and writing files
+    - Copying and moving objects
+    - Creating and removing directories
+    - Multipart uploads for large files
+    - Various S3 storage classes and encryption options
+
+    Attributes:
+        session: The boto3 session used for S3 operations.
+        client: The S3 client for direct API calls.
+        config: Boto3 configuration for the client.
+        retry_config: Configuration for retry behavior on failed operations.
+
+    Example:
+        >>> from pyathena.filesystem.s3 import S3FileSystem
+        >>> fs = S3FileSystem()
+        >>>
+        >>> # List objects in a bucket
+        >>> files = fs.ls('s3://my-bucket/data/')
+        >>>
+        >>> # Read a file
+        >>> with fs.open('s3://my-bucket/data/file.csv', 'r') as f:
+        ...     content = f.read()
+        >>>
+        >>> # Write a file
+        >>> with fs.open('s3://my-bucket/output/result.txt', 'w') as f:
+        ...     f.write('Hello, S3!')
+        >>>
+        >>> # Copy files
+        >>> fs.cp('s3://source-bucket/file.txt', 's3://dest-bucket/file.txt')
+
+    Note:
+        This filesystem is used internally by PyAthena for handling query results
+        stored in S3, but can also be used independently for S3 file operations.
+    """
+
     # https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html
     # The minimum size of a part in a multipart upload is 5MiB.
     MULTIPART_UPLOAD_MIN_PART_SIZE: int = 5 * 2**20  # 5MiB
@@ -306,6 +349,25 @@ class S3FileSystem(AbstractFileSystem):
     def ls(
         self, path: str, detail: bool = False, refresh: bool = False, **kwargs
     ) -> Union[List[S3Object], List[str]]:
+        """List contents of an S3 path.
+
+        Lists buckets (when path is root) or objects within a bucket/prefix.
+        Compatible with fsspec interface for filesystem operations.
+
+        Args:
+            path: S3 path to list (e.g., "s3://bucket" or "s3://bucket/prefix").
+            detail: If True, return S3Object instances; if False, return paths as strings.
+            refresh: If True, bypass cache and fetch fresh results from S3.
+            **kwargs: Additional arguments (ignored for S3).
+
+        Returns:
+            List of S3Object instances (if detail=True) or paths as strings (if detail=False).
+
+        Example:
+            >>> fs = S3FileSystem()
+            >>> fs.ls("s3://my-bucket")  # List objects in bucket
+            >>> fs.ls("s3://my-bucket/", detail=True)  # Get detailed object info
+        """
         path = self._strip_protocol(path).rstrip("/")
         if path in ["", "/"]:
             files = self._ls_buckets(refresh)
@@ -522,12 +584,51 @@ class S3FileSystem(AbstractFileSystem):
         detail: bool = False,
         **kwargs,
     ) -> Union[Dict[str, S3Object], List[str]]:
+        """Find all files below a given S3 path.
+
+        Recursively searches for files under the specified path, with optional
+        depth limiting and directory inclusion. Uses efficient S3 list operations
+        with delimiter handling for performance.
+
+        Args:
+            path: S3 path to search under (e.g., "s3://bucket/prefix").
+            maxdepth: Maximum depth to recurse (None for unlimited).
+            withdirs: Whether to include directories in results (None = default behavior).
+            detail: If True, return dict of {path: S3Object}; if False, return list of paths.
+            **kwargs: Additional arguments.
+
+        Returns:
+            Dictionary mapping paths to S3Objects (if detail=True) or
+            list of paths (if detail=False).
+
+        Example:
+            >>> fs = S3FileSystem()
+            >>> fs.find("s3://bucket/data/", maxdepth=2)  # Limit depth
+            >>> fs.find("s3://bucket/", withdirs=True)    # Include directories
+        """
         files = self._find(path=path, maxdepth=maxdepth, withdirs=withdirs, **kwargs)
         if detail:
             return {f.name: f for f in files}
         return [f.name for f in files]
 
     def exists(self, path: str, **kwargs) -> bool:
+        """Check if an S3 path exists.
+
+        Determines whether a bucket, object, or prefix exists in S3.
+        Uses caching and efficient head operations to minimize API calls.
+
+        Args:
+            path: S3 path to check (e.g., "s3://bucket" or "s3://bucket/key").
+            **kwargs: Additional arguments (unused).
+
+        Returns:
+            True if the path exists, False otherwise.
+
+        Example:
+            >>> fs = S3FileSystem()
+            >>> fs.exists("s3://my-bucket/file.txt")
+            >>> fs.exists("s3://my-bucket/")
+        """
         path = self._strip_protocol(path)
         if path in ["", "/"]:
             # The root always exists.
@@ -637,6 +738,28 @@ class S3FileSystem(AbstractFileSystem):
     def cp_file(
         self, path1: str, path2: str, recursive=False, maxdepth=None, on_error=None, **kwargs
     ):
+        """Copy an S3 object to another S3 location.
+
+        Performs server-side copy of S3 objects, which is more efficient than
+        downloading and re-uploading. Automatically chooses between simple copy
+        and multipart copy based on object size.
+
+        Args:
+            path1: Source S3 path (s3://bucket/key).
+            path2: Destination S3 path (s3://bucket/key).
+            recursive: Unused parameter for fsspec compatibility.
+            maxdepth: Unused parameter for fsspec compatibility.
+            on_error: Unused parameter for fsspec compatibility.
+            **kwargs: Additional S3 copy parameters (e.g., metadata, storage class).
+
+        Raises:
+            ValueError: If trying to copy to a versioned file or copy buckets.
+
+        Note:
+            Uses multipart copy for objects larger than the maximum part size
+            to optimize performance for large files. The copy operation is
+            performed entirely on the S3 service without data transfer.
+        """
         # TODO: Delete the value that seems to be a typo, onerror=false.
         # https://github.com/fsspec/filesystem_spec/commit/346a589fef9308550ffa3d0d510f2db67281bb05
         # https://github.com/fsspec/filesystem_spec/blob/2024.10.0/fsspec/spec.py#L1185
@@ -801,6 +924,23 @@ class S3FileSystem(AbstractFileSystem):
         )[1]
 
     def put_file(self, lpath: str, rpath: str, callback=_DEFAULT_CALLBACK, **kwargs):
+        """Upload a local file to S3.
+
+        Uploads a file from the local filesystem to an S3 location. Supports
+        automatic content type detection based on file extension and provides
+        progress callback functionality.
+
+        Args:
+            lpath: Local file path to upload.
+            rpath: S3 destination path (s3://bucket/key).
+            callback: Progress callback for tracking upload progress.
+            **kwargs: Additional S3 parameters (e.g., ContentType, StorageClass).
+
+        Note:
+            Directories are not supported for upload. If lpath is a directory,
+            the method returns without performing any operation. Bucket-only
+            destinations (without key) are also not supported.
+        """
         if os.path.isdir(lpath):
             # No support for directory uploads.
             return
@@ -828,6 +968,22 @@ class S3FileSystem(AbstractFileSystem):
         self.invalidate_cache(rpath)
 
     def get_file(self, rpath: str, lpath: str, callback=_DEFAULT_CALLBACK, outfile=None, **kwargs):
+        """Download an S3 file to local filesystem.
+
+        Downloads a file from S3 to the local filesystem with progress tracking.
+        Reads the file in chunks to handle large files efficiently.
+
+        Args:
+            rpath: S3 source path (s3://bucket/key).
+            lpath: Local destination file path.
+            callback: Progress callback for tracking download progress.
+            outfile: Unused parameter for fsspec compatibility.
+            **kwargs: Additional S3 parameters passed to open().
+
+        Note:
+            If lpath is a directory, the method returns without performing
+            any operation.
+        """
         if os.path.isdir(lpath):
             return
 
@@ -838,6 +994,24 @@ class S3FileSystem(AbstractFileSystem):
                 callback.relative_update(len(data))
 
     def checksum(self, path: str, **kwargs):
+        """Get checksum for S3 object or directory.
+
+        Computes a checksum for the specified S3 path. For individual objects,
+        returns the ETag converted to an integer. For directories, returns a
+        checksum based on the directory's tokenized representation.
+
+        Args:
+            path: S3 path (s3://bucket/key) to get checksum for.
+            **kwargs: Additional arguments including:
+                refresh: If True, refresh cached info before computing checksum.
+
+        Returns:
+            Integer checksum value derived from S3 ETag or directory token.
+
+        Note:
+            For multipart uploads, ETag format is different and only the first
+            part before the dash is used for checksum calculation.
+        """
         refresh = kwargs.pop("refresh", False)
         info = self.info(path, refresh=refresh)
         if info.get("type") != S3ObjectType.S3_OBJECT_TYPE_DIRECTORY:
@@ -845,6 +1019,34 @@ class S3FileSystem(AbstractFileSystem):
         return int(tokenize(info), 16)
 
     def sign(self, path: str, expiration: int = 3600, **kwargs):
+        """Generate a presigned URL for S3 object access.
+
+        Creates a presigned URL that allows temporary access to an S3 object
+        without requiring AWS credentials. Useful for sharing files or providing
+        time-limited access to resources.
+
+        Args:
+            path: S3 path (s3://bucket/key) to generate URL for.
+            expiration: URL expiration time in seconds. Defaults to 3600 (1 hour).
+            **kwargs: Additional parameters including:
+                client_method: S3 operation ('get_object', 'put_object', etc.).
+                             Defaults to 'get_object'.
+                Additional parameters passed to the S3 operation.
+
+        Returns:
+            Presigned URL string that provides temporary access to the S3 object.
+
+        Example:
+            >>> fs = S3FileSystem()
+            >>> url = fs.sign("s3://my-bucket/file.txt", expiration=7200)
+            >>> # URL valid for 2 hours
+            >>>
+            >>> # Generate upload URL
+            >>> upload_url = fs.sign(
+            ...     "s3://my-bucket/upload.txt",
+            ...     client_method="put_object"
+            ... )
+        """
         bucket, key, version_id = self.parse_path(path)
         client_method = kwargs.pop("client_method", "get_object")
         params = {"Bucket": bucket, "Key": key}

@@ -31,6 +31,41 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class AthenaArrowResultSet(AthenaResultSet):
+    """Result set that provides Apache Arrow Table results with columnar optimization.
+
+    This result set handles CSV and Parquet result files from S3, converting them to
+    Apache Arrow Tables which provide efficient columnar data processing and memory
+    usage. It's optimized for analytical workloads and large dataset operations.
+
+    Features:
+        - Efficient columnar data processing with Apache Arrow
+        - Support for both CSV and Parquet result formats
+        - Optimized memory usage for large datasets
+        - Advanced timestamp parsing with multiple format support
+        - Zero-copy operations where possible
+
+    Attributes:
+        DEFAULT_BLOCK_SIZE: Default block size for Arrow operations (128MB).
+
+    Example:
+        >>> # Used automatically by ArrowCursor
+        >>> cursor = connection.cursor(ArrowCursor)
+        >>> cursor.execute("SELECT * FROM large_table")
+        >>>
+        >>> # Get Arrow Table
+        >>> table = cursor.fetchall()
+        >>>
+        >>> # Convert to pandas if needed
+        >>> df = table.to_pandas()
+        >>>
+        >>> # Or work with Arrow directly
+        >>> print(f"Table has {table.num_rows} rows and {table.num_columns} columns")
+
+    Note:
+        This class is used internally by ArrowCursor and typically not
+        instantiated directly by users. Requires pyarrow to be installed.
+    """
+
     DEFAULT_BLOCK_SIZE = 1024 * 1024 * 128
 
     _timestamp_parsers: List[str] = [

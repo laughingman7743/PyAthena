@@ -21,6 +21,34 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
+    """Cursor for handling Apache Arrow Table results from Athena queries.
+
+    This cursor returns query results as Apache Arrow Tables, which provide
+    efficient columnar data processing and memory usage. Arrow Tables are
+    especially useful for analytical workloads and data science applications.
+
+    The cursor supports both regular CSV-based results and high-performance
+    UNLOAD operations that return results in Parquet format for improved
+    performance with large datasets.
+
+    Attributes:
+        description: Sequence of column descriptions for the last query.
+        rowcount: Number of rows affected by the last query (-1 for SELECT queries).
+        arraysize: Default number of rows to fetch with fetchmany().
+
+    Example:
+        >>> from pyathena.arrow.cursor import ArrowCursor
+        >>> cursor = connection.cursor(ArrowCursor)
+        >>> cursor.execute("SELECT * FROM large_table")
+        >>> table = cursor.fetchall()  # Returns pyarrow.Table
+        >>> df = table.to_pandas()  # Convert to pandas if needed
+
+        # High-performance UNLOAD for large datasets
+        >>> cursor = connection.cursor(ArrowCursor, unload=True)
+        >>> cursor.execute("SELECT * FROM huge_table")
+        >>> table = cursor.fetchall()  # Faster Parquet-based result
+    """
+
     def __init__(
         self,
         s3_staging_dir: Optional[str] = None,
@@ -111,6 +139,32 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         on_start_query_execution: Optional[Callable[[str], None]] = None,
         **kwargs,
     ) -> ArrowCursor:
+        """Execute a SQL query and return results as Apache Arrow Tables.
+
+        Executes the SQL query on Amazon Athena and configures the result set
+        for Apache Arrow Table output. Arrow format provides high-performance
+        columnar data processing with efficient memory usage.
+
+        Args:
+            operation: SQL query string to execute.
+            parameters: Query parameters for parameterized queries.
+            work_group: Athena workgroup to use for this query.
+            s3_staging_dir: S3 location for query results.
+            cache_size: Number of queries to check for result caching.
+            cache_expiration_time: Cache expiration time in seconds.
+            result_reuse_enable: Enable Athena result reuse for this query.
+            result_reuse_minutes: Minutes to reuse cached results.
+            paramstyle: Parameter style ('qmark' or 'pyformat').
+            on_start_query_execution: Callback called when query starts.
+            **kwargs: Additional execution parameters.
+
+        Returns:
+            Self reference for method chaining.
+
+        Example:
+            >>> cursor.execute("SELECT * FROM sales WHERE year = 2023")
+            >>> table = cursor.as_arrow()  # Returns Apache Arrow Table
+        """
         self._reset_state()
         if self._unload:
             s3_staging_dir = s3_staging_dir if s3_staging_dir else self._s3_staging_dir
@@ -198,6 +252,24 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         return result_set.fetchall()
 
     def as_arrow(self) -> "Table":
+        """Return query results as an Apache Arrow Table.
+
+        Converts the entire result set into an Apache Arrow Table for efficient
+        columnar data processing. Arrow Tables provide excellent performance for
+        analytical workloads and interoperability with other data processing frameworks.
+
+        Returns:
+            Apache Arrow Table containing all query results.
+
+        Raises:
+            ProgrammingError: If no query has been executed or no results are available.
+
+        Example:
+            >>> cursor = connection.cursor(ArrowCursor)
+            >>> cursor.execute("SELECT * FROM my_table")
+            >>> table = cursor.as_arrow()
+            >>> print(f"Table has {table.num_rows} rows and {table.num_columns} columns")
+        """
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaArrowResultSet, self.result_set)

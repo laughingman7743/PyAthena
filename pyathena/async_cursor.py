@@ -17,6 +17,41 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class AsyncCursor(BaseCursor):
+    """Asynchronous cursor for non-blocking Athena query execution.
+
+    This cursor allows multiple queries to be executed concurrently without
+    blocking the main thread. It's useful for applications that need to execute
+    multiple queries in parallel or perform other work while queries are running.
+
+    The cursor maintains a thread pool for executing queries asynchronously and
+    provides methods to check query status and retrieve results when ready.
+
+    Attributes:
+        description: Sequence of column descriptions for the last query.
+        rowcount: Number of rows affected by the last query (-1 for SELECT queries).
+        arraysize: Default number of rows to fetch with fetchmany().
+        max_workers: Maximum number of worker threads for concurrent execution.
+
+    Example:
+        >>> cursor = connection.cursor(AsyncCursor)
+        >>>
+        >>> # Execute multiple queries concurrently
+        >>> future1 = cursor.execute("SELECT COUNT(*) FROM table1")
+        >>> future2 = cursor.execute("SELECT COUNT(*) FROM table2")
+        >>> future3 = cursor.execute("SELECT COUNT(*) FROM table3")
+        >>>
+        >>> # Check if queries are done and get results
+        >>> if future1.done():
+        ...     result1 = future1.result().fetchall()
+        >>>
+        >>> # Wait for all to complete
+        >>> results = [f.result().fetchall() for f in [future1, future2, future3]]
+
+    Note:
+        Each execute() call returns a Future object that can be used to
+        check completion status and retrieve results.
+    """
+
     def __init__(
         self,
         s3_staging_dir: Optional[str] = None,
@@ -79,9 +114,36 @@ class AsyncCursor(BaseCursor):
         return self._executor.submit(self._description, query_id)
 
     def query_execution(self, query_id: str) -> "Future[AthenaQueryExecution]":
+        """Get query execution details asynchronously.
+
+        Retrieves the current execution status and metadata for a query.
+        This is useful for monitoring query progress without blocking.
+
+        Args:
+            query_id: The Athena query execution ID.
+
+        Returns:
+            Future object containing AthenaQueryExecution with query details.
+        """
         return self._executor.submit(self._get_query_execution, query_id)
 
     def poll(self, query_id: str) -> "Future[AthenaQueryExecution]":
+        """Poll for query completion asynchronously.
+
+        Waits for the query to complete (succeed, fail, or be cancelled) and
+        returns the final execution status. This method blocks until completion
+        but runs the polling in a background thread.
+
+        Args:
+            query_id: The Athena query execution ID to poll.
+
+        Returns:
+            Future object containing the final AthenaQueryExecution status.
+
+        Note:
+            This method performs polling internally, so it will take time proportional
+            to your query execution duration.
+        """
         return cast("Future[AthenaQueryExecution]", self._executor.submit(self._poll, query_id))
 
     def _collect_result_set(self, query_id: str) -> AthenaResultSet:
@@ -107,6 +169,35 @@ class AsyncCursor(BaseCursor):
         paramstyle: Optional[str] = None,
         **kwargs,
     ) -> Tuple[str, "Future[Union[AthenaResultSet, Any]]"]:
+        """Execute a SQL query asynchronously.
+
+        Starts query execution on Amazon Athena and returns immediately without
+        waiting for completion. The query runs in the background while your
+        application can continue with other work.
+
+        Args:
+            operation: SQL query string to execute.
+            parameters: Query parameters (optional).
+            work_group: Athena workgroup to use (optional).
+            s3_staging_dir: S3 location for query results (optional).
+            cache_size: Query result cache size in MB (optional).
+            cache_expiration_time: Cache expiration time in seconds (optional).
+            result_reuse_enable: Enable result reuse for identical queries (optional).
+            result_reuse_minutes: Result reuse duration in minutes (optional).
+            paramstyle: Parameter style to use (optional).
+            **kwargs: Additional execution parameters.
+
+        Returns:
+            Tuple of (query_id, future) where:
+            - query_id: Athena query execution ID for tracking
+            - future: Future object for result retrieval
+
+        Example:
+            >>> query_id, future = cursor.execute("SELECT * FROM large_table")
+            >>> print(f"Query started: {query_id}")
+            >>> # Do other work while query runs...
+            >>> result_set = future.result()  # Wait for completion
+        """
         query_id = self._execute(
             operation,
             parameters=parameters,
@@ -126,13 +217,62 @@ class AsyncCursor(BaseCursor):
         seq_of_parameters: List[Optional[Union[Dict[str, Any], List[str]]]],
         **kwargs,
     ) -> None:
+        """Execute multiple queries asynchronously (not supported).
+
+        This method is not supported for asynchronous cursors because managing
+        multiple concurrent queries would be complex and resource-intensive.
+
+        Args:
+            operation: SQL query string.
+            seq_of_parameters: Sequence of parameter sets.
+            **kwargs: Additional arguments.
+
+        Raises:
+            NotSupportedError: Always raised as this operation is not supported.
+
+        Note:
+            For bulk operations, consider using execute() with parameterized
+            queries or batch processing patterns instead.
+        """
         raise NotSupportedError
 
     def cancel(self, query_id: str) -> "Future[None]":
+        """Cancel a running query asynchronously.
+
+        Submits a cancellation request for the specified query. The cancellation
+        itself runs asynchronously in the background.
+
+        Args:
+            query_id: The Athena query execution ID to cancel.
+
+        Returns:
+            Future object that completes when the cancellation request finishes.
+
+        Example:
+            >>> query_id, future = cursor.execute("SELECT * FROM huge_table")
+            >>> # Later, cancel the query
+            >>> cancel_future = cursor.cancel(query_id)
+            >>> cancel_future.result()  # Wait for cancellation to complete
+        """
         return self._executor.submit(self._cancel, query_id)
 
 
 class AsyncDictCursor(AsyncCursor):
+    """Asynchronous cursor that returns query results as dictionaries.
+
+    Combines the asynchronous execution capabilities of AsyncCursor with
+    the dictionary-based result format of DictCursor. Results are returned
+    as dictionaries where column names are keys, making it easier to access
+    column values by name rather than position.
+
+    Example:
+        >>> cursor = connection.cursor(AsyncDictCursor)
+        >>> future = cursor.execute("SELECT id, name, email FROM users")
+        >>> result_cursor = future.result()
+        >>> row = result_cursor.fetchone()
+        >>> print(f"User: {row['name']} ({row['email']})")
+    """
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self._result_set_class = AthenaDictResultSet

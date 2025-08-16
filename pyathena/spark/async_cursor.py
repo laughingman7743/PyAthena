@@ -14,6 +14,59 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class AsyncSparkCursor(SparkBaseCursor):
+    """Asynchronous cursor for executing PySpark code on Amazon Athena for Apache Spark.
+
+    This cursor provides asynchronous execution of PySpark code on Athena's managed
+    Spark environment. It's designed for non-blocking big data processing, ETL
+    operations, and machine learning workloads that require Spark's distributed
+    computing capabilities without blocking the main thread.
+
+    Features:
+        - Asynchronous PySpark code execution with concurrent futures
+        - Non-blocking query submission and result polling
+        - Managed Spark sessions with configurable resources
+        - Access to standard output and error streams asynchronously
+        - Automatic session lifecycle management
+        - Thread pool executor for concurrent operations
+
+    Attributes:
+        max_workers: Maximum number of worker threads for async operations.
+        session_id: The Athena Spark session ID.
+        engine_configuration: Spark engine configuration settings.
+
+    Example:
+        >>> import asyncio
+        >>> from pyathena.spark.async_cursor import AsyncSparkCursor
+        >>>
+        >>> cursor = connection.cursor(
+        ...     AsyncSparkCursor,
+        ...     engine_configuration={
+        ...         'CoordinatorDpuSize': 1,
+        ...         'MaxConcurrentDpus': 20
+        ...     }
+        ... )
+        >>>
+        >>> # Execute PySpark code asynchronously
+        >>> spark_code = '''
+        ... df = spark.read.table("my_database.my_table")
+        ... result = df.groupBy("category").count()
+        ... result.show()
+        ... '''
+        >>> calculation_id, future = cursor.execute(spark_code)
+        >>>
+        >>> # Get result when ready
+        >>> calc_execution = await future
+        >>> stdout_future = cursor.get_std_out(calc_execution)
+        >>> if stdout_future:
+        ...     output = await stdout_future
+        ...     print(output)
+
+    Note:
+        Requires an Athena workgroup configured for Spark calculations.
+        Spark sessions have associated costs and idle timeout settings.
+        The cursor manages a thread pool for asynchronous operations.
+    """
+
     def __init__(
         self,
         session_id: Optional[str] = None,

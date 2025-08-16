@@ -32,11 +32,39 @@ _API_FIELD_TO_S3_OBJECT_PROPERTY = {
 
 
 class S3ObjectType:
+    """Constants for S3 object types in filesystem operations.
+
+    These constants are used to distinguish between directories and files
+    when working with S3 paths through the S3FileSystem interface.
+    """
+
     S3_OBJECT_TYPE_DIRECTORY: str = "directory"
     S3_OBJECT_TYPE_FILE: str = "file"
 
 
 class S3StorageClass:
+    """Constants for Amazon S3 storage classes.
+
+    S3 storage classes determine the availability, durability, and cost
+    characteristics of stored objects. Each class is optimized for different
+    access patterns and use cases.
+
+    Storage classes:
+        - STANDARD: Default storage for frequently accessed data
+        - REDUCED_REDUNDANCY: Lower cost, reduced durability (deprecated)
+        - STANDARD_IA: Infrequently accessed data with rapid retrieval
+        - ONEZONE_IA: Lower cost IA storage in single availability zone
+        - INTELLIGENT_TIERING: Automatic tiering between frequent/infrequent
+        - GLACIER: Archive storage for long-term backup
+        - DEEP_ARCHIVE: Lowest cost archive storage
+        - GLACIER_IR: Archive with faster retrieval than standard Glacier
+        - OUTPOSTS: Storage on AWS Outposts
+
+    See Also:
+        AWS S3 storage classes documentation:
+        https://docs.aws.amazon.com/s3/latest/userguide/storage-class-intro.html
+    """
+
     S3_STORAGE_CLASS_STANDARD: str = "STANDARD"
     S3_STORAGE_CLASS_REDUCED_REDUNDANCY: str = "REDUCED_REDUNDANCY"
     S3_STORAGE_CLASS_STANDARD_IA: str = "STANDARD_IA"
@@ -52,6 +80,28 @@ class S3StorageClass:
 
 
 class S3Object(MutableMapping[str, Any]):
+    """Represents an S3 object with metadata and filesystem-like properties.
+
+    This class provides a dictionary-like interface to S3 object metadata,
+    making it easier to work with S3 objects in filesystem operations.
+    It handles the mapping between S3 API field names and more pythonic
+    property names.
+
+    The object supports both dictionary-style access and property-style
+    access to metadata fields like content type, storage class, encryption
+    settings, and object lock configurations.
+
+    Example:
+        >>> s3_obj = S3Object({"ContentType": "text/csv", "ContentLength": 1024})
+        >>> print(s3_obj.content_type)  # "text/csv"
+        >>> print(s3_obj["content_length"])  # 1024
+        >>> s3_obj.storage_class = "STANDARD_IA"
+
+    Note:
+        This class is primarily used internally by S3FileSystem for
+        representing S3 objects in filesystem operations.
+    """
+
     def __init__(
         self,
         init: Dict[str, Any],
@@ -113,6 +163,11 @@ class S3Object(MutableMapping[str, Any]):
         return str(self.__dict__)
 
     def to_dict(self) -> Dict[str, Any]:
+        """Convert S3Object to dictionary representation.
+
+        Returns:
+            Deep copy of the object's attributes as a dictionary.
+        """
         return copy.deepcopy(self.__dict__)
 
     def to_api_repr(self) -> Dict[str, Any]:
@@ -128,6 +183,24 @@ class S3Object(MutableMapping[str, Any]):
 
 
 class S3PutObject:
+    """Represents the response from an S3 PUT object operation.
+
+    This class encapsulates the metadata returned when uploading an object
+    to S3, including encryption details, versioning information, and
+    integrity checksums.
+
+    Attributes:
+        expiration: Object expiration time if lifecycle policy applies.
+        version_id: Version ID if bucket versioning is enabled.
+        etag: Entity tag for the uploaded object.
+        server_side_encryption: Server-side encryption method used.
+        Various checksum properties: For data integrity verification.
+
+    Note:
+        This class is used internally by S3FileSystem operations and
+        typically not instantiated directly by users.
+    """
+
     def __init__(self, response: Dict[str, Any]) -> None:
         self._expiration: Optional[str] = response.get("Expiration")
         self._version_id: Optional[str] = response.get("VersionId")
@@ -205,6 +278,23 @@ class S3PutObject:
 
 
 class S3MultipartUpload:
+    """Represents an S3 multipart upload operation.
+
+    This class manages the metadata for multipart uploads, which allow
+    uploading large files in chunks for better reliability and performance.
+    It tracks upload identifiers, encryption settings, and lifecycle rules.
+
+    Attributes:
+        bucket: S3 bucket name for the upload.
+        key: Object key being uploaded.
+        upload_id: Unique identifier for the multipart upload.
+        server_side_encryption: Encryption method applied to the upload.
+        abort_date/abort_rule_id: Lifecycle rule information for upload cleanup.
+
+    Note:
+        Used internally by S3FileSystem for large file upload operations.
+    """
+
     def __init__(self, response: Dict[str, Any]) -> None:
         self._abort_date = response.get("AbortDate")
         self._abort_rule_id = response.get("AbortRuleId")
@@ -274,6 +364,23 @@ class S3MultipartUpload:
 
 
 class S3MultipartUploadPart:
+    """Represents a single part in an S3 multipart upload operation.
+
+    Each part in a multipart upload has its own metadata including checksums,
+    encryption details, and part identification. This class manages that
+    metadata and provides methods to convert it to API-compatible formats.
+
+    Attributes:
+        part_number: The sequential part number (1-based).
+        etag: Entity tag for this specific part.
+        checksum_*: Various integrity checksums for the part data.
+        server_side_encryption: Encryption settings for this part.
+
+    Note:
+        Parts must be at least 5MB except for the last part. Used internally
+        by S3FileSystem for chunked upload operations.
+    """
+
     def __init__(self, part_number: int, response: Dict[str, Any]) -> None:
         self._part_number = part_number
         self._copy_source_version_id: Optional[str] = response.get("CopySourceVersionId")
@@ -367,6 +474,25 @@ class S3MultipartUploadPart:
 
 
 class S3CompleteMultipartUpload:
+    """Represents the completion of an S3 multipart upload operation.
+
+    This class encapsulates the final response when a multipart upload is
+    completed, including the final object location, versioning information,
+    and consolidated metadata from all parts.
+
+    Attributes:
+        location: Final S3 URL of the completed object.
+        bucket: S3 bucket containing the object.
+        key: Final object key.
+        version_id: Version ID if bucket versioning is enabled.
+        etag: Final entity tag of the complete object.
+        server_side_encryption: Encryption applied to the final object.
+
+    Note:
+        This represents the successful completion of a multipart upload.
+        Used internally by S3FileSystem operations.
+    """
+
     def __init__(self, response: Dict[str, Any]) -> None:
         self._location: Optional[str] = response.get("Location")
         self._bucket: Optional[str] = response.get("Bucket")

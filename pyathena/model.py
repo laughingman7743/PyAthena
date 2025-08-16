@@ -12,6 +12,38 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class AthenaQueryExecution:
+    """Represents an Athena query execution with status and metadata.
+
+    This class encapsulates information about a query execution in Amazon Athena,
+    including its current state, statistics, error information, and result metadata.
+    It's primarily used internally by PyAthena cursors but can be useful for
+    monitoring and debugging query execution.
+
+    Query States:
+        - QUEUED: Query is waiting to be executed
+        - RUNNING: Query is currently executing
+        - SUCCEEDED: Query completed successfully
+        - FAILED: Query execution failed
+        - CANCELLED: Query was cancelled
+
+    Statement Types:
+        - DDL: Data Definition Language (CREATE, DROP, ALTER)
+        - DML: Data Manipulation Language (SELECT, INSERT, UPDATE, DELETE)
+        - UTILITY: Utility statements (SHOW, DESCRIBE, EXPLAIN)
+
+    Example:
+        >>> # Typically accessed through cursor execution
+        >>> cursor.execute("SELECT COUNT(*) FROM my_table")
+        >>> query_execution = cursor._last_query_execution  # Internal access
+        >>> print(f"Query ID: {query_execution.query_id}")
+        >>> print(f"State: {query_execution.state}")
+        >>> print(f"Data scanned: {query_execution.data_scanned_in_bytes} bytes")
+
+    See Also:
+        AWS Athena QueryExecution API reference:
+        https://docs.aws.amazon.com/athena/latest/APIReference/API_QueryExecution.html
+    """
+
     STATE_QUEUED: str = "QUEUED"
     STATE_RUNNING: str = "RUNNING"
     STATE_SUCCEEDED: str = "SUCCEEDED"
@@ -569,6 +601,38 @@ class AthenaTableMetadata:
 
 
 class AthenaFileFormat:
+    """Constants and utilities for Athena supported file formats.
+
+    This class provides constants for file formats supported by Amazon Athena
+    and utility methods to check format types. These are commonly used when
+    creating tables or configuring UNLOAD operations.
+
+    Supported formats:
+        - SEQUENCEFILE: Hadoop SequenceFile format
+        - TEXTFILE: Plain text files (default)
+        - RCFILE: Record Columnar File format
+        - ORC: Optimized Row Columnar format
+        - PARQUET: Apache Parquet columnar format
+        - AVRO: Apache Avro format
+        - ION: Amazon Ion format
+
+    Example:
+        >>> from pyathena.model import AthenaFileFormat
+        >>>
+        >>> # Check if format is Parquet
+        >>> if AthenaFileFormat.is_parquet("PARQUET"):
+        ...     print("Using columnar format")
+        >>>
+        >>> # Use in UNLOAD operations
+        >>> format_type = AthenaFileFormat.FILE_FORMAT_PARQUET
+        >>> sql = f"UNLOAD (...) TO 's3://bucket/path/' WITH (format = '{format_type}')"
+        >>> cursor.execute(sql)
+
+    See Also:
+        AWS Documentation on supported file formats:
+        https://docs.aws.amazon.com/athena/latest/ug/supported-serdes.html
+    """
+
     FILE_FORMAT_SEQUENCEFILE: str = "SEQUENCEFILE"
     FILE_FORMAT_TEXTFILE: str = "TEXTFILE"
     FILE_FORMAT_RCFILE: str = "RCFILE"
@@ -620,6 +684,42 @@ class AthenaRowFormatSerde:
 
 
 class AthenaCompression:
+    """Constants and utilities for Athena supported compression formats.
+
+    This class provides constants for compression formats supported by Amazon Athena
+    and utility methods to validate compression types. These are commonly used when
+    creating tables, configuring UNLOAD operations, or optimizing data storage.
+
+    Supported compression formats:
+        - BZIP2: BZIP2 compression
+        - DEFLATE: DEFLATE compression
+        - GZIP: GZIP compression (most common)
+        - LZ4: LZ4 fast compression
+        - LZO: LZO compression
+        - SNAPPY: Snappy compression (good for Parquet)
+        - ZLIB: ZLIB compression
+        - ZSTD: Zstandard compression
+
+    Example:
+        >>> from pyathena.model import AthenaCompression
+        >>>
+        >>> # Validate compression format
+        >>> if AthenaCompression.is_valid("GZIP"):
+        ...     print("Valid compression format")
+        >>>
+        >>> # Use in UNLOAD operations
+        >>> compression = AthenaCompression.COMPRESSION_GZIP
+        >>> sql = f"UNLOAD (...) TO 's3://bucket/path/' WITH (compression = '{compression}')"
+        >>> cursor.execute(sql)
+
+    See Also:
+        AWS Documentation on compression formats:
+        https://docs.aws.amazon.com/athena/latest/ug/compression-formats.html
+
+        Best practices for data compression in Athena:
+        https://docs.aws.amazon.com/athena/latest/ug/compression-support.html
+    """
+
     COMPRESSION_BZIP2: str = "BZIP2"
     COMPRESSION_DEFLATE: str = "DEFLATE"
     COMPRESSION_GZIP: str = "GZIP"

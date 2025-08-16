@@ -432,6 +432,22 @@ _DEFAULT_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {
 
 
 class Converter(metaclass=ABCMeta):
+    """Abstract base class for converting Athena data types to Python objects.
+
+    Converters handle the transformation of string values returned by Athena
+    into appropriate Python data types. Different cursor implementations may
+    use different converters to optimize for their specific use cases.
+
+    This class provides a framework for mapping Athena data type names to
+    conversion functions and handles the conversion process during result
+    set processing.
+
+    Attributes:
+        mappings: Dictionary mapping Athena type names to conversion functions.
+        default: Default conversion function for unmapped types.
+        types: Optional dictionary mapping type names to Python type objects.
+    """
+
     def __init__(
         self,
         mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]],
@@ -450,22 +466,56 @@ class Converter(metaclass=ABCMeta):
 
     @property
     def mappings(self) -> Dict[str, Callable[[Optional[str]], Optional[Any]]]:
+        """Get the current type conversion mappings.
+
+        Returns:
+            Dictionary mapping Athena data types to conversion functions.
+        """
         return self._mappings
 
     @property
     def types(self) -> Dict[str, Type[Any]]:
+        """Get the current type mappings for result set descriptions.
+
+        Returns:
+            Dictionary mapping Athena data types to Python types.
+        """
         return self._types
 
     def get(self, type_: str) -> Callable[[Optional[str]], Optional[Any]]:
+        """Get the conversion function for a specific Athena data type.
+
+        Args:
+            type_: The Athena data type name.
+
+        Returns:
+            The conversion function for the type, or the default converter if not found.
+        """
         return self.mappings.get(type_, self._default)
 
     def set(self, type_: str, converter: Callable[[Optional[str]], Optional[Any]]) -> None:
+        """Set a custom conversion function for an Athena data type.
+
+        Args:
+            type_: The Athena data type name.
+            converter: The conversion function to use for this type.
+        """
         self.mappings[type_] = converter
 
     def remove(self, type_: str) -> None:
+        """Remove a custom conversion function for an Athena data type.
+
+        Args:
+            type_: The Athena data type name to remove.
+        """
         self.mappings.pop(type_, None)
 
     def update(self, mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]]) -> None:
+        """Update multiple conversion functions at once.
+
+        Args:
+            mappings: Dictionary of type names to conversion functions.
+        """
         self.mappings.update(mappings)
 
     @abstractmethod
@@ -474,6 +524,29 @@ class Converter(metaclass=ABCMeta):
 
 
 class DefaultTypeConverter(Converter):
+    """Default implementation of the Converter for standard Python types.
+
+    This converter provides mappings for all standard Athena data types to
+    their corresponding Python types using built-in conversion functions.
+    It's used by the standard Cursor class by default.
+
+    Supported conversions:
+        - Numeric types: integer, bigint, real, double, decimal
+        - String types: varchar, char
+        - Date/time types: date, timestamp, time (with timezone support)
+        - Boolean: boolean
+        - Binary: varbinary
+        - Complex types: array, map, row/struct
+        - JSON: json
+
+    Example:
+        >>> converter = DefaultTypeConverter()
+        >>> converter.convert('integer', '42')
+        42
+        >>> converter.convert('date', '2023-01-15')
+        datetime.date(2023, 1, 15)
+    """
+
     def __init__(self) -> None:
         super().__init__(mappings=deepcopy(_DEFAULT_CONVERTERS), default=_to_default)
 

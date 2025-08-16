@@ -17,6 +17,20 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class Formatter(metaclass=ABCMeta):
+    """Abstract base class for formatting Python values for SQL queries.
+
+    Formatters handle the conversion of Python objects to SQL-compatible
+    string representations for use in parameterized queries. They ensure
+    proper escaping and formatting of values based on their types.
+
+    This class provides a framework for mapping Python types to formatting
+    functions and handles the formatting process during query preparation.
+
+    Attributes:
+        mappings: Dictionary mapping Python types to formatting functions.
+        default: Default formatting function for unmapped types.
+    """
+
     def __init__(
         self,
         mappings: Dict[Type[Any], Callable[[Formatter, Callable[[str], str], Any], Any]],
@@ -29,9 +43,22 @@ class Formatter(metaclass=ABCMeta):
     def mappings(
         self,
     ) -> Dict[Type[Any], Callable[[Formatter, Callable[[str], str], Any], Any]]:
+        """Get the current parameter formatting mappings.
+
+        Returns:
+            Dictionary mapping Python types to formatting functions.
+        """
         return self._mappings
 
     def get(self, type_) -> Optional[Callable[[Formatter, Callable[[str], str], Any], Any]]:
+        """Get the formatting function for a specific Python type.
+
+        Args:
+            type_: The Python value to get formatter for.
+
+        Returns:
+            The formatting function for the type, or the default formatter if not found.
+        """
         return self.mappings.get(type(type_), self._default)
 
     def set(
@@ -60,6 +87,44 @@ class Formatter(metaclass=ABCMeta):
         format_: str = AthenaFileFormat.FILE_FORMAT_PARQUET,
         compression: str = AthenaCompression.COMPRESSION_SNAPPY,
     ):
+        """Wrap a SELECT query with UNLOAD statement for high-performance result retrieval.
+
+        Transforms SELECT or WITH queries into UNLOAD statements that export results
+        directly to S3 in optimized formats (Parquet, ORC) with compression. This
+        approach is significantly faster than standard CSV-based result retrieval
+        for large datasets and preserves data types more accurately.
+
+        Args:
+            operation: SQL query to wrap. Must be a SELECT or WITH statement.
+            s3_staging_dir: Base S3 directory for storing UNLOAD results.
+            format_: Output file format. Defaults to Parquet for optimal performance.
+            compression: Compression algorithm. Defaults to Snappy for balanced
+                       compression ratio and speed.
+
+        Returns:
+            Tuple containing:
+            - Modified UNLOAD query string
+            - S3 location where results will be stored (None if not SELECT/WITH)
+
+        Example:
+            >>> query = "SELECT * FROM sales WHERE year = 2023"
+            >>> unload_query, location = Formatter.wrap_unload(
+            ...     query, "s3://my-bucket/results/"
+            ... )
+            >>> print(unload_query)
+            UNLOAD (
+                SELECT * FROM sales WHERE year = 2023
+            )
+            TO 's3://my-bucket/results/unload/20231215/uuid//'
+            WITH (
+                format = 'PARQUET',
+                compression = 'SNAPPY'
+            )
+
+        Note:
+            Only SELECT and WITH statements are wrapped. Other statement types
+            are returned unchanged with location=None.
+        """
         if not operation or not operation.strip():
             raise ProgrammingError("Query is none or empty.")
 
@@ -171,6 +236,30 @@ _DEFAULT_FORMATTERS: Dict[Type[Any], Callable[[Formatter, Callable[[str], str], 
 
 
 class DefaultParameterFormatter(Formatter):
+    """Default implementation of the Formatter for SQL parameter formatting.
+
+    This formatter provides standard formatting for common Python types used
+    in SQL parameters. It handles proper escaping and quoting to prevent
+    SQL injection and ensure valid SQL syntax.
+
+    Supported types:
+        - None: Converts to SQL NULL
+        - Strings: Properly escaped and quoted
+        - Numbers: int, float, Decimal
+        - Dates and times: date, datetime, time
+        - Booleans: Converted to SQL boolean literals
+        - Sequences: list, tuple, set (for IN clauses)
+
+    Example:
+        >>> formatter = DefaultParameterFormatter()
+        >>> sql = formatter.format(
+        ...     "SELECT * FROM users WHERE name = %(name)s AND age > %(age)s",
+        ...     {"name": "John's Data", "age": 25}
+        ... )
+        >>> print(sql)
+        SELECT * FROM users WHERE name = 'John''s Data' AND age > 25
+    """
+
     def __init__(self) -> None:
         super().__init__(mappings=deepcopy(_DEFAULT_FORMATTERS), default=None)
 

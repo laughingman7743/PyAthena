@@ -26,6 +26,31 @@ _DEFAULT_PANDAS_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] 
 
 
 class DefaultPandasTypeConverter(Converter):
+    """Optimized type converter for pandas DataFrame results.
+
+    This converter is specifically designed for the PandasCursor and provides
+    optimized type conversion that works well with pandas data types.
+    It minimizes conversions for types that pandas handles efficiently
+    and only converts complex types that need special handling.
+
+    The converter focuses on:
+        - Preserving numeric types for pandas optimization
+        - Converting only complex types (json, binary, etc.)
+        - Maintaining compatibility with pandas data type inference
+
+    Example:
+        >>> from pyathena.pandas.converter import DefaultPandasTypeConverter
+        >>> converter = DefaultPandasTypeConverter()
+        >>>
+        >>> # Used automatically by PandasCursor
+        >>> cursor = connection.cursor(PandasCursor)
+        >>> # converter is applied automatically to results
+
+    Note:
+        This converter is used by default in PandasCursor.
+        Most users don't need to instantiate it directly.
+    """
+
     def __init__(self) -> None:
         super().__init__(
             mappings=deepcopy(_DEFAULT_PANDAS_CONVERTERS),
@@ -60,6 +85,18 @@ class DefaultPandasTypeConverter(Converter):
 
 
 class DefaultPandasUnloadTypeConverter(Converter):
+    """Type converter for pandas UNLOAD operations.
+
+    This converter is designed for use with UNLOAD queries that write
+    results directly to Parquet files in S3. Since UNLOAD operations
+    bypass the normal conversion process and write data in native
+    Parquet format, this converter has minimal functionality.
+
+    Note:
+        Used automatically when PandasCursor is configured with unload=True.
+        UNLOAD results are read directly as DataFrames from Parquet files.
+    """
+
     def __init__(self) -> None:
         super().__init__(
             mappings={},
