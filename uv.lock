@@ -806,7 +806,6 @@ wheels = [
 
 [[package]]
 name = "pyathena"
-version = "3.12.2"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
