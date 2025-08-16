@@ -28,6 +28,21 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class CursorIterator(metaclass=ABCMeta):
+    """Abstract base class providing iteration and result fetching capabilities for cursors.
+    
+    This mixin class provides common functionality for iterating through query results
+    and managing cursor state. It implements the iterator protocol and provides
+    standard fetch methods that conform to the DB API 2.0 specification.
+    
+    Attributes:
+        DEFAULT_FETCH_SIZE: Default number of rows to fetch per request (1000).
+        DEFAULT_RESULT_REUSE_MINUTES: Default minutes for Athena result reuse (60).
+        arraysize: Number of rows to fetch with fetchmany() if size not specified.
+        
+    Note:
+        This is an abstract base class used by concrete cursor implementations.
+        It should not be instantiated directly.
+    """
     # https://docs.aws.amazon.com/athena/latest/APIReference/API_GetQueryResults.html
     # Valid Range: Minimum value of 1. Maximum value of 1000.
     DEFAULT_FETCH_SIZE: int = 1000
@@ -85,6 +100,41 @@ class CursorIterator(metaclass=ABCMeta):
 
 
 class BaseCursor(metaclass=ABCMeta):
+    """Abstract base class for all PyAthena cursor implementations.
+    
+    This class provides the foundational functionality for executing SQL queries
+    and calculations on Amazon Athena. It handles AWS API interactions, query
+    execution management, metadata operations, and result polling.
+    
+    All concrete cursor implementations (Cursor, DictCursor, PandasCursor,
+    ArrowCursor, SparkCursor, AsyncCursor) inherit from this base class and
+    implement the abstract methods according to their specific use cases.
+    
+    Attributes:
+        LIST_QUERY_EXECUTIONS_MAX_RESULTS: Maximum results per query listing API call (50).
+        LIST_TABLE_METADATA_MAX_RESULTS: Maximum results per table metadata API call (50).
+        LIST_DATABASES_MAX_RESULTS: Maximum results per database listing API call (50).
+        
+    Key Features:
+        - Query execution and polling with configurable retry logic
+        - Table and database metadata operations
+        - Result caching and reuse capabilities
+        - Encryption and security configuration support
+        - Workgroup and catalog management
+        - Query cancellation and interruption handling
+        
+    Example:
+        This is an abstract base class and should not be instantiated directly.
+        Use concrete implementations like Cursor or PandasCursor instead:
+        
+        >>> cursor = connection.cursor()  # Creates default Cursor
+        >>> cursor.execute("SELECT * FROM my_table")
+        >>> results = cursor.fetchall()
+        
+    Note:
+        This class contains AWS service quotas as constants. These limits
+        are enforced by the AWS Athena service and should not be modified.
+    """
     # https://docs.aws.amazon.com/athena/latest/APIReference/API_ListQueryExecutions.html
     # Valid Range: Minimum value of 0. Maximum value of 50.
     LIST_QUERY_EXECUTIONS_MAX_RESULTS = 50
