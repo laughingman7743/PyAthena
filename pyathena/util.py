@@ -19,16 +19,16 @@ PATTERN_OUTPUT_LOCATION: Pattern[str] = re.compile(
 
 def parse_output_location(output_location: str) -> Tuple[str, str]:
     """Parse an S3 output location URL into bucket and key components.
-    
+
     Args:
         output_location: S3 URL in format 's3://bucket-name/path/to/object'
-        
+
     Returns:
         Tuple of (bucket_name, object_key)
-        
+
     Raises:
         DataError: If the output_location format is invalid.
-        
+
     Example:
         >>> bucket, key = parse_output_location("s3://my-bucket/results/query.csv")
         >>> print(bucket)  # "my-bucket"
@@ -42,28 +42,28 @@ def parse_output_location(output_location: str) -> Tuple[str, str]:
 
 def strtobool(val):
     """Convert a string representation of truth to True or False.
-    
+
     This function replaces the deprecated distutils.util.strtobool method.
     It converts string representations of boolean values to actual boolean values.
-    
+
     Args:
         val: String representation of a boolean value.
-        
+
     Returns:
         1 for True values, 0 for False values.
-        
+
     Raises:
         ValueError: If the input string is not a recognized boolean representation.
-        
+
     Example:
         >>> strtobool("yes")  # 1
         >>> strtobool("false")  # 0
         >>> strtobool("invalid")  # ValueError
-        
+
     Note:
         True values: y, yes, t, true, on, 1 (case-insensitive)
         False values: n, no, f, false, off, 0 (case-insensitive)
-        
+
     References:
         - https://peps.python.org/pep-0632/
         - https://github.com/pypa/distutils/blob/main/distutils/util.py#L340-L353
@@ -140,24 +140,24 @@ def retry_api_call(
     **kwargs,
 ) -> Any:
     """Execute a function with automatic retry logic for AWS API calls.
-    
+
     This function wraps AWS API calls with retry behavior based on the provided
     configuration. It uses exponential backoff and only retries on specific
     AWS exceptions that indicate transient failures.
-    
+
     Args:
         func: The AWS API function to call.
         config: RetryConfig instance specifying retry behavior.
         logger: Optional logger for retry attempt logging.
         *args: Positional arguments to pass to the function.
         **kwargs: Keyword arguments to pass to the function.
-        
+
     Returns:
         The result of the successful function call.
-        
+
     Raises:
         The original exception if all retry attempts are exhausted.
-        
+
     Example:
         >>> from pyathena.util import RetryConfig, retry_api_call
         >>> config = RetryConfig(attempt=3, max_delay=30)
@@ -167,7 +167,7 @@ def retry_api_call(
         ...     logger=logger,
         ...     TableName="my_table"
         ... )
-        
+
     Note:
         Only retries on AWS exceptions listed in the RetryConfig.exceptions.
         Does not retry on client errors or non-AWS exceptions.
