@@ -12,6 +12,51 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class SparkCursor(SparkBaseCursor, WithCalculationExecution):
+    """Cursor for executing PySpark code on Amazon Athena for Apache Spark.
+
+    This cursor allows you to execute PySpark code directly on Athena's managed
+    Spark environment. It's designed for big data processing, ETL operations,
+    and machine learning workloads that require Spark's distributed computing
+    capabilities.
+
+    The cursor manages Spark sessions automatically and provides an interface
+    similar to other PyAthena cursors but optimized for Spark calculations
+    rather than SQL queries.
+
+    Attributes:
+        session_id: The Athena Spark session ID.
+        description: Optional description for the Spark session.
+        engine_configuration: Spark engine configuration settings.
+        calculation_id: ID of the current calculation being executed.
+
+    Example:
+        >>> from pyathena.spark.cursor import SparkCursor
+        >>> cursor = connection.cursor(SparkCursor)
+        >>>
+        >>> # Execute PySpark code
+        >>> spark_code = '''
+        ... df = spark.read.table("my_database.my_table")
+        ... result = df.groupBy("category").count()
+        ... result.show()
+        ... '''
+        >>> cursor.execute(spark_code)
+        >>> result = cursor.fetchall()
+
+        # Configure Spark session
+        >>> cursor = connection.cursor(
+        ...     SparkCursor,
+        ...     engine_configuration={
+        ...         'CoordinatorDpuSize': 1,
+        ...         'MaxConcurrentDpus': 20,
+        ...         'DefaultExecutorDpuSize': 1
+        ...     }
+        ... )
+
+    Note:
+        Requires an Athena workgroup configured for Spark calculations.
+        Spark sessions have associated costs and idle timeout settings.
+    """
+
     def __init__(
         self,
         session_id: Optional[str] = None,

@@ -432,6 +432,22 @@ _DEFAULT_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {
 
 
 class Converter(metaclass=ABCMeta):
+    """Abstract base class for converting Athena data types to Python objects.
+
+    Converters handle the transformation of string values returned by Athena
+    into appropriate Python data types. Different cursor implementations may
+    use different converters to optimize for their specific use cases.
+
+    This class provides a framework for mapping Athena data type names to
+    conversion functions and handles the conversion process during result
+    set processing.
+
+    Attributes:
+        mappings: Dictionary mapping Athena type names to conversion functions.
+        default: Default conversion function for unmapped types.
+        types: Optional dictionary mapping type names to Python type objects.
+    """
+
     def __init__(
         self,
         mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]],
@@ -474,6 +490,29 @@ class Converter(metaclass=ABCMeta):
 
 
 class DefaultTypeConverter(Converter):
+    """Default implementation of the Converter for standard Python types.
+
+    This converter provides mappings for all standard Athena data types to
+    their corresponding Python types using built-in conversion functions.
+    It's used by the standard Cursor class by default.
+
+    Supported conversions:
+        - Numeric types: integer, bigint, real, double, decimal
+        - String types: varchar, char
+        - Date/time types: date, timestamp, time (with timezone support)
+        - Boolean: boolean
+        - Binary: varbinary
+        - Complex types: array, map, row/struct
+        - JSON: json
+
+    Example:
+        >>> converter = DefaultTypeConverter()
+        >>> converter.convert('integer', '42')
+        42
+        >>> converter.convert('date', '2023-01-15')
+        datetime.date(2023, 1, 15)
+    """
+
     def __init__(self) -> None:
         super().__init__(mappings=deepcopy(_DEFAULT_CONVERTERS), default=_to_default)
 

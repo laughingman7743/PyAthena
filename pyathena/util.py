@@ -39,6 +39,43 @@ def strtobool(val):
 
 
 class RetryConfig:
+    """Configuration for automatic retry behavior on failed API calls.
+
+    This class configures how PyAthena handles transient failures when
+    communicating with AWS services. It uses exponential backoff with
+    customizable parameters to retry failed operations.
+
+    Attributes:
+        exceptions: List of AWS exception names to retry on.
+        attempt: Maximum number of retry attempts.
+        multiplier: Base multiplier for exponential backoff.
+        max_delay: Maximum delay between retries in seconds.
+        exponential_base: Base for exponential backoff calculation.
+
+    Example:
+        >>> from pyathena.util import RetryConfig
+        >>>
+        >>> # Default retry configuration
+        >>> retry_config = RetryConfig()
+        >>>
+        >>> # Custom retry configuration
+        >>> custom_retry = RetryConfig(
+        ...     exceptions=["ThrottlingException", "ServiceUnavailableException"],
+        ...     attempt=10,
+        ...     max_delay=60
+        ... )
+        >>>
+        >>> # Use with connection
+        >>> conn = pyathena.connect(
+        ...     s3_staging_dir="s3://bucket/path/",
+        ...     retry_config=custom_retry
+        ... )
+
+    Note:
+        Retries are applied to AWS API calls, not to SQL query execution.
+        Query failures typically require manual intervention or query fixes.
+    """
+
     def __init__(
         self,
         exceptions: Iterable[str] = (

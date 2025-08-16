@@ -17,6 +17,20 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class Formatter(metaclass=ABCMeta):
+    """Abstract base class for formatting Python values for SQL queries.
+
+    Formatters handle the conversion of Python objects to SQL-compatible
+    string representations for use in parameterized queries. They ensure
+    proper escaping and formatting of values based on their types.
+
+    This class provides a framework for mapping Python types to formatting
+    functions and handles the formatting process during query preparation.
+
+    Attributes:
+        mappings: Dictionary mapping Python types to formatting functions.
+        default: Default formatting function for unmapped types.
+    """
+
     def __init__(
         self,
         mappings: Dict[Type[Any], Callable[[Formatter, Callable[[str], str], Any], Any]],
@@ -171,6 +185,30 @@ _DEFAULT_FORMATTERS: Dict[Type[Any], Callable[[Formatter, Callable[[str], str], 
 
 
 class DefaultParameterFormatter(Formatter):
+    """Default implementation of the Formatter for SQL parameter formatting.
+
+    This formatter provides standard formatting for common Python types used
+    in SQL parameters. It handles proper escaping and quoting to prevent
+    SQL injection and ensure valid SQL syntax.
+
+    Supported types:
+        - None: Converts to SQL NULL
+        - Strings: Properly escaped and quoted
+        - Numbers: int, float, Decimal
+        - Dates and times: date, datetime, time
+        - Booleans: Converted to SQL boolean literals
+        - Sequences: list, tuple, set (for IN clauses)
+
+    Example:
+        >>> formatter = DefaultParameterFormatter()
+        >>> sql = formatter.format(
+        ...     "SELECT * FROM users WHERE name = %(name)s AND age > %(age)s",
+        ...     {"name": "John's Data", "age": 25}
+        ... )
+        >>> print(sql)
+        SELECT * FROM users WHERE name = 'John''s Data' AND age > 25
+    """
+
     def __init__(self) -> None:
         super().__init__(mappings=deepcopy(_DEFAULT_FORMATTERS), default=None)
 

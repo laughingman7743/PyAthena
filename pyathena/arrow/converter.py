@@ -37,6 +37,32 @@ _DEFAULT_ARROW_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] =
 
 
 class DefaultArrowTypeConverter(Converter):
+    """Optimized type converter for Apache Arrow Table results.
+
+    This converter is specifically designed for the ArrowCursor and provides
+    optimized type conversion for Apache Arrow's columnar data format.
+    It converts Athena data types to Python types that are efficiently
+    handled by Apache Arrow.
+
+    The converter focuses on:
+        - Converting date/time types to appropriate Python objects
+        - Handling decimal and binary types for Arrow compatibility
+        - Preserving JSON and complex types
+        - Maintaining high performance for columnar operations
+
+    Example:
+        >>> from pyathena.arrow.converter import DefaultArrowTypeConverter
+        >>> converter = DefaultArrowTypeConverter()
+        >>>
+        >>> # Used automatically by ArrowCursor
+        >>> cursor = connection.cursor(ArrowCursor)
+        >>> # converter is applied automatically to results
+
+    Note:
+        This converter is used by default in ArrowCursor.
+        Most users don't need to instantiate it directly.
+    """
+
     def __init__(self) -> None:
         super().__init__(
             mappings=deepcopy(_DEFAULT_ARROW_CONVERTERS),

@@ -17,6 +17,41 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class AsyncCursor(BaseCursor):
+    """Asynchronous cursor for non-blocking Athena query execution.
+
+    This cursor allows multiple queries to be executed concurrently without
+    blocking the main thread. It's useful for applications that need to execute
+    multiple queries in parallel or perform other work while queries are running.
+
+    The cursor maintains a thread pool for executing queries asynchronously and
+    provides methods to check query status and retrieve results when ready.
+
+    Attributes:
+        description: Sequence of column descriptions for the last query.
+        rowcount: Number of rows affected by the last query (-1 for SELECT queries).
+        arraysize: Default number of rows to fetch with fetchmany().
+        max_workers: Maximum number of worker threads for concurrent execution.
+
+    Example:
+        >>> cursor = connection.cursor(AsyncCursor)
+        >>>
+        >>> # Execute multiple queries concurrently
+        >>> future1 = cursor.execute("SELECT COUNT(*) FROM table1")
+        >>> future2 = cursor.execute("SELECT COUNT(*) FROM table2")
+        >>> future3 = cursor.execute("SELECT COUNT(*) FROM table3")
+        >>>
+        >>> # Check if queries are done and get results
+        >>> if future1.done():
+        ...     result1 = future1.result().fetchall()
+        >>>
+        >>> # Wait for all to complete
+        >>> results = [f.result().fetchall() for f in [future1, future2, future3]]
+
+    Note:
+        Each execute() call returns a Future object that can be used to
+        check completion status and retrieve results.
+    """
+
     def __init__(
         self,
         s3_staging_dir: Optional[str] = None,
@@ -133,6 +168,21 @@ class AsyncCursor(BaseCursor):
 
 
 class AsyncDictCursor(AsyncCursor):
+    """Asynchronous cursor that returns query results as dictionaries.
+
+    Combines the asynchronous execution capabilities of AsyncCursor with
+    the dictionary-based result format of DictCursor. Results are returned
+    as dictionaries where column names are keys, making it easier to access
+    column values by name rather than position.
+
+    Example:
+        >>> cursor = connection.cursor(AsyncDictCursor)
+        >>> future = cursor.execute("SELECT id, name, email FROM users")
+        >>> result_cursor = future.result()
+        >>> row = result_cursor.fetchone()
+        >>> print(f"User: {row['name']} ({row['email']})")
+    """
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self._result_set_class = AthenaDictResultSet

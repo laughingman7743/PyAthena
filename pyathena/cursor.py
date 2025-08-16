@@ -13,6 +13,33 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class Cursor(BaseCursor, CursorIterator, WithResultSet):
+    """A DB API 2.0 compliant cursor for executing SQL queries on Amazon Athena.
+
+    The Cursor class provides methods for executing SQL queries against Amazon Athena
+    and retrieving results. It follows the Python Database API Specification v2.0
+    (PEP 249) and provides familiar database cursor operations.
+
+    This cursor returns results as tuples by default. For other data formats,
+    consider using specialized cursor classes like PandasCursor or ArrowCursor.
+
+    Attributes:
+        description: Sequence of column descriptions for the last query.
+        rowcount: Number of rows affected by the last query (-1 for SELECT queries).
+        arraysize: Default number of rows to fetch with fetchmany().
+
+    Example:
+        >>> cursor = connection.cursor()
+        >>> cursor.execute("SELECT name, age FROM users WHERE age > %s", (18,))
+        >>> while True:
+        ...     row = cursor.fetchone()
+        ...     if not row:
+        ...         break
+        ...     print(f"Name: {row[0]}, Age: {row[1]}")
+
+        >>> cursor.execute("CREATE TABLE test AS SELECT 1 as id, 'test' as name")
+        >>> print(f"Created table, rows affected: {cursor.rowcount}")
+    """
+
     def __init__(
         self,
         s3_staging_dir: Optional[str] = None,
@@ -165,6 +192,26 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
     def fetchone(
         self,
     ) -> Optional[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
+        """Fetch the next row of a query result set.
+
+        Returns the next row of the query result as a tuple, or None when
+        no more data is available. Column values are converted to appropriate
+        Python types based on the Athena data types.
+
+        Returns:
+            A tuple representing the next row, or None if no more rows.
+
+        Raises:
+            ProgrammingError: If called before executing a query that returns results.
+
+        Example:
+            >>> cursor.execute("SELECT id, name FROM users LIMIT 3")
+            >>> while True:
+            ...     row = cursor.fetchone()
+            ...     if not row:
+            ...         break
+            ...     print(f"ID: {row[0]}, Name: {row[1]}")
+        """
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaResultSet, self.result_set)
@@ -173,6 +220,27 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
     def fetchmany(
         self, size: Optional[int] = None
     ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
+        """Fetch multiple rows from a query result set.
+
+        Returns up to 'size' rows from the query result as a list of tuples.
+        If size is not specified, uses the cursor's arraysize attribute.
+
+        Args:
+            size: Maximum number of rows to fetch. If None, uses arraysize.
+
+        Returns:
+            List of tuples representing the fetched rows. May contain fewer
+            rows than requested if fewer are available.
+
+        Raises:
+            ProgrammingError: If called before executing a query that returns results.
+
+        Example:
+            >>> cursor.execute("SELECT id, name FROM users")
+            >>> rows = cursor.fetchmany(5)  # Fetch up to 5 rows
+            >>> for row in rows:
+            ...     print(f"ID: {row[0]}, Name: {row[1]}")
+        """
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaResultSet, self.result_set)
@@ -181,6 +249,28 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
     def fetchall(
         self,
     ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
+        """Fetch all remaining rows from a query result set.
+
+        Returns all remaining rows from the query result as a list of tuples.
+        For large result sets, consider using fetchmany() or iterating with
+        fetchone() to avoid memory issues.
+
+        Returns:
+            List of tuples representing all remaining rows in the result set.
+
+        Raises:
+            ProgrammingError: If called before executing a query that returns results.
+
+        Example:
+            >>> cursor.execute("SELECT id, name FROM users WHERE active = true")
+            >>> all_rows = cursor.fetchall()
+            >>> print(f"Found {len(all_rows)} active users")
+            >>> for row in all_rows:
+            ...     print(f"ID: {row[0]}, Name: {row[1]}")
+
+        Warning:
+            Be cautious with large result sets as this loads all data into memory.
+        """
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaResultSet, self.result_set)
@@ -188,6 +278,23 @@ class Cursor(BaseCursor, CursorIterator, WithResultSet):
 
 
 class DictCursor(Cursor):
+    """A cursor that returns query results as dictionaries instead of tuples.
+
+    DictCursor provides the same functionality as the standard Cursor but
+    returns rows as dictionaries where column names are keys. This makes
+    it easier to access column values by name rather than position.
+
+    Example:
+        >>> cursor = connection.cursor(DictCursor)
+        >>> cursor.execute("SELECT id, name, email FROM users LIMIT 1")
+        >>> row = cursor.fetchone()
+        >>> print(f"User: {row['name']} ({row['email']})")
+
+        >>> cursor.execute("SELECT * FROM products")
+        >>> for row in cursor.fetchall():
+        ...     print(f"Product {row['id']}: {row['name']} - ${row['price']}")
+    """
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self._result_set_class = AthenaDictResultSet

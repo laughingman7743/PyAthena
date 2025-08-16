@@ -21,6 +21,34 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
+    """Cursor for handling Apache Arrow Table results from Athena queries.
+
+    This cursor returns query results as Apache Arrow Tables, which provide
+    efficient columnar data processing and memory usage. Arrow Tables are
+    especially useful for analytical workloads and data science applications.
+
+    The cursor supports both regular CSV-based results and high-performance
+    UNLOAD operations that return results in Parquet format for improved
+    performance with large datasets.
+
+    Attributes:
+        description: Sequence of column descriptions for the last query.
+        rowcount: Number of rows affected by the last query (-1 for SELECT queries).
+        arraysize: Default number of rows to fetch with fetchmany().
+
+    Example:
+        >>> from pyathena.arrow.cursor import ArrowCursor
+        >>> cursor = connection.cursor(ArrowCursor)
+        >>> cursor.execute("SELECT * FROM large_table")
+        >>> table = cursor.fetchall()  # Returns pyarrow.Table
+        >>> df = table.to_pandas()  # Convert to pandas if needed
+
+        # High-performance UNLOAD for large datasets
+        >>> cursor = connection.cursor(ArrowCursor, unload=True)
+        >>> cursor.execute("SELECT * FROM huge_table")
+        >>> table = cursor.fetchall()  # Faster Parquet-based result
+    """
+
     def __init__(
         self,
         s3_staging_dir: Optional[str] = None,

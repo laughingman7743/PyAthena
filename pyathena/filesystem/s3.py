@@ -41,6 +41,49 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class S3FileSystem(AbstractFileSystem):
+    """A filesystem interface for Amazon S3 that implements the fsspec protocol.
+
+    This class provides a file-system like interface to Amazon S3, allowing you to
+    use familiar file operations (ls, open, cp, rm, etc.) with S3 objects. It's
+    designed to be compatible with s3fs while offering PyAthena-specific optimizations.
+
+    The filesystem supports standard S3 operations including:
+    - Listing objects and directories
+    - Reading and writing files
+    - Copying and moving objects
+    - Creating and removing directories
+    - Multipart uploads for large files
+    - Various S3 storage classes and encryption options
+
+    Attributes:
+        session: The boto3 session used for S3 operations.
+        client: The S3 client for direct API calls.
+        config: Boto3 configuration for the client.
+        retry_config: Configuration for retry behavior on failed operations.
+
+    Example:
+        >>> from pyathena.filesystem.s3 import S3FileSystem
+        >>> fs = S3FileSystem()
+        >>>
+        >>> # List objects in a bucket
+        >>> files = fs.ls('s3://my-bucket/data/')
+        >>>
+        >>> # Read a file
+        >>> with fs.open('s3://my-bucket/data/file.csv', 'r') as f:
+        ...     content = f.read()
+        >>>
+        >>> # Write a file
+        >>> with fs.open('s3://my-bucket/output/result.txt', 'w') as f:
+        ...     f.write('Hello, S3!')
+        >>>
+        >>> # Copy files
+        >>> fs.cp('s3://source-bucket/file.txt', 's3://dest-bucket/file.txt')
+
+    Note:
+        This filesystem is used internally by PyAthena for handling query results
+        stored in S3, but can also be used independently for S3 file operations.
+    """
+
     # https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html
     # The minimum size of a part in a multipart upload is 5MiB.
     MULTIPART_UPLOAD_MIN_PART_SIZE: int = 5 * 2**20  # 5MiB

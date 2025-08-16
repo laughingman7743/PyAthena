@@ -37,8 +37,36 @@ _logger = logging.getLogger(__name__)  # type: ignore
 class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
     """Cursor for handling pandas DataFrame results from Athena queries.
 
-    This cursor provides memory-efficient DataFrame processing with chunking support
-    and automatic chunksize optimization for large result sets.
+    This cursor returns query results as pandas DataFrames with memory-efficient
+    processing through chunking support and automatic chunksize optimization
+    for large result sets. It's ideal for data analysis and data science workflows.
+
+    The cursor supports both regular CSV-based results and high-performance
+    UNLOAD operations that return results in Parquet format, which is significantly
+    faster for large datasets and preserves data types more accurately.
+
+    Attributes:
+        description: Sequence of column descriptions for the last query.
+        rowcount: Number of rows affected by the last query (-1 for SELECT queries).
+        arraysize: Default number of rows to fetch with fetchmany().
+        chunksize: Number of rows per chunk when iterating through results.
+
+    Example:
+        >>> from pyathena.pandas.cursor import PandasCursor
+        >>> cursor = connection.cursor(PandasCursor)
+        >>> cursor.execute("SELECT * FROM sales_data WHERE year = 2023")
+        >>> df = cursor.fetchall()  # Returns pandas DataFrame
+        >>> print(df.describe())
+
+        # Memory-efficient iteration for large datasets
+        >>> cursor.execute("SELECT * FROM huge_table")
+        >>> for chunk_df in cursor:
+        ...     process_chunk(chunk_df)  # Process data in chunks
+
+        # High-performance UNLOAD for large datasets
+        >>> cursor = connection.cursor(PandasCursor, unload=True)
+        >>> cursor.execute("SELECT * FROM big_table")
+        >>> df = cursor.fetchall()  # Faster Parquet-based result
     """
 
     def __init__(
