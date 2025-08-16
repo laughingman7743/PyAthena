@@ -3,146 +3,42 @@
 API Reference
 =============
 
-This section provides detailed API documentation for all PyAthena classes and functions.
+This section provides comprehensive API documentation for all PyAthena classes and functions, organized by functionality.
 
-Core Components
+.. toctree::
+   :maxdepth: 2
+   :caption: API Documentation:
+
+   api/connection
+   api/pandas
+   api/arrow
+   api/spark
+   api/converters
+   api/filesystem
+   api/models
+   api/utilities
+   api/errors
+
+Quick Reference
 ---------------
 
-Connection and Cursors
-~~~~~~~~~~~~~~~~~~~~~~
+Core Functionality
+~~~~~~~~~~~~~~~~~~
 
-.. automodule:: pyathena
-   :members: connect
+- :ref:`api_connection` - Connection management and basic cursors
+- :ref:`api_converters` - Data type conversion and parameter formatting
+- :ref:`api_utilities` - Utility functions and base classes
+- :ref:`api_errors` - Exception handling and error classes
 
-.. autoclass:: pyathena.connection.Connection
-   :members:
-   :inherited-members:
+Specialized Integrations
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. autoclass:: pyathena.cursor.Cursor
-   :members:
-   :inherited-members:
+- :ref:`api_pandas` - pandas DataFrame integration
+- :ref:`api_arrow` - Apache Arrow columnar data integration
+- :ref:`api_spark` - Apache Spark integration for big data processing
 
-.. autoclass:: pyathena.cursor.DictCursor
-   :members:
-   :inherited-members:
-
-Asynchronous Operations
-~~~~~~~~~~~~~~~~~~~~~~~
-
-.. autoclass:: pyathena.async_cursor.AsyncCursor
-   :members:
-   :inherited-members:
-
-.. autoclass:: pyathena.async_cursor.AsyncDictCursor
-   :members:
-   :inherited-members:
-
-Pandas Integration
-------------------
-
-.. autoclass:: pyathena.pandas.cursor.PandasCursor
-   :members:
-   :inherited-members:
-
-.. autoclass:: pyathena.pandas.async_cursor.AsyncPandasCursor
-   :members:
-   :inherited-members:
-
-Apache Arrow Integration
-------------------------
-
-.. autoclass:: pyathena.arrow.cursor.ArrowCursor
-   :members:
-   :inherited-members:
-
-.. autoclass:: pyathena.arrow.async_cursor.AsyncArrowCursor
-   :members:
-   :inherited-members:
-
-Spark Integration
------------------
-
-.. autoclass:: pyathena.spark.cursor.SparkCursor
-   :members:
-   :inherited-members:
-
-.. autoclass:: pyathena.spark.async_cursor.AsyncSparkCursor
-   :members:
-   :inherited-members:
-
-Data Conversion
----------------
-
-Type Converters
+Infrastructure
 ~~~~~~~~~~~~~~~
 
-.. autoclass:: pyathena.converter.Converter
-   :members:
-
-.. autoclass:: pyathena.converter.DefaultTypeConverter
-   :members:
-
-.. autoclass:: pyathena.pandas.converter.DefaultPandasTypeConverter
-   :members:
-
-.. autoclass:: pyathena.arrow.converter.DefaultArrowTypeConverter
-   :members:
-
-Parameter Formatting
-~~~~~~~~~~~~~~~~~~~~
-
-.. autoclass:: pyathena.formatter.Formatter
-   :members:
-
-.. autoclass:: pyathena.formatter.DefaultParameterFormatter
-   :members:
-
-Utilities and Configuration
----------------------------
-
-Retry Configuration
-~~~~~~~~~~~~~~~~~~~
-
-.. autoclass:: pyathena.util.RetryConfig
-   :members:
-
-.. autofunction:: pyathena.util.retry_api_call
-
-.. autofunction:: pyathena.util.parse_output_location
-
-File System Integration
-~~~~~~~~~~~~~~~~~~~~~~~
-
-.. autoclass:: pyathena.filesystem.s3.S3FileSystem
-   :members:
-
-.. autoclass:: pyathena.filesystem.s3_object.S3Object
-   :members:
-
-Data Models
------------
-
-Query Execution
-~~~~~~~~~~~~~~~
-
-.. autoclass:: pyathena.model.AthenaQueryExecution
-   :members:
-
-.. autoclass:: pyathena.model.AthenaCalculationExecution
-   :members:
-
-File Formats and Compression
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. autoclass:: pyathena.model.AthenaFileFormat
-   :members:
-
-.. autoclass:: pyathena.model.AthenaCompression
-   :members:
-
-Exception Handling
-------------------
-
-.. automodule:: pyathena.error
-   :members:
-   :show-inheritance:
+- :ref:`api_filesystem` - S3 filesystem integration and object management  
+- :ref:`api_models` - Athena query execution and metadata models
