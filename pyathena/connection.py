@@ -334,6 +334,29 @@ class Connection(Generic[ConnectionCursor]):
         serial_number: Optional[str],
         duration_seconds: int,
     ) -> Dict[str, Any]:
+        """Assume an IAM role and return temporary credentials.
+
+        Uses AWS STS to assume the specified IAM role and obtain temporary
+        security credentials. Supports multi-factor authentication (MFA)
+        when a serial number is provided.
+
+        Args:
+            profile_name: AWS profile name to use for the STS client.
+            region_name: AWS region for the STS client.
+            role_arn: ARN of the IAM role to assume.
+            role_session_name: Name for the role session.
+            external_id: External ID for additional security when assuming role.
+            serial_number: MFA device serial number. If provided, prompts for MFA code.
+            duration_seconds: Duration of the temporary credentials in seconds.
+
+        Returns:
+            Dictionary containing temporary AWS credentials with keys:
+            'AccessKeyId', 'SecretAccessKey', 'SessionToken', 'Expiration'.
+
+        Note:
+            When MFA is required (serial_number provided), this method will
+            prompt for an MFA token code via input().
+        """
         session = Session(
             region_name=region_name, profile_name=profile_name, **self._session_kwargs
         )
@@ -370,6 +393,24 @@ class Connection(Generic[ConnectionCursor]):
         serial_number: Optional[str],
         duration_seconds: int,
     ) -> Dict[str, Any]:
+        """Get session token using MFA authentication.
+
+        Obtains temporary security credentials by providing MFA authentication.
+        This is used when MFA is required but role assumption is not needed.
+
+        Args:
+            profile_name: AWS profile name to use for the STS client.
+            region_name: AWS region for the STS client.
+            serial_number: MFA device serial number.
+            duration_seconds: Duration of the temporary credentials in seconds.
+
+        Returns:
+            Dictionary containing temporary AWS credentials with keys:
+            'AccessKeyId', 'SecretAccessKey', 'SessionToken', 'Expiration'.
+
+        Note:
+            This method will prompt for an MFA token code via input().
+        """
         session = Session(profile_name=profile_name, **self._session_kwargs)
         client = session.client(
             "sts", region_name=region_name, config=self.config, **self._client_kwargs
@@ -386,28 +427,67 @@ class Connection(Generic[ConnectionCursor]):
 
     @property
     def _session_kwargs(self) -> Dict[str, Any]:
+        """Get session keyword arguments for AWS Session creation.
+
+        Returns:
+            Dictionary of filtered keyword arguments that are valid for
+            boto3 Session constructor.
+        """
         return {k: v for k, v in self._kwargs.items() if k in self._SESSION_PASSING_ARGS}
 
     @property
     def _client_kwargs(self) -> Dict[str, Any]:
+        """Get client keyword arguments for AWS client creation.
+
+        Returns:
+            Dictionary of filtered keyword arguments that are valid for
+            boto3 client constructor.
+        """
         return {k: v for k, v in self._kwargs.items() if k in self._CLIENT_PASSING_ARGS}
 
     @property
     def session(self) -> Session:
+        """Get the boto3 session used for AWS API calls.
+
+        Returns:
+            The configured boto3 Session object.
+        """
         return self._session
 
     @property
     def client(self) -> "BaseClient":
+        """Get the boto3 Athena client used for query operations.
+
+        Returns:
+            The configured boto3 Athena client.
+        """
         return self._client
 
     @property
     def retry_config(self) -> RetryConfig:
+        """Get the retry configuration for AWS API calls.
+
+        Returns:
+            The RetryConfig object that controls retry behavior for failed requests.
+        """
         return self._retry_config
 
     def __enter__(self):
+        """Enter the runtime context for the connection.
+
+        Returns:
+            Self for use in context manager protocol.
+        """
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit the runtime context and close the connection.
+
+        Args:
+            exc_type: Exception type if an exception occurred.
+            exc_val: Exception value if an exception occurred.
+            exc_tb: Exception traceback if an exception occurred.
+        """
         self.close()
 
     @overload
