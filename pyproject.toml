@@ -63,7 +63,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [tool.hatch.metadata]
@@ -82,7 +82,10 @@ only-include = [
 packages = ["pyathena"]
 
 [tool.hatch.version]
-path = "pyathena/__init__.py"
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "pyathena/_version.py"
 
 [tool.pytest.ini_options]
 norecursedirs = [

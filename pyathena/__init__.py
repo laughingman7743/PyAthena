@@ -10,7 +10,15 @@ if TYPE_CHECKING:
     from pyathena.connection import Connection, ConnectionCursor
     from pyathena.cursor import Cursor
 
-__version__ = "3.17.1"
+try:
+    from pyathena._version import __version__
+except ImportError:
+    try:
+        from importlib.metadata import version
+
+        __version__ = version("PyAthena")
+    except Exception:
+        __version__ = "unknown"
 user_agent_extra: str = f"PyAthena/{__version__}"
 
 # Globals https://www.python.org/dev/peps/pep-0249/#globals
