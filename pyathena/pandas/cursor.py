@@ -200,6 +200,36 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         on_start_query_execution: Optional[Callable[[str], None]] = None,
         **kwargs,
     ) -> PandasCursor:
+        """Execute a SQL query and return results as pandas DataFrames.
+
+        Executes the SQL query on Amazon Athena and configures the result set
+        for pandas DataFrame output. Supports both regular CSV-based results
+        and high-performance UNLOAD operations with Parquet format.
+
+        Args:
+            operation: SQL query string to execute.
+            parameters: Query parameters for parameterized queries.
+            work_group: Athena workgroup to use for this query.
+            s3_staging_dir: S3 location for query results.
+            cache_size: Number of queries to check for result caching.
+            cache_expiration_time: Cache expiration time in seconds.
+            result_reuse_enable: Enable Athena result reuse for this query.
+            result_reuse_minutes: Minutes to reuse cached results.
+            paramstyle: Parameter style ('qmark' or 'pyformat').
+            keep_default_na: Whether to keep default pandas NA values.
+            na_values: Additional values to treat as NA.
+            quoting: CSV quoting behavior (pandas csv.QUOTE_* constants).
+            on_start_query_execution: Callback called when query starts.
+            **kwargs: Additional pandas read_csv/read_parquet parameters.
+
+        Returns:
+            Self reference for method chaining.
+
+        Example:
+            >>> cursor.execute("SELECT * FROM sales WHERE year = %(year)s",
+            ...                {"year": 2023})
+            >>> df = cursor.fetchall()  # Returns pandas DataFrame
+        """
         self._reset_state()
         if self._unload:
             s3_staging_dir = s3_staging_dir if s3_staging_dir else self._s3_staging_dir

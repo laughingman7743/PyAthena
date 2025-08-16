@@ -139,6 +139,32 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         on_start_query_execution: Optional[Callable[[str], None]] = None,
         **kwargs,
     ) -> ArrowCursor:
+        """Execute a SQL query and return results as Apache Arrow Tables.
+
+        Executes the SQL query on Amazon Athena and configures the result set
+        for Apache Arrow Table output. Arrow format provides high-performance
+        columnar data processing with efficient memory usage.
+
+        Args:
+            operation: SQL query string to execute.
+            parameters: Query parameters for parameterized queries.
+            work_group: Athena workgroup to use for this query.
+            s3_staging_dir: S3 location for query results.
+            cache_size: Number of queries to check for result caching.
+            cache_expiration_time: Cache expiration time in seconds.
+            result_reuse_enable: Enable Athena result reuse for this query.
+            result_reuse_minutes: Minutes to reuse cached results.
+            paramstyle: Parameter style ('qmark' or 'pyformat').
+            on_start_query_execution: Callback called when query starts.
+            **kwargs: Additional execution parameters.
+
+        Returns:
+            Self reference for method chaining.
+
+        Example:
+            >>> cursor.execute("SELECT * FROM sales WHERE year = 2023")
+            >>> table = cursor.as_arrow()  # Returns Apache Arrow Table
+        """
         self._reset_state()
         if self._unload:
             s3_staging_dir = s3_staging_dir if s3_staging_dir else self._s3_staging_dir
