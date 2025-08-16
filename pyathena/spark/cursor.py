@@ -80,11 +80,30 @@ class SparkCursor(SparkBaseCursor, WithCalculationExecution):
         return self._calculation_execution
 
     def get_std_out(self) -> Optional[str]:
+        """Get the standard output from the Spark calculation execution.
+
+        Retrieves and returns the contents of the standard output generated
+        during the Spark calculation execution, if available.
+
+        Returns:
+            The standard output as a string, or None if no output is available
+            or the calculation has not been executed.
+        """
         if not self._calculation_execution or not self._calculation_execution.std_out_s3_uri:
             return None
         return self._read_s3_file_as_text(self._calculation_execution.std_out_s3_uri)
 
     def get_std_error(self) -> Optional[str]:
+        """Get the standard error from the Spark calculation execution.
+
+        Retrieves and returns the contents of the standard error generated
+        during the Spark calculation execution, if available. This is useful
+        for debugging failed or problematic Spark operations.
+
+        Returns:
+            The standard error as a string, or None if no error output is available
+            or the calculation has not been executed.
+        """
         if not self._calculation_execution or not self._calculation_execution.std_error_s3_uri:
             return None
         return self._read_s3_file_as_text(self._calculation_execution.std_error_s3_uri)

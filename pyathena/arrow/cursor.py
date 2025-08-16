@@ -226,6 +226,24 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         return result_set.fetchall()
 
     def as_arrow(self) -> "Table":
+        """Return query results as an Apache Arrow Table.
+
+        Converts the entire result set into an Apache Arrow Table for efficient
+        columnar data processing. Arrow Tables provide excellent performance for
+        analytical workloads and interoperability with other data processing frameworks.
+
+        Returns:
+            Apache Arrow Table containing all query results.
+
+        Raises:
+            ProgrammingError: If no query has been executed or no results are available.
+
+        Example:
+            >>> cursor = connection.cursor(ArrowCursor)
+            >>> cursor.execute("SELECT * FROM my_table")
+            >>> table = cursor.as_arrow()
+            >>> print(f"Table has {table.num_rows} rows and {table.num_columns} columns")
+        """
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaArrowResultSet, self.result_set)
