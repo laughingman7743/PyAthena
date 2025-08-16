@@ -349,10 +349,22 @@ class AthenaPandasResultSet(AthenaResultSet):
 
     @property
     def is_unload(self):
+        """Check if this result set comes from an UNLOAD operation.
+
+        Returns:
+            True if this result set is from an UNLOAD query and unload mode
+            is enabled, False otherwise.
+        """
         return self._unload and self.query and self.query.strip().upper().startswith("UNLOAD")
 
     @property
     def dtypes(self) -> Dict[str, Type[Any]]:
+        """Get pandas-compatible data types for result columns.
+
+        Returns:
+            Dictionary mapping column names to their corresponding Python types
+            based on the converter's type mapping.
+        """
         description = self.description if self.description else []
         return {
             d[0]: self._converter.types[d[1]] for d in description if d[1] in self._converter.types

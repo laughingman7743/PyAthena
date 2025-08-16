@@ -738,6 +738,28 @@ class S3FileSystem(AbstractFileSystem):
     def cp_file(
         self, path1: str, path2: str, recursive=False, maxdepth=None, on_error=None, **kwargs
     ):
+        """Copy an S3 object to another S3 location.
+
+        Performs server-side copy of S3 objects, which is more efficient than
+        downloading and re-uploading. Automatically chooses between simple copy
+        and multipart copy based on object size.
+
+        Args:
+            path1: Source S3 path (s3://bucket/key).
+            path2: Destination S3 path (s3://bucket/key).
+            recursive: Unused parameter for fsspec compatibility.
+            maxdepth: Unused parameter for fsspec compatibility.
+            on_error: Unused parameter for fsspec compatibility.
+            **kwargs: Additional S3 copy parameters (e.g., metadata, storage class).
+
+        Raises:
+            ValueError: If trying to copy to a versioned file or copy buckets.
+
+        Note:
+            Uses multipart copy for objects larger than the maximum part size
+            to optimize performance for large files. The copy operation is
+            performed entirely on the S3 service without data transfer.
+        """
         # TODO: Delete the value that seems to be a typo, onerror=false.
         # https://github.com/fsspec/filesystem_spec/commit/346a589fef9308550ffa3d0d510f2db67281bb05
         # https://github.com/fsspec/filesystem_spec/blob/2024.10.0/fsspec/spec.py#L1185
@@ -972,6 +994,24 @@ class S3FileSystem(AbstractFileSystem):
                 callback.relative_update(len(data))
 
     def checksum(self, path: str, **kwargs):
+        """Get checksum for S3 object or directory.
+
+        Computes a checksum for the specified S3 path. For individual objects,
+        returns the ETag converted to an integer. For directories, returns a
+        checksum based on the directory's tokenized representation.
+
+        Args:
+            path: S3 path (s3://bucket/key) to get checksum for.
+            **kwargs: Additional arguments including:
+                refresh: If True, refresh cached info before computing checksum.
+
+        Returns:
+            Integer checksum value derived from S3 ETag or directory token.
+
+        Note:
+            For multipart uploads, ETag format is different and only the first
+            part before the dash is used for checksum calculation.
+        """
         refresh = kwargs.pop("refresh", False)
         info = self.info(path, refresh=refresh)
         if info.get("type") != S3ObjectType.S3_OBJECT_TYPE_DIRECTORY:
@@ -979,6 +1019,34 @@ class S3FileSystem(AbstractFileSystem):
         return int(tokenize(info), 16)
 
     def sign(self, path: str, expiration: int = 3600, **kwargs):
+        """Generate a presigned URL for S3 object access.
+
+        Creates a presigned URL that allows temporary access to an S3 object
+        without requiring AWS credentials. Useful for sharing files or providing
+        time-limited access to resources.
+
+        Args:
+            path: S3 path (s3://bucket/key) to generate URL for.
+            expiration: URL expiration time in seconds. Defaults to 3600 (1 hour).
+            **kwargs: Additional parameters including:
+                client_method: S3 operation ('get_object', 'put_object', etc.).
+                             Defaults to 'get_object'.
+                Additional parameters passed to the S3 operation.
+
+        Returns:
+            Presigned URL string that provides temporary access to the S3 object.
+
+        Example:
+            >>> fs = S3FileSystem()
+            >>> url = fs.sign("s3://my-bucket/file.txt", expiration=7200)
+            >>> # URL valid for 2 hours
+            >>>
+            >>> # Generate upload URL
+            >>> upload_url = fs.sign(
+            ...     "s3://my-bucket/upload.txt",
+            ...     client_method="put_object"
+            ... )
+        """
         bucket, key, version_id = self.parse_path(path)
         client_method = kwargs.pop("client_method", "get_object")
         params = {"Bucket": bucket, "Key": key}

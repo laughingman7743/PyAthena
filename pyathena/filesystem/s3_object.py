@@ -163,6 +163,11 @@ class S3Object(MutableMapping[str, Any]):
         return str(self.__dict__)
 
     def to_dict(self) -> Dict[str, Any]:
+        """Convert S3Object to dictionary representation.
+
+        Returns:
+            Deep copy of the object's attributes as a dictionary.
+        """
         return copy.deepcopy(self.__dict__)
 
     def to_api_repr(self) -> Dict[str, Any]:

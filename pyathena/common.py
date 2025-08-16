@@ -183,6 +183,15 @@ class BaseCursor(metaclass=ABCMeta):
 
     @staticmethod
     def get_default_converter(unload: bool = False) -> Union[DefaultTypeConverter, Any]:
+        """Get the default type converter for this cursor class.
+
+        Args:
+            unload: Whether the converter is for UNLOAD operations. Some cursor
+                   types may return different converters for UNLOAD operations.
+
+        Returns:
+            The default type converter instance for this cursor type.
+        """
         return DefaultTypeConverter()
 
     @property
