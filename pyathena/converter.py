@@ -466,22 +466,56 @@ class Converter(metaclass=ABCMeta):
 
     @property
     def mappings(self) -> Dict[str, Callable[[Optional[str]], Optional[Any]]]:
+        """Get the current type conversion mappings.
+
+        Returns:
+            Dictionary mapping Athena data types to conversion functions.
+        """
         return self._mappings
 
     @property
     def types(self) -> Dict[str, Type[Any]]:
+        """Get the current type mappings for result set descriptions.
+
+        Returns:
+            Dictionary mapping Athena data types to Python types.
+        """
         return self._types
 
     def get(self, type_: str) -> Callable[[Optional[str]], Optional[Any]]:
+        """Get the conversion function for a specific Athena data type.
+
+        Args:
+            type_: The Athena data type name.
+
+        Returns:
+            The conversion function for the type, or the default converter if not found.
+        """
         return self.mappings.get(type_, self._default)
 
     def set(self, type_: str, converter: Callable[[Optional[str]], Optional[Any]]) -> None:
+        """Set a custom conversion function for an Athena data type.
+
+        Args:
+            type_: The Athena data type name.
+            converter: The conversion function to use for this type.
+        """
         self.mappings[type_] = converter
 
     def remove(self, type_: str) -> None:
+        """Remove a custom conversion function for an Athena data type.
+
+        Args:
+            type_: The Athena data type name to remove.
+        """
         self.mappings.pop(type_, None)
 
     def update(self, mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]]) -> None:
+        """Update multiple conversion functions at once.
+
+        Args:
+            mappings: Dictionary of type names to conversion functions.
+        """
         self.mappings.update(mappings)
 
     @abstractmethod

@@ -43,9 +43,22 @@ class Formatter(metaclass=ABCMeta):
     def mappings(
         self,
     ) -> Dict[Type[Any], Callable[[Formatter, Callable[[str], str], Any], Any]]:
+        """Get the current parameter formatting mappings.
+
+        Returns:
+            Dictionary mapping Python types to formatting functions.
+        """
         return self._mappings
 
     def get(self, type_) -> Optional[Callable[[Formatter, Callable[[str], str], Any], Any]]:
+        """Get the formatting function for a specific Python type.
+
+        Args:
+            type_: The Python value to get formatter for.
+
+        Returns:
+            The formatting function for the type, or the default formatter if not found.
+        """
         return self.mappings.get(type(type_), self._default)
 
     def set(
