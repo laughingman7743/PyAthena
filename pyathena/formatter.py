@@ -87,6 +87,44 @@ class Formatter(metaclass=ABCMeta):
         format_: str = AthenaFileFormat.FILE_FORMAT_PARQUET,
         compression: str = AthenaCompression.COMPRESSION_SNAPPY,
     ):
+        """Wrap a SELECT query with UNLOAD statement for high-performance result retrieval.
+
+        Transforms SELECT or WITH queries into UNLOAD statements that export results
+        directly to S3 in optimized formats (Parquet, ORC) with compression. This
+        approach is significantly faster than standard CSV-based result retrieval
+        for large datasets and preserves data types more accurately.
+
+        Args:
+            operation: SQL query to wrap. Must be a SELECT or WITH statement.
+            s3_staging_dir: Base S3 directory for storing UNLOAD results.
+            format_: Output file format. Defaults to Parquet for optimal performance.
+            compression: Compression algorithm. Defaults to Snappy for balanced
+                       compression ratio and speed.
+
+        Returns:
+            Tuple containing:
+            - Modified UNLOAD query string
+            - S3 location where results will be stored (None if not SELECT/WITH)
+
+        Example:
+            >>> query = "SELECT * FROM sales WHERE year = 2023"
+            >>> unload_query, location = Formatter.wrap_unload(
+            ...     query, "s3://my-bucket/results/"
+            ... )
+            >>> print(unload_query)
+            UNLOAD (
+                SELECT * FROM sales WHERE year = 2023
+            )
+            TO 's3://my-bucket/results/unload/20231215/uuid//'
+            WITH (
+                format = 'PARQUET',
+                compression = 'SNAPPY'
+            )
+
+        Note:
+            Only SELECT and WITH statements are wrapped. Other statement types
+            are returned unchanged with location=None.
+        """
         if not operation or not operation.strip():
             raise ProgrammingError("Query is none or empty.")
 

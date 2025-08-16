@@ -902,6 +902,23 @@ class S3FileSystem(AbstractFileSystem):
         )[1]
 
     def put_file(self, lpath: str, rpath: str, callback=_DEFAULT_CALLBACK, **kwargs):
+        """Upload a local file to S3.
+
+        Uploads a file from the local filesystem to an S3 location. Supports
+        automatic content type detection based on file extension and provides
+        progress callback functionality.
+
+        Args:
+            lpath: Local file path to upload.
+            rpath: S3 destination path (s3://bucket/key).
+            callback: Progress callback for tracking upload progress.
+            **kwargs: Additional S3 parameters (e.g., ContentType, StorageClass).
+
+        Note:
+            Directories are not supported for upload. If lpath is a directory,
+            the method returns without performing any operation. Bucket-only
+            destinations (without key) are also not supported.
+        """
         if os.path.isdir(lpath):
             # No support for directory uploads.
             return
@@ -929,6 +946,22 @@ class S3FileSystem(AbstractFileSystem):
         self.invalidate_cache(rpath)
 
     def get_file(self, rpath: str, lpath: str, callback=_DEFAULT_CALLBACK, outfile=None, **kwargs):
+        """Download an S3 file to local filesystem.
+
+        Downloads a file from S3 to the local filesystem with progress tracking.
+        Reads the file in chunks to handle large files efficiently.
+
+        Args:
+            rpath: S3 source path (s3://bucket/key).
+            lpath: Local destination file path.
+            callback: Progress callback for tracking download progress.
+            outfile: Unused parameter for fsspec compatibility.
+            **kwargs: Additional S3 parameters passed to open().
+
+        Note:
+            If lpath is a directory, the method returns without performing
+            any operation.
+        """
         if os.path.isdir(lpath):
             return
 
