@@ -105,6 +105,18 @@ class DefaultArrowTypeConverter(Converter):
 
 
 class DefaultArrowUnloadTypeConverter(Converter):
+    """Type converter for Arrow UNLOAD operations.
+
+    This converter is designed for use with UNLOAD queries that write
+    results directly to Parquet files in S3. Since UNLOAD operations
+    bypass the normal conversion process and write data in native
+    Parquet format, this converter has minimal functionality.
+
+    Note:
+        Used automatically when ArrowCursor is configured with unload=True.
+        UNLOAD results are read directly as Arrow tables from Parquet files.
+    """
+
     def __init__(self) -> None:
         super().__init__(
             mappings={},

@@ -23,6 +23,31 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class SparkBaseCursor(BaseCursor, metaclass=ABCMeta):
+    """Abstract base class for Spark-enabled cursor implementations.
+
+    This class provides the foundational functionality for executing PySpark code
+    on Amazon Athena for Apache Spark. It manages Spark sessions, handles
+    calculation execution lifecycle, and provides utilities for reading
+    results from S3.
+
+    Features:
+        - Automatic Spark session management and lifecycle
+        - Configurable engine resources (DPU allocation)
+        - Session idle timeout and automatic cleanup
+        - Standard output and error stream access via S3
+        - Calculation execution status monitoring
+        - Session validation and error handling
+
+    Attributes:
+        session_id: The Athena Spark session identifier.
+        calculation_id: ID of the current calculation being executed.
+        engine_configuration: DPU and resource configuration for Spark.
+
+    Note:
+        This is an abstract base class used by concrete Spark cursor implementations
+        like SparkCursor and AsyncSparkCursor. It should not be instantiated directly.
+    """
+
     def __init__(
         self,
         session_id: Optional[str] = None,
@@ -223,6 +248,31 @@ class SparkBaseCursor(BaseCursor, metaclass=ABCMeta):
 
 
 class WithCalculationExecution:
+    """Mixin class providing access to Spark calculation execution properties.
+
+    This mixin provides property accessors for calculation execution metadata
+    and status information. It's designed to be mixed with cursor classes
+    that execute Spark calculations on Athena.
+
+    Properties:
+        - description: Human-readable description of the calculation
+        - working_directory: S3 path where calculation files are stored
+        - state: Current execution state (COMPLETED, FAILED, etc.)
+        - state_change_reason: Explanation for state changes
+        - submission_date_time: When the calculation was submitted
+        - completion_date_time: When the calculation completed
+        - dpu_execution_in_millis: DPU execution time in milliseconds
+        - progress: Current execution progress information
+        - std_out_s3_uri: S3 URI for standard output
+        - std_error_s3_uri: S3 URI for standard error
+        - result_s3_uri: S3 URI for calculation results
+        - result_type: Type of result produced by the calculation
+
+    Note:
+        This class requires that the implementing class provides
+        calculation_execution, session_id, and calculation_id properties.
+    """
+
     def __init__(self):
         super().__init__()
 

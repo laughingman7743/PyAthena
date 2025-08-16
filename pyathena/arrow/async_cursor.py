@@ -20,6 +20,42 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class AsyncArrowCursor(AsyncCursor):
+    """Asynchronous cursor that returns results in Apache Arrow format.
+
+    This cursor extends AsyncCursor to provide asynchronous query execution
+    with results returned as Apache Arrow Tables or RecordBatches. It's optimized
+    for high-performance analytics workloads and interoperability with the
+    Apache Arrow ecosystem.
+
+    Features:
+        - Asynchronous query execution with concurrent futures
+        - Apache Arrow columnar data format for high performance
+        - Memory-efficient processing of large datasets
+        - Support for UNLOAD operations with Parquet output
+        - Integration with pandas, Polars, and other Arrow-compatible libraries
+
+    Attributes:
+        arraysize: Number of rows to fetch per batch (configurable).
+
+    Example:
+        >>> import asyncio
+        >>> from pyathena.arrow.async_cursor import AsyncArrowCursor
+        >>>
+        >>> cursor = connection.cursor(AsyncArrowCursor, unload=True)
+        >>> query_id, future = cursor.execute("SELECT * FROM large_table")
+        >>>
+        >>> # Get result when ready
+        >>> result_set = await future
+        >>> arrow_table = result_set.as_arrow()
+        >>>
+        >>> # Convert to pandas if needed
+        >>> df = arrow_table.to_pandas()
+
+    Note:
+        Requires pyarrow to be installed. UNLOAD operations generate
+        Parquet files in S3 for optimal Arrow compatibility.
+    """
+
     def __init__(
         self,
         s3_staging_dir: Optional[str] = None,

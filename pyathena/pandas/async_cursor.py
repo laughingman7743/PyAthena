@@ -20,6 +20,46 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class AsyncPandasCursor(AsyncCursor):
+    """Asynchronous cursor that returns results as pandas DataFrames.
+
+    This cursor extends AsyncCursor to provide asynchronous query execution
+    with results returned as pandas DataFrames. It's designed for data analysis
+    workflows where pandas integration is required and non-blocking query
+    execution is beneficial.
+
+    Features:
+        - Asynchronous query execution with concurrent futures
+        - Direct pandas DataFrame results for data analysis
+        - Configurable CSV and Parquet engines for optimal performance
+        - Support for chunked processing of large datasets
+        - UNLOAD operations for improved performance with large results
+        - Memory optimization through configurable chunking
+
+    Attributes:
+        arraysize: Number of rows to fetch per batch.
+        engine: Parsing engine ('auto', 'c', 'python', 'pyarrow').
+        chunksize: Number of rows per chunk for large datasets.
+
+    Example:
+        >>> import asyncio
+        >>> from pyathena.pandas.async_cursor import AsyncPandasCursor
+        >>>
+        >>> cursor = connection.cursor(AsyncPandasCursor, chunksize=10000)
+        >>> query_id, future = cursor.execute("SELECT * FROM large_table")
+        >>>
+        >>> # Get result when ready
+        >>> result_set = await future
+        >>> df = result_set.as_pandas()
+        >>>
+        >>> # Or iterate through chunks for large datasets
+        >>> for chunk_df in result_set:
+        ...     process_chunk(chunk_df)
+
+    Note:
+        Requires pandas to be installed. For large datasets, consider
+        using chunksize or UNLOAD operations for better memory efficiency.
+    """
+
     def __init__(
         self,
         s3_staging_dir: Optional[str] = None,
