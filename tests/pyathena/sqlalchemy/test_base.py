@@ -359,14 +359,14 @@ class TestSQLAlchemyAthena:
         rows = conn.execute(many_rows.select().offset(10).limit(5)).fetchall()
         assert rows == [(i,) for i in range(10, 15)]
 
-    def test_reserved_words(self):
+    def test_reserved_words(self, engine):
         """Presto uses double quotes, not backticks"""
-        fake_table = Table("select", MetaData(), Column("current_timestamp", types.String()))
-        query = str(fake_table.select().where(fake_table.c.current_timestamp == "a"))
-        assert '"select"' in query
-        assert '"current_timestamp"' in query
-        assert "`select`" not in query
-        assert "`current_timestamp`" not in query
+        fake_table = Table("bernoulli", MetaData(), Column("current_catalog", types.String()))
+        query = fake_table.select().where(fake_table.c.current_catalog == "a").compile(dialect=engine.dialect).string
+        assert '"bernoulli"' in query
+        assert '"current_catalog"' in query
+        assert "`bernoulli`" not in query
+        assert "`current_catalog`" not in query
 
     def test_get_column_type(self, engine):
         engine, conn = engine
