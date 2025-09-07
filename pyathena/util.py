@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Callable, Iterable, Optional, Pattern, Tuple
+from typing import Any, Callable, Iterable, Optional, Pattern, Tuple, cast
 
 import tenacity
 from tenacity import after_log, retry_if_exception, stop_after_attempt, wait_exponential
@@ -172,12 +172,18 @@ def retry_api_call(
         Only retries on AWS exceptions listed in the RetryConfig.exceptions.
         Does not retry on client errors or non-AWS exceptions.
     """
+
+    def _extract_code(ex: BaseException) -> Optional[str]:
+        resp = cast(Optional[dict[str, Any]], getattr(ex, "response", None))
+        err = cast(Optional[dict[str, Any]], (resp or {}).get("Error"))
+        return cast(Optional[str], (err or {}).get("Code"))
+
+    def _is_retryable(ex: BaseException) -> bool:
+        code = _extract_code(ex)
+        return code is not None and code in config.exceptions
+
     retry = tenacity.Retrying(
-        retry=retry_if_exception(
-            lambda e: getattr(e, "response", {}).get("Error", {}).get("Code") in config.exceptions
-            if e
-            else False
-        ),
+        retry=retry_if_exception(_is_retryable),
         stop=stop_after_attempt(config.attempt),
         wait=wait_exponential(
             multiplier=config.multiplier,
