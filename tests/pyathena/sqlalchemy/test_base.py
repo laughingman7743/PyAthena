@@ -361,6 +361,7 @@ class TestSQLAlchemyAthena:
 
     def test_reserved_words(self, engine):
         """Presto uses double quotes, not backticks"""
+        engine, conn = engine
         fake_table = Table("bernoulli", MetaData(), Column("current_catalog", types.String()))
         query = (
             fake_table.select()
