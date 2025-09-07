@@ -362,7 +362,12 @@ class TestSQLAlchemyAthena:
     def test_reserved_words(self, engine):
         """Presto uses double quotes, not backticks"""
         fake_table = Table("bernoulli", MetaData(), Column("current_catalog", types.String()))
-        query = fake_table.select().where(fake_table.c.current_catalog == "a").compile(dialect=engine.dialect).string
+        query = (
+            fake_table.select()
+            .where(fake_table.c.current_catalog == "a")
+            .compile(dialect=engine.dialect)
+            .string
+        )
         assert '"bernoulli"' in query
         assert '"current_catalog"' in query
         assert "`bernoulli`" not in query
