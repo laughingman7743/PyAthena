@@ -59,6 +59,7 @@ dev = [
     "pytest-xdist",
     "pytest-dependency",
     "sphinx",
+    "furo",
     "types-python-dateutil",
 ]
 
