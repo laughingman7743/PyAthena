@@ -1,0 +1,11 @@
+/* Set table cells to left alignment */
+table.docutils th,
+table.docutils td {
+    text-align: left !important;
+}
+
+/* Align table itself to the left */
+table.docutils {
+    margin-left: 0;
+    margin-right: auto;
+}
