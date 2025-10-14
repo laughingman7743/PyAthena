@@ -486,7 +486,6 @@ class AthenaPandasResultSet(AthenaResultSet):
             "na_values": self._na_values,
             "quoting": self._quoting,
             "storage_options": {
-                "connection": self.connection,
                 "default_block_size": self._block_size,
                 "default_cache_type": self._cache_type,
                 "max_workers": self._max_workers,
@@ -566,7 +565,6 @@ class AthenaPandasResultSet(AthenaResultSet):
                 unload_location,
                 engine=self._engine,
                 storage_options={
-                    "connection": self.connection,
                     "default_block_size": self._block_size,
                     "default_cache_type": self._cache_type,
                     "max_workers": self._max_workers,
