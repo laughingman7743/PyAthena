@@ -34,11 +34,12 @@ release = f"v{get_version()}"
 
 extensions = [
     "sphinx.ext.autodoc",
-    "sphinx.ext.autosummary", 
+    "sphinx.ext.autosummary",
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx.ext.githubpages",
+    "sphinx_multiversion",
 ]
 
 # Napoleon settings for Google-style docstrings
@@ -96,3 +97,32 @@ html_theme_options = {
     "source_branch": "master",
     "source_directory": "docs/",
 }
+
+# Sidebar templates
+html_sidebars = {
+    "**": [
+        "sidebar/brand.html",
+        "sidebar/search.html",
+        "sidebar/scroll-start.html",
+        "sidebar/navigation.html",
+        "versioning.html",
+        "sidebar/scroll-end.html",
+    ]
+}
+
+# -- Sphinx-multiversion configuration ----------------------------------------
+
+# Whitelist pattern for tags
+smv_tag_whitelist = r"^v3\.\d+\.\d+$"  # Match v3.x.x tags only
+
+# Whitelist pattern for branches
+smv_branch_whitelist = r"^master$"  # Only build master branch
+
+# Whitelist pattern for remotes
+smv_remote_whitelist = r"^origin$"  # Only build from origin remote
+
+# Output all versions to the root directory
+smv_outputdir_format = "{ref.name}"
+
+# Specify the latest version (used for stable redirect)
+smv_latest_version = "master"

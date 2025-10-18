@@ -32,7 +32,6 @@ jobs:
           enable-cache: true
       - run: |
           uv sync --group dev
-          uv build
           make docs
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

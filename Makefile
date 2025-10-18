@@ -27,7 +27,10 @@ tox:
 
 .PHONY: docs
 docs:
-	cd ./docs && uv run $(MAKE) clean html
+	uv build
+	uv run sphinx-multiversion docs docs/_build/html
+	echo '<meta http-equiv="refresh" content="0; url=./master/index.html">' > docs/_build/html/index.html
+	touch docs/_build/html/.nojekyll
 
 .PHONY: tool
 tool:
