@@ -56,7 +56,9 @@ def get_version():
     except Exception:
         return "unknown"
 
+
 # -- Setup function ----------------------------------------------------------
+
 
 def config_inited(app, config):
     """Handler for config-inited event to set version dynamically."""
@@ -77,9 +79,11 @@ def config_inited(app, config):
     config.version = f"v{ver}"
     config.release = f"v{ver}"
 
+
 def setup(app):
     """Sphinx setup hook."""
     app.connect("config-inited", config_inited)
+
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -122,11 +126,11 @@ napoleon_attr_annotations = True
 
 # Autodoc settings
 autodoc_default_options = {
-    'members': True,
-    'member-order': 'bysource',
-    'special-members': '__init__',
-    'undoc-members': True,
-    'exclude-members': '__weakref__'
+    "members": True,
+    "member-order": "bysource",
+    "special-members": "__init__",
+    "undoc-members": True,
+    "exclude-members": "__weakref__",
 }
 
 # Autosummary settings
@@ -135,9 +139,9 @@ autosummary_imported_members = False
 
 # Intersphinx mapping
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3', None),
-    'pandas': ('https://pandas.pydata.org/pandas-docs/stable', None),
-    'pyarrow': ('https://arrow.apache.org/docs/', None),
+    "python": ("https://docs.python.org/3", None),
+    "pandas": ("https://pandas.pydata.org/pandas-docs/stable", None),
+    "pyarrow": ("https://arrow.apache.org/docs/", None),
 }
 
 templates_path = ["_templates"]
