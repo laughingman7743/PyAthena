@@ -63,8 +63,41 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         result_reuse_enable: bool = False,
         result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
         on_start_query_execution: Optional[Callable[[str], None]] = None,
+        connect_timeout: Optional[float] = None,
+        request_timeout: Optional[float] = None,
         **kwargs,
     ) -> None:
+        """Initialize an ArrowCursor.
+
+        Args:
+            s3_staging_dir: S3 location for query results.
+            schema_name: Default schema name.
+            catalog_name: Default catalog name.
+            work_group: Athena workgroup name.
+            poll_interval: Query status polling interval in seconds.
+            encryption_option: S3 encryption option (SSE_S3, SSE_KMS, CSE_KMS).
+            kms_key: KMS key ARN for encryption.
+            kill_on_interrupt: Cancel running query on keyboard interrupt.
+            unload: Enable UNLOAD for high-performance Parquet output.
+            result_reuse_enable: Enable Athena query result reuse.
+            result_reuse_minutes: Minutes to reuse cached results.
+            on_start_query_execution: Callback invoked when query starts.
+            connect_timeout: Socket connection timeout in seconds for S3 operations.
+                Defaults to AWS SDK default (typically 1 second) if not specified.
+            request_timeout: Request timeout in seconds for S3 operations.
+                Defaults to AWS SDK default (typically 3 seconds) if not specified.
+                Increase this value if you experience timeout errors when using
+                role assumption with STS or have high latency to S3.
+            **kwargs: Additional connection parameters.
+
+        Example:
+            >>> # Use higher timeouts for role assumption scenarios
+            >>> cursor = connection.cursor(
+            ...     ArrowCursor,
+            ...     connect_timeout=10,
+            ...     request_timeout=30
+            ... )
+        """
         super().__init__(
             s3_staging_dir=s3_staging_dir,
             schema_name=schema_name,
@@ -80,6 +113,8 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         )
         self._unload = unload
         self._on_start_query_execution = on_start_query_execution
+        self._connect_timeout = connect_timeout
+        self._request_timeout = request_timeout
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaArrowResultSet] = None
 
@@ -205,6 +240,8 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
                 retry_config=self._retry_config,
                 unload=self._unload,
                 unload_location=unload_location,
+                connect_timeout=self._connect_timeout,
+                request_timeout=self._request_timeout,
                 **kwargs,
             )
         else:

@@ -642,3 +642,46 @@ class TestArrowCursor:
         assert len(callback_results) == 1
         assert callback_results[0] == arrow_cursor.query_id
         assert arrow_cursor.query_id is not None
+
+    @pytest.mark.parametrize(
+        "arrow_cursor",
+        [
+            {
+                "cursor_kwargs": {
+                    "connect_timeout": 10,
+                    "request_timeout": 30,
+                }
+            }
+        ],
+        indirect=["arrow_cursor"],
+    )
+    def test_timeout_parameters(self, arrow_cursor):
+        """Test that timeout parameters are correctly passed to ArrowCursor and result set."""
+        # Verify timeout parameters are set on cursor
+        assert arrow_cursor._connect_timeout == 10
+        assert arrow_cursor._request_timeout == 30
+
+        # Execute a simple query to create a result set
+        arrow_cursor.execute("SELECT 1")
+
+        # Verify timeout parameters are passed to result set
+        assert arrow_cursor.result_set._connect_timeout == 10
+        assert arrow_cursor.result_set._request_timeout == 30
+
+    @pytest.mark.parametrize(
+        "arrow_cursor",
+        [{"cursor_kwargs": {"connect_timeout": 5.5, "request_timeout": 15.5}}],
+        indirect=["arrow_cursor"],
+    )
+    def test_timeout_parameters_float(self, arrow_cursor):
+        """Test that timeout parameters accept float values."""
+        # Verify float timeout parameters are set on cursor
+        assert arrow_cursor._connect_timeout == 5.5
+        assert arrow_cursor._request_timeout == 15.5
+
+        # Execute a simple query to create a result set
+        arrow_cursor.execute("SELECT 1")
+
+        # Verify float timeout parameters are passed to result set
+        assert arrow_cursor.result_set._connect_timeout == 5.5
+        assert arrow_cursor.result_set._request_timeout == 15.5
