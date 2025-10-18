@@ -94,6 +94,8 @@ class AthenaArrowResultSet(AthenaResultSet):
         block_size: Optional[int] = None,
         unload: bool = False,
         unload_location: Optional[str] = None,
+        connect_timeout: Optional[float] = None,
+        request_timeout: Optional[float] = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -108,6 +110,8 @@ class AthenaArrowResultSet(AthenaResultSet):
         self._block_size = block_size if block_size else self.DEFAULT_BLOCK_SIZE
         self._unload = unload
         self._unload_location = unload_location
+        self._connect_timeout = connect_timeout
+        self._request_timeout = request_timeout
         self._kwargs = kwargs
         self._fs = self.__s3_file_system()
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
@@ -122,6 +126,14 @@ class AthenaArrowResultSet(AthenaResultSet):
         from pyarrow import fs
 
         connection = self.connection
+
+        # Build timeout parameters dict
+        timeout_kwargs = {}
+        if self._connect_timeout is not None:
+            timeout_kwargs["connect_timeout"] = self._connect_timeout
+        if self._request_timeout is not None:
+            timeout_kwargs["request_timeout"] = self._request_timeout
+
         if "role_arn" in connection._kwargs and connection._kwargs["role_arn"]:
             external_id = connection._kwargs.get("external_id")
             fs = fs.S3FileSystem(
@@ -130,6 +142,7 @@ class AthenaArrowResultSet(AthenaResultSet):
                 external_id="" if external_id is None else external_id,
                 load_frequency=connection._kwargs["duration_seconds"],
                 region=connection.region_name,
+                **timeout_kwargs,
             )
         elif connection.profile_name:
             profile = connection.session._session.full_config["profiles"][connection.profile_name]
@@ -138,6 +151,7 @@ class AthenaArrowResultSet(AthenaResultSet):
                 secret_key=profile.get("aws_secret_access_key", None),
                 session_token=profile.get("aws_session_token", None),
                 region=connection.region_name,
+                **timeout_kwargs,
             )
         else:
             # Try explicit credentials first
@@ -151,6 +165,7 @@ class AthenaArrowResultSet(AthenaResultSet):
                     secret_key=explicit_secret_key,
                     session_token=connection._kwargs.get("aws_session_token"),
                     region=connection.region_name,
+                    **timeout_kwargs,
                 )
             else:
                 # Fall back to dynamic credentials from boto3 session
@@ -163,13 +178,14 @@ class AthenaArrowResultSet(AthenaResultSet):
                             secret_key=credentials.secret_key,
                             session_token=credentials.token,
                             region=connection.region_name,
+                            **timeout_kwargs,
                         )
                     else:
                         # Fall back to default (no explicit credentials)
-                        fs = fs.S3FileSystem(region=connection.region_name)
+                        fs = fs.S3FileSystem(region=connection.region_name, **timeout_kwargs)
                 except Exception:
                     # Fall back to default if credential retrieval fails
-                    fs = fs.S3FileSystem(region=connection.region_name)
+                    fs = fs.S3FileSystem(region=connection.region_name, **timeout_kwargs)
 
         return fs
 
