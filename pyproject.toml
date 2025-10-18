@@ -106,7 +106,6 @@ line-length = 100
 exclude = [
     ".venv",
     ".tox",
-    "docs",
 ]
 target-version = "py39"
 
