@@ -27,7 +27,6 @@ tox:
 
 .PHONY: docs
 docs:
-	uv build
 	uv run sphinx-multiversion docs docs/_build/html
 	echo '<meta http-equiv="refresh" content="0; url=./master/index.html">' > docs/_build/html/index.html
 	touch docs/_build/html/.nojekyll
