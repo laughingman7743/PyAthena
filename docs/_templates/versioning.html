@@ -4,8 +4,8 @@
   <div class="version-dropdown" style="margin-bottom: 1rem;">
     <select onchange="window.location.href = this.value" style="width: 100%; padding: 0.5rem; border: 1px solid var(--color-background-border); border-radius: 0.25rem; background-color: var(--color-background-secondary); color: var(--color-foreground-primary); font-size: var(--font-size--small); cursor: pointer;">
       {% for item in versions %}
-      <option value="{{ item.url }}" {% if item.name == current_version %}selected{% endif %}>
-        {{ item.name }}{% if item.name == current_version %} (current){% endif %}
+      <option value="{{ item.url }}" {% if item == current_version %}selected{% endif %}>
+        {{ item.name }}{% if item == current_version %} (current){% endif %}
       </option>
       {% endfor %}
     </select>
