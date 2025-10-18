@@ -112,8 +112,8 @@ html_sidebars = {
 
 # -- Sphinx-multiversion configuration ----------------------------------------
 
-# Whitelist pattern for tags
-smv_tag_whitelist = r"^v3\.\d+\.\d+$"  # Match v3.x.x tags only
+# Whitelist pattern for tags (semantic versioning: vX.Y.Z)
+smv_tag_whitelist = r"^v\d+\.\d+\.\d+$"  # Match vX.Y.Z tags
 
 # Whitelist pattern for branches
 smv_branch_whitelist = r"^master$"  # Only build master branch
