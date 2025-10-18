@@ -252,6 +252,52 @@ Try adding an alias to the SELECTed column, such as ``SELECT 1 AS name``.
 
     pyathena.error.OperationalError: SYNTAX_ERROR: line 1:1: Column name not specified at position 1
 
+S3 Timeout Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ArrowCursor supports configuring S3 connection and request timeouts through ``connect_timeout`` and ``request_timeout`` parameters.
+These parameters are particularly useful when experiencing timeout errors due to:
+
+- Role assumption with AWS STS (cross-account access)
+- High network latency between your environment and S3
+- Connecting from regions far from the S3 bucket
+
+By default, PyArrow uses AWS SDK default timeouts (typically 1 second for connection, 3 seconds for requests).
+You can increase these values to accommodate slower authentication or network conditions.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.arrow.cursor import ArrowCursor
+
+    # Configure higher timeouts for role assumption scenarios
+    cursor = connect(
+        s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+        region_name="us-west-2",
+        cursor_class=ArrowCursor,
+        cursor_kwargs={
+            "connect_timeout": 10.0,  # Socket connection timeout in seconds
+            "request_timeout": 30.0   # Request timeout in seconds
+        }
+    ).cursor()
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.arrow.cursor import ArrowCursor
+
+    cursor = connect(
+        s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+        region_name="us-west-2"
+    ).cursor(ArrowCursor, connect_timeout=10.0, request_timeout=30.0)
+
+The timeout parameters accept float values in seconds and apply to all S3 operations performed by the cursor,
+including HeadObject and GetObject operations when retrieving query results.
+
+.. note::
+
+    These timeout parameters require PyArrow >= 10.0.0, which added support for configuring S3FileSystem timeouts.
+
 .. _async-arrow-cursor:
 
 AsyncArrowCursor
@@ -425,6 +471,18 @@ As with AsyncArrowCursor, the UNLOAD option is also available.
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
                      cursor_class=AsyncArrowCursor).cursor(unload=True)
+
+AsyncArrowCursor also supports S3 timeout configuration using the same ``connect_timeout`` and ``request_timeout`` parameters as ArrowCursor.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.arrow.async_cursor import AsyncArrowCursor
+
+    cursor = connect(
+        s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+        region_name="us-west-2"
+    ).cursor(AsyncArrowCursor, connect_timeout=10.0, request_timeout=30.0)
 
 .. _`pyarrow.Table object`: https://arrow.apache.org/docs/python/generated/pyarrow.Table.html
 .. _`official unload documentation`: https://docs.aws.amazon.com/athena/latest/ug/unload.html
