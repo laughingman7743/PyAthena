@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: ['master']
+    tags: ['v*']
 
 permissions:
   contents: read
@@ -32,7 +33,6 @@ jobs:
           enable-cache: true
       - run: |
           uv sync --group dev
-          uv build
           make docs
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
