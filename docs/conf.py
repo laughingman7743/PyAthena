@@ -89,3 +89,10 @@ html_static_path = ["_static"]
 html_css_files = [
     "custom.css",
 ]
+
+# Furo theme options
+html_theme_options = {
+    "source_repository": "https://github.com/laughingman7743/PyAthena/",
+    "source_branch": "master",
+    "source_directory": "docs/",
+}
