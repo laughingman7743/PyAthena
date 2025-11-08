@@ -124,6 +124,9 @@ class AthenaTypeCompiler(GenericTypeCompiler):
     def visit_BOOLEAN(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return "BOOLEAN"
 
+    def visit_JSON(self, type_: Type[Any], **kw) -> str:  # noqa: N802
+        return "JSON"
+
     def visit_string(self, type_, **kw):  # noqa: N802
         return "STRING"
 

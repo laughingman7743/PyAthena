@@ -114,6 +114,16 @@ class TestAthenaTypeCompiler:
         result = compiler.visit_array(array_type)
         assert result == "ARRAY<STRING>"
 
+    def test_visit_json(self):
+        """Test JSON type compilation."""
+        from sqlalchemy import types
+
+        dialect = Mock()
+        compiler = AthenaTypeCompiler(dialect)
+        json_type = types.JSON()
+        result = compiler.visit_JSON(json_type)
+        assert result == "JSON"
+
 
 class TestAthenaStatementCompiler:
     """Test cases for Athena statement compiler functionality."""

@@ -81,7 +81,7 @@ ischema_names: Dict[str, Type[Any]] = {
     "map": types.String,
     "struct": AthenaStruct,
     "row": AthenaStruct,
-    "json": types.String,
+    "json": types.JSON,
 }
 
 
