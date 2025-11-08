@@ -303,6 +303,224 @@ or :code:`table_name$history` metadata. Again the hint goes after the select sta
 
         SELECT * FROM table_name FOR VERSION AS OF 949530903748831860
 
+.. _sqlalchemy-query-execution-callback:
+
+Query Execution Callback
+-------------------------
+
+PyAthena provides callback support for SQLAlchemy applications to get immediate access to query IDs
+after the ``start_query_execution`` API call, enabling query monitoring and cancellation capabilities.
+
+Connection-level callback
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can set a default callback for all queries through an engine's connection parameters:
+
+.. code:: python
+
+    from sqlalchemy import create_engine, text
+
+    def query_callback(query_id):
+        print(f"SQLAlchemy query started: {query_id}")
+        # Store query_id for monitoring or cancellation
+
+    conn_str = "awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/"
+    engine = create_engine(
+        conn_str,
+        connect_args={"on_start_query_execution": query_callback}
+    )
+
+    with engine.connect() as connection:
+        result = connection.execute(text("SELECT * FROM many_rows"))
+        # query_callback will be invoked before query execution
+
+Execution options callback
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+SQLAlchemy applications can use ``execution_options`` to specify callbacks for individual queries:
+
+.. code:: python
+
+    from sqlalchemy import create_engine, text
+
+    def specific_callback(query_id):
+        print(f"Specific query callback: {query_id}")
+
+    conn_str = "awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/"
+    engine = create_engine(conn_str)
+
+    with engine.connect() as connection:
+        result = connection.execute(
+            text("SELECT * FROM many_rows").execution_options(
+                on_start_query_execution=specific_callback
+            )
+        )
+
+Query timeout management with SQLAlchemy
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A practical example for managing long-running analytical queries with timeout:
+
+.. code:: python
+
+    import time
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError
+    from sqlalchemy import create_engine, text
+
+    def run_analytics_with_timeout():
+        """Run analytics query with automatic timeout and cancellation."""
+
+        query_info = {'query_id': None, 'connection': None}
+
+        def track_query_start(query_id):
+            query_info['query_id'] = query_id
+            print(f"Analytics query started: {query_id}")
+
+        def timeout_monitor(timeout_minutes):
+            """Cancel query after timeout period."""
+            time.sleep(timeout_minutes * 60)
+            if query_info['query_id'] and query_info['connection']:
+                try:
+                    # Cancel via raw connection's cursor
+                    cursor = query_info['connection'].connection.cursor()
+                    cursor.cancel()
+                    print(f"Query {query_info['query_id']} cancelled after {timeout_minutes}min timeout")
+                except Exception as e:
+                    print(f"Cancellation attempt failed: {e}")
+
+        conn_str = "awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/"
+        engine = create_engine(
+            conn_str,
+            connect_args={"on_start_query_execution": track_query_start}
+        )
+
+        # Complex data processing query
+        analytics_query = text("""
+        WITH monthly_cohorts AS (
+            SELECT
+                date_trunc('month', first_purchase_date) as cohort_month,
+                user_id,
+                date_trunc('month', purchase_date) as purchase_month,
+                revenue
+            FROM user_purchases
+            WHERE first_purchase_date >= current_date - interval '2' year
+        ),
+        cohort_data AS (
+            SELECT
+                cohort_month,
+                purchase_month,
+                COUNT(DISTINCT user_id) as users,
+                SUM(revenue) as total_revenue,
+                date_diff('month', cohort_month, purchase_month) as month_number
+            FROM monthly_cohorts
+            GROUP BY cohort_month, purchase_month
+        )
+        SELECT
+            cohort_month,
+            month_number,
+            users,
+            total_revenue,
+            ROUND(users * 100.0 / FIRST_VALUE(users) OVER (
+                PARTITION BY cohort_month ORDER BY month_number
+            ), 2) as retention_rate
+        FROM cohort_data
+        WHERE month_number <= 12
+        ORDER BY cohort_month, month_number
+        """)
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            with engine.connect() as connection:
+                query_info['connection'] = connection
+
+                # Start timeout monitor (15 minutes for complex analytics)
+                timeout_future = executor.submit(timeout_monitor, 15)
+
+                try:
+                    print("Starting cohort analysis (15-minute timeout)...")
+                    result = connection.execute(analytics_query)
+
+                    # Process results
+                    rows = result.fetchall()
+                    print(f"Cohort analysis completed: {len(rows)} data points")
+
+                    # Show sample results
+                    for i, row in enumerate(rows[:5]):  # First 5 rows
+                        print(f"  Cohort {row.cohort_month}: Month {row.month_number}, "
+                              f"{row.users} users, {row.retention_rate}% retention")
+
+                    if len(rows) > 5:
+                        print(f"  ... and {len(rows) - 5} more rows")
+
+                except Exception as e:
+                    print(f"Analytics query failed or was cancelled: {e}")
+                finally:
+                    # Clean up
+                    query_info['connection'] = None
+                    try:
+                        timeout_future.result(timeout=1)
+                    except TimeoutError:
+                        pass  # Timeout monitor still running
+
+    # Run the analytics example
+    run_analytics_with_timeout()
+
+Multiple callbacks
+~~~~~~~~~~~~~~~~~~~
+
+When both connection-level and execution_options callbacks are specified,
+both callbacks will be invoked:
+
+.. code:: python
+
+    from sqlalchemy import create_engine, text
+
+    def connection_callback(query_id):
+        print(f"Connection callback: {query_id}")
+        # Global monitoring for all queries
+
+    def execution_callback(query_id):
+        print(f"Execution callback: {query_id}")
+        # Specific handling for this query
+
+    conn_str = "awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/"
+    engine = create_engine(
+        conn_str,
+        connect_args={"on_start_query_execution": connection_callback}
+    )
+
+    with engine.connect() as connection:
+        # This will invoke both connection_callback and execution_callback
+        result = connection.execute(
+            text("SELECT 1").execution_options(
+                on_start_query_execution=execution_callback
+            )
+        )
+
+Supported SQLAlchemy dialects
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``on_start_query_execution`` callback is supported by all PyAthena SQLAlchemy dialects:
+
+* ``awsathena`` and ``awsathena+rest`` (default cursor)
+* ``awsathena+pandas`` (pandas cursor)
+* ``awsathena+arrow`` (arrow cursor)
+
+Usage with different dialects:
+
+.. code:: python
+
+    # With pandas dialect
+    engine_pandas = create_engine(
+        "awsathena+pandas://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/",
+        connect_args={"on_start_query_execution": query_callback}
+    )
+
+    # With arrow dialect
+    engine_arrow = create_engine(
+        "awsathena+arrow://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/",
+        connect_args={"on_start_query_execution": query_callback}
+    )
+
 Complex Data Types
 ------------------
 
@@ -785,220 +1003,82 @@ Migration from Raw Strings
     array_data = result[0]  # [1, 2, 3] - automatically converted
     first_item = array_data[0]  # Direct access
 
-.. _sqlalchemy-query-execution-callback:
+JSON Type Support
+~~~~~~~~~~~~~~~~~
 
-Query Execution Callback
-~~~~~~~~~~~~~~~~~~~~~~~~~
+PyAthena provides support for Amazon Athena's JSON data type, enabling you to work with JSON data in your SQLAlchemy applications. The JSON type is primarily used with Data Manipulation Language (DML) operations in Athena.
 
-PyAthena provides callback support for SQLAlchemy applications to get immediate access to query IDs
-after the ``start_query_execution`` API call, enabling query monitoring and cancellation capabilities.
-
-Connection-level callback
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-You can set a default callback for all queries through an engine's connection parameters:
+Basic Usage
+^^^^^^^^^^^
 
 .. code:: python
 
-    from sqlalchemy import create_engine, text
+    from sqlalchemy import Column, Integer, Table, MetaData
+    from sqlalchemy.types import JSON
 
-    def query_callback(query_id):
-        print(f"SQLAlchemy query started: {query_id}")
-        # Store query_id for monitoring or cancellation
-
-    conn_str = "awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/"
-    engine = create_engine(
-        conn_str,
-        connect_args={"on_start_query_execution": query_callback}
+    # Define a table with JSON column
+    events = Table('events', metadata,
+        Column('id', Integer),
+        Column('metadata', JSON),
+        Column('config', JSON)
     )
 
-    with engine.connect() as connection:
-        result = connection.execute(text("SELECT * FROM many_rows"))
-        # query_callback will be invoked before query execution
+Querying JSON Data
+^^^^^^^^^^^^^^^^^^
 
-Execution options callback
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-SQLAlchemy applications can use ``execution_options`` to specify callbacks for individual queries:
+When querying JSON data, PyAthena automatically parses JSON strings into Python dictionaries:
 
 .. code:: python
 
-    from sqlalchemy import create_engine, text
+    from sqlalchemy import select, literal_column
+    from sqlalchemy.sql import type_coerce
+    from sqlalchemy.types import JSON
 
-    def specific_callback(query_id):
-        print(f"Specific query callback: {query_id}")
-
-    conn_str = "awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/"
-    engine = create_engine(conn_str)
-
-    with engine.connect() as connection:
-        result = connection.execute(
-            text("SELECT * FROM many_rows").execution_options(
-                on_start_query_execution=specific_callback
-            )
+    # Query with explicit type coercion
+    result = connection.execute(
+        select(
+            type_coerce(
+                literal_column('CAST(\'{"name": "test", "value": 123}\' AS JSON)'),
+                JSON
+            ).label("json_col")
         )
+    ).fetchone()
 
-Query timeout management with SQLAlchemy
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    # Result is automatically parsed as a dictionary
+    print(result.json_col)  # {"name": "test", "value": 123}
+    print(type(result.json_col))  # <class 'dict'>
 
-A practical example for managing long-running analytical queries with timeout:
+Important Limitations
+^^^^^^^^^^^^^^^^^^^^^
+
+Athena's JSON type support has specific limitations:
+
+* **JSON objects are fully supported** - Objects with key-value pairs work correctly
+* **Top-level JSON arrays are not supported** - Direct CAST of arrays like ``[1, 2, 3]`` will fail
+* **Arrays within objects are supported** - JSON objects can contain arrays as property values
+* **DML only** - JSON type is supported for SELECT queries but not in CREATE TABLE statements
 
 .. code:: python
 
-    import time
-    from concurrent.futures import ThreadPoolExecutor, TimeoutError
-    from sqlalchemy import create_engine, text
-
-    def run_analytics_with_timeout():
-        """Run analytics query with automatic timeout and cancellation."""
-        
-        query_info = {'query_id': None, 'connection': None}
-        
-        def track_query_start(query_id):
-            query_info['query_id'] = query_id
-            print(f"Analytics query started: {query_id}")
-
-        def timeout_monitor(timeout_minutes):
-            """Cancel query after timeout period."""
-            time.sleep(timeout_minutes * 60)
-            if query_info['query_id'] and query_info['connection']:
-                try:
-                    # Cancel via raw connection's cursor
-                    cursor = query_info['connection'].connection.cursor()
-                    cursor.cancel()
-                    print(f"Query {query_info['query_id']} cancelled after {timeout_minutes}min timeout")
-                except Exception as e:
-                    print(f"Cancellation attempt failed: {e}")
-
-        conn_str = "awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/"
-        engine = create_engine(
-            conn_str,
-            connect_args={"on_start_query_execution": track_query_start}
+    # Supported: JSON object with nested array
+    result = connection.execute(
+        select(
+            type_coerce(
+                literal_column('CAST(\'{"items": [1, 2, 3]}\' AS JSON)'),
+                JSON
+            ).label("json_col")
         )
+    ).fetchone()
+    print(result.json_col)  # {"items": [1, 2, 3]}
 
-        # Complex data processing query
-        analytics_query = text("""
-        WITH monthly_cohorts AS (
-            SELECT 
-                date_trunc('month', first_purchase_date) as cohort_month,
-                user_id,
-                date_trunc('month', purchase_date) as purchase_month,
-                revenue
-            FROM user_purchases 
-            WHERE first_purchase_date >= current_date - interval '2' year
-        ),
-        cohort_data AS (
-            SELECT 
-                cohort_month,
-                purchase_month,
-                COUNT(DISTINCT user_id) as users,
-                SUM(revenue) as total_revenue,
-                date_diff('month', cohort_month, purchase_month) as month_number
-            FROM monthly_cohorts
-            GROUP BY cohort_month, purchase_month
-        )
-        SELECT 
-            cohort_month,
-            month_number,
-            users,
-            total_revenue,
-            ROUND(users * 100.0 / FIRST_VALUE(users) OVER (
-                PARTITION BY cohort_month ORDER BY month_number
-            ), 2) as retention_rate
-        FROM cohort_data
-        WHERE month_number <= 12
-        ORDER BY cohort_month, month_number
-        """)
+    # Not supported: Top-level array
+    # This will raise InvalidRequestException
+    # CAST('[1, 2, 3]' AS JSON)
 
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            with engine.connect() as connection:
-                query_info['connection'] = connection
-                
-                # Start timeout monitor (15 minutes for complex analytics)
-                timeout_future = executor.submit(timeout_monitor, 15)
+Best Practices
+^^^^^^^^^^^^^^
 
-                try:
-                    print("Starting cohort analysis (15-minute timeout)...")
-                    result = connection.execute(analytics_query)
-                    
-                    # Process results
-                    rows = result.fetchall()
-                    print(f"Cohort analysis completed: {len(rows)} data points")
-                    
-                    # Show sample results
-                    for i, row in enumerate(rows[:5]):  # First 5 rows
-                        print(f"  Cohort {row.cohort_month}: Month {row.month_number}, "
-                              f"{row.users} users, {row.retention_rate}% retention")
-                    
-                    if len(rows) > 5:
-                        print(f"  ... and {len(rows) - 5} more rows")
-                        
-                except Exception as e:
-                    print(f"Analytics query failed or was cancelled: {e}")
-                finally:
-                    # Clean up
-                    query_info['connection'] = None
-                    try:
-                        timeout_future.result(timeout=1)
-                    except TimeoutError:
-                        pass  # Timeout monitor still running
-
-    # Run the analytics example
-    run_analytics_with_timeout()
-
-Multiple callbacks
-^^^^^^^^^^^^^^^^^^^
-
-When both connection-level and execution_options callbacks are specified,
-both callbacks will be invoked:
-
-.. code:: python
-
-    from sqlalchemy import create_engine, text
-
-    def connection_callback(query_id):
-        print(f"Connection callback: {query_id}")
-        # Global monitoring for all queries
-
-    def execution_callback(query_id):
-        print(f"Execution callback: {query_id}")
-        # Specific handling for this query
-
-    conn_str = "awsathena+rest://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/"
-    engine = create_engine(
-        conn_str,
-        connect_args={"on_start_query_execution": connection_callback}
-    )
-
-    with engine.connect() as connection:
-        # This will invoke both connection_callback and execution_callback
-        result = connection.execute(
-            text("SELECT 1").execution_options(
-                on_start_query_execution=execution_callback
-            )
-        )
-
-Supported SQLAlchemy dialects
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The ``on_start_query_execution`` callback is supported by all PyAthena SQLAlchemy dialects:
-
-* ``awsathena`` and ``awsathena+rest`` (default cursor)
-* ``awsathena+pandas`` (pandas cursor)
-* ``awsathena+arrow`` (arrow cursor)
-
-Usage with different dialects:
-
-.. code:: python
-
-    # With pandas dialect
-    engine_pandas = create_engine(
-        "awsathena+pandas://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/",
-        connect_args={"on_start_query_execution": query_callback}
-    )
-
-    # With arrow dialect  
-    engine_arrow = create_engine(
-        "awsathena+arrow://:@athena.us-west-2.amazonaws.com:443/default?s3_staging_dir=s3://YOUR_S3_BUCKET/path/to/",
-        connect_args={"on_start_query_execution": query_callback}
-    )
+1. **Use with SELECT queries** - JSON type works best for querying existing data
+2. **Handle nested structures** - Objects with nested arrays and objects are fully supported
+3. **Explicit type coercion** - Use ``type_coerce()`` when working with literal JSON values
+4. **Error handling** - Be prepared to handle ``InvalidRequestException`` for unsupported operations
