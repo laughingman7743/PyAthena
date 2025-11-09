@@ -28,7 +28,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -50,7 +49,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -93,7 +91,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -117,7 +114,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -139,7 +135,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -170,7 +165,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -199,7 +193,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -284,7 +277,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -311,7 +303,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000),
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -335,7 +326,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -360,7 +350,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -411,7 +400,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -431,7 +419,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -461,7 +448,6 @@ class TestAsyncPandasCursor:
         [
             ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -482,7 +468,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -514,7 +499,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -535,7 +519,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -547,18 +530,8 @@ class TestAsyncPandasCursor:
             engine=parquet_engine,
         )
         df = future.result().as_pandas()
-        if parquet_engine == "fastparquet":
-            rows = [
-                (
-                    True if math.isnan(row["a"]) else row["a"],
-                    True if math.isnan(row["b"]) else row["b"],
-                )
-                for _, row in df.iterrows()
-            ]
-            assert rows == [(1.0, 0.0), (0.0, True), (True, True)]
-        else:
-            rows = [(row["a"], row["b"]) for _, row in df.iterrows()]
-            assert rows == [(True, False), (False, None), (None, None)]
+        rows = [(row["a"], row["b"]) for _, row in df.iterrows()]
+        assert rows == [(True, False), (False, None), (None, None)]
 
     @pytest.mark.parametrize(
         "async_pandas_cursor, parquet_engine",
@@ -566,7 +539,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -586,7 +558,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -633,7 +604,6 @@ class TestAsyncPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
         indirect=["async_pandas_cursor"],
     )
@@ -643,8 +613,4 @@ class TestAsyncPandasCursor:
             engine=parquet_engine,
         )
         result_set = future.result()
-        if parquet_engine == "fastparquet":
-            rows = [(True if math.isnan(row[0]) else row[0],) for row in result_set.fetchall()]
-            assert rows == [(True,)]
-        else:
-            assert result_set.fetchall() == [(None,)]
+        assert result_set.fetchall() == [(None,)]

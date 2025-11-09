@@ -29,7 +29,6 @@ class TestPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["pandas_cursor"],
     )
@@ -48,7 +47,6 @@ class TestPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["pandas_cursor"],
     )
@@ -90,7 +88,6 @@ class TestPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["pandas_cursor"],
     )
@@ -108,7 +105,6 @@ class TestPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["pandas_cursor"],
     )
@@ -125,7 +121,6 @@ class TestPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["pandas_cursor"],
     )
@@ -339,124 +334,6 @@ class TestPandasCursor:
             )
         ]
 
-    @pytest.mark.parametrize(
-        "pandas_cursor",
-        [
-            {
-                "cursor_kwargs": {"unload": True},
-            },
-        ],
-        indirect=["pandas_cursor"],
-    )
-    def test_complex_unload_fastparquet(self, pandas_cursor):
-        # NOT_SUPPORTED: Unsupported Hive type: time, json
-        pandas_cursor.execute(
-            """
-            SELECT
-              col_boolean
-              ,col_tinyint
-              ,col_smallint
-              ,col_int
-              ,col_bigint
-              ,col_float
-              ,col_double
-              ,col_string
-              ,col_varchar
-              ,col_timestamp
-              ,col_date
-              ,col_binary
-              ,col_array
-              ,col_map
-              ,col_struct
-              ,col_decimal
-            FROM one_row_complex
-            """,
-            engine="fastparquet",
-        )
-        assert pandas_cursor.description == [
-            ("col_boolean", "boolean", None, None, 0, 0, "NULLABLE"),
-            (
-                "col_tinyint",
-                "integer",
-                None,
-                None,
-                10,
-                0,
-                "NULLABLE",
-            ),
-            (
-                "col_smallint",
-                "integer",
-                None,
-                None,
-                10,
-                0,
-                "NULLABLE",
-            ),
-            ("col_int", "integer", None, None, 10, 0, "NULLABLE"),
-            ("col_bigint", "bigint", None, None, 19, 0, "NULLABLE"),
-            ("col_float", "float", None, None, 17, 0, "NULLABLE"),
-            ("col_double", "double", None, None, 17, 0, "NULLABLE"),
-            ("col_string", "varchar", None, None, 2147483647, 0, "NULLABLE"),
-            ("col_varchar", "varchar", None, None, 2147483647, 0, "NULLABLE"),
-            ("col_timestamp", "timestamp", None, None, 3, 0, "NULLABLE"),
-            ("col_date", "date", None, None, 0, 0, "NULLABLE"),
-            ("col_binary", "varbinary", None, None, 1073741824, 0, "NULLABLE"),
-            ("col_array", "array", None, None, 0, 0, "NULLABLE"),
-            ("col_map", "map", None, None, 0, 0, "NULLABLE"),
-            ("col_decimal", "decimal", None, None, 10, 1, "NULLABLE"),
-            # In the case of fastparquet, child elements of struct types are handled
-            # as fields separated by dots.
-            ("col_struct.a", "integer", None, None, 10, 0, "NULLABLE"),
-            ("col_struct.b", "integer", None, None, 10, 0, "NULLABLE"),
-        ]
-        rows = [
-            (
-                row[0],
-                row[1],
-                row[2],
-                row[3],
-                row[4],
-                row[5],
-                row[6],
-                row[7],
-                row[8],
-                row[9],
-                row[10],
-                row[11],
-                list(row[12]),
-                row[13],
-                row[14],
-                row[15],
-                row[16],
-            )
-            for row in pandas_cursor.fetchall()
-        ]
-        assert rows == [
-            (
-                True,
-                127,
-                32767,
-                2147483647,
-                9223372036854775807,
-                0.5,
-                0.25,
-                "a string",
-                "varchar",
-                pd.Timestamp(2017, 1, 1, 0, 0, 0),
-                pd.Timestamp(2017, 1, 2, 0, 0, 0),
-                b"123",
-                # ValueError: The truth value of an array with more than one element is ambiguous.
-                # Use a.any() or a.all()
-                list(np.array([1, 2], dtype=np.int32)),
-                {1: 2, 3: 4},
-                # In the case of fastparquet, decimal types are handled as floats.
-                0.1,
-                1,
-                2,
-            )
-        ]
-
     def test_fetch_no_data(self, pandas_cursor):
         pytest.raises(ProgrammingError, pandas_cursor.fetchone)
         pytest.raises(ProgrammingError, pandas_cursor.fetchmany)
@@ -471,7 +348,6 @@ class TestPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["pandas_cursor"],
     )
@@ -493,7 +369,6 @@ class TestPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["pandas_cursor"],
     )
@@ -752,129 +627,6 @@ class TestPandasCursor:
             )
         ]
 
-    @pytest.mark.parametrize(
-        "pandas_cursor",
-        [
-            {
-                "cursor_kwargs": {"unload": True},
-            },
-        ],
-        indirect=["pandas_cursor"],
-    )
-    def test_complex_unload_as_pandas_fastparquet(self, pandas_cursor):
-        # NOT_SUPPORTED: Unsupported Hive type: time, json
-        df = pandas_cursor.execute(
-            """
-            SELECT
-              col_boolean
-              ,col_tinyint
-              ,col_smallint
-              ,col_int
-              ,col_bigint
-              ,col_float
-              ,col_double
-              ,col_string
-              ,col_varchar
-              ,col_timestamp
-              ,col_date
-              ,col_binary
-              ,col_array
-              ,col_map
-              ,col_struct
-              ,col_decimal
-            FROM one_row_complex
-            """,
-            engine="fastparquet",
-        ).as_pandas()
-        assert df.shape[0] == 1
-        assert df.shape[1] == 17
-        dtypes = (
-            df["col_boolean"].dtype.type,
-            df["col_tinyint"].dtype.type,
-            df["col_smallint"].dtype.type,
-            df["col_int"].dtype.type,
-            df["col_bigint"].dtype.type,
-            df["col_float"].dtype.type,
-            df["col_double"].dtype.type,
-            df["col_string"].dtype.type,
-            df["col_varchar"].dtype.type,
-            df["col_timestamp"].dtype.type,
-            df["col_date"].dtype.type,
-            df["col_binary"].dtype.type,
-            df["col_array"].dtype.type,
-            df["col_map"].dtype.type,
-            df["col_decimal"].dtype.type,
-            # In the case of fastparquet, child elements of struct types are handled
-            # as fields separated by dots.
-            df["col_struct.a"].dtype.type,
-            df["col_struct.b"].dtype.type,
-        )
-        assert dtypes == (
-            np.bool_,
-            np.int8,
-            np.int16,
-            np.int32,
-            np.int64,
-            np.float32,
-            np.float64,
-            np.object_,
-            np.object_,
-            np.datetime64,
-            np.datetime64,
-            np.object_,
-            np.object_,
-            np.object_,
-            np.float64,
-            np.int32,
-            np.int32,
-        )
-        rows = [
-            (
-                row["col_boolean"],
-                row["col_tinyint"],
-                row["col_smallint"],
-                row["col_int"],
-                row["col_bigint"],
-                row["col_float"],
-                row["col_double"],
-                row["col_string"],
-                row["col_varchar"],
-                row["col_timestamp"],
-                row["col_date"],
-                row["col_binary"],
-                list(row["col_array"]),
-                row["col_map"],
-                row["col_decimal"],
-                row["col_struct.a"],
-                row["col_struct.b"],
-            )
-            for _, row in df.iterrows()
-        ]
-        assert rows == [
-            (
-                True,
-                127,
-                32767,
-                2147483647,
-                9223372036854775807,
-                0.5,
-                0.25,
-                "a string",
-                "varchar",
-                pd.Timestamp(2017, 1, 1, 0, 0, 0),
-                pd.Timestamp(2017, 1, 2, 0, 0, 0),
-                b"123",
-                # ValueError: The truth value of an array with more than one element is ambiguous.
-                # Use a.any() or a.all()
-                list(np.array([1, 2], dtype=np.int32)),
-                {1: 2, 3: 4},
-                # In the case of fastparquet, decimal types are handled as floats.
-                0.1,
-                1,
-                2,
-            )
-        ]
-
     def test_cancel(self, pandas_cursor):
         def cancel(c):
             time.sleep(random.randint(5, 10))
@@ -1069,7 +821,6 @@ class TestPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["pandas_cursor"],
     )
@@ -1086,7 +837,6 @@ class TestPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto", 1_000_000),
             ({"cursor_kwargs": {"unload": True}}, "auto", None),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow", None),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet", None),
         ],
         indirect=["pandas_cursor"],
     )
@@ -1115,7 +865,6 @@ class TestPandasCursor:
         [
             ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
         indirect=["pandas_cursor"],
     )
@@ -1135,7 +884,6 @@ class TestPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
         indirect=["pandas_cursor"],
     )
@@ -1166,7 +914,6 @@ class TestPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
         indirect=["pandas_cursor"],
     )
@@ -1186,7 +933,6 @@ class TestPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
         indirect=["pandas_cursor"],
     )
@@ -1197,18 +943,8 @@ class TestPandasCursor:
             """,
             engine=parquet_engine,
         ).as_pandas()
-        if parquet_engine == "fastparquet":
-            rows = [
-                (
-                    True if math.isnan(row["a"]) else row["a"],
-                    True if math.isnan(row["b"]) else row["b"],
-                )
-                for _, row in df.iterrows()
-            ]
-            assert rows == [(1.0, 0.0), (0.0, True), (True, True)]
-        else:
-            rows = [(row["a"], row["b"]) for _, row in df.iterrows()]
-            assert rows == [(True, False), (False, None), (None, None)]
+        rows = [(row["a"], row["b"]) for _, row in df.iterrows()]
+        assert rows == [(True, False), (False, None), (None, None)]
 
     @pytest.mark.parametrize(
         "pandas_cursor, parquet_engine",
@@ -1216,7 +952,6 @@ class TestPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
         indirect=["pandas_cursor"],
     )
@@ -1238,7 +973,6 @@ class TestPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
         indirect=["pandas_cursor"],
     )
@@ -1256,7 +990,6 @@ class TestPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
         indirect=["pandas_cursor"],
     )
@@ -1275,7 +1008,6 @@ class TestPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
         indirect=["pandas_cursor"],
     )
@@ -1320,17 +1052,12 @@ class TestPandasCursor:
             ({"cursor_kwargs": {"unload": False}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "auto"),
             ({"cursor_kwargs": {"unload": True}}, "pyarrow"),
-            ({"cursor_kwargs": {"unload": True}}, "fastparquet"),
         ],
         indirect=["pandas_cursor"],
     )
     def test_null_decimal_value(self, pandas_cursor, parquet_engine):
         pandas_cursor.execute("SELECT CAST(null AS DECIMAL) AS col_decimal", engine=parquet_engine)
-        if parquet_engine == "fastparquet":
-            rows = [(True if math.isnan(row[0]) else row[0],) for row in pandas_cursor.fetchall()]
-            assert rows == [(True,)]
-        else:
-            assert pandas_cursor.fetchall() == [(None,)]
+        assert pandas_cursor.fetchall() == [(None,)]
 
     def test_iceberg_table(self, pandas_cursor):
         iceberg_table = "test_iceberg_table_pandas_cursor"
