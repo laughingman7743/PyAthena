@@ -222,13 +222,13 @@ class AthenaPandasResultSet(AthenaResultSet):
         """Get the parquet engine to use, handling auto-detection.
 
         Returns:
-            Name of the parquet engine to use ('pyarrow' or 'fastparquet').
+            Name of the parquet engine to use ('pyarrow').
 
         Raises:
-            ImportError: If no suitable parquet engine is available.
+            ImportError: If pyarrow is not available.
         """
         if self._engine == "auto":
-            return self._get_available_engine(["pyarrow", "fastparquet"])
+            return self._get_available_engine(["pyarrow"])
         return self._engine
 
     def _get_csv_engine(
@@ -554,11 +554,8 @@ class AthenaPandasResultSet(AthenaResultSet):
             kwargs = {
                 "use_threads": True,
             }
-        elif engine == "fastparquet":
-            unload_location = f"{self._unload_location}*"
-            kwargs = {}
         else:
-            raise ProgrammingError("Engine must be one of `pyarrow`, `fastparquet`.")
+            raise ProgrammingError("Engine must be `pyarrow`.")
         kwargs.update(self._kwargs)
 
         try:
@@ -592,23 +589,8 @@ class AthenaPandasResultSet(AthenaResultSet):
             except Exception as e:
                 _logger.exception(f"Failed to read schema {bucket}/{key}.")
                 raise OperationalError(*e.args) from e
-        elif engine == "fastparquet":
-            from fastparquet import ParquetFile
-
-            # TODO: https://github.com/python/mypy/issues/1153
-            from pyathena.fastparquet.util import to_column_info  # type: ignore
-
-            if not self._data_manifest:
-                self._data_manifest = self._read_data_manifest()
-            bucket, key = parse_output_location(self._data_manifest[0])
-            try:
-                file = ParquetFile(f"{bucket}/{key}", open_with=self._fs.open)
-                return to_column_info(file.schema)
-            except Exception as e:
-                _logger.exception(f"Failed to read schema {bucket}/{key}.")
-                raise OperationalError(*e.args) from e
         else:
-            raise ProgrammingError("Engine must be one of `pyarrow`, `fastparquet`.")
+            raise ProgrammingError("Engine must be `pyarrow`.")
 
     def _as_pandas(self) -> Union["TextFileReader", "DataFrame"]:
         if self.is_unload:
