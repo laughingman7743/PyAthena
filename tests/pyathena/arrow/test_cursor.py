@@ -259,7 +259,7 @@ class TestArrowCursor:
         table = arrow_cursor.execute("SELECT * FROM one_row").as_arrow()
         assert table.shape[0] == 1
         assert table.shape[1] == 1
-        assert list(zip(*table.to_pydict().values())) == [(1,)]
+        assert list(zip(*table.to_pydict().values(), strict=False)) == [(1,)]
 
     @pytest.mark.parametrize(
         "arrow_cursor",
@@ -270,7 +270,7 @@ class TestArrowCursor:
         table = arrow_cursor.execute("SELECT * FROM many_rows").as_arrow()
         assert table.shape[0] == 10000
         assert table.shape[1] == 1
-        assert list(zip(*table.to_pydict().values())) == [(i,) for i in range(10000)]
+        assert list(zip(*table.to_pydict().values(), strict=False)) == [(i,) for i in range(10000)]
 
     def test_complex_as_arrow(self, arrow_cursor):
         table = arrow_cursor.execute(
@@ -323,7 +323,7 @@ class TestArrowCursor:
                 pa.field("col_decimal", pa.string()),
             ]
         )
-        assert list(zip(*table.to_pydict().values())) == [
+        assert list(zip(*table.to_pydict().values(), strict=False)) == [
             (
                 True,
                 127,
@@ -406,7 +406,7 @@ class TestArrowCursor:
                 pa.field("col_decimal", pa.decimal128(10, 1)),
             ]
         )
-        assert list(zip(*table.to_pydict().values())) == [
+        assert list(zip(*table.to_pydict().values(), strict=False)) == [
             (
                 True,
                 127,

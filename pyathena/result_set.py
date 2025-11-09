@@ -396,7 +396,7 @@ class AthenaResultSet(CursorIterator):
             tuple(
                 [
                     self._converter.convert(meta.get("Type"), row.get("VarCharValue"))
-                    for meta, row in zip(metadata, rows[i].get("Data", []))
+                    for meta, row in zip(metadata, rows[i].get("Data", []), strict=False)
                 ]
             )
             for i in range(offset, len(rows))
@@ -420,7 +420,7 @@ class AthenaResultSet(CursorIterator):
     def _is_first_row_column_labels(self, rows: List[Dict[str, Any]]) -> bool:
         first_row_data = rows[0].get("Data", [])
         metadata = cast(Tuple[Any, Any], self._metadata)
-        for meta, data in zip(metadata, first_row_data):
+        for meta, data in zip(metadata, first_row_data, strict=False):
             if meta.get("Name") != data.get("VarCharValue"):
                 return False
         return True
@@ -496,7 +496,7 @@ class AthenaDictResultSet(AthenaResultSet):
                         meta.get("Name"),
                         self._converter.convert(meta.get("Type"), row.get("VarCharValue")),
                     )
-                    for meta, row in zip(metadata, rows[i].get("Data", []))
+                    for meta, row in zip(metadata, rows[i].get("Data", []), strict=False)
                 ]
             )
             for i in range(offset, len(rows))
