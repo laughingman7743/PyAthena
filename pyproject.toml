@@ -26,6 +26,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dynamic = ["version"]
 
@@ -149,7 +150,7 @@ exclude = [
 legacy_tox_ini = """
 [tox]
 isolated_build = true
-envlist = py{39,310,311,312,313}
+envlist = py{39,310,311,312,313,314}
 
 [gh-actions]
 python =
@@ -158,6 +159,7 @@ python =
     3.11: py311
     3.12: py312
     3.13: py313
+    3.14: py314
 
 [testenv]
 allowlist_externals =
