@@ -322,11 +322,11 @@ name = "fastparquet"
 version = "2024.11.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cramjam" },
-    { name = "fsspec" },
-    { name = "numpy" },
-    { name = "packaging" },
-    { name = "pandas" },
+    { name = "cramjam", marker = "python_full_version < '3.14'" },
+    { name = "fsspec", marker = "python_full_version < '3.14'" },
+    { name = "numpy", marker = "python_full_version < '3.14'" },
+    { name = "packaging", marker = "python_full_version < '3.14'" },
+    { name = "pandas", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b4/66/862da14f5fde4eff2cedc0f51a8dc34ba145088e5041b45b2d57ac54f922/fastparquet-2024.11.0.tar.gz", hash = "sha256:e3b1fc73fd3e1b70b0de254bae7feb890436cb67e99458b88cb9bd3cc44db419", size = 467192 }
 wheels = [
@@ -766,7 +766,7 @@ arrow = [
     { name = "pyarrow" },
 ]
 fastparquet = [
-    { name = "fastparquet" },
+    { name = "fastparquet", marker = "python_full_version < '3.14'" },
 ]
 pandas = [
     { name = "pandas" },
@@ -777,7 +777,7 @@ sqlalchemy = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "fastparquet" },
+    { name = "fastparquet", marker = "python_full_version < '3.14'" },
     { name = "furo" },
     { name = "jinja2" },
     { name = "mypy" },
@@ -798,7 +798,7 @@ dev = [
 requires-dist = [
     { name = "boto3", specifier = ">=1.26.4" },
     { name = "botocore", specifier = ">=1.29.4" },
-    { name = "fastparquet", marker = "extra == 'fastparquet'", specifier = ">=0.4.0" },
+    { name = "fastparquet", marker = "python_full_version < '3.14' and extra == 'fastparquet'", specifier = ">=0.4.0" },
     { name = "fsspec" },
     { name = "pandas", marker = "extra == 'pandas'", specifier = ">=1.3.0" },
     { name = "pyarrow", marker = "python_full_version >= '3.14' and extra == 'arrow'", specifier = ">=22.0.0" },
@@ -810,7 +810,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "fastparquet", specifier = ">=0.4.0" },
+    { name = "fastparquet", marker = "python_full_version < '3.14'", specifier = ">=0.4.0" },
     { name = "furo" },
     { name = "jinja2", specifier = ">=3.1.0" },
     { name = "mypy", specifier = ">=0.900" },

@@ -46,7 +46,9 @@ arrow = [
     "pyarrow>=10.0.0; python_version<'3.14'",
     "pyarrow>=22.0.0; python_version>='3.14'",
 ]
-fastparquet = ["fastparquet>=0.4.0"]
+fastparquet = [
+    "fastparquet>=0.4.0; python_version<'3.14'",
+]
 
 [dependency-groups]
 dev = [
@@ -55,7 +57,7 @@ dev = [
     "numpy>=1.26.0",
     "pyarrow>=10.0.0; python_version<'3.14'",
     "pyarrow>=22.0.0; python_version>='3.14'",
-    "fastparquet>=0.4.0",
+    "fastparquet>=0.4.0; python_version<'3.14'",
     "Jinja2>=3.1.0",
     "mypy>=0.900",
     "pytest>=3.5",
