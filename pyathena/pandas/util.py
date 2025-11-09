@@ -211,10 +211,15 @@ def to_sql(
             for keys, group in df.groupby(by=partitions, observed=True):
                 keys = keys if isinstance(keys, tuple) else (keys,)
                 group = group.drop(partitions, axis=1)
-                partition_prefix = "/".join([f"{key}={val}" for key, val in zip(partitions, keys)])
+                partition_prefix = "/".join(
+                    [f"{key}={val}" for key, val in zip(partitions, keys, strict=False)]
+                )
+                partition_condition = ", ".join(
+                    [f"`{key}` = '{val}'" for key, val in zip(partitions, keys, strict=False)]
+                )
                 partition_prefixes.append(
                     (
-                        ", ".join([f"`{key}` = '{val}'" for key, val in zip(partitions, keys)]),
+                        partition_condition,
                         f"{location}{partition_prefix}/",
                     )
                 )

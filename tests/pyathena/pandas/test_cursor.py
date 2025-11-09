@@ -1582,5 +1582,5 @@ class TestPandasCursor:
         assert len(chunks_via_method) == len(chunks_via_direct)
 
         # Each corresponding chunk should be identical
-        for chunk1, chunk2 in zip(chunks_via_method, chunks_via_direct):
+        for chunk1, chunk2 in zip(chunks_via_method, chunks_via_direct, strict=False):
             pd.testing.assert_frame_equal(chunk1, chunk2)

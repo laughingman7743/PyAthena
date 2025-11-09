@@ -225,8 +225,8 @@ class AthenaArrowResultSet(AthenaResultSet):
             dict_rows = rows.to_pydict()
             column_names = dict_rows.keys()
             processed_rows = [
-                tuple(self.converters[k](v) for k, v in zip(column_names, row))
-                for row in zip(*dict_rows.values())
+                tuple(self.converters[k](v) for k, v in zip(column_names, row, strict=False))
+                for row in zip(*dict_rows.values(), strict=False)
             ]
             self._rows.extend(processed_rows)
 
