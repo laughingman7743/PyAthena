@@ -47,6 +47,52 @@ def test_to_struct_athena_native_formats(input_value, expected):
 
 
 @pytest.mark.parametrize(
+    "input_value,expected",
+    [
+        # Single level nesting (Issue #627)
+        (
+            "{header={stamp=2024-01-01, seq=123}, x=4.736, y=0.583}",
+            {"header": {"stamp": "2024-01-01", "seq": 123}, "x": 4.736, "y": 0.583},
+        ),
+        # Double nesting
+        (
+            "{outer={middle={inner=value}}, field=123}",
+            {"outer": {"middle": {"inner": "value"}}, "field": 123},
+        ),
+        # Multiple nested fields
+        (
+            "{pos={x=1, y=2}, vel={x=0.5, y=0.3}, timestamp=12345}",
+            {"pos": {"x": 1, "y": 2}, "vel": {"x": 0.5, "y": 0.3}, "timestamp": 12345},
+        ),
+        # Triple nesting
+        (
+            "{level1={level2={level3={value=deep}}}}",
+            {"level1": {"level2": {"level3": {"value": "deep"}}}},
+        ),
+        # Mixed types in nested struct
+        (
+            "{metadata={id=123, active=true, name=test}, count=5}",
+            {"metadata": {"id": 123, "active": True, "name": "test"}, "count": 5},
+        ),
+        # Nested struct with null value
+        (
+            "{data={value=null, status=ok}, flag=true}",
+            {"data": {"value": None, "status": "ok"}, "flag": True},
+        ),
+        # Complex nesting with multiple levels and fields
+        (
+            "{a={b={c=1, d=2}, e=3}, f=4, g={h=5}}",
+            {"a": {"b": {"c": 1, "d": 2}, "e": 3}, "f": 4, "g": {"h": 5}},
+        ),
+    ],
+)
+def test_to_struct_athena_nested_formats(input_value, expected):
+    """Test STRUCT conversion for nested struct formats (Issue #627)."""
+    result = _to_struct(input_value)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
     "input_value",
     [
         "{formula=x=y+1, status=active}",  # Equals in value
@@ -103,6 +149,35 @@ def test_to_array_athena_unnamed_struct_elements():
     array_value = "[{Alice, 25}, {Bob, 30}]"
     result = _to_array(array_value)
     expected = [{"0": "Alice", "1": 25}, {"0": "Bob", "1": 30}]
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "input_value,expected",
+    [
+        # Array with nested structs (Issue #627)
+        (
+            "[{header={stamp=2024-01-01, seq=123}, x=4.736}]",
+            [{"header": {"stamp": "2024-01-01", "seq": 123}, "x": 4.736}],
+        ),
+        # Multiple elements with nested structs
+        (
+            "[{pos={x=1, y=2}, vel={x=0.5}}, {pos={x=3, y=4}, vel={x=1.5}}]",
+            [
+                {"pos": {"x": 1, "y": 2}, "vel": {"x": 0.5}},
+                {"pos": {"x": 3, "y": 4}, "vel": {"x": 1.5}},
+            ],
+        ),
+        # Array with deeply nested structs
+        (
+            "[{data={meta={id=1, active=true}}}]",
+            [{"data": {"meta": {"id": 1, "active": True}}}],
+        ),
+    ],
+)
+def test_to_array_athena_nested_struct_elements(input_value, expected):
+    """Test Athena array with nested struct elements (Issue #627)."""
+    result = _to_array(input_value)
     assert result == expected
 
 

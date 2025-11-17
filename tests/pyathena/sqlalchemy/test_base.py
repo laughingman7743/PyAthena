@@ -92,6 +92,118 @@ class TestSQLAlchemyAthena:
         ).fetchone()
         assert result.json_types == {"str": "value", "num": 42, "bool": True, "nil": None}
 
+    def test_select_nested_struct_query(self, engine):
+        """Test SELECT query with nested STRUCT (ROW) types (Issue #627)."""
+        engine, conn = engine
+
+        # Test single level nested struct (simulating Issue #627 scenario)
+        query = sqlalchemy.text(
+            """
+            SELECT
+                CAST(ROW(
+                    ROW('2024-01-01', 123),
+                    CAST(4.736 AS DOUBLE),
+                    CAST(0.583 AS DOUBLE)
+                ) AS ROW(header ROW(stamp VARCHAR, seq INTEGER), x DOUBLE, y DOUBLE)) as positions
+            """
+        )
+        result = conn.execute(query).fetchone()
+        assert result is not None
+        assert result.positions is not None
+        assert isinstance(result.positions, dict)
+        assert "header" in result.positions
+        assert isinstance(result.positions["header"], dict)
+        assert result.positions["header"]["stamp"] == "2024-01-01"
+        assert result.positions["header"]["seq"] == 123
+        assert result.positions["x"] == 4.736
+        assert result.positions["y"] == 0.583
+
+        # Test double nested struct
+        query = sqlalchemy.text(
+            """
+            SELECT
+                CAST(ROW(
+                    ROW(ROW('value')),
+                    123
+                ) AS ROW(level1 ROW(level2 ROW(level3 VARCHAR)), field INTEGER)) as data
+            """
+        )
+        result = conn.execute(query).fetchone()
+        assert result is not None
+        assert result.data["level1"]["level2"]["level3"] == "value"
+        assert result.data["field"] == 123
+
+        # Test multiple nested fields
+        query = sqlalchemy.text(
+            """
+            SELECT
+                CAST(ROW(
+                    ROW(1, 2),
+                    ROW(CAST(0.5 AS DOUBLE), CAST(0.3 AS DOUBLE)),
+                    12345
+                ) AS ROW(
+                    pos ROW(x INTEGER, y INTEGER),
+                    vel ROW(x DOUBLE, y DOUBLE),
+                    timestamp INTEGER
+                )) as data
+            """
+        )
+        result = conn.execute(query).fetchone()
+        assert result is not None
+        assert result.data["pos"]["x"] == 1
+        assert result.data["pos"]["y"] == 2
+        assert result.data["vel"]["x"] == 0.5
+        assert result.data["vel"]["y"] == 0.3
+        assert result.data["timestamp"] == 12345
+
+    def test_select_array_with_nested_struct(self, engine):
+        """Test SELECT query with ARRAY containing nested STRUCT (Issue #627)."""
+        engine, conn = engine
+
+        # Array with nested structs (simulating Issue #627 scenario)
+        query = sqlalchemy.text(
+            """
+            SELECT
+                CAST(ARRAY[
+                    ROW(
+                        ROW('2024-01-01', 123),
+                        CAST(4.736 AS DOUBLE)
+                    )
+                ] AS ARRAY<ROW(header ROW(stamp VARCHAR, seq INTEGER), x DOUBLE)>) as positions
+            """
+        )
+        result = conn.execute(query).fetchone()
+        assert result is not None
+        assert result.positions is not None
+        assert isinstance(result.positions, list)
+        assert len(result.positions) == 1
+        assert isinstance(result.positions[0], dict)
+        assert "header" in result.positions[0]
+        assert isinstance(result.positions[0]["header"], dict)
+        assert result.positions[0]["header"]["stamp"] == "2024-01-01"
+        assert result.positions[0]["header"]["seq"] == 123
+        assert result.positions[0]["x"] == 4.736
+
+        # Multiple elements with nested structs
+        query = sqlalchemy.text(
+            """
+            SELECT
+                CAST(ARRAY[
+                    ROW(ROW(1, 2), ROW(CAST(0.5 AS DOUBLE))),
+                    ROW(ROW(3, 4), ROW(CAST(1.5 AS DOUBLE)))
+                ] AS ARRAY<ROW(pos ROW(x INTEGER, y INTEGER), vel ROW(x DOUBLE))>) as data
+            """
+        )
+        result = conn.execute(query).fetchone()
+        assert result is not None
+        assert len(result.data) == 2
+        assert result.data[0]["pos"]["x"] == 1
+        assert result.data[0]["pos"]["y"] == 2
+        assert result.data[0]["vel"]["x"] == 0.5
+        assert result.data[1]["pos"]["x"] == 3
+        assert result.data[1]["pos"]["y"] == 4
+        assert result.data[1]["vel"]["x"] == 1.5
+
     def test_reflect_no_such_table(self, engine):
         engine, conn = engine
         pytest.raises(
