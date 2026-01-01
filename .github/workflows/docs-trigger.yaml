@@ -1,0 +1,22 @@
+name: Trigger Docs on Tag
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  actions: write
+
+jobs:
+  trigger-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'docs.yaml',
+              ref: 'master'
+            })
