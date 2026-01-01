@@ -878,6 +878,23 @@ class TestPandasCursor:
         assert df.shape[0] == 0
         assert df.shape[1] == 0
 
+    def test_ctas(self, pandas_cursor):
+        table_name = f"test_ctas_pandas_{''.join(random.choices(string.ascii_lowercase, k=10))}"
+        location = f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/"
+        pandas_cursor.execute(
+            f"""
+            CREATE TABLE {ENV.schema}.{table_name}
+            WITH (
+                format='PARQUET',
+                external_location='{location}'
+            ) AS SELECT a FROM many_rows LIMIT 1
+            """
+        )
+        assert pandas_cursor.description == [("rows", "bigint", None, None, 19, 0, "UNKNOWN")]
+        # CTAS returns affected row count via rowcount, not via fetchone()
+        assert pandas_cursor.rowcount == 1
+        assert pandas_cursor.fetchone() is None
+
     @pytest.mark.parametrize(
         "pandas_cursor, parquet_engine",
         [

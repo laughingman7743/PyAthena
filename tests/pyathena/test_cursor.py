@@ -2,7 +2,9 @@
 import contextlib
 import json
 import logging
+import random
 import re
+import string
 import threading
 import time
 from concurrent import futures
@@ -239,6 +241,25 @@ class TestCursor:
         with contextlib.suppress(DatabaseError):
             cursor.execute("blah_blah")
         assert cursor.description is None
+
+    def test_description_with_ctas(self, cursor):
+        table_name = (
+            f"test_description_with_ctas_{''.join(random.choices(string.ascii_lowercase, k=10))}"
+        )
+        location = f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/"
+        cursor.execute(
+            f"""
+            CREATE TABLE {ENV.schema}.{table_name}
+            WITH (
+                format='PARQUET',
+                external_location='{location}'
+            ) AS SELECT a FROM many_rows LIMIT 1
+            """
+        )
+        assert cursor.description == [("rows", "bigint", None, None, 19, 0, "UNKNOWN")]
+        # CTAS returns affected row count via rowcount, not via fetchone()
+        assert cursor.rowcount == 1
+        assert cursor.fetchone() is None
 
     def test_bad_query(self, cursor):
         def run():

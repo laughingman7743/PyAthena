@@ -508,6 +508,23 @@ class TestArrowCursor:
         assert table.shape[0] == 0
         assert table.shape[1] == 0
 
+    def test_ctas(self, arrow_cursor):
+        table_name = f"test_ctas_arrow_{''.join(random.choices(string.ascii_lowercase, k=10))}"
+        location = f"{ENV.s3_staging_dir}{ENV.schema}/{table_name}/"
+        arrow_cursor.execute(
+            f"""
+            CREATE TABLE {ENV.schema}.{table_name}
+            WITH (
+                format='PARQUET',
+                external_location='{location}'
+            ) AS SELECT a FROM many_rows LIMIT 1
+            """
+        )
+        assert arrow_cursor.description == [("rows", "bigint", None, None, 19, 0, "UNKNOWN")]
+        # CTAS returns affected row count via rowcount, not via fetchone()
+        assert arrow_cursor.rowcount == 1
+        assert arrow_cursor.fetchone() is None
+
     @pytest.mark.parametrize(
         "arrow_cursor",
         [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],

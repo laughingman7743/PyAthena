@@ -171,6 +171,20 @@ def async_arrow_cursor(request):
 
 
 @pytest.fixture
+def s3fs_cursor(request):
+    from pyathena.s3fs.cursor import S3FSCursor
+
+    yield from _cursor(S3FSCursor, request)
+
+
+@pytest.fixture
+def async_s3fs_cursor(request):
+    from pyathena.s3fs.async_cursor import AsyncS3FSCursor
+
+    yield from _cursor(AsyncS3FSCursor, request)
+
+
+@pytest.fixture
 def spark_cursor(request):
     from pyathena.spark.cursor import SparkCursor
 
