@@ -28,7 +28,7 @@ class Env:
         )
         self.default_work_group = os.getenv("AWS_ATHENA_DEFAULT_WORKGROUP", "primary")
         self.schema = "pyathena_test_" + "".join(
-            [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]
+            random.choices(string.ascii_lowercase + string.digits, k=10)
         )
         self.s3_filesystem_test_file_key = (
             f"{self.s3_staging_key}{self.schema}/filesystem/test_read/test.dat"

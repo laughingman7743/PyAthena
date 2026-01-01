@@ -476,7 +476,7 @@ class TestArrowCursor:
     )
     def test_empty_result(self, arrow_cursor):
         table = "test_arrow_cursor_empty_result_" + "".join(
-            [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]
+            random.choices(string.ascii_lowercase + string.digits, k=10)
         )
         df = arrow_cursor.execute(
             f"""

@@ -842,7 +842,7 @@ class TestPandasCursor:
     )
     def test_empty_result_ddl(self, pandas_cursor, parquet_engine, chunksize):
         table = "test_pandas_cursor_empty_result_" + "".join(
-            [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]
+            random.choices(string.ascii_lowercase + string.digits, k=10)
         )
         df = pandas_cursor.execute(
             f"""

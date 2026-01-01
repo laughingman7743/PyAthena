@@ -275,7 +275,7 @@ class TestAsyncArrowCursor:
     )
     def test_empty_result(self, async_arrow_cursor):
         table = "test_pandas_cursor_empty_result_" + "".join(
-            [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]
+            random.choices(string.ascii_lowercase + string.digits, k=10)
         )
         query_id, future = async_arrow_cursor.execute(
             f"""
