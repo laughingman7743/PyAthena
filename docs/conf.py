@@ -7,11 +7,19 @@ from datetime import datetime, timezone
 
 
 def get_version():
-    # Use git commands to get version from the checked-out ref.
-    # sphinx-multiversion checks out each ref to a temp directory and runs Sphinx there.
-    # Use current working directory to get the version of the checked-out ref.
+    """Get version from git tags.
+
+    This function is used to determine the version for documentation builds.
+    For the master branch, we use the latest tag (--abbrev=0) instead of
+    git describe's default behavior which would show a dev version like
+    "v3.21.2-2-g8d4e41c" when HEAD is ahead of the latest tag.
+
+    This ensures that when master and a tag point to the same commit,
+    the documentation shows the clean version (e.g., "3.22.0") regardless
+    of whether the tag was created before or after the docs build started.
+    """
+    # Try to get exact tag (for tagged commits)
     try:
-        # Try to get exact tag (for tagged commits)
         result = subprocess.run(
             ["git", "describe", "--tags", "--exact-match"],
             capture_output=True,
@@ -25,18 +33,20 @@ def get_version():
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
 
-    # Try to get version using git describe (for non-tagged commits)
+    # Get the latest tag (without commit count suffix)
+    # This is used for master branch builds to show a clean version
+    # instead of a dev version like "v3.21.2-2-g8d4e41c"
     try:
         result = subprocess.run(
-            ["git", "describe", "--tags", "--always"],
+            ["git", "describe", "--tags", "--abbrev=0"],
             capture_output=True,
             text=True,
             check=True,
         )
-        version_str = result.stdout.strip()
-        if version_str and version_str.startswith("v"):
-            return version_str[1:]  # Remove 'v' prefix
-        return version_str
+        tag = result.stdout.strip()
+        if tag and tag.startswith("v"):
+            return tag[1:]  # Remove 'v' prefix
+        return tag
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
 
