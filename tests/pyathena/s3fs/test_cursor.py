@@ -11,6 +11,7 @@ import pytest
 
 from pyathena.error import DatabaseError, ProgrammingError
 from pyathena.s3fs.cursor import S3FSCursor
+from pyathena.s3fs.reader import AthenaCSVReader, DefaultCSVReader
 from pyathena.s3fs.result_set import AthenaS3FSResultSet
 from tests import ENV
 from tests.pyathena.conftest import connect
@@ -311,3 +312,194 @@ class TestS3FSCursor:
         )
         result = s3fs_cursor.fetchone()
         assert result == ("a\tb\nc",)
+
+    @pytest.mark.parametrize(
+        "csv_reader_class",
+        [DefaultCSVReader, AthenaCSVReader],
+    )
+    def test_basic_query_with_reader(self, csv_reader_class):
+        """Both readers should work for basic queries."""
+        with (
+            contextlib.closing(
+                connect(
+                    schema_name=ENV.schema,
+                    cursor_class=S3FSCursor,
+                    cursor_kwargs={"csv_reader": csv_reader_class},
+                )
+            ) as conn,
+            conn.cursor() as cursor,
+        ):
+            cursor.execute("SELECT * FROM one_row")
+            result = cursor.fetchall()
+            assert result == [(1,)]
+
+    @pytest.mark.parametrize(
+        "csv_reader_class",
+        [DefaultCSVReader, AthenaCSVReader],
+    )
+    def test_multiple_columns_with_reader(self, csv_reader_class):
+        """Test multiple columns work with both readers."""
+        with (
+            contextlib.closing(
+                connect(
+                    schema_name=ENV.schema,
+                    cursor_class=S3FSCursor,
+                    cursor_kwargs={"csv_reader": csv_reader_class},
+                )
+            ) as conn,
+            conn.cursor() as cursor,
+        ):
+            cursor.execute(
+                """
+                SELECT
+                    1 AS col_int,
+                    'text' AS col_string,
+                    1.5 AS col_double
+                """
+            )
+            result = cursor.fetchone()
+            assert result == (1, "text", 1.5)
+
+    def test_null_with_default_reader(self):
+        """DefaultCSVReader: NULL is returned as None."""
+        with (
+            contextlib.closing(
+                connect(
+                    schema_name=ENV.schema,
+                    cursor_class=S3FSCursor,
+                    cursor_kwargs={"csv_reader": DefaultCSVReader},
+                )
+            ) as conn,
+            conn.cursor() as cursor,
+        ):
+            cursor.execute("SELECT NULL AS null_col")
+            result = cursor.fetchone()
+            assert result == (None,)
+
+    def test_null_with_athena_reader(self):
+        """AthenaCSVReader: NULL is returned as None."""
+        with (
+            contextlib.closing(
+                connect(
+                    schema_name=ENV.schema,
+                    cursor_class=S3FSCursor,
+                    cursor_kwargs={"csv_reader": AthenaCSVReader},
+                )
+            ) as conn,
+            conn.cursor() as cursor,
+        ):
+            cursor.execute("SELECT NULL AS null_col")
+            result = cursor.fetchone()
+            assert result == (None,)
+
+    def test_empty_string_with_default_reader(self):
+        """DefaultCSVReader: Empty string becomes None (loses distinction)."""
+        with (
+            contextlib.closing(
+                connect(
+                    schema_name=ENV.schema,
+                    cursor_class=S3FSCursor,
+                    cursor_kwargs={"csv_reader": DefaultCSVReader},
+                )
+            ) as conn,
+            conn.cursor() as cursor,
+        ):
+            cursor.execute("SELECT '' AS empty_col")
+            result = cursor.fetchone()
+            # DefaultCSVReader treats empty string same as NULL
+            assert result == (None,)
+
+    def test_empty_string_with_athena_reader(self):
+        """AthenaCSVReader: Empty string is preserved as empty string."""
+        with (
+            contextlib.closing(
+                connect(
+                    schema_name=ENV.schema,
+                    cursor_class=S3FSCursor,
+                    cursor_kwargs={"csv_reader": AthenaCSVReader},
+                )
+            ) as conn,
+            conn.cursor() as cursor,
+        ):
+            cursor.execute("SELECT '' AS empty_col")
+            result = cursor.fetchone()
+            # AthenaCSVReader preserves empty string as ''
+            assert result == ("",)
+
+    def test_null_vs_empty_string_with_default_reader(self):
+        """DefaultCSVReader: Both NULL and empty string become None."""
+        with (
+            contextlib.closing(
+                connect(
+                    schema_name=ENV.schema,
+                    cursor_class=S3FSCursor,
+                    cursor_kwargs={"csv_reader": DefaultCSVReader},
+                )
+            ) as conn,
+            conn.cursor() as cursor,
+        ):
+            cursor.execute("SELECT NULL AS null_col, '' AS empty_col")
+            result = cursor.fetchone()
+            # Both become None
+            assert result == (None, None)
+
+    def test_null_vs_empty_string_with_athena_reader(self):
+        """AthenaCSVReader: NULL and empty string are distinct."""
+        with (
+            contextlib.closing(
+                connect(
+                    schema_name=ENV.schema,
+                    cursor_class=S3FSCursor,
+                    cursor_kwargs={"csv_reader": AthenaCSVReader},
+                )
+            ) as conn,
+            conn.cursor() as cursor,
+        ):
+            cursor.execute("SELECT NULL AS null_col, '' AS empty_col")
+            result = cursor.fetchone()
+            # NULL is None, empty string is ''
+            assert result == (None, "")
+
+    def test_mixed_values_with_athena_reader(self):
+        """AthenaCSVReader: Mixed NULL, empty string, and regular values."""
+        with (
+            contextlib.closing(
+                connect(
+                    schema_name=ENV.schema,
+                    cursor_class=S3FSCursor,
+                    cursor_kwargs={"csv_reader": AthenaCSVReader},
+                )
+            ) as conn,
+            conn.cursor() as cursor,
+        ):
+            cursor.execute(
+                """
+                SELECT
+                    NULL AS null_col,
+                    '' AS empty_col,
+                    'text' AS text_col,
+                    NULL AS null_col2
+                """
+            )
+            result = cursor.fetchone()
+            assert result == (None, "", "text", None)
+
+    @pytest.mark.parametrize(
+        "csv_reader_class",
+        [DefaultCSVReader, AthenaCSVReader],
+    )
+    def test_quoted_string_with_comma(self, csv_reader_class):
+        """Both readers should handle strings containing commas."""
+        with (
+            contextlib.closing(
+                connect(
+                    schema_name=ENV.schema,
+                    cursor_class=S3FSCursor,
+                    cursor_kwargs={"csv_reader": csv_reader_class},
+                )
+            ) as conn,
+            conn.cursor() as cursor,
+        ):
+            cursor.execute("SELECT 'a,b,c' AS col_with_commas")
+            result = cursor.fetchone()
+            assert result == ("a,b,c",)

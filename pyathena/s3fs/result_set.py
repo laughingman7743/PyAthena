@@ -2,20 +2,22 @@
 from __future__ import annotations
 
 import contextlib
-import csv
 import logging
 from io import TextIOWrapper
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union
 
 from pyathena.converter import Converter
 from pyathena.error import OperationalError, ProgrammingError
 from pyathena.filesystem.s3 import S3FileSystem
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
+from pyathena.s3fs.reader import AthenaCSVReader, DefaultCSVReader
 from pyathena.util import RetryConfig, parse_output_location
 
 if TYPE_CHECKING:
     from pyathena.connection import Connection
+
+CSVReaderType = Union[Type[DefaultCSVReader], Type[AthenaCSVReader]]
 
 _logger = logging.getLogger(__name__)
 
@@ -23,12 +25,12 @@ _logger = logging.getLogger(__name__)
 class AthenaS3FSResultSet(AthenaResultSet):
     """Result set that reads CSV results via S3FileSystem without pandas/pyarrow.
 
-    This result set uses Python's standard csv module and PyAthena's S3FileSystem
-    to read query results from S3. It provides a lightweight alternative to pandas
-    and arrow cursors when those dependencies are not needed.
+    This result set uses PyAthena's S3FileSystem to read query results from S3.
+    It provides a lightweight alternative to pandas and arrow cursors when those
+    dependencies are not needed.
 
     Features:
-        - Uses Python's standard csv module for parsing
+        - Lightweight CSV parsing via pluggable readers
         - Uses PyAthena's S3FileSystem for S3 access
         - No external dependencies beyond boto3
         - Memory-efficient streaming for large datasets
@@ -60,6 +62,7 @@ class AthenaS3FSResultSet(AthenaResultSet):
         arraysize: int,
         retry_config: RetryConfig,
         block_size: Optional[int] = None,
+        csv_reader: Optional[CSVReaderType] = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -74,11 +77,10 @@ class AthenaS3FSResultSet(AthenaResultSet):
         self._rows.clear()
         self._arraysize = arraysize
         self._block_size = block_size if block_size else self.DEFAULT_BLOCK_SIZE
+        self._csv_reader_class: CSVReaderType = csv_reader or AthenaCSVReader
         self._fs = self._create_s3_file_system()
         self._csv_reader: Optional[Any] = None
         self._csv_file: Optional[Any] = None
-        self._header_skipped = False
-        self._has_header = False  # CSV files have headers, TXT files don't
 
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
             self._init_csv_reader()
@@ -125,12 +127,12 @@ class AthenaS3FSResultSet(AthenaResultSet):
 
             if self.output_location.endswith(".txt"):
                 # Tab-separated format (no header row)
-                self._csv_reader = csv.reader(text_wrapper, delimiter="\t")
-                self._has_header = False
+                self._csv_reader = self._csv_reader_class(text_wrapper, delimiter="\t")
             else:
-                # Standard CSV format (has header row)
-                self._csv_reader = csv.reader(text_wrapper)
-                self._has_header = True
+                # Standard CSV format (has header row, skip it)
+                self._csv_reader = self._csv_reader_class(text_wrapper, delimiter=",")
+                with contextlib.suppress(StopIteration):
+                    next(self._csv_reader)
 
         except Exception as e:
             _logger.exception(f"Failed to open {path}.")
@@ -140,14 +142,6 @@ class AthenaS3FSResultSet(AthenaResultSet):
         """Fetch next batch of rows from CSV."""
         if not self._csv_reader:
             return
-
-        # Skip header row on first fetch (only for CSV files, not TXT)
-        if self._has_header and not self._header_skipped:
-            try:
-                next(self._csv_reader)
-                self._header_skipped = True
-            except StopIteration:
-                return
 
         description = self.description if self.description else []
         column_types = [d[1] for d in description]
@@ -160,10 +154,18 @@ class AthenaS3FSResultSet(AthenaResultSet):
                 break
 
             # Convert row values using converters
-            converted_row = tuple(
-                self._converter.convert(col_type, value if value != "" else None)
-                for col_type, value in zip(column_types, row, strict=False)
-            )
+            # AthenaCSVReader returns None for NULL values directly,
+            # DefaultCSVReader returns empty string which needs conversion
+            if self._csv_reader_class is DefaultCSVReader:
+                converted_row = tuple(
+                    self._converter.convert(col_type, value if value != "" else None)
+                    for col_type, value in zip(column_types, row, strict=False)
+                )
+            else:
+                converted_row = tuple(
+                    self._converter.convert(col_type, value)
+                    for col_type, value in zip(column_types, row, strict=False)
+                )
             self._rows.append(converted_row)
             rows_fetched += 1
 

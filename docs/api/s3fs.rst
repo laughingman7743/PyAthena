@@ -3,7 +3,7 @@
 S3FS Integration
 ================
 
-This section covers lightweight S3FS-based cursors and data converters that use Python's built-in ``csv`` module.
+This section covers lightweight S3FS-based cursors, CSV readers, and data converters.
 
 S3FS Cursors
 ------------
@@ -15,6 +15,18 @@ S3FS Cursors
 .. autoclass:: pyathena.s3fs.async_cursor.AsyncS3FSCursor
    :members:
    :inherited-members:
+
+S3FS CSV Readers
+----------------
+
+S3FSCursor supports pluggable CSV reader implementations to control how NULL values
+and empty strings are handled when parsing Athena's CSV output.
+
+.. autoclass:: pyathena.s3fs.reader.AthenaCSVReader
+   :members:
+
+.. autoclass:: pyathena.s3fs.reader.DefaultCSVReader
+   :members:
 
 S3FS Data Converters
 --------------------

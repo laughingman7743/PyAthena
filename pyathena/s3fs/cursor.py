@@ -9,7 +9,7 @@ from pyathena.error import OperationalError, ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import WithResultSet
 from pyathena.s3fs.converter import DefaultS3FSTypeConverter
-from pyathena.s3fs.result_set import AthenaS3FSResultSet
+from pyathena.s3fs.result_set import AthenaS3FSResultSet, CSVReaderType
 
 _logger = logging.getLogger(__name__)
 
@@ -59,6 +59,7 @@ class S3FSCursor(BaseCursor, CursorIterator, WithResultSet):
         result_reuse_enable: bool = False,
         result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
         on_start_query_execution: Optional[Callable[[str], None]] = None,
+        csv_reader: Optional[CSVReaderType] = None,
         **kwargs,
     ) -> None:
         """Initialize an S3FSCursor.
@@ -75,11 +76,20 @@ class S3FSCursor(BaseCursor, CursorIterator, WithResultSet):
             result_reuse_enable: Enable Athena query result reuse.
             result_reuse_minutes: Minutes to reuse cached results.
             on_start_query_execution: Callback invoked when query starts.
+            csv_reader: CSV reader class to use for parsing results.
+                Use AthenaCSVReader (default) to distinguish between NULL
+                (unquoted empty) and empty string (quoted empty "").
+                Use DefaultCSVReader for backward compatibility where empty
+                strings are treated as NULL.
             **kwargs: Additional connection parameters.
 
         Example:
             >>> cursor = connection.cursor(S3FSCursor)
             >>> cursor.execute("SELECT * FROM my_table")
+            >>>
+            >>> # Use DefaultCSVReader for backward compatibility
+            >>> from pyathena.s3fs.reader import DefaultCSVReader
+            >>> cursor = connection.cursor(S3FSCursor, csv_reader=DefaultCSVReader)
         """
         super().__init__(
             s3_staging_dir=s3_staging_dir,
@@ -95,6 +105,7 @@ class S3FSCursor(BaseCursor, CursorIterator, WithResultSet):
             **kwargs,
         )
         self._on_start_query_execution = on_start_query_execution
+        self._csv_reader = csv_reader
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaS3FSResultSet] = None
 
@@ -232,6 +243,7 @@ class S3FSCursor(BaseCursor, CursorIterator, WithResultSet):
                 query_execution=query_execution,
                 arraysize=self.arraysize,
                 retry_config=self._retry_config,
+                csv_reader=self._csv_reader,
                 **kwargs,
             )
         else:

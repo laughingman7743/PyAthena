@@ -9,13 +9,13 @@ S3FSCursor
 ----------
 
 S3FSCursor is a lightweight cursor that directly handles the CSV file of the query execution result output to S3.
-Unlike ArrowCursor or PandasCursor, this cursor uses Python's built-in ``csv`` module to parse results,
-making it ideal for environments where installing pandas or pyarrow is not desirable.
+Unlike ArrowCursor or PandasCursor, this cursor does not require pandas or pyarrow dependencies,
+making it ideal for environments where installing these libraries is not desirable.
 
 **Key features:**
 
 - No pandas or pyarrow dependencies required
-- Uses Python's built-in ``csv`` module for parsing
+- Lightweight CSV parsing (custom parser or Python's built-in ``csv`` module)
 - Lower memory footprint for simple query results
 - Full DB API 2.0 compatibility
 
@@ -171,6 +171,83 @@ Then specify an instance of this class in the converter argument when creating a
 
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor(S3FSCursor, converter=CustomS3FSTypeConverter())
+
+CSV Reader Options
+~~~~~~~~~~~~~~~~~~
+
+S3FSCursor supports pluggable CSV reader implementations to control how NULL values and empty strings
+are handled. Two readers are provided:
+
+- ``AthenaCSVReader`` (default): Custom parser that distinguishes between NULL and empty string
+- ``DefaultCSVReader``: Uses Python's built-in ``csv`` module (treats both NULL and empty string as empty string)
+
+**Default behavior (AthenaCSVReader):**
+
+By default, ``AthenaCSVReader`` is used, which correctly distinguishes between NULL
+values and empty strings in query results.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.s3fs.cursor import S3FSCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=S3FSCursor).cursor()
+
+    cursor.execute("SELECT NULL AS null_col, '' AS empty_col")
+    row = cursor.fetchone()
+    print(row)  # (None, '')  - NULL is None, empty string is ''
+
+**Switching to Python's built-in csv module (DefaultCSVReader):**
+
+If you prefer to use Python's built-in ``csv`` module, you can switch to ``DefaultCSVReader``.
+Note that this reader cannot distinguish between NULL and empty string - both become empty strings
+in the parsed result, which are then converted to ``None`` by the type converter.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.s3fs.cursor import S3FSCursor
+    from pyathena.s3fs.reader import DefaultCSVReader
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=S3FSCursor,
+                     cursor_kwargs={"csv_reader": DefaultCSVReader}).cursor()
+
+    cursor.execute("SELECT NULL AS null_col, '' AS empty_col")
+    row = cursor.fetchone()
+    print(row)  # (None, None)  - Both NULL and empty string become None
+
+**Comparison of CSV readers:**
+
+.. list-table:: CSV Reader Behavior
+   :header-rows: 1
+   :widths: 30 20 25 25
+
+   * - Reader
+     - Implementation
+     - NULL value
+     - Empty string
+   * - AthenaCSVReader (default)
+     - Custom parser
+     - None
+     - '' (empty string)
+   * - DefaultCSVReader
+     - Python csv module
+     - None
+     - None
+
+**Why the difference?**
+
+Athena's CSV output format distinguishes between NULL values and empty strings:
+
+- NULL: unquoted empty field (e.g., ``a,,b`` → the middle field is NULL)
+- Empty string: quoted empty field (e.g., ``a,"",b`` → the middle field is an empty string)
+
+Python's standard ``csv`` module parses both cases as empty strings, losing this distinction.
+The ``AthenaCSVReader`` implements a custom parser that preserves the difference.
 
 Limitations
 ~~~~~~~~~~~

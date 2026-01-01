@@ -11,7 +11,7 @@ from pyathena.common import CursorIterator
 from pyathena.error import ProgrammingError
 from pyathena.model import AthenaQueryExecution
 from pyathena.s3fs.converter import DefaultS3FSTypeConverter
-from pyathena.s3fs.result_set import AthenaS3FSResultSet
+from pyathena.s3fs.result_set import AthenaS3FSResultSet, CSVReaderType
 
 _logger = logging.getLogger(__name__)
 
@@ -20,12 +20,12 @@ class AsyncS3FSCursor(AsyncCursor):
     """Asynchronous cursor that reads CSV results via S3FileSystem.
 
     This cursor extends AsyncCursor to provide asynchronous query execution
-    with results read via Python's standard csv module and PyAthena's S3FileSystem.
+    with results read via PyAthena's S3FileSystem.
     It's a lightweight alternative when pandas/pyarrow are not needed.
 
     Features:
         - Asynchronous query execution with concurrent futures
-        - Uses Python's standard csv module for parsing
+        - Lightweight CSV parsing via pluggable readers
         - Uses PyAthena's S3FileSystem for S3 access
         - No external dependencies beyond boto3
         - Memory-efficient streaming for large datasets
@@ -61,6 +61,7 @@ class AsyncS3FSCursor(AsyncCursor):
         arraysize: int = CursorIterator.DEFAULT_FETCH_SIZE,
         result_reuse_enable: bool = False,
         result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
+        csv_reader: Optional[CSVReaderType] = None,
         **kwargs,
     ) -> None:
         """Initialize an AsyncS3FSCursor.
@@ -78,6 +79,11 @@ class AsyncS3FSCursor(AsyncCursor):
             arraysize: Number of rows to fetch per batch.
             result_reuse_enable: Enable Athena query result reuse.
             result_reuse_minutes: Minutes to reuse cached results.
+            csv_reader: CSV reader class to use for parsing results.
+                Use AthenaCSVReader (default) to distinguish between NULL
+                (unquoted empty) and empty string (quoted empty "").
+                Use DefaultCSVReader for backward compatibility where empty
+                strings are treated as NULL.
             **kwargs: Additional connection parameters.
 
         Example:
@@ -99,6 +105,7 @@ class AsyncS3FSCursor(AsyncCursor):
             result_reuse_minutes=result_reuse_minutes,
             **kwargs,
         )
+        self._csv_reader = csv_reader
 
     @staticmethod
     def get_default_converter(
@@ -156,6 +163,7 @@ class AsyncS3FSCursor(AsyncCursor):
             query_execution=query_execution,
             arraysize=self._arraysize,
             retry_config=self._retry_config,
+            csv_reader=self._csv_reader,
             **kwargs,
         )
 
