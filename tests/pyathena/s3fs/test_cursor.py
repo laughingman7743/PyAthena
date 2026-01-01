@@ -275,3 +275,39 @@ class TestS3FSCursor:
         ):
             cursor.execute("SELECT * FROM one_row", on_start_query_execution=callback)
             assert callback_query_id == cursor.query_id
+
+    def test_contain_tab_character(self, s3fs_cursor):
+        """Test that tab characters in result data are handled correctly.
+
+        S3FS cursor uses tab as delimiter for parsing Athena's CSV output.
+        This test verifies that data containing tab characters is correctly
+        parsed when Athena properly quotes such fields.
+        """
+        # Test with tab character in string using CHR(9)
+        s3fs_cursor.execute("SELECT 'before' || CHR(9) || 'after' AS col_with_tab")
+        result = s3fs_cursor.fetchone()
+        assert result == ("before\tafter",)
+
+        # Test with multiple columns where one contains tab
+        s3fs_cursor.execute(
+            """
+            SELECT
+                'normal' AS col1,
+                'has' || CHR(9) || 'tab' AS col2,
+                'also_normal' AS col3
+            """
+        )
+        result = s3fs_cursor.fetchone()
+        assert result == ("normal", "has\ttab", "also_normal")
+
+        # Test with newline character as well
+        s3fs_cursor.execute("SELECT 'line1' || CHR(10) || 'line2' AS col_with_newline")
+        result = s3fs_cursor.fetchone()
+        assert result == ("line1\nline2",)
+
+        # Test with both tab and newline
+        s3fs_cursor.execute(
+            "SELECT 'a' || CHR(9) || 'b' || CHR(10) || 'c' AS col_with_special_chars"
+        )
+        result = s3fs_cursor.fetchone()
+        assert result == ("a\tb\nc",)
