@@ -156,6 +156,11 @@ class S3FSCursor(BaseCursor, CursorIterator, WithResultSet):
         """Get the current row number (0-indexed)."""
         return self.result_set.rownumber if self.result_set else None
 
+    @property
+    def rowcount(self) -> int:
+        """Get the number of rows affected by the last operation."""
+        return self.result_set.rowcount if self.result_set else -1
+
     def close(self) -> None:
         """Close the cursor and release resources."""
         if self.result_set and not self.result_set.is_closed:
