@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+"""Utilities for converting PyArrow types to Athena metadata.
+
+This module provides functions to convert PyArrow schema and type information
+to Athena-compatible column metadata, enabling proper type mapping when
+reading query results in Apache Arrow format.
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, Tuple, cast
@@ -9,6 +16,22 @@ if TYPE_CHECKING:
 
 
 def to_column_info(schema: "Schema") -> Tuple[Dict[str, Any], ...]:
+    """Convert a PyArrow schema to Athena column information.
+
+    Iterates through all fields in the schema and converts each field's
+    type information to an Athena-compatible column metadata dictionary.
+
+    Args:
+        schema: A PyArrow Schema object containing field definitions.
+
+    Returns:
+        A tuple of dictionaries, each containing column metadata with keys:
+        - Name: The column name
+        - Type: The Athena SQL type name
+        - Precision: Numeric precision (0 for non-numeric types)
+        - Scale: Numeric scale (0 for non-numeric types)
+        - Nullable: Either "NULLABLE" or "NOT_NULL"
+    """
     columns = []
     for field in schema:
         type_, precision, scale = get_athena_type(field.type)
@@ -25,6 +48,25 @@ def to_column_info(schema: "Schema") -> Tuple[Dict[str, Any], ...]:
 
 
 def get_athena_type(type_: "DataType") -> Tuple[str, int, int]:
+    """Map a PyArrow data type to an Athena SQL type.
+
+    Converts PyArrow type identifiers to corresponding Athena SQL type names
+    with appropriate precision and scale values. Handles all common Arrow
+    types including numeric, string, binary, temporal, and complex types.
+
+    Args:
+        type_: A PyArrow DataType object to convert.
+
+    Returns:
+        A tuple of (type_name, precision, scale) where:
+        - type_name: The Athena SQL type (e.g., "varchar", "bigint", "timestamp")
+        - precision: The numeric precision or max length
+        - scale: The numeric scale (decimal places)
+
+    Note:
+        Unknown types default to "string" with maximum varchar length.
+        Decimal types preserve their original precision and scale.
+    """
     import pyarrow.lib as types
 
     if type_.id in [types.Type_BOOL]:  # 1

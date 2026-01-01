@@ -36,3 +36,17 @@ Asynchronous Cursors
 .. autoclass:: pyathena.async_cursor.AsyncDictCursor
    :members:
    :inherited-members:
+
+Result Sets
+-----------
+
+.. autoclass:: pyathena.result_set.AthenaResultSet
+   :members:
+   :inherited-members:
+
+.. autoclass:: pyathena.result_set.AthenaDictResultSet
+   :members:
+   :inherited-members:
+
+.. autoclass:: pyathena.result_set.WithResultSet
+   :members:
