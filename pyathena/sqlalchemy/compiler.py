@@ -41,6 +41,26 @@ if TYPE_CHECKING:
 
 
 class AthenaTypeCompiler(GenericTypeCompiler):
+    """Type compiler for Amazon Athena SQL types.
+
+    This compiler translates SQLAlchemy type objects into Athena-compatible
+    SQL type strings for use in DDL statements. It handles the mapping between
+    SQLAlchemy's portable types and Athena's specific type syntax.
+
+    Athena has specific requirements for type names that differ from standard
+    SQL. For example, FLOAT maps to REAL in CAST expressions, and various
+    string types (TEXT, NCHAR, NVARCHAR) all map to STRING.
+
+    The compiler also supports Athena-specific complex types:
+    - STRUCT/ROW: Nested record types with named fields
+    - MAP: Key-value pair collections
+    - ARRAY: Ordered collections of elements
+
+    See Also:
+        AWS Athena Data Types:
+        https://docs.aws.amazon.com/athena/latest/ug/data-types.html
+    """
+
     def visit_FLOAT(self, type_: Type[Any], **kw) -> str:  # noqa: N802
         return self.visit_REAL(type_, **kw)
 
@@ -180,6 +200,25 @@ class AthenaTypeCompiler(GenericTypeCompiler):
 
 
 class AthenaStatementCompiler(SQLCompiler):
+    """SQL statement compiler for Amazon Athena queries.
+
+    This compiler generates Athena-compatible SQL statements from SQLAlchemy
+    expression constructs. It handles Athena-specific SQL syntax including:
+
+    - Function name mapping (e.g., char_length -> length)
+    - Lambda expressions in functions like filter()
+    - CAST expressions with Athena type requirements
+    - OFFSET/LIMIT clause ordering (Athena uses OFFSET before LIMIT)
+    - Time travel hints (FOR TIMESTAMP AS OF, FOR VERSION AS OF)
+
+    The compiler ensures that generated SQL is compatible with Presto/Trino
+    syntax used by Athena engine versions 2 and 3.
+
+    See Also:
+        AWS Athena SQL Reference:
+        https://docs.aws.amazon.com/athena/latest/ug/ddl-sql-reference.html
+    """
+
     def visit_char_length_func(self, fn: "FunctionElement[Any]", **kw):
         return f"length{self.function_argspec(fn, **kw)}"
 
@@ -259,6 +298,42 @@ class AthenaStatementCompiler(SQLCompiler):
 
 
 class AthenaDDLCompiler(DDLCompiler):
+    """DDL compiler for Amazon Athena CREATE TABLE and related statements.
+
+    This compiler generates Athena-compatible DDL statements including support
+    for Athena-specific table options:
+
+    - External table creation (EXTERNAL keyword for Hive-style tables)
+    - Iceberg table creation (managed tables with ACID support)
+    - File formats: PARQUET, ORC, TEXTFILE, JSON, AVRO, etc.
+    - Row formats with SerDe specifications
+    - Compression settings for various file formats
+    - Table locations in S3
+    - Partitioning (both Hive-style and Iceberg transforms)
+    - Bucketing/clustering for optimized queries
+
+    The compiler uses backtick quoting for DDL identifiers (different from
+    DML which uses double quotes) and handles Athena's reserved words.
+
+    Example:
+        A table created with this compiler might generate::
+
+            CREATE EXTERNAL TABLE IF NOT EXISTS my_schema.my_table (
+                id INT,
+                name STRING
+            )
+            PARTITIONED BY (
+                dt STRING
+            )
+            STORED AS PARQUET
+            LOCATION 's3://my-bucket/my-table/'
+            TBLPROPERTIES ('parquet.compress' = 'SNAPPY')
+
+    See Also:
+        AWS Athena CREATE TABLE:
+        https://docs.aws.amazon.com/athena/latest/ug/create-table.html
+    """
+
     @property
     def preparer(self) -> IdentifierPreparer:
         return self._preparer

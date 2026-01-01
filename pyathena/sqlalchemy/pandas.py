@@ -9,6 +9,36 @@ if TYPE_CHECKING:
 
 
 class AthenaPandasDialect(AthenaDialect):
+    """SQLAlchemy dialect for Amazon Athena with pandas DataFrame result format.
+
+    This dialect extends AthenaDialect to use PandasCursor, which returns
+    query results as pandas DataFrames. This integration enables seamless
+    use of Athena data in data analysis and machine learning workflows.
+
+    Connection URL Format:
+        ``awsathena+pandas://{access_key}:{secret_key}@athena.{region}.amazonaws.com/{schema}``
+
+    Query Parameters:
+        In addition to the base dialect parameters:
+        - unload: If "true", use UNLOAD for Parquet output (better performance
+          for large datasets)
+        - engine: CSV parsing engine ("c", "python", or "pyarrow")
+        - chunksize: Number of rows per chunk for memory-efficient processing
+
+    Example:
+        >>> from sqlalchemy import create_engine
+        >>> engine = create_engine(
+        ...     "awsathena+pandas://:@athena.us-west-2.amazonaws.com/default"
+        ...     "?s3_staging_dir=s3://my-bucket/athena-results/"
+        ...     "&unload=true&chunksize=10000"
+        ... )
+
+    See Also:
+        :class:`~pyathena.pandas.cursor.PandasCursor`: The underlying cursor
+            implementation.
+        :class:`~pyathena.sqlalchemy.base.AthenaDialect`: Base dialect class.
+    """
+
     driver = "pandas"
     supports_statement_cache = True
 

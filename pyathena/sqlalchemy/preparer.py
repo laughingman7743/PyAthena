@@ -12,10 +12,42 @@ if TYPE_CHECKING:
 
 
 class AthenaDMLIdentifierPreparer(IdentifierPreparer):
+    """Identifier preparer for Athena DML (SELECT, INSERT, etc.) statements.
+
+    This preparer handles quoting and escaping of identifiers in DML statements.
+    It uses double quotes for identifiers and recognizes Athena's SELECT
+    statement reserved words to determine when quoting is necessary.
+
+    Athena's DML syntax follows Presto/Trino conventions, which differ from
+    DDL syntax (which uses Hive conventions with backticks).
+
+    See Also:
+        :class:`AthenaDDLIdentifierPreparer`: Preparer for DDL statements.
+        AWS Athena Reserved Words:
+        https://docs.aws.amazon.com/athena/latest/ug/reserved-words.html
+    """
+
     reserved_words: Set[str] = SELECT_STATEMENT_RESERVED_WORDS
 
 
 class AthenaDDLIdentifierPreparer(IdentifierPreparer):
+    """Identifier preparer for Athena DDL (CREATE, ALTER, DROP) statements.
+
+    This preparer handles quoting and escaping of identifiers in DDL statements.
+    It uses backticks for identifiers (Hive convention) rather than double
+    quotes (Presto/Trino convention used in DML).
+
+    Key differences from DML preparer:
+    - Uses backtick (`) as the quote character
+    - Recognizes DDL-specific reserved words
+    - Treats underscore (_) as an illegal initial character
+
+    See Also:
+        :class:`AthenaDMLIdentifierPreparer`: Preparer for DML statements.
+        AWS Athena DDL Reserved Words:
+        https://docs.aws.amazon.com/athena/latest/ug/reserved-words.html
+    """
+
     reserved_words = DDL_RESERVED_WORDS
     illegal_initial_characters = ILLEGAL_INITIAL_CHARACTERS.union("_")
 

@@ -11,6 +11,9 @@ S3 FileSystem
 .. autoclass:: pyathena.filesystem.s3.S3FileSystem
    :members:
 
+.. autoclass:: pyathena.filesystem.s3.S3File
+   :members:
+
 S3 Objects
 ----------
 

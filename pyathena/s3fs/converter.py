@@ -46,5 +46,17 @@ class DefaultS3FSTypeConverter(Converter):
         )
 
     def convert(self, type_: str, value: Optional[str]) -> Optional[Any]:
+        """Convert a string value to the appropriate Python type.
+
+        Looks up the converter function for the given Athena type and applies
+        it to the value. If the value is None, returns None without conversion.
+
+        Args:
+            type_: The Athena data type name (e.g., "integer", "varchar", "date").
+            value: The string value to convert, or None.
+
+        Returns:
+            The converted Python value, or None if the input value was None.
+        """
         converter = self.get(type_)
         return converter(value)

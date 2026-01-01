@@ -15,6 +15,7 @@ This section provides comprehensive API documentation for all PyAthena classes a
    api/s3fs
    api/spark
    api/converters
+   api/sqlalchemy
    api/filesystem
    api/models
    api/utilities
@@ -38,9 +39,10 @@ Specialized Integrations
 - :ref:`api_arrow` - Apache Arrow columnar data integration
 - :ref:`api_s3fs` - Lightweight S3FS-based cursor (no pandas/pyarrow required)
 - :ref:`api_spark` - Apache Spark integration for big data processing
+- :ref:`api_sqlalchemy` - SQLAlchemy dialect implementations
 
 Infrastructure
 ~~~~~~~~~~~~~~~
 
-- :ref:`api_filesystem` - S3 filesystem integration and object management  
+- :ref:`api_filesystem` - S3 filesystem integration and object management
 - :ref:`api_models` - Athena query execution and metadata models

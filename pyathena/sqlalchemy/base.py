@@ -86,6 +86,51 @@ ischema_names: Dict[str, Type[Any]] = {
 
 
 class AthenaDialect(DefaultDialect):
+    """SQLAlchemy dialect for Amazon Athena.
+
+    This dialect enables SQLAlchemy to communicate with Amazon Athena,
+    allowing you to use SQLAlchemy's ORM and Core features with Athena
+    as the backend database engine.
+
+    The dialect handles Athena-specific SQL syntax, data type mapping,
+    and schema reflection. It supports table creation with Athena-specific
+    options like file format, compression, and partitioning.
+
+    Connection URL Format:
+        ``awsathena+rest://{access_key}:{secret_key}@athena.{region}.amazonaws.com/{schema}``
+
+    Query Parameters:
+        - s3_staging_dir: S3 location for query results (required)
+        - work_group: Athena workgroup name
+        - catalog_name: Data catalog name (default: AwsDataCatalog)
+        - poll_interval: Query status polling interval in seconds
+
+    Example:
+        >>> from sqlalchemy import create_engine
+        >>> engine = create_engine(
+        ...     "awsathena+rest://:@athena.us-west-2.amazonaws.com/default"
+        ...     "?s3_staging_dir=s3://my-bucket/athena-results/"
+        ... )
+        >>> with engine.connect() as conn:
+        ...     result = conn.execute(text("SELECT * FROM my_table"))
+
+    Dialect Options:
+        Table-level options (prefix with ``awsathena_``):
+            - location: S3 location for table data
+            - compression: Compression format (SNAPPY, GZIP, etc.)
+            - file_format: File format (PARQUET, ORC, etc.)
+            - row_format: Row format specification
+            - tblproperties: Table properties dictionary
+
+        Column-level options:
+            - partition: Mark column as partition key
+            - cluster: Mark column as clustering key
+
+    See Also:
+        SQLAlchemy Dialects:
+        https://docs.sqlalchemy.org/en/20/dialects/
+    """
+
     name: str = "awsathena"
     preparer: Type[IdentifierPreparer] = AthenaDMLIdentifierPreparer
     statement_compiler: Type[SQLCompiler] = AthenaStatementCompiler

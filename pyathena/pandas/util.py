@@ -38,6 +38,18 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 def get_chunks(df: "DataFrame", chunksize: Optional[int] = None) -> Iterator["DataFrame"]:
+    """Split a DataFrame into chunks of specified size.
+
+    Args:
+        df: The DataFrame to split into chunks.
+        chunksize: Number of rows per chunk. If None, yields the entire DataFrame.
+
+    Yields:
+        DataFrame chunks of the specified size.
+
+    Raises:
+        ValueError: If chunksize is less than or equal to zero.
+    """
     rows = len(df)
     if rows == 0:
         return
@@ -56,6 +68,15 @@ def get_chunks(df: "DataFrame", chunksize: Optional[int] = None) -> Iterator["Da
 
 
 def reset_index(df: "DataFrame", index_label: Optional[str] = None) -> None:
+    """Reset the DataFrame index and add it as a column.
+
+    Args:
+        df: The DataFrame to reset the index on (modified in-place).
+        index_label: Name for the index column. Defaults to "index".
+
+    Raises:
+        ValueError: If the index name conflicts with existing column names.
+    """
     df.index.name = index_label if index_label else "index"
     try:
         df.reset_index(inplace=True)
@@ -64,6 +85,19 @@ def reset_index(df: "DataFrame", index_label: Optional[str] = None) -> None:
 
 
 def as_pandas(cursor: "Cursor", coerce_float: bool = False) -> "DataFrame":
+    """Convert cursor results to a pandas DataFrame.
+
+    Fetches all remaining rows from the cursor and converts them to a
+    DataFrame with column names from the cursor description.
+
+    Args:
+        cursor: A PyAthena cursor with executed query results.
+        coerce_float: If True, attempt to convert non-string columns to float.
+
+    Returns:
+        A DataFrame containing the query results, or an empty DataFrame
+        if no results are available.
+    """
     from pandas import DataFrame
 
     description = cursor.description
@@ -74,6 +108,20 @@ def as_pandas(cursor: "Cursor", coerce_float: bool = False) -> "DataFrame":
 
 
 def to_sql_type_mappings(col: "Series") -> str:
+    """Map a pandas Series data type to an Athena SQL type.
+
+    Infers the appropriate Athena SQL type based on the pandas Series dtype.
+    Used when creating tables from DataFrames.
+
+    Args:
+        col: A pandas Series to determine the SQL type for.
+
+    Returns:
+        The Athena SQL type name (e.g., "STRING", "BIGINT", "DOUBLE").
+
+    Raises:
+        ValueError: If the data type is not supported (complex, time).
+    """
     import pandas as pd
 
     col_type = pd.api.types.infer_dtype(col, skipna=True)
@@ -112,6 +160,24 @@ def to_parquet(
     compression: Optional[str] = None,
     flavor: str = "spark",
 ) -> str:
+    """Write a DataFrame to S3 as a Parquet file.
+
+    Converts the DataFrame to Apache Arrow format and writes it to S3
+    as a Parquet file with a UUID-based filename.
+
+    Args:
+        df: The DataFrame to write.
+        bucket_name: S3 bucket name.
+        prefix: S3 key prefix (path within the bucket).
+        retry_config: Configuration for API call retries.
+        session_kwargs: Arguments for creating a boto3 Session.
+        client_kwargs: Arguments for creating the S3 client.
+        compression: Parquet compression codec (e.g., "snappy", "gzip").
+        flavor: Parquet flavor for compatibility ("spark" or "hive").
+
+    Returns:
+        The S3 URI of the written Parquet file.
+    """
     import pyarrow as pa
     from pyarrow import parquet as pq
 
@@ -148,6 +214,35 @@ def to_sql(
     max_workers: int = (cpu_count() or 1) * 5,
     repair_table=True,
 ) -> None:
+    """Write a DataFrame to an Athena table backed by Parquet files in S3.
+
+    Creates an external Athena table from a DataFrame by writing the data
+    as Parquet files to S3 and executing the appropriate DDL statements.
+    Supports partitioning, compression, and parallel uploads.
+
+    Args:
+        df: The DataFrame to write to Athena.
+        name: Name of the table to create.
+        conn: PyAthena connection object.
+        location: S3 location for the table data (e.g., "s3://bucket/path/").
+        schema: Database schema name. Defaults to "default".
+        index: If True, include the DataFrame index as a column.
+        index_label: Name for the index column if index=True.
+        partitions: List of column names to use as partition keys.
+        chunksize: Number of rows per Parquet file. None for single file.
+        if_exists: Action if table exists: "fail", "replace", or "append".
+        compression: Parquet compression codec (e.g., "snappy", "gzip").
+        flavor: Parquet flavor for compatibility ("spark" or "hive").
+        type_mappings: Function to map pandas types to SQL types.
+        executor_class: Executor class for parallel uploads.
+        max_workers: Maximum number of parallel upload workers.
+        repair_table: If True, run ALTER TABLE ADD PARTITION for partitioned tables.
+
+    Raises:
+        ValueError: If if_exists is invalid, compression is unsupported,
+            or partition keys contain None values.
+        OperationalError: If if_exists="fail" and table already exists.
+    """
     if if_exists not in ("fail", "replace", "append"):
         raise ValueError(f"`{if_exists}` is not valid for if_exists")
     if compression is not None and not AthenaCompression.is_valid(compression):
@@ -280,6 +375,15 @@ def to_sql(
 
 
 def get_column_names_and_types(df: "DataFrame", type_mappings) -> "OrderedDict[str, str]":
+    """Extract column names and their SQL types from a DataFrame.
+
+    Args:
+        df: The DataFrame to extract column information from.
+        type_mappings: Function to map pandas types to SQL types.
+
+    Returns:
+        An OrderedDict mapping column names to their SQL type strings.
+    """
     return OrderedDict(
         ((str(df.columns[i]), type_mappings(df.iloc[:, i])) for i in range(len(df.columns)))
     )
@@ -294,6 +398,23 @@ def generate_ddl(
     compression: Optional[str] = None,
     type_mappings: Callable[["Series"], str] = to_sql_type_mappings,
 ) -> str:
+    """Generate CREATE EXTERNAL TABLE DDL for a DataFrame.
+
+    Creates DDL for an external Athena table with Parquet storage format
+    based on the DataFrame's schema.
+
+    Args:
+        df: The DataFrame to generate DDL for.
+        name: Name of the table to create.
+        location: S3 location for the table data.
+        schema: Database schema name. Defaults to "default".
+        partitions: List of column names to use as partition keys.
+        compression: Parquet compression codec for TBLPROPERTIES.
+        type_mappings: Function to map pandas types to SQL types.
+
+    Returns:
+        The CREATE EXTERNAL TABLE DDL statement as a string.
+    """
     if partitions is None:
         partitions = []
     column_names_and_types = get_column_names_and_types(df, type_mappings)
