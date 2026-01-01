@@ -23,7 +23,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: master  # Always checkout master for GitHub Pages deployment
           fetch-depth: 0  # Fetch all history for sphinx-multiversion
       - name: Setup Pages
         uses: actions/configure-pages@v5
