@@ -39,6 +39,30 @@ def _no_trunc_date(df: "DataFrame") -> "DataFrame":
 
 
 class DataFrameIterator(abc.Iterator):  # type: ignore
+    """Iterator for chunked DataFrame results from Athena queries.
+
+    This class wraps either a pandas TextFileReader (for chunked reading) or
+    a single DataFrame, providing a unified iterator interface. It applies
+    optional date truncation to each DataFrame chunk as it's yielded.
+
+    The iterator is used by AthenaPandasResultSet to provide chunked access
+    to large query results, enabling memory-efficient processing of datasets
+    that would be too large to load entirely into memory.
+
+    Example:
+        >>> # Iterate over DataFrame chunks
+        >>> for df_chunk in iterator:
+        ...     process(df_chunk)
+        >>>
+        >>> # Iterate over individual rows
+        >>> for idx, row in iterator.iterrows():
+        ...     print(row)
+
+    Note:
+        This class is primarily for internal use by AthenaPandasResultSet.
+        Most users should access results through PandasCursor methods.
+    """
+
     def __init__(
         self,
         reader: Union["TextFileReader", "DataFrame"],

@@ -274,6 +274,27 @@ class AthenaQueryExecution:
 
 
 class AthenaCalculationExecutionStatus:
+    """Status information for an Athena calculation execution.
+
+    This class represents the current state and statistics of a calculation
+    execution in Amazon Athena's notebook or interactive session environment.
+    It tracks the calculation's lifecycle from creation through completion.
+
+    Calculation States:
+        - CREATING: Calculation is being created
+        - CREATED: Calculation has been created
+        - QUEUED: Calculation is waiting to execute
+        - RUNNING: Calculation is currently executing
+        - CANCELING: Calculation is being cancelled
+        - CANCELED: Calculation was cancelled
+        - COMPLETED: Calculation completed successfully
+        - FAILED: Calculation execution failed
+
+    See Also:
+        AWS Athena CalculationExecutionStatus API reference:
+        https://docs.aws.amazon.com/athena/latest/APIReference/API_CalculationStatus.html
+    """
+
     STATE_CREATING: str = "CREATING"
     STATE_CREATED: str = "CREATED"
     STATE_QUEUED: str = "QUEUED"
@@ -324,6 +345,20 @@ class AthenaCalculationExecutionStatus:
 
 
 class AthenaCalculationExecution(AthenaCalculationExecutionStatus):
+    """Represents a complete Athena calculation execution with status and results.
+
+    This class extends AthenaCalculationExecutionStatus to include additional
+    information about the calculation execution, including session details,
+    working directory, and result locations in S3.
+
+    Attributes are inherited from AthenaCalculationExecutionStatus for state
+    and timing information.
+
+    See Also:
+        AWS Athena CalculationExecution API reference:
+        https://docs.aws.amazon.com/athena/latest/APIReference/API_CalculationSummary.html
+    """
+
     def __init__(self, response: Dict[str, Any]) -> None:
         super().__init__(response)
 
@@ -377,6 +412,27 @@ class AthenaCalculationExecution(AthenaCalculationExecutionStatus):
 
 
 class AthenaSessionStatus:
+    """Status information for an Athena interactive session.
+
+    This class represents the current state of an interactive session in
+    Amazon Athena, used for notebook and Spark workloads. Sessions provide
+    a persistent environment for running multiple calculations.
+
+    Session States:
+        - CREATING: Session is being created
+        - CREATED: Session has been created
+        - IDLE: Session is idle and ready for calculations
+        - BUSY: Session is executing a calculation
+        - TERMINATING: Session is being terminated
+        - TERMINATED: Session has been terminated
+        - DEGRADED: Session is in a degraded state
+        - FAILED: Session creation or execution failed
+
+    See Also:
+        AWS Athena Session API reference:
+        https://docs.aws.amazon.com/athena/latest/APIReference/API_SessionStatus.html
+    """
+
     STATE_CREATING: str = "CREATING"
     STATE_CREATED: str = "CREATED"
     STATE_IDLE: str = "IDLE"
@@ -429,6 +485,17 @@ class AthenaSessionStatus:
 
 
 class AthenaDatabase:
+    """Represents an Athena database (schema) and its metadata.
+
+    This class encapsulates information about a database in the AWS Glue
+    Data Catalog that is accessible through Amazon Athena. Databases serve
+    as containers for tables and views.
+
+    See Also:
+        AWS Athena Database API reference:
+        https://docs.aws.amazon.com/athena/latest/APIReference/API_Database.html
+    """
+
     def __init__(self, response):
         database = response.get("Database")
         if not database:
@@ -452,6 +519,16 @@ class AthenaDatabase:
 
 
 class AthenaTableMetadataColumn:
+    """Represents a column definition in an Athena table.
+
+    This class contains information about a single column in a table,
+    including its name, data type, and optional comment.
+
+    See Also:
+        AWS Athena Column API reference:
+        https://docs.aws.amazon.com/athena/latest/APIReference/API_Column.html
+    """
+
     def __init__(self, response):
         self._name: Optional[str] = response.get("Name")
         self._type: Optional[str] = response.get("Type")
@@ -471,6 +548,17 @@ class AthenaTableMetadataColumn:
 
 
 class AthenaTableMetadataPartitionKey:
+    """Represents a partition key definition in an Athena table.
+
+    This class contains information about a partition key column,
+    which is used to organize data in partitioned tables for
+    improved query performance.
+
+    See Also:
+        AWS Athena Column API reference:
+        https://docs.aws.amazon.com/athena/latest/APIReference/API_Column.html
+    """
+
     def __init__(self, response):
         self._name: Optional[str] = response.get("Name")
         self._type: Optional[str] = response.get("Type")
@@ -490,6 +578,20 @@ class AthenaTableMetadataPartitionKey:
 
 
 class AthenaTableMetadata:
+    """Represents comprehensive metadata for an Athena table.
+
+    This class contains detailed information about a table in the AWS Glue
+    Data Catalog, including columns, partition keys, storage format,
+    serialization library, and various table properties.
+
+    The class provides convenient properties for accessing common table
+    attributes like location, file format, compression, and SerDe configuration.
+
+    See Also:
+        AWS Athena TableMetadata API reference:
+        https://docs.aws.amazon.com/athena/latest/APIReference/API_TableMetadata.html
+    """
+
     def __init__(self, response):
         table_metadata = response.get("TableMetadata")
         if not table_metadata:
@@ -651,6 +753,32 @@ class AthenaFileFormat:
 
 
 class AthenaRowFormatSerde:
+    """Row format serializer/deserializer (SerDe) constants for Athena tables.
+
+    This class provides constants for the various SerDe libraries that can be
+    used to serialize and deserialize data in Athena tables. SerDes define how
+    data is read from and written to underlying storage formats.
+
+    The class also provides utility methods to detect specific SerDe types
+    from table metadata strings.
+
+    Supported SerDes:
+        - CSV: OpenCSVSerde for CSV files
+        - REGEX: RegexSerDe for regex-parsed text files
+        - LAZY_SIMPLE: LazySimpleSerDe for simple delimited text
+        - CLOUD_TRAIL: CloudTrailSerde for AWS CloudTrail logs
+        - GROK: GrokSerDe for grok pattern parsing
+        - JSON: JsonSerDe for JSON data (OpenX implementation)
+        - JSON_HCATALOG: JsonSerDe for JSON data (HCatalog implementation)
+        - PARQUET: ParquetHiveSerDe for Parquet files
+        - ORC: OrcSerde for ORC files
+        - AVRO: AvroSerDe for Avro files
+
+    See Also:
+        AWS Athena SerDe Reference:
+        https://docs.aws.amazon.com/athena/latest/ug/serde-reference.html
+    """
+
     PATTERN_ROW_FORMAT_SERDE: Pattern[str] = re.compile(r"^(?i:serde) '(?P<serde>.+)'$")
 
     ROW_FORMAT_SERDE_CSV: str = "org.apache.hadoop.hive.serde2.OpenCSVSerde"
@@ -744,6 +872,36 @@ class AthenaCompression:
 
 
 class AthenaPartitionTransform:
+    """Partition transform constants for Iceberg tables in Athena.
+
+    This class provides constants for partition transforms used with Apache
+    Iceberg tables in Athena. Partition transforms allow you to create
+    derived partition values from source column data, enabling more flexible
+    and efficient partitioning strategies.
+
+    Transforms:
+        - year: Extract year from a timestamp/date column
+        - month: Extract year and month from a timestamp/date column
+        - day: Extract year, month, and day from a timestamp/date column
+        - hour: Extract year, month, day, and hour from a timestamp column
+        - bucket: Hash partition into N buckets
+        - truncate: Truncate values to a specified width
+
+    Example:
+        Iceberg table with partition transforms::
+
+            CREATE TABLE my_table (
+                id bigint,
+                ts timestamp,
+                category string
+            )
+            PARTITIONED BY (month(ts), bucket(16, category))
+
+    See Also:
+        AWS Athena Iceberg Partitioning:
+        https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html
+    """
+
     PARTITION_TRANSFORM_YEAR: str = "year"
     PARTITION_TRANSFORM_MONTH: str = "month"
     PARTITION_TRANSFORM_DAY: str = "day"

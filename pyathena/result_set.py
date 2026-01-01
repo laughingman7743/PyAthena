@@ -31,6 +31,36 @@ _logger = logging.getLogger(__name__)  # type: ignore
 
 
 class AthenaResultSet(CursorIterator):
+    """Result set for Athena query execution using the GetQueryResults API.
+
+    This class provides a DB API 2.0 compliant result set implementation that
+    fetches query results from Amazon Athena. It uses the GetQueryResults API
+    to retrieve data in paginated chunks, converting each value according to
+    its Athena data type.
+
+    The result set exposes query execution metadata (timing, data scanned,
+    state, etc.) through read-only properties, allowing inspection of query
+    performance and status.
+
+    This is the base result set implementation used by the standard Cursor.
+    Specialized implementations exist for different output formats:
+        - :class:`~pyathena.arrow.result_set.AthenaArrowResultSet`: Apache Arrow format
+        - :class:`~pyathena.pandas.result_set.AthenaPandasResultSet`: Pandas DataFrame
+        - :class:`~pyathena.s3fs.result_set.AthenaS3FSResultSet`: S3 file-based access
+
+    Example:
+        >>> cursor.execute("SELECT * FROM my_table")
+        >>> result_set = cursor.result_set
+        >>> print(f"Query ID: {result_set.query_id}")
+        >>> print(f"Data scanned: {result_set.data_scanned_in_bytes} bytes")
+        >>> for row in result_set:
+        ...     print(row)
+
+    See Also:
+        AWS Athena GetQueryResults API:
+        https://docs.aws.amazon.com/athena/latest/APIReference/API_GetQueryResults.html
+    """
+
     def __init__(
         self,
         connection: "Connection[Any]",
