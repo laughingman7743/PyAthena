@@ -736,3 +736,16 @@ class WithResultSet:
         if not self.result_set:
             return None
         return self.result_set.result_reuse_minutes
+
+    @property
+    def rowcount(self) -> int:
+        """Get the number of rows affected by the last operation.
+
+        For SELECT statements, this returns -1 as per DB API 2.0 specification.
+        For DML operations (INSERT, UPDATE, DELETE) and CTAS, this returns
+        the number of affected rows.
+
+        Returns:
+            The number of rows, or -1 if not applicable or unknown.
+        """
+        return self.result_set.rowcount if self.result_set else -1

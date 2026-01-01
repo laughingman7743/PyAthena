@@ -20,6 +20,7 @@ Documentation
    cursor
    pandas
    arrow
+   s3fs
    spark
    testing
    api

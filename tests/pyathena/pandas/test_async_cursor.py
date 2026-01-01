@@ -424,7 +424,7 @@ class TestAsyncPandasCursor:
     )
     def test_empty_result_ddl(self, async_pandas_cursor, parquet_engine, chunksize):
         table = "test_pandas_cursor_empty_result_" + "".join(
-            [random.choice(string.ascii_lowercase + string.digits) for _ in range(10)]
+            random.choices(string.ascii_lowercase + string.digits, k=10)
         )
         query_id, future = async_pandas_cursor.execute(
             f"""

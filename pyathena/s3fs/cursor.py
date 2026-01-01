@@ -2,34 +2,29 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
-from pyathena.arrow.converter import (
-    DefaultArrowTypeConverter,
-    DefaultArrowUnloadTypeConverter,
-)
-from pyathena.arrow.result_set import AthenaArrowResultSet
 from pyathena.common import BaseCursor, CursorIterator
 from pyathena.error import OperationalError, ProgrammingError
-from pyathena.model import AthenaCompression, AthenaFileFormat, AthenaQueryExecution
+from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import WithResultSet
+from pyathena.s3fs.converter import DefaultS3FSTypeConverter
+from pyathena.s3fs.result_set import AthenaS3FSResultSet, CSVReaderType
 
-if TYPE_CHECKING:
-    from pyarrow import Table
-
-_logger = logging.getLogger(__name__)  # type: ignore
+_logger = logging.getLogger(__name__)
 
 
-class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
-    """Cursor for handling Apache Arrow Table results from Athena queries.
+class S3FSCursor(BaseCursor, CursorIterator, WithResultSet):
+    """Cursor for reading CSV results via S3FileSystem without pandas/pyarrow.
 
-    This cursor returns query results as Apache Arrow Tables, which provide
-    efficient columnar data processing and memory usage. Arrow Tables are
-    especially useful for analytical workloads and data science applications.
+    This cursor uses Python's standard csv module and PyAthena's S3FileSystem
+    to read query results from S3. It provides a lightweight alternative to
+    pandas and arrow cursors when those dependencies are not needed.
 
-    The cursor supports both regular CSV-based results and high-performance
-    UNLOAD operations that return results in Parquet format for improved
-    performance with large datasets.
+    The cursor is especially useful for:
+        - Environments where pandas/pyarrow installation is not desired
+        - Simple queries where advanced data processing is not required
+        - Memory-constrained environments
 
     Attributes:
         description: Sequence of column descriptions for the last query.
@@ -37,16 +32,18 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         arraysize: Default number of rows to fetch with fetchmany().
 
     Example:
-        >>> from pyathena.arrow.cursor import ArrowCursor
-        >>> cursor = connection.cursor(ArrowCursor)
-        >>> cursor.execute("SELECT * FROM large_table")
-        >>> table = cursor.fetchall()  # Returns pyarrow.Table
-        >>> df = table.to_pandas()  # Convert to pandas if needed
+        >>> from pyathena.s3fs.cursor import S3FSCursor
+        >>> cursor = connection.cursor(S3FSCursor)
+        >>> cursor.execute("SELECT * FROM my_table")
+        >>> rows = cursor.fetchall()  # Returns list of tuples
+        >>>
+        >>> # Iterate over results
+        >>> for row in cursor.execute("SELECT * FROM my_table"):
+        ...     print(row)
 
-        # High-performance UNLOAD for large datasets
-        >>> cursor = connection.cursor(ArrowCursor, unload=True)
-        >>> cursor.execute("SELECT * FROM huge_table")
-        >>> table = cursor.fetchall()  # Faster Parquet-based result
+        # Use with SQLAlchemy
+        >>> from sqlalchemy import create_engine
+        >>> engine = create_engine("awsathena+s3fs://...")
     """
 
     def __init__(
@@ -59,15 +56,13 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         encryption_option: Optional[str] = None,
         kms_key: Optional[str] = None,
         kill_on_interrupt: bool = True,
-        unload: bool = False,
         result_reuse_enable: bool = False,
         result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
         on_start_query_execution: Optional[Callable[[str], None]] = None,
-        connect_timeout: Optional[float] = None,
-        request_timeout: Optional[float] = None,
+        csv_reader: Optional[CSVReaderType] = None,
         **kwargs,
     ) -> None:
-        """Initialize an ArrowCursor.
+        """Initialize an S3FSCursor.
 
         Args:
             s3_staging_dir: S3 location for query results.
@@ -78,25 +73,23 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
             encryption_option: S3 encryption option (SSE_S3, SSE_KMS, CSE_KMS).
             kms_key: KMS key ARN for encryption.
             kill_on_interrupt: Cancel running query on keyboard interrupt.
-            unload: Enable UNLOAD for high-performance Parquet output.
             result_reuse_enable: Enable Athena query result reuse.
             result_reuse_minutes: Minutes to reuse cached results.
             on_start_query_execution: Callback invoked when query starts.
-            connect_timeout: Socket connection timeout in seconds for S3 operations.
-                Defaults to AWS SDK default (typically 1 second) if not specified.
-            request_timeout: Request timeout in seconds for S3 operations.
-                Defaults to AWS SDK default (typically 3 seconds) if not specified.
-                Increase this value if you experience timeout errors when using
-                role assumption with STS or have high latency to S3.
+            csv_reader: CSV reader class to use for parsing results.
+                Use AthenaCSVReader (default) to distinguish between NULL
+                (unquoted empty) and empty string (quoted empty "").
+                Use DefaultCSVReader for backward compatibility where empty
+                strings are treated as NULL.
             **kwargs: Additional connection parameters.
 
         Example:
-            >>> # Use higher timeouts for role assumption scenarios
-            >>> cursor = connection.cursor(
-            ...     ArrowCursor,
-            ...     connect_timeout=10,
-            ...     request_timeout=30
-            ... )
+            >>> cursor = connection.cursor(S3FSCursor)
+            >>> cursor.execute("SELECT * FROM my_table")
+            >>>
+            >>> # Use DefaultCSVReader for backward compatibility
+            >>> from pyathena.s3fs.reader import DefaultCSVReader
+            >>> cursor = connection.cursor(S3FSCursor, csv_reader=DefaultCSVReader)
         """
         super().__init__(
             s3_staging_dir=s3_staging_dir,
@@ -111,49 +104,67 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
             result_reuse_minutes=result_reuse_minutes,
             **kwargs,
         )
-        self._unload = unload
         self._on_start_query_execution = on_start_query_execution
-        self._connect_timeout = connect_timeout
-        self._request_timeout = request_timeout
+        self._csv_reader = csv_reader
         self._query_id: Optional[str] = None
-        self._result_set: Optional[AthenaArrowResultSet] = None
+        self._result_set: Optional[AthenaS3FSResultSet] = None
 
     @staticmethod
     def get_default_converter(
-        unload: bool = False,
-    ) -> Union[DefaultArrowTypeConverter, DefaultArrowUnloadTypeConverter, Any]:
-        if unload:
-            return DefaultArrowUnloadTypeConverter()
-        return DefaultArrowTypeConverter()
+        unload: bool = False,  # noqa: ARG004
+    ) -> DefaultS3FSTypeConverter:
+        """Get the default type converter for S3FS cursor.
+
+        Args:
+            unload: Unused. S3FS cursor does not support UNLOAD operations.
+
+        Returns:
+            DefaultS3FSTypeConverter instance.
+        """
+        return DefaultS3FSTypeConverter()
 
     @property
     def arraysize(self) -> int:
+        """Get the number of rows to fetch at a time with fetchmany()."""
         return self._arraysize
 
     @arraysize.setter
     def arraysize(self, value: int) -> None:
+        """Set the number of rows to fetch at a time with fetchmany().
+
+        Args:
+            value: Number of rows (must be positive).
+
+        Raises:
+            ProgrammingError: If value is not positive.
+        """
         if value <= 0:
             raise ProgrammingError("arraysize must be a positive integer value.")
         self._arraysize = value
 
     @property  # type: ignore
-    def result_set(self) -> Optional[AthenaArrowResultSet]:
+    def result_set(self) -> Optional[AthenaS3FSResultSet]:
+        """Get the current result set."""
         return self._result_set
 
     @result_set.setter
     def result_set(self, val) -> None:
+        """Set the current result set."""
         self._result_set = val
 
     @property
     def query_id(self) -> Optional[str]:
+        """Get the ID of the last executed query."""
         return self._query_id
 
     @query_id.setter
     def query_id(self, val) -> None:
+        """Set the query ID."""
         self._query_id = val
 
     @property
     def rownumber(self) -> Optional[int]:
+        """Get the current row number (0-indexed)."""
         return self.result_set.rownumber if self.result_set else None
 
     @property
@@ -162,6 +173,7 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         return self.result_set.rowcount if self.result_set else -1
 
     def close(self) -> None:
+        """Close the cursor and release resources."""
         if self.result_set and not self.result_set.is_closed:
             self.result_set.close()
 
@@ -178,12 +190,11 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         paramstyle: Optional[str] = None,
         on_start_query_execution: Optional[Callable[[str], None]] = None,
         **kwargs,
-    ) -> ArrowCursor:
-        """Execute a SQL query and return results as Apache Arrow Tables.
+    ) -> "S3FSCursor":
+        """Execute a SQL query and return results.
 
         Executes the SQL query on Amazon Athena and configures the result set
-        for Apache Arrow Table output. Arrow format provides high-performance
-        columnar data processing with efficient memory usage.
+        for CSV-based output via S3FileSystem.
 
         Args:
             operation: SQL query string to execute.
@@ -202,21 +213,10 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
             Self reference for method chaining.
 
         Example:
-            >>> cursor.execute("SELECT * FROM sales WHERE year = 2023")
-            >>> table = cursor.as_arrow()  # Returns Apache Arrow Table
+            >>> cursor.execute("SELECT * FROM my_table WHERE id = %(id)s", {"id": 123})
+            >>> rows = cursor.fetchall()
         """
         self._reset_state()
-        if self._unload:
-            s3_staging_dir = s3_staging_dir if s3_staging_dir else self._s3_staging_dir
-            assert s3_staging_dir, "If the unload option is used, s3_staging_dir is required."
-            operation, unload_location = self._formatter.wrap_unload(
-                operation,
-                s3_staging_dir=s3_staging_dir,
-                format_=AthenaFileFormat.FILE_FORMAT_PARQUET,
-                compression=AthenaCompression.COMPRESSION_SNAPPY,
-            )
-        else:
-            unload_location = None
         self.query_id = self._execute(
             operation,
             parameters=parameters,
@@ -230,23 +230,20 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         )
 
         # Call user callbacks immediately after start_query_execution
-        # Both connection-level and execute-level callbacks are invoked if set
         if self._on_start_query_execution:
             self._on_start_query_execution(self.query_id)
         if on_start_query_execution:
             on_start_query_execution(self.query_id)
+
         query_execution = cast(AthenaQueryExecution, self._poll(self.query_id))
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
-            self.result_set = AthenaArrowResultSet(
+            self.result_set = AthenaS3FSResultSet(
                 connection=self._connection,
                 converter=self._converter,
                 query_execution=query_execution,
                 arraysize=self.arraysize,
                 retry_config=self._retry_config,
-                unload=self._unload,
-                unload_location=unload_location,
-                connect_timeout=self._connect_timeout,
-                request_timeout=self._request_timeout,
+                csv_reader=self._csv_reader,
                 **kwargs,
             )
         else:
@@ -259,12 +256,24 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         seq_of_parameters: List[Optional[Union[Dict[str, Any], List[str]]]],
         **kwargs,
     ) -> None:
+        """Execute a SQL query with multiple parameter sets.
+
+        Args:
+            operation: SQL query string to execute.
+            seq_of_parameters: Sequence of parameter sets.
+            **kwargs: Additional execution parameters.
+        """
         for parameters in seq_of_parameters:
             self.execute(operation, parameters, **kwargs)
         # Operations that have result sets are not allowed with executemany.
         self._reset_state()
 
     def cancel(self) -> None:
+        """Cancel the currently running query.
+
+        Raises:
+            ProgrammingError: If no query is running.
+        """
         if not self.query_id:
             raise ProgrammingError("QueryExecutionId is none or empty.")
         self._cancel(self.query_id)
@@ -272,47 +281,50 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
     def fetchone(
         self,
     ) -> Optional[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
+        """Fetch the next row of the result set.
+
+        Returns:
+            A tuple representing the next row, or None if no more rows.
+
+        Raises:
+            ProgrammingError: If no query has been executed.
+        """
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        result_set = cast(AthenaArrowResultSet, self.result_set)
+        result_set = cast(AthenaS3FSResultSet, self.result_set)
         return result_set.fetchone()
 
     def fetchmany(
         self, size: Optional[int] = None
     ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
+        """Fetch the next set of rows of the result set.
+
+        Args:
+            size: Maximum number of rows to fetch. Defaults to arraysize.
+
+        Returns:
+            A list of tuples representing the rows.
+
+        Raises:
+            ProgrammingError: If no query has been executed.
+        """
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        result_set = cast(AthenaArrowResultSet, self.result_set)
+        result_set = cast(AthenaS3FSResultSet, self.result_set)
         return result_set.fetchmany(size)
 
     def fetchall(
         self,
     ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
-        if not self.has_result_set:
-            raise ProgrammingError("No result set.")
-        result_set = cast(AthenaArrowResultSet, self.result_set)
-        return result_set.fetchall()
-
-    def as_arrow(self) -> "Table":
-        """Return query results as an Apache Arrow Table.
-
-        Converts the entire result set into an Apache Arrow Table for efficient
-        columnar data processing. Arrow Tables provide excellent performance for
-        analytical workloads and interoperability with other data processing frameworks.
+        """Fetch all remaining rows of the result set.
 
         Returns:
-            Apache Arrow Table containing all query results.
+            A list of tuples representing all remaining rows.
 
         Raises:
-            ProgrammingError: If no query has been executed or no results are available.
-
-        Example:
-            >>> cursor = connection.cursor(ArrowCursor)
-            >>> cursor.execute("SELECT * FROM my_table")
-            >>> table = cursor.as_arrow()
-            >>> print(f"Table has {table.num_rows} rows and {table.num_columns} columns")
+            ProgrammingError: If no query has been executed.
         """
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        result_set = cast(AthenaArrowResultSet, self.result_set)
-        return result_set.as_arrow()
+        result_set = cast(AthenaS3FSResultSet, self.result_set)
+        return result_set.fetchall()
