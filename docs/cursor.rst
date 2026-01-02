@@ -319,6 +319,19 @@ AsyncArrowCursor
 
 See :ref:`async-arrow-cursor`.
 
+S3FSCursor
+----------
+
+See :ref:`s3fs-cursor`.
+
+AsyncS3FSCursor
+---------------
+
+See :ref:`async-s3fs-cursor`.
+
+API Reference
+-------------
+
 SparkCursor
 -----------
 
@@ -329,10 +342,7 @@ AsyncSparkCursor
 
 See :ref:`async-spark-cursor`.
 
-API Reference
--------------
-
-For detailed API documentation of all cursor classes and their methods, 
+For detailed API documentation of all cursor classes and their methods,
 see the :ref:`api` section.
 
 .. _`DB API 2.0 (PEP 249)`: https://www.python.org/dev/peps/pep-0249/
