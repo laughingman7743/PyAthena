@@ -73,6 +73,7 @@ class AsyncPolarsCursor(AsyncCursor):
         result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
         block_size: Optional[int] = None,
         cache_type: Optional[str] = None,
+        chunksize: Optional[int] = None,
         **kwargs,
     ) -> None:
         """Initialize an AsyncPolarsCursor.
@@ -93,10 +94,14 @@ class AsyncPolarsCursor(AsyncCursor):
             result_reuse_minutes: Minutes to reuse cached results.
             block_size: S3 read block size.
             cache_type: S3 caching strategy.
+            chunksize: Number of rows per chunk for memory-efficient processing.
+                      If specified, enables chunked iteration via iter_chunks().
             **kwargs: Additional connection parameters.
 
         Example:
             >>> cursor = connection.cursor(AsyncPolarsCursor, unload=True)
+            >>> # With chunked processing
+            >>> cursor = connection.cursor(AsyncPolarsCursor, chunksize=50000)
         """
         super().__init__(
             s3_staging_dir=s3_staging_dir,
@@ -116,6 +121,7 @@ class AsyncPolarsCursor(AsyncCursor):
         self._unload = unload
         self._block_size = block_size
         self._cache_type = cache_type
+        self._chunksize = chunksize
 
     @staticmethod
     def get_default_converter(
@@ -172,6 +178,7 @@ class AsyncPolarsCursor(AsyncCursor):
             block_size=self._block_size,
             cache_type=self._cache_type,
             max_workers=self._max_workers,
+            chunksize=self._chunksize,
             **kwargs,
         )
 

@@ -8,6 +8,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Iterator,
     List,
     Optional,
     Tuple,
@@ -79,6 +80,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
         block_size: Optional[int] = None,
         cache_type: Optional[str] = None,
         max_workers: int = (cpu_count() or 1) * 5,
+        chunksize: Optional[int] = None,
         **kwargs,
     ) -> None:
         """Initialize the Polars result set.
@@ -94,6 +96,8 @@ class AthenaPolarsResultSet(AthenaResultSet):
             block_size: Block size for S3 file reading.
             cache_type: Cache type for S3 file system.
             max_workers: Maximum number of worker threads.
+            chunksize: Number of rows per chunk for memory-efficient processing.
+                      If specified, enables chunked iteration via iter_chunks().
             **kwargs: Additional arguments passed to Polars read functions.
         """
         super().__init__(
@@ -110,6 +114,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
         self._block_size = block_size
         self._cache_type = cache_type
         self._max_workers = max_workers
+        self._chunksize = chunksize
         self._kwargs = kwargs
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
             self._df = self._as_polars()
@@ -413,6 +418,130 @@ class AthenaPolarsResultSet(AthenaResultSet):
             raise ImportError(
                 "pyarrow is required for as_arrow(). Install it with: pip install pyarrow"
             ) from e
+
+    def _get_csv_params(self) -> Tuple[str, bool, Optional[List[str]]]:
+        """Get CSV parsing parameters based on file type.
+
+        Returns:
+            Tuple of (separator, has_header, new_columns).
+        """
+        if self.output_location and self.output_location.endswith(".txt"):
+            separator = "\t"
+            has_header = False
+            description = self.description if self.description else []
+            new_columns: Optional[List[str]] = [d[0] for d in description]
+        else:
+            separator = ","
+            has_header = True
+            new_columns = None
+        return separator, has_header, new_columns
+
+    def _iter_csv_chunks(self) -> Iterator["pl.DataFrame"]:
+        """Iterate over CSV data in chunks using lazy evaluation.
+
+        Yields:
+            Polars DataFrame for each chunk.
+
+        Raises:
+            ProgrammingError: If output location is not set.
+            OperationalError: If reading the CSV file fails.
+        """
+        import polars as pl
+
+        if not self.output_location:
+            raise ProgrammingError("OutputLocation is none or empty.")
+        if not self.output_location.endswith((".csv", ".txt")):
+            return
+        if self.substatement_type and self.substatement_type.upper() in (
+            "UPDATE",
+            "DELETE",
+            "MERGE",
+            "VACUUM_TABLE",
+        ):
+            return
+        length = self._get_content_length()
+        if length == 0:
+            return
+
+        separator, has_header, new_columns = self._get_csv_params()
+
+        try:
+            # scan_csv uses Rust's native object_store (like scan_parquet),
+            # not fsspec, so we use the same storage options as Parquet
+            lazy_df = pl.scan_csv(
+                self.output_location,
+                separator=separator,
+                has_header=has_header,
+                schema_overrides=self.dtypes,
+                storage_options=self._parquet_storage_options,
+                **self._kwargs,
+            )
+            for batch in lazy_df.collect_batches(chunk_size=self._chunksize):
+                if new_columns:
+                    batch.columns = new_columns
+                yield batch
+        except Exception as e:
+            _logger.exception(f"Failed to read {self.output_location}.")
+            raise OperationalError(*e.args) from e
+
+    def _iter_parquet_chunks(self) -> Iterator["pl.DataFrame"]:
+        """Iterate over Parquet data in chunks using lazy evaluation.
+
+        Yields:
+            Polars DataFrame for each chunk.
+
+        Raises:
+            OperationalError: If reading the Parquet files fails.
+        """
+        import polars as pl
+
+        manifests = self._read_data_manifest()
+        if not manifests:
+            return
+        if not self._unload_location:
+            self._unload_location = "/".join(manifests[0].split("/")[:-1]) + "/"
+
+        try:
+            lazy_df = pl.scan_parquet(
+                self._unload_location,
+                storage_options=self._parquet_storage_options,
+                **self._kwargs,
+            )
+            for batch in lazy_df.collect_batches(chunk_size=self._chunksize):
+                yield batch
+        except Exception as e:
+            _logger.exception(f"Failed to read {self._unload_location}.")
+            raise OperationalError(*e.args) from e
+
+    def iter_chunks(self) -> Iterator["pl.DataFrame"]:
+        """Iterate over result chunks as Polars DataFrames.
+
+        This method provides an iterator interface for processing large result sets
+        in chunks, preventing memory exhaustion when working with datasets that are
+        too large to fit in memory as a single DataFrame.
+
+        Yields:
+            Polars DataFrame for each chunk of rows.
+
+        Raises:
+            ProgrammingError: If chunksize was not set during cursor initialization.
+
+        Example:
+            >>> cursor = connection.cursor(PolarsCursor, chunksize=50000)
+            >>> cursor.execute("SELECT * FROM large_table")
+            >>> for chunk in cursor.iter_chunks():
+            ...     process_chunk(chunk)  # Each chunk is a Polars DataFrame
+        """
+        if self._chunksize is None:
+            raise ProgrammingError(
+                "chunksize must be set to use iter_chunks(). "
+                "Example: cursor = connection.cursor(PolarsCursor, chunksize=50000)"
+            )
+
+        if self.is_unload:
+            yield from self._iter_parquet_chunks()
+        else:
+            yield from self._iter_csv_chunks()
 
     def close(self) -> None:
         """Close the result set and release resources."""

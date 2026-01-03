@@ -246,6 +246,73 @@ SQLAlchemy allows this option to be specified in the connection string.
 
 NOTE: PolarsCursor handles the CSV file on memory. Pay attention to the memory capacity.
 
+Chunksize Options
+~~~~~~~~~~~~~~~~~
+
+PolarsCursor supports memory-efficient chunked processing of large query results
+using Polars' native lazy evaluation APIs. This allows processing datasets that
+are too large to fit in memory.
+
+The chunksize option can be enabled by specifying an integer value in the ``cursor_kwargs``
+argument of the connect method or as an argument to the cursor method.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.polars.cursor import PolarsCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PolarsCursor,
+                     cursor_kwargs={
+                         "chunksize": 50_000
+                     }).cursor()
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.polars.cursor import PolarsCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PolarsCursor).cursor(chunksize=50_000)
+
+Use the ``iter_chunks()`` method to iterate over results in chunks:
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.polars.cursor import PolarsCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PolarsCursor).cursor(chunksize=50_000)
+
+    cursor.execute("SELECT * FROM large_table")
+    for chunk in cursor.iter_chunks():
+        # Process each chunk - chunk is a polars.DataFrame
+        processed = chunk.group_by('category').agg(pl.sum('value'))
+        print(f"Processed chunk with {chunk.height} rows")
+
+This method uses Polars' ``scan_csv()`` and ``scan_parquet()`` with ``collect_batches()``
+for efficient lazy evaluation, minimizing memory usage when processing large datasets.
+
+The chunked iteration also works with the unload option:
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.polars.cursor import PolarsCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PolarsCursor).cursor(chunksize=100_000, unload=True)
+
+    cursor.execute("SELECT * FROM huge_table")
+    for chunk in cursor.iter_chunks():
+        # Process Parquet data in chunks
+        process_chunk(chunk)
+
 .. _async-polars-cursor:
 
 AsyncPolarsCursor
@@ -413,6 +480,23 @@ As with AsyncPolarsCursor, the unload option is also available.
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2",
                      cursor_class=AsyncPolarsCursor).cursor(unload=True)
+
+As with PolarsCursor, the chunksize option is also available for memory-efficient processing.
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.polars.async_cursor import AsyncPolarsCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=AsyncPolarsCursor).cursor(chunksize=50_000)
+
+    query_id, future = cursor.execute("SELECT * FROM large_table")
+    result_set = future.result()
+    for chunk in result_set.iter_chunks():
+        # Process each chunk
+        process_chunk(chunk)
 
 .. _`polars.DataFrame object`: https://docs.pola.rs/api/python/stable/reference/dataframe/index.html
 .. _`Polars`: https://pola.rs/

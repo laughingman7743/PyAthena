@@ -3,7 +3,18 @@ from __future__ import annotations
 
 import logging
 from multiprocessing import cpu_count
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
 from pyathena.common import BaseCursor, CursorIterator
 from pyathena.error import OperationalError, ProgrammingError
@@ -74,6 +85,7 @@ class PolarsCursor(BaseCursor, CursorIterator, WithResultSet):
         block_size: Optional[int] = None,
         cache_type: Optional[str] = None,
         max_workers: int = (cpu_count() or 1) * 5,
+        chunksize: Optional[int] = None,
         **kwargs,
     ) -> None:
         """Initialize a PolarsCursor.
@@ -94,10 +106,14 @@ class PolarsCursor(BaseCursor, CursorIterator, WithResultSet):
             block_size: S3 read block size.
             cache_type: S3 caching strategy.
             max_workers: Maximum worker threads for parallel S3 operations.
+            chunksize: Number of rows per chunk for memory-efficient processing.
+                      If specified, enables chunked iteration via iter_chunks().
             **kwargs: Additional connection parameters.
 
         Example:
             >>> cursor = connection.cursor(PolarsCursor, unload=True)
+            >>> # With chunked processing
+            >>> cursor = connection.cursor(PolarsCursor, chunksize=50000)
         """
         super().__init__(
             s3_staging_dir=s3_staging_dir,
@@ -117,6 +133,7 @@ class PolarsCursor(BaseCursor, CursorIterator, WithResultSet):
         self._block_size = block_size
         self._cache_type = cache_type
         self._max_workers = max_workers
+        self._chunksize = chunksize
         self._query_id: Optional[str] = None
         self._result_set: Optional[AthenaPolarsResultSet] = None
 
@@ -272,6 +289,7 @@ class PolarsCursor(BaseCursor, CursorIterator, WithResultSet):
                 block_size=self._block_size,
                 cache_type=self._cache_type,
                 max_workers=self._max_workers,
+                chunksize=self._chunksize,
                 **kwargs,
             )
         else:
@@ -404,3 +422,27 @@ class PolarsCursor(BaseCursor, CursorIterator, WithResultSet):
             raise ProgrammingError("No result set.")
         result_set = cast(AthenaPolarsResultSet, self.result_set)
         return result_set.as_arrow()
+
+    def iter_chunks(self) -> Iterator["pl.DataFrame"]:
+        """Iterate over result chunks as Polars DataFrames.
+
+        This method provides an iterator interface for processing large result sets
+        in chunks, preventing memory exhaustion when working with datasets that are
+        too large to fit in memory as a single DataFrame.
+
+        Yields:
+            Polars DataFrame for each chunk of rows.
+
+        Raises:
+            ProgrammingError: If no result set is available or chunksize was not set.
+
+        Example:
+            >>> cursor = connection.cursor(PolarsCursor, chunksize=50000)
+            >>> cursor.execute("SELECT * FROM large_table")
+            >>> for chunk in cursor.iter_chunks():
+            ...     process_chunk(chunk)  # Each chunk is a Polars DataFrame
+        """
+        if not self.has_result_set:
+            raise ProgrammingError("No result set.")
+        result_set = cast(AthenaPolarsResultSet, self.result_set)
+        yield from result_set.iter_chunks()

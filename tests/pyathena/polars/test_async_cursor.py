@@ -324,3 +324,59 @@ class TestAsyncPolarsCursor:
         df = future.result().as_polars()
         assert df.height == 0
         assert df.width == 0
+
+    def test_iter_chunks(self):
+        """Test chunked iteration over query results."""
+        with contextlib.closing(connect(schema_name=ENV.schema)) as conn:
+            cursor = conn.cursor(AsyncPolarsCursor, chunksize=5)
+            query_id, future = cursor.execute("SELECT * FROM many_rows LIMIT 15")
+            assert query_id is not None
+            result_set = future.result()
+            chunks = list(result_set.iter_chunks())
+            assert len(chunks) > 0
+            total_rows = sum(chunk.height for chunk in chunks)
+            assert total_rows == 15
+            for chunk in chunks:
+                assert isinstance(chunk, pl.DataFrame)
+
+    def test_iter_chunks_without_chunksize(self, async_polars_cursor):
+        """Test that iter_chunks raises ProgrammingError when chunksize is not set."""
+        query_id, future = async_polars_cursor.execute("SELECT * FROM one_row")
+        assert query_id is not None
+        result_set = future.result()
+        with pytest.raises(ProgrammingError) as exc_info:
+            list(result_set.iter_chunks())
+        assert "chunksize must be set" in str(exc_info.value)
+
+    def test_iter_chunks_many_rows(self):
+        """Test chunked iteration with many rows."""
+        with contextlib.closing(connect(schema_name=ENV.schema)) as conn:
+            cursor = conn.cursor(AsyncPolarsCursor, chunksize=1000)
+            query_id, future = cursor.execute("SELECT * FROM many_rows")
+            assert query_id is not None
+            result_set = future.result()
+            chunks = list(result_set.iter_chunks())
+            total_rows = sum(chunk.height for chunk in chunks)
+            assert total_rows == 10000
+            assert len(chunks) >= 10  # At least 10 chunks with chunksize=1000
+
+    @pytest.mark.parametrize(
+        "async_polars_cursor",
+        [
+            {
+                "cursor_kwargs": {"unload": True, "chunksize": 5},
+            },
+        ],
+        indirect=["async_polars_cursor"],
+    )
+    def test_iter_chunks_unload(self, async_polars_cursor):
+        """Test chunked iteration with UNLOAD (Parquet)."""
+        query_id, future = async_polars_cursor.execute("SELECT * FROM many_rows LIMIT 15")
+        assert query_id is not None
+        result_set = future.result()
+        chunks = list(result_set.iter_chunks())
+        assert len(chunks) > 0
+        total_rows = sum(chunk.height for chunk in chunks)
+        assert total_rows == 15
+        for chunk in chunks:
+            assert isinstance(chunk, pl.DataFrame)

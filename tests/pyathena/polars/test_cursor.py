@@ -447,3 +447,51 @@ class TestPolarsCursor:
         assert len(callback_results) == 1
         assert callback_results[0] == polars_cursor.query_id
         assert polars_cursor.query_id is not None
+
+    def test_iter_chunks(self):
+        """Test chunked iteration over query results."""
+        with contextlib.closing(connect(schema_name=ENV.schema)) as conn:
+            cursor = conn.cursor(PolarsCursor, chunksize=5)
+            cursor.execute("SELECT * FROM many_rows LIMIT 15")
+            chunks = list(cursor.iter_chunks())
+            assert len(chunks) > 0
+            total_rows = sum(chunk.height for chunk in chunks)
+            assert total_rows == 15
+            for chunk in chunks:
+                assert isinstance(chunk, pl.DataFrame)
+
+    def test_iter_chunks_without_chunksize(self, polars_cursor):
+        """Test that iter_chunks raises ProgrammingError when chunksize is not set."""
+        polars_cursor.execute("SELECT * FROM one_row")
+        with pytest.raises(ProgrammingError) as exc_info:
+            list(polars_cursor.iter_chunks())
+        assert "chunksize must be set" in str(exc_info.value)
+
+    def test_iter_chunks_many_rows(self):
+        """Test chunked iteration with many rows."""
+        with contextlib.closing(connect(schema_name=ENV.schema)) as conn:
+            cursor = conn.cursor(PolarsCursor, chunksize=1000)
+            cursor.execute("SELECT * FROM many_rows")
+            chunks = list(cursor.iter_chunks())
+            total_rows = sum(chunk.height for chunk in chunks)
+            assert total_rows == 10000
+            assert len(chunks) >= 10  # At least 10 chunks with chunksize=1000
+
+    @pytest.mark.parametrize(
+        "polars_cursor",
+        [
+            {
+                "cursor_kwargs": {"unload": True, "chunksize": 5},
+            },
+        ],
+        indirect=["polars_cursor"],
+    )
+    def test_iter_chunks_unload(self, polars_cursor):
+        """Test chunked iteration with UNLOAD (Parquet)."""
+        polars_cursor.execute("SELECT * FROM many_rows LIMIT 15")
+        chunks = list(polars_cursor.iter_chunks())
+        assert len(chunks) > 0
+        total_rows = sum(chunk.height for chunk in chunks)
+        assert total_rows == 15
+        for chunk in chunks:
+            assert isinstance(chunk, pl.DataFrame)
