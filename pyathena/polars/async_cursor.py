@@ -7,56 +7,53 @@ from multiprocessing import cpu_count
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 from pyathena import ProgrammingError
-from pyathena.arrow.converter import (
-    DefaultArrowTypeConverter,
-    DefaultArrowUnloadTypeConverter,
-)
-from pyathena.arrow.result_set import AthenaArrowResultSet
 from pyathena.async_cursor import AsyncCursor
 from pyathena.common import CursorIterator
 from pyathena.model import AthenaCompression, AthenaFileFormat, AthenaQueryExecution
+from pyathena.polars.converter import (
+    DefaultPolarsTypeConverter,
+    DefaultPolarsUnloadTypeConverter,
+)
+from pyathena.polars.result_set import AthenaPolarsResultSet
 
-_logger = logging.getLogger(__name__)  # type: ignore
+_logger = logging.getLogger(__name__)
 
 
-class AsyncArrowCursor(AsyncCursor):
-    """Asynchronous cursor that returns results in Apache Arrow format.
+class AsyncPolarsCursor(AsyncCursor):
+    """Asynchronous cursor that returns results as Polars DataFrames.
 
     This cursor extends AsyncCursor to provide asynchronous query execution
-    with results returned as Apache Arrow Tables or RecordBatches. It's optimized
-    for high-performance analytics workloads and interoperability with the
-    Apache Arrow ecosystem.
+    with results returned as Polars DataFrames using Polars' native reading
+    capabilities. It does not require PyArrow for basic functionality, but can
+    optionally provide Arrow Table access when PyArrow is installed.
 
     Features:
         - Asynchronous query execution with concurrent futures
-        - Apache Arrow columnar data format for high performance
-        - Memory-efficient processing of large datasets
+        - Native Polars CSV and Parquet reading (no PyArrow required)
+        - Memory-efficient columnar data processing
         - Support for UNLOAD operations with Parquet output
-        - Integration with pandas, Polars, and other Arrow-compatible libraries
+        - Optional Arrow interoperability when PyArrow is installed
 
     Attributes:
         arraysize: Number of rows to fetch per batch (configurable).
 
     Example:
-        >>> from pyathena.arrow.async_cursor import AsyncArrowCursor
+        >>> from pyathena.polars.async_cursor import AsyncPolarsCursor
         >>>
-        >>> cursor = connection.cursor(AsyncArrowCursor, unload=True)
+        >>> cursor = connection.cursor(AsyncPolarsCursor, unload=True)
         >>> query_id, future = cursor.execute("SELECT * FROM large_table")
         >>>
         >>> # Get result when ready
         >>> result_set = future.result()
-        >>> arrow_table = result_set.as_arrow()
+        >>> df = result_set.as_polars()
         >>>
-        >>> # Convert to pandas if needed
-        >>> df = arrow_table.to_pandas()
-        >>>
-        >>> # Convert to Polars if needed (requires polars)
-        >>> polars_df = result_set.as_polars()
+        >>> # Optional: Convert to Arrow Table if pyarrow is installed
+        >>> table = result_set.as_arrow()
 
     Note:
-        Requires pyarrow to be installed. UNLOAD operations generate
-        Parquet files in S3 for optimal Arrow compatibility. For Polars
-        interoperability, polars must be installed separately.
+        Requires polars to be installed. PyArrow is optional and only needed
+        for as_arrow() functionality. UNLOAD operations generate Parquet files
+        in S3 for optimal performance.
     """
 
     def __init__(
@@ -74,11 +71,11 @@ class AsyncArrowCursor(AsyncCursor):
         unload: bool = False,
         result_reuse_enable: bool = False,
         result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
-        connect_timeout: Optional[float] = None,
-        request_timeout: Optional[float] = None,
+        block_size: Optional[int] = None,
+        cache_type: Optional[str] = None,
         **kwargs,
     ) -> None:
-        """Initialize an AsyncArrowCursor.
+        """Initialize an AsyncPolarsCursor.
 
         Args:
             s3_staging_dir: S3 location for query results.
@@ -94,21 +91,12 @@ class AsyncArrowCursor(AsyncCursor):
             unload: Enable UNLOAD for high-performance Parquet output.
             result_reuse_enable: Enable Athena query result reuse.
             result_reuse_minutes: Minutes to reuse cached results.
-            connect_timeout: Socket connection timeout in seconds for S3 operations.
-                Defaults to AWS SDK default (typically 1 second) if not specified.
-            request_timeout: Request timeout in seconds for S3 operations.
-                Defaults to AWS SDK default (typically 3 seconds) if not specified.
-                Increase this value if you experience timeout errors when using
-                role assumption with STS or have high latency to S3.
+            block_size: S3 read block size.
+            cache_type: S3 caching strategy.
             **kwargs: Additional connection parameters.
 
         Example:
-            >>> # Use higher timeouts for role assumption scenarios
-            >>> cursor = connection.cursor(
-            ...     AsyncArrowCursor,
-            ...     connect_timeout=10.0,
-            ...     request_timeout=30.0
-            ... )
+            >>> cursor = connection.cursor(AsyncPolarsCursor, unload=True)
         """
         super().__init__(
             s3_staging_dir=s3_staging_dir,
@@ -126,23 +114,40 @@ class AsyncArrowCursor(AsyncCursor):
             **kwargs,
         )
         self._unload = unload
-        self._connect_timeout = connect_timeout
-        self._request_timeout = request_timeout
+        self._block_size = block_size
+        self._cache_type = cache_type
 
     @staticmethod
     def get_default_converter(
         unload: bool = False,
-    ) -> Union[DefaultArrowTypeConverter, DefaultArrowUnloadTypeConverter, Any]:
+    ) -> Union[DefaultPolarsTypeConverter, DefaultPolarsUnloadTypeConverter, Any]:
+        """Get the default type converter for Polars results.
+
+        Args:
+            unload: If True, returns converter for UNLOAD (Parquet) results.
+
+        Returns:
+            Type converter appropriate for the result format.
+        """
         if unload:
-            return DefaultArrowUnloadTypeConverter()
-        return DefaultArrowTypeConverter()
+            return DefaultPolarsUnloadTypeConverter()
+        return DefaultPolarsTypeConverter()
 
     @property
     def arraysize(self) -> int:
+        """Get the number of rows to fetch per batch."""
         return self._arraysize
 
     @arraysize.setter
     def arraysize(self, value: int) -> None:
+        """Set the number of rows to fetch per batch.
+
+        Args:
+            value: Number of rows to fetch. Must be positive.
+
+        Raises:
+            ProgrammingError: If value is not positive.
+        """
         if value <= 0:
             raise ProgrammingError("arraysize must be a positive integer value.")
         self._arraysize = value
@@ -152,11 +157,11 @@ class AsyncArrowCursor(AsyncCursor):
         query_id: str,
         unload_location: Optional[str] = None,
         kwargs: Optional[Dict[str, Any]] = None,
-    ) -> AthenaArrowResultSet:
+    ) -> AthenaPolarsResultSet:
         if kwargs is None:
             kwargs = {}
         query_execution = cast(AthenaQueryExecution, self._poll(query_id))
-        return AthenaArrowResultSet(
+        return AthenaPolarsResultSet(
             connection=self._connection,
             converter=self._converter,
             query_execution=query_execution,
@@ -164,8 +169,9 @@ class AsyncArrowCursor(AsyncCursor):
             retry_config=self._retry_config,
             unload=self._unload,
             unload_location=unload_location,
-            connect_timeout=self._connect_timeout,
-            request_timeout=self._request_timeout,
+            block_size=self._block_size,
+            cache_type=self._cache_type,
+            max_workers=self._max_workers,
             **kwargs,
         )
 
@@ -181,7 +187,32 @@ class AsyncArrowCursor(AsyncCursor):
         result_reuse_minutes: Optional[int] = None,
         paramstyle: Optional[str] = None,
         **kwargs,
-    ) -> Tuple[str, "Future[Union[AthenaArrowResultSet, Any]]"]:
+    ) -> Tuple[str, "Future[Union[AthenaPolarsResultSet, Any]]"]:
+        """Execute a SQL query asynchronously and return results as Polars DataFrames.
+
+        Executes the SQL query on Amazon Athena asynchronously and returns a
+        future that resolves to a result set for Polars DataFrame output.
+
+        Args:
+            operation: SQL query string to execute.
+            parameters: Query parameters for parameterized queries.
+            work_group: Athena workgroup to use for this query.
+            s3_staging_dir: S3 location for query results.
+            cache_size: Number of queries to check for result caching.
+            cache_expiration_time: Cache expiration time in seconds.
+            result_reuse_enable: Enable Athena result reuse for this query.
+            result_reuse_minutes: Minutes to reuse cached results.
+            paramstyle: Parameter style ('qmark' or 'pyformat').
+            **kwargs: Additional execution parameters passed to Polars read functions.
+
+        Returns:
+            Tuple of (query_id, future) where future resolves to AthenaPolarsResultSet.
+
+        Example:
+            >>> query_id, future = cursor.execute("SELECT * FROM sales")
+            >>> result_set = future.result()
+            >>> df = result_set.as_polars()  # Returns Polars DataFrame
+        """
         if self._unload:
             s3_staging_dir = s3_staging_dir if s3_staging_dir else self._s3_staging_dir
             assert s3_staging_dir, "If the unload option is used, s3_staging_dir is required."

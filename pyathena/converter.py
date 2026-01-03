@@ -520,6 +520,22 @@ class Converter(metaclass=ABCMeta):
         """
         self.mappings.pop(type_, None)
 
+    def get_dtype(self, type_: str, precision: int = 0, scale: int = 0) -> Optional[Type[Any]]:
+        """Get the data type for a given Athena type.
+
+        Subclasses may override this to provide custom type handling
+        (e.g., for decimal types with precision and scale).
+
+        Args:
+            type_: The Athena data type name.
+            precision: The precision for decimal types.
+            scale: The scale for decimal types.
+
+        Returns:
+            The corresponding Python type, or None if not found.
+        """
+        return self._types.get(type_)
+
     def update(self, mappings: Dict[str, Callable[[Optional[str]], Optional[Any]]]) -> None:
         """Update multiple conversion functions at once.
 

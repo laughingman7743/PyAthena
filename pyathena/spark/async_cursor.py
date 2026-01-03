@@ -35,7 +35,6 @@ class AsyncSparkCursor(SparkBaseCursor):
         engine_configuration: Spark engine configuration settings.
 
     Example:
-        >>> import asyncio
         >>> from pyathena.spark.async_cursor import AsyncSparkCursor
         >>>
         >>> cursor = connection.cursor(
@@ -55,10 +54,10 @@ class AsyncSparkCursor(SparkBaseCursor):
         >>> calculation_id, future = cursor.execute(spark_code)
         >>>
         >>> # Get result when ready
-        >>> calc_execution = await future
+        >>> calc_execution = future.result()
         >>> stdout_future = cursor.get_std_out(calc_execution)
         >>> if stdout_future:
-        ...     output = await stdout_future
+        ...     output = stdout_future.result()
         ...     print(output)
 
     Note:

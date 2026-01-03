@@ -41,14 +41,13 @@ class AsyncPandasCursor(AsyncCursor):
         chunksize: Number of rows per chunk for large datasets.
 
     Example:
-        >>> import asyncio
         >>> from pyathena.pandas.async_cursor import AsyncPandasCursor
         >>>
         >>> cursor = connection.cursor(AsyncPandasCursor, chunksize=10000)
         >>> query_id, future = cursor.execute("SELECT * FROM large_table")
         >>>
         >>> # Get result when ready
-        >>> result_set = await future
+        >>> result_set = future.result()
         >>> df = result_set.as_pandas()
         >>>
         >>> # Or iterate through chunks for large datasets

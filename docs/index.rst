@@ -20,6 +20,7 @@ Documentation
    sqlalchemy
    pandas
    arrow
+   polars
    s3fs
    spark
    testing

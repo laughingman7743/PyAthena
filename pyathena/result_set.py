@@ -243,6 +243,19 @@ class AthenaResultSet(CursorIterator):
         return self._query_execution.reused_previous_result
 
     @property
+    def is_unload(self) -> bool:
+        """Check if the query is an UNLOAD statement.
+
+        Returns:
+            True if the query is an UNLOAD statement, False otherwise.
+        """
+        return bool(
+            getattr(self, "_unload", False)
+            and self.query
+            and self.query.strip().upper().startswith("UNLOAD")
+        )
+
+    @property
     def encryption_option(self) -> Optional[str]:
         if not self._query_execution:
             return None

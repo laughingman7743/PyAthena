@@ -2,31 +2,32 @@
 from __future__ import annotations
 
 import logging
+from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
-from pyathena.arrow.converter import (
-    DefaultArrowTypeConverter,
-    DefaultArrowUnloadTypeConverter,
-)
-from pyathena.arrow.result_set import AthenaArrowResultSet
 from pyathena.common import BaseCursor, CursorIterator
 from pyathena.error import OperationalError, ProgrammingError
 from pyathena.model import AthenaCompression, AthenaFileFormat, AthenaQueryExecution
+from pyathena.polars.converter import (
+    DefaultPolarsTypeConverter,
+    DefaultPolarsUnloadTypeConverter,
+)
+from pyathena.polars.result_set import AthenaPolarsResultSet
 from pyathena.result_set import WithResultSet
 
 if TYPE_CHECKING:
     import polars as pl
     from pyarrow import Table
 
-_logger = logging.getLogger(__name__)  # type: ignore
+_logger = logging.getLogger(__name__)
 
 
-class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
-    """Cursor for handling Apache Arrow Table results from Athena queries.
+class PolarsCursor(BaseCursor, CursorIterator, WithResultSet):
+    """Cursor for handling Polars DataFrame results from Athena queries.
 
-    This cursor returns query results as Apache Arrow Tables, which provide
-    efficient columnar data processing and memory usage. Arrow Tables are
-    especially useful for analytical workloads and data science applications.
+    This cursor returns query results as Polars DataFrames using Polars' native
+    reading capabilities. It does not require PyArrow for basic functionality,
+    but can optionally provide Arrow Table access when PyArrow is installed.
 
     The cursor supports both regular CSV-based results and high-performance
     UNLOAD operations that return results in Parquet format for improved
@@ -38,16 +39,22 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         arraysize: Default number of rows to fetch with fetchmany().
 
     Example:
-        >>> from pyathena.arrow.cursor import ArrowCursor
-        >>> cursor = connection.cursor(ArrowCursor)
+        >>> from pyathena.polars.cursor import PolarsCursor
+        >>> cursor = connection.cursor(PolarsCursor)
         >>> cursor.execute("SELECT * FROM large_table")
-        >>> table = cursor.fetchall()  # Returns pyarrow.Table
-        >>> df = table.to_pandas()  # Convert to pandas if needed
+        >>> df = cursor.as_polars()  # Returns polars.DataFrame
+
+        # Optional: Get Arrow Table (requires pyarrow)
+        >>> table = cursor.as_arrow()
 
         # High-performance UNLOAD for large datasets
-        >>> cursor = connection.cursor(ArrowCursor, unload=True)
+        >>> cursor = connection.cursor(PolarsCursor, unload=True)
         >>> cursor.execute("SELECT * FROM huge_table")
-        >>> table = cursor.fetchall()  # Faster Parquet-based result
+        >>> df = cursor.as_polars()  # Faster Parquet-based result
+
+    Note:
+        Requires polars to be installed. PyArrow is optional and only
+        needed for as_arrow() functionality.
     """
 
     def __init__(
@@ -64,11 +71,12 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         result_reuse_enable: bool = False,
         result_reuse_minutes: int = CursorIterator.DEFAULT_RESULT_REUSE_MINUTES,
         on_start_query_execution: Optional[Callable[[str], None]] = None,
-        connect_timeout: Optional[float] = None,
-        request_timeout: Optional[float] = None,
+        block_size: Optional[int] = None,
+        cache_type: Optional[str] = None,
+        max_workers: int = (cpu_count() or 1) * 5,
         **kwargs,
     ) -> None:
-        """Initialize an ArrowCursor.
+        """Initialize a PolarsCursor.
 
         Args:
             s3_staging_dir: S3 location for query results.
@@ -83,21 +91,13 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
             result_reuse_enable: Enable Athena query result reuse.
             result_reuse_minutes: Minutes to reuse cached results.
             on_start_query_execution: Callback invoked when query starts.
-            connect_timeout: Socket connection timeout in seconds for S3 operations.
-                Defaults to AWS SDK default (typically 1 second) if not specified.
-            request_timeout: Request timeout in seconds for S3 operations.
-                Defaults to AWS SDK default (typically 3 seconds) if not specified.
-                Increase this value if you experience timeout errors when using
-                role assumption with STS or have high latency to S3.
+            block_size: S3 read block size.
+            cache_type: S3 caching strategy.
+            max_workers: Maximum worker threads for parallel S3 operations.
             **kwargs: Additional connection parameters.
 
         Example:
-            >>> # Use higher timeouts for role assumption scenarios
-            >>> cursor = connection.cursor(
-            ...     ArrowCursor,
-            ...     connect_timeout=10,
-            ...     request_timeout=30
-            ... )
+            >>> cursor = connection.cursor(PolarsCursor, unload=True)
         """
         super().__init__(
             s3_staging_dir=s3_staging_dir,
@@ -114,47 +114,70 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         )
         self._unload = unload
         self._on_start_query_execution = on_start_query_execution
-        self._connect_timeout = connect_timeout
-        self._request_timeout = request_timeout
+        self._block_size = block_size
+        self._cache_type = cache_type
+        self._max_workers = max_workers
         self._query_id: Optional[str] = None
-        self._result_set: Optional[AthenaArrowResultSet] = None
+        self._result_set: Optional[AthenaPolarsResultSet] = None
 
     @staticmethod
     def get_default_converter(
         unload: bool = False,
-    ) -> Union[DefaultArrowTypeConverter, DefaultArrowUnloadTypeConverter, Any]:
+    ) -> Union[DefaultPolarsTypeConverter, DefaultPolarsUnloadTypeConverter, Any]:
+        """Get the default type converter for Polars results.
+
+        Args:
+            unload: If True, returns converter for UNLOAD (Parquet) results.
+
+        Returns:
+            Type converter appropriate for the result format.
+        """
         if unload:
-            return DefaultArrowUnloadTypeConverter()
-        return DefaultArrowTypeConverter()
+            return DefaultPolarsUnloadTypeConverter()
+        return DefaultPolarsTypeConverter()
 
     @property
     def arraysize(self) -> int:
+        """Get the number of rows to fetch per batch."""
         return self._arraysize
 
     @arraysize.setter
     def arraysize(self, value: int) -> None:
+        """Set the number of rows to fetch per batch.
+
+        Args:
+            value: Number of rows to fetch. Must be positive.
+
+        Raises:
+            ProgrammingError: If value is not positive.
+        """
         if value <= 0:
             raise ProgrammingError("arraysize must be a positive integer value.")
         self._arraysize = value
 
     @property  # type: ignore
-    def result_set(self) -> Optional[AthenaArrowResultSet]:
+    def result_set(self) -> Optional[AthenaPolarsResultSet]:
+        """Get the current result set."""
         return self._result_set
 
     @result_set.setter
     def result_set(self, val) -> None:
+        """Set the current result set."""
         self._result_set = val
 
     @property
     def query_id(self) -> Optional[str]:
+        """Get the current query execution ID."""
         return self._query_id
 
     @query_id.setter
     def query_id(self, val) -> None:
+        """Set the current query execution ID."""
         self._query_id = val
 
     @property
     def rownumber(self) -> Optional[int]:
+        """Get the current row number in the result set."""
         return self.result_set.rownumber if self.result_set else None
 
     @property
@@ -163,6 +186,7 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         return self.result_set.rowcount if self.result_set else -1
 
     def close(self) -> None:
+        """Close the cursor and release resources."""
         if self.result_set and not self.result_set.is_closed:
             self.result_set.close()
 
@@ -179,12 +203,11 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         paramstyle: Optional[str] = None,
         on_start_query_execution: Optional[Callable[[str], None]] = None,
         **kwargs,
-    ) -> ArrowCursor:
-        """Execute a SQL query and return results as Apache Arrow Tables.
+    ) -> "PolarsCursor":
+        """Execute a SQL query and return results as Polars DataFrames.
 
         Executes the SQL query on Amazon Athena and configures the result set
-        for Apache Arrow Table output. Arrow format provides high-performance
-        columnar data processing with efficient memory usage.
+        for Polars DataFrame output using Polars' native reading capabilities.
 
         Args:
             operation: SQL query string to execute.
@@ -197,14 +220,14 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
             result_reuse_minutes: Minutes to reuse cached results.
             paramstyle: Parameter style ('qmark' or 'pyformat').
             on_start_query_execution: Callback called when query starts.
-            **kwargs: Additional execution parameters.
+            **kwargs: Additional execution parameters passed to Polars read functions.
 
         Returns:
             Self reference for method chaining.
 
         Example:
             >>> cursor.execute("SELECT * FROM sales WHERE year = 2023")
-            >>> table = cursor.as_arrow()  # Returns Apache Arrow Table
+            >>> df = cursor.as_polars()  # Returns Polars DataFrame
         """
         self._reset_state()
         if self._unload:
@@ -238,7 +261,7 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
             on_start_query_execution(self.query_id)
         query_execution = cast(AthenaQueryExecution, self._poll(self.query_id))
         if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
-            self.result_set = AthenaArrowResultSet(
+            self.result_set = AthenaPolarsResultSet(
                 connection=self._connection,
                 converter=self._converter,
                 query_execution=query_execution,
@@ -246,8 +269,9 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
                 retry_config=self._retry_config,
                 unload=self._unload,
                 unload_location=unload_location,
-                connect_timeout=self._connect_timeout,
-                request_timeout=self._request_timeout,
+                block_size=self._block_size,
+                cache_type=self._cache_type,
+                max_workers=self._max_workers,
                 **kwargs,
             )
         else:
@@ -260,12 +284,24 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
         seq_of_parameters: List[Optional[Union[Dict[str, Any], List[str]]]],
         **kwargs,
     ) -> None:
+        """Execute a SQL query multiple times with different parameters.
+
+        Args:
+            operation: SQL query string to execute.
+            seq_of_parameters: Sequence of parameter sets.
+            **kwargs: Additional execution parameters.
+        """
         for parameters in seq_of_parameters:
             self.execute(operation, parameters, **kwargs)
         # Operations that have result sets are not allowed with executemany.
         self._reset_state()
 
     def cancel(self) -> None:
+        """Cancel the currently running query.
+
+        Raises:
+            ProgrammingError: If no query is currently running.
+        """
         if not self.query_id:
             raise ProgrammingError("QueryExecutionId is none or empty.")
         self._cancel(self.query_id)
@@ -273,71 +309,98 @@ class ArrowCursor(BaseCursor, CursorIterator, WithResultSet):
     def fetchone(
         self,
     ) -> Optional[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
+        """Fetch the next row of the query result.
+
+        Returns:
+            A single row as a tuple, or None if no more rows are available.
+
+        Raises:
+            ProgrammingError: If no result set is available.
+        """
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        result_set = cast(AthenaArrowResultSet, self.result_set)
+        result_set = cast(AthenaPolarsResultSet, self.result_set)
         return result_set.fetchone()
 
     def fetchmany(
         self, size: Optional[int] = None
     ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
+        """Fetch the next set of rows of the query result.
+
+        Args:
+            size: Number of rows to fetch. Defaults to arraysize.
+
+        Returns:
+            A list of rows as tuples.
+
+        Raises:
+            ProgrammingError: If no result set is available.
+        """
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        result_set = cast(AthenaArrowResultSet, self.result_set)
+        result_set = cast(AthenaPolarsResultSet, self.result_set)
         return result_set.fetchmany(size)
 
     def fetchall(
         self,
     ) -> List[Union[Tuple[Optional[Any], ...], Dict[Any, Optional[Any]]]]:
-        if not self.has_result_set:
-            raise ProgrammingError("No result set.")
-        result_set = cast(AthenaArrowResultSet, self.result_set)
-        return result_set.fetchall()
-
-    def as_arrow(self) -> "Table":
-        """Return query results as an Apache Arrow Table.
-
-        Converts the entire result set into an Apache Arrow Table for efficient
-        columnar data processing. Arrow Tables provide excellent performance for
-        analytical workloads and interoperability with other data processing frameworks.
+        """Fetch all remaining rows of the query result.
 
         Returns:
-            Apache Arrow Table containing all query results.
+            A list of all remaining rows as tuples.
 
         Raises:
-            ProgrammingError: If no query has been executed or no results are available.
-
-        Example:
-            >>> cursor = connection.cursor(ArrowCursor)
-            >>> cursor.execute("SELECT * FROM my_table")
-            >>> table = cursor.as_arrow()
-            >>> print(f"Table has {table.num_rows} rows and {table.num_columns} columns")
+            ProgrammingError: If no result set is available.
         """
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        result_set = cast(AthenaArrowResultSet, self.result_set)
-        return result_set.as_arrow()
+        result_set = cast(AthenaPolarsResultSet, self.result_set)
+        return result_set.fetchall()
 
     def as_polars(self) -> "pl.DataFrame":
         """Return query results as a Polars DataFrame.
 
-        Converts the Apache Arrow Table to a Polars DataFrame for
-        interoperability with the Polars data processing library.
+        Returns the query results as a Polars DataFrame. This is the primary
+        method for accessing results with PolarsCursor.
 
         Returns:
             Polars DataFrame containing all query results.
 
         Raises:
             ProgrammingError: If no query has been executed or no results are available.
-            ImportError: If polars is not installed.
 
         Example:
-            >>> cursor = connection.cursor(ArrowCursor)
+            >>> cursor = connection.cursor(PolarsCursor)
             >>> cursor.execute("SELECT * FROM my_table")
             >>> df = cursor.as_polars()
             >>> print(f"DataFrame has {df.height} rows and {df.width} columns")
+            >>> filtered = df.filter(pl.col("value") > 100)
         """
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
-        result_set = cast(AthenaArrowResultSet, self.result_set)
+        result_set = cast(AthenaPolarsResultSet, self.result_set)
         return result_set.as_polars()
+
+    def as_arrow(self) -> "Table":
+        """Return query results as an Apache Arrow Table.
+
+        Converts the Polars DataFrame to an Apache Arrow Table for
+        interoperability with other Arrow-compatible tools and libraries.
+
+        Returns:
+            Apache Arrow Table containing all query results.
+
+        Raises:
+            ProgrammingError: If no query has been executed or no results are available.
+            ImportError: If pyarrow is not installed.
+
+        Example:
+            >>> cursor = connection.cursor(PolarsCursor)
+            >>> cursor.execute("SELECT * FROM my_table")
+            >>> table = cursor.as_arrow()
+            >>> print(f"Table has {table.num_rows} rows and {table.num_columns} columns")
+        """
+        if not self.has_result_set:
+            raise ProgrammingError("No result set.")
+        result_set = cast(AthenaPolarsResultSet, self.result_set)
+        return result_set.as_arrow()

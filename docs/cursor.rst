@@ -319,6 +319,16 @@ AsyncArrowCursor
 
 See :ref:`async-arrow-cursor`.
 
+PolarsCursor
+------------
+
+See :ref:`polars-cursor`.
+
+AsyncPolarsCursor
+-----------------
+
+See :ref:`async-polars-cursor`.
+
 S3FSCursor
 ----------
 
