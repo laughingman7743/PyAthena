@@ -121,16 +121,33 @@ class AsyncPolarsCursor(AsyncCursor):
     def get_default_converter(
         unload: bool = False,
     ) -> Union[DefaultPolarsTypeConverter, DefaultPolarsUnloadTypeConverter, Any]:
+        """Get the default type converter for Polars results.
+
+        Args:
+            unload: If True, returns converter for UNLOAD (Parquet) results.
+
+        Returns:
+            Type converter appropriate for the result format.
+        """
         if unload:
             return DefaultPolarsUnloadTypeConverter()
         return DefaultPolarsTypeConverter()
 
     @property
     def arraysize(self) -> int:
+        """Get the number of rows to fetch per batch."""
         return self._arraysize
 
     @arraysize.setter
     def arraysize(self, value: int) -> None:
+        """Set the number of rows to fetch per batch.
+
+        Args:
+            value: Number of rows to fetch. Must be positive.
+
+        Raises:
+            ProgrammingError: If value is not positive.
+        """
         if value <= 0:
             raise ProgrammingError("arraysize must be a positive integer value.")
         self._arraysize = value

@@ -63,7 +63,7 @@ def get_athena_type(dtype: Any) -> Tuple[str, int, int]:
         - scale: The numeric scale (decimal places)
 
     Note:
-        Unknown types default to "varchar" with maximum varchar length.
+        Unknown types default to "string" with maximum varchar length.
         Decimal types preserve their original precision and scale.
     """
     import polars as pl
@@ -110,4 +110,4 @@ def get_athena_type(dtype: Any) -> Tuple[str, int, int]:
             return ("decimal", dtype.precision, dtype.scale)
         return ("decimal", 38, 9)  # Default precision and scale
 
-    return ("varchar", 2147483647, 0)
+    return ("string", 2147483647, 0)
