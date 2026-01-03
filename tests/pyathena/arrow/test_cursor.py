@@ -8,6 +8,7 @@ from datetime import datetime
 from decimal import Decimal
 
 import pandas as pd
+import polars as pl
 import pyarrow as pa
 import pytest
 
@@ -249,6 +250,7 @@ class TestArrowCursor:
         pytest.raises(ProgrammingError, arrow_cursor.fetchmany)
         pytest.raises(ProgrammingError, arrow_cursor.fetchall)
         pytest.raises(ProgrammingError, arrow_cursor.as_arrow)
+        pytest.raises(ProgrammingError, arrow_cursor.as_polars)
 
     @pytest.mark.parametrize(
         "arrow_cursor",
@@ -427,6 +429,180 @@ class TestArrowCursor:
             )
         ]
 
+    @pytest.mark.parametrize(
+        "arrow_cursor",
+        [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
+        indirect=["arrow_cursor"],
+    )
+    def test_as_polars(self, arrow_cursor):
+        df = arrow_cursor.execute("SELECT * FROM one_row").as_polars()
+        assert df.height == 1
+        assert df.width == 1
+        assert df.to_dicts() == [{"number_of_rows": 1}]
+
+    @pytest.mark.parametrize(
+        "arrow_cursor",
+        [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
+        indirect=["arrow_cursor"],
+    )
+    def test_many_as_polars(self, arrow_cursor):
+        df = arrow_cursor.execute("SELECT * FROM many_rows").as_polars()
+        assert df.height == 10000
+        assert df.width == 1
+        assert df.to_dicts() == [{"a": i} for i in range(10000)]
+
+    def test_complex_as_polars(self, arrow_cursor):
+        df = arrow_cursor.execute(
+            """
+            SELECT
+              col_boolean
+              ,col_tinyint
+              ,col_smallint
+              ,col_int
+              ,col_bigint
+              ,col_float
+              ,col_double
+              ,col_string
+              ,col_varchar
+              ,col_timestamp
+              ,CAST(col_timestamp AS time) AS col_time
+              ,col_date
+              ,col_binary
+              ,col_array
+              ,CAST(col_array AS json) AS col_array_json
+              ,col_map
+              ,CAST(col_map AS json) AS col_map_json
+              ,col_struct
+              ,col_decimal
+            FROM one_row_complex
+            """
+        ).as_polars()
+        assert df.height == 1
+        assert df.width == 19
+        dtypes = tuple(df.dtypes)
+        assert dtypes == (
+            pl.Boolean,
+            pl.Int8,
+            pl.Int16,
+            pl.Int32,
+            pl.Int64,
+            pl.Float32,
+            pl.Float64,
+            pl.String,
+            pl.String,
+            pl.Datetime("ms"),
+            pl.String,
+            pl.Datetime("ms"),
+            pl.String,
+            pl.String,
+            pl.String,
+            pl.String,
+            pl.String,
+            pl.String,
+            pl.String,
+        )
+        rows = df.to_dicts()
+        assert rows == [
+            {
+                "col_boolean": True,
+                "col_tinyint": 127,
+                "col_smallint": 32767,
+                "col_int": 2147483647,
+                "col_bigint": 9223372036854775807,
+                "col_float": 0.5,
+                "col_double": 0.25,
+                "col_string": "a string",
+                "col_varchar": "varchar",
+                "col_timestamp": datetime(2017, 1, 1, 0, 0, 0),
+                "col_time": "00:00:00.000",
+                "col_date": datetime(2017, 1, 2, 0, 0, 0),
+                "col_binary": "31 32 33",
+                "col_array": "[1, 2]",
+                "col_array_json": "[1,2]",
+                "col_map": "{1=2, 3=4}",
+                "col_map_json": '{"1":2,"3":4}',
+                "col_struct": "{a=1, b=2}",
+                "col_decimal": "0.1",
+            }
+        ]
+
+    @pytest.mark.parametrize(
+        "arrow_cursor",
+        [
+            {
+                "cursor_kwargs": {"unload": True},
+            },
+        ],
+        indirect=["arrow_cursor"],
+    )
+    def test_complex_unload_as_polars(self, arrow_cursor):
+        # NOT_SUPPORTED: Unsupported Hive type: time
+        # NOT_SUPPORTED: Unsupported Hive type: json
+        df = arrow_cursor.execute(
+            """
+            SELECT
+              col_boolean
+              ,col_tinyint
+              ,col_smallint
+              ,col_int
+              ,col_bigint
+              ,col_float
+              ,col_double
+              ,col_string
+              ,col_varchar
+              ,col_timestamp
+              ,col_date
+              ,col_binary
+              ,col_array
+              ,col_map
+              ,col_struct
+              ,col_decimal
+            FROM one_row_complex
+            """
+        ).as_polars()
+        assert df.height == 1
+        assert df.width == 16
+        dtypes = tuple(df.dtypes)
+        assert dtypes == (
+            pl.Boolean,
+            pl.Int8,
+            pl.Int16,
+            pl.Int32,
+            pl.Int64,
+            pl.Float32,
+            pl.Float64,
+            pl.String,
+            pl.String,
+            pl.Datetime("ns"),
+            pl.Date,
+            pl.Binary,
+            pl.List(pl.Int32),
+            pl.List(pl.Struct([pl.Field("key", pl.Int32), pl.Field("value", pl.Int32)])),
+            pl.Struct([pl.Field("a", pl.Int32), pl.Field("b", pl.Int32)]),
+            pl.Decimal(precision=10, scale=1),
+        )
+        rows = df.to_dicts()
+        assert rows == [
+            {
+                "col_boolean": True,
+                "col_tinyint": 127,
+                "col_smallint": 32767,
+                "col_int": 2147483647,
+                "col_bigint": 9223372036854775807,
+                "col_float": 0.5,
+                "col_double": 0.25,
+                "col_string": "a string",
+                "col_varchar": "varchar",
+                "col_timestamp": datetime(2017, 1, 1, 0, 0, 0),
+                "col_date": datetime(2017, 1, 2).date(),
+                "col_binary": b"123",
+                "col_array": [1, 2],
+                "col_map": [{"key": 1, "value": 2}, {"key": 3, "value": 4}],
+                "col_struct": {"a": 1, "b": 2},
+                "col_decimal": Decimal("0.1"),
+            }
+        ]
+
     def test_cancel(self, arrow_cursor):
         def cancel(c):
             time.sleep(random.randint(5, 10))
@@ -552,6 +728,7 @@ class TestArrowCursor:
         pytest.raises(ProgrammingError, arrow_cursor.fetchmany)
         pytest.raises(ProgrammingError, arrow_cursor.fetchone)
         pytest.raises(ProgrammingError, arrow_cursor.as_arrow)
+        pytest.raises(ProgrammingError, arrow_cursor.as_polars)
 
     def test_iceberg_table(self, arrow_cursor):
         iceberg_table = "test_iceberg_table_arrow_cursor"
