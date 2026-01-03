@@ -222,6 +222,7 @@ class TestAsyncPolarsCursor:
     )
     def test_as_polars(self, async_polars_cursor):
         query_id, future = async_polars_cursor.execute("SELECT * FROM one_row")
+        assert query_id is not None
         df = future.result().as_polars()
         assert isinstance(df, pl.DataFrame)
         assert df.height == 1
@@ -235,6 +236,7 @@ class TestAsyncPolarsCursor:
     )
     def test_many_as_polars(self, async_polars_cursor):
         query_id, future = async_polars_cursor.execute("SELECT * FROM many_rows")
+        assert query_id is not None
         df = future.result().as_polars()
         assert isinstance(df, pl.DataFrame)
         assert df.height == 10000
@@ -247,6 +249,7 @@ class TestAsyncPolarsCursor:
     )
     def test_as_arrow(self, async_polars_cursor):
         query_id, future = async_polars_cursor.execute("SELECT * FROM one_row")
+        assert query_id is not None
         table = future.result().as_arrow()
         assert table.num_rows == 1
         assert table.num_columns == 1
@@ -297,6 +300,7 @@ class TestAsyncPolarsCursor:
             LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table}/'
             """
         )
+        assert query_id is not None
         df = future.result().as_polars()
         assert df.height == 0
         assert df.width == 0
@@ -316,6 +320,7 @@ class TestAsyncPolarsCursor:
             SELECT * FROM one_row LIMIT 0
             """
         )
+        assert query_id is not None
         df = future.result().as_polars()
         assert df.height == 0
         assert df.width == 0
