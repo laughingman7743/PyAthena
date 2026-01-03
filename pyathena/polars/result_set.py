@@ -284,17 +284,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
         if length == 0:
             return pl.DataFrame()
 
-        if self.output_location.endswith(".txt"):
-            separator = "\t"
-            has_header = False
-            description = self.description if self.description else []
-            new_columns = [d[0] for d in description]
-        elif self.output_location.endswith(".csv"):
-            separator = ","
-            has_header = True
-            new_columns = None
-        else:
-            return pl.DataFrame()
+        separator, has_header, new_columns = self._get_csv_params()
 
         try:
             df = pl.read_csv(
