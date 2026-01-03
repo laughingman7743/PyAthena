@@ -43,7 +43,7 @@ PyAthena provides comprehensive support for Amazon Athena's data types and featu
 **Core Features:**
   - **DB API 2.0 Compliance**: Full PEP 249 compatibility for database operations
   - **SQLAlchemy Integration**: Native dialect support with table reflection and ORM capabilities
-  - **Multiple Cursor Types**: Standard, Pandas, Arrow, and Spark cursor implementations
+  - **Multiple Cursor Types**: Standard, Pandas, Arrow, S3FS, and Spark cursor implementations
   - **Async Support**: Asynchronous query execution for non-blocking operations
 
 **Data Type Support:**

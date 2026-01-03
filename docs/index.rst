@@ -16,8 +16,8 @@ Documentation
 
    introduction
    usage
-   sqlalchemy
    cursor
+   sqlalchemy
    pandas
    arrow
    s3fs

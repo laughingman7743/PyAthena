@@ -180,14 +180,14 @@ The S3 staging directory is not checked, so it's possible that the location of t
 
 .. _query-execution-callback:
 
-Query Execution Callback
+Query execution callback
 -------------------------
 
-PyAthena provides a callback mechanism that allows you to get immediate access to the query ID 
+PyAthena provides a callback mechanism that allows you to get immediate access to the query ID
 as soon as the ``start_query_execution`` API call is made, before waiting for query completion.
 This is useful for monitoring, logging, or cancelling long-running queries from another thread.
 
-The ``on_start_query_execution`` callback can be configured at both the connection level and 
+The ``on_start_query_execution`` callback can be configured at both the connection level and
 the execute level. When both are set, both callbacks will be invoked.
 
 Connection-level callback
@@ -208,7 +208,7 @@ You can set a default callback for all queries executed through a connection:
         region_name="us-west-2",
         on_start_query_execution=query_callback
     ).cursor()
-    
+
     cursor.execute("SELECT * FROM many_rows")  # Callback will be invoked
 
 Execute-level callback
@@ -227,9 +227,9 @@ You can also specify a callback for individual query executions:
         s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
         region_name="us-west-2"
     ).cursor()
-    
+
     cursor.execute(
-        "SELECT * FROM many_rows", 
+        "SELECT * FROM many_rows",
         on_start_query_execution=specific_callback
     )
 
@@ -246,7 +246,7 @@ A common use case is to cancel long-running analytical queries after a timeout:
 
     def cancel_long_running_query():
         """Example: Cancel a complex analytical query after 10 minutes."""
-        
+
         def track_query_start(query_id):
             print(f"Long-running analysis started: {query_id}")
             return query_id
@@ -269,27 +269,27 @@ A common use case is to cancel long-running analytical queries after a timeout:
         # Complex analytical query that might run for a long time
         long_query = """
         WITH daily_metrics AS (
-            SELECT 
+            SELECT
                 date_trunc('day', timestamp_col) as day,
                 user_id,
                 COUNT(*) as events,
                 AVG(duration) as avg_duration
-            FROM large_events_table 
+            FROM large_events_table
             WHERE timestamp_col >= current_date - interval '1' year
             GROUP BY 1, 2
         ),
         user_segments AS (
-            SELECT 
+            SELECT
                 user_id,
-                CASE 
+                CASE
                     WHEN AVG(events) > 100 THEN 'high_activity'
-                    WHEN AVG(events) > 10 THEN 'medium_activity' 
+                    WHEN AVG(events) > 10 THEN 'medium_activity'
                     ELSE 'low_activity'
                 END as segment
             FROM daily_metrics
             GROUP BY user_id
         )
-        SELECT 
+        SELECT
             segment,
             COUNT(DISTINCT user_id) as users,
             AVG(events) as avg_daily_events
@@ -307,13 +307,13 @@ A common use case is to cancel long-running analytical queries after a timeout:
             try:
                 print("Starting complex analytical query (10-minute timeout)...")
                 cursor.execute(long_query)
-                
+
                 # Process results
                 results = cursor.fetchall()
                 print(f"Analysis completed successfully: {len(results)} segments found")
                 for row in results:
                     print(f"  {row[0]}: {row[1]} users, {row[2]:.1f} avg events")
-                    
+
             except Exception as e:
                 print(f"Query failed or was cancelled: {e}")
             finally:
@@ -329,7 +329,7 @@ A common use case is to cancel long-running analytical queries after a timeout:
 Multiple callbacks
 ~~~~~~~~~~~~~~~~~~~
 
-When both connection-level and execute-level callbacks are specified, 
+When both connection-level and execute-level callbacks are specified,
 both callbacks will be invoked:
 
 .. code:: python
@@ -349,10 +349,10 @@ both callbacks will be invoked:
         region_name="us-west-2",
         on_start_query_execution=connection_callback
     ).cursor()
-    
+
     # This will invoke both connection_callback and execute_callback
     cursor.execute(
-        "SELECT 1", 
+        "SELECT 1",
         on_start_query_execution=execute_callback
     )
 
@@ -362,11 +362,11 @@ Supported cursor types
 The ``on_start_query_execution`` callback is supported by the following cursor types:
 
 * ``Cursor`` (default cursor)
-* ``DictCursor`` 
+* ``DictCursor``
 * ``ArrowCursor``
 * ``PandasCursor``
 
-Note: ``AsyncCursor`` and its variants do not support this callback as they already 
+Note: ``AsyncCursor`` and its variants do not support this callback as they already
 return the query ID immediately through their different execution model.
 
 Environment variables
