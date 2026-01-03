@@ -380,3 +380,53 @@ class TestAsyncPolarsCursor:
         assert total_rows == 15
         for chunk in chunks:
             assert isinstance(chunk, pl.DataFrame)
+
+    def test_iter_chunks_data_consistency(self):
+        """Test that chunked and regular reading produce the same data."""
+        with contextlib.closing(connect(schema_name=ENV.schema)) as conn:
+            # Regular reading (no chunksize)
+            regular_cursor = conn.cursor(AsyncPolarsCursor)
+            query_id, future = regular_cursor.execute("SELECT * FROM many_rows LIMIT 100")
+            assert query_id is not None
+            regular_df = future.result().as_polars()
+
+            # Chunked reading
+            chunked_cursor = conn.cursor(AsyncPolarsCursor, chunksize=25)
+            query_id, future = chunked_cursor.execute("SELECT * FROM many_rows LIMIT 100")
+            assert query_id is not None
+            result_set = future.result()
+            chunked_dfs = list(result_set.iter_chunks())
+
+            # Combine chunks
+            combined_df = pl.concat(chunked_dfs)
+
+            # Should have the same data (sort for comparison)
+            assert regular_df.sort("a").equals(combined_df.sort("a"))
+
+            # Should have multiple chunks
+            assert len(chunked_dfs) > 1
+
+    def test_iter_chunks_chunk_sizes(self):
+        """Test that chunks have correct sizes."""
+        with contextlib.closing(connect(schema_name=ENV.schema)) as conn:
+            cursor = conn.cursor(AsyncPolarsCursor, chunksize=10)
+            query_id, future = cursor.execute("SELECT * FROM many_rows LIMIT 50")
+            assert query_id is not None
+            result_set = future.result()
+
+            chunk_sizes = []
+            total_rows = 0
+
+            for chunk in result_set.iter_chunks():
+                chunk_size = chunk.height
+                chunk_sizes.append(chunk_size)
+                total_rows += chunk_size
+
+                # Each chunk should not exceed chunksize
+                assert chunk_size <= 10
+
+            # Should have processed all 50 rows
+            assert total_rows == 50
+
+            # Should have multiple chunks
+            assert len(chunk_sizes) > 1

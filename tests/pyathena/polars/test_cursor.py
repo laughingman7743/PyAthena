@@ -495,3 +495,48 @@ class TestPolarsCursor:
         assert total_rows == 15
         for chunk in chunks:
             assert isinstance(chunk, pl.DataFrame)
+
+    def test_iter_chunks_data_consistency(self):
+        """Test that chunked and regular reading produce the same data."""
+        with contextlib.closing(connect(schema_name=ENV.schema)) as conn:
+            # Regular reading (no chunksize)
+            regular_cursor = conn.cursor(PolarsCursor)
+            regular_cursor.execute("SELECT * FROM many_rows LIMIT 100")
+            regular_df = regular_cursor.as_polars()
+
+            # Chunked reading
+            chunked_cursor = conn.cursor(PolarsCursor, chunksize=25)
+            chunked_cursor.execute("SELECT * FROM many_rows LIMIT 100")
+            chunked_dfs = list(chunked_cursor.iter_chunks())
+
+            # Combine chunks
+            combined_df = pl.concat(chunked_dfs)
+
+            # Should have the same data (sort for comparison)
+            assert regular_df.sort("a").equals(combined_df.sort("a"))
+
+            # Should have multiple chunks
+            assert len(chunked_dfs) > 1
+
+    def test_iter_chunks_chunk_sizes(self):
+        """Test that chunks have correct sizes."""
+        with contextlib.closing(connect(schema_name=ENV.schema)) as conn:
+            cursor = conn.cursor(PolarsCursor, chunksize=10)
+            cursor.execute("SELECT * FROM many_rows LIMIT 50")
+
+            chunk_sizes = []
+            total_rows = 0
+
+            for chunk in cursor.iter_chunks():
+                chunk_size = chunk.height
+                chunk_sizes.append(chunk_size)
+                total_rows += chunk_size
+
+                # Each chunk should not exceed chunksize
+                assert chunk_size <= 10
+
+            # Should have processed all 50 rows
+            assert total_rows == 50
+
+            # Should have multiple chunks
+            assert len(chunk_sizes) > 1
