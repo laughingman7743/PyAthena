@@ -107,6 +107,22 @@ CREATE EXTERNAL TABLE IF NOT EXISTS {{ schema }}.execute_many_arrow_unload (
 ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
 LOCATION '{{ s3_staging_dir }}{{ schema }}/execute_many_arrow_unload/';
 
+DROP TABLE IF EXISTS {{ schema }}.execute_many_polars;
+CREATE EXTERNAL TABLE IF NOT EXISTS {{ schema }}.execute_many_polars (
+    a INT,
+    b STRING
+)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
+LOCATION '{{ s3_staging_dir }}{{ schema }}/execute_many_polars/';
+
+DROP TABLE IF EXISTS {{ schema }}.execute_many_polars_unload;
+CREATE EXTERNAL TABLE IF NOT EXISTS {{ schema }}.execute_many_polars_unload (
+    a INT,
+    b STRING
+)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE
+LOCATION '{{ s3_staging_dir }}{{ schema }}/execute_many_polars_unload/';
+
 DROP TABLE IF EXISTS {{ schema }}.parquet_with_compression;
 CREATE EXTERNAL TABLE IF NOT EXISTS {{ schema }}.parquet_with_compression (
     a INT

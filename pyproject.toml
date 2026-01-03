@@ -38,6 +38,7 @@ awsathena = "pyathena.sqlalchemy.base:AthenaDialect"
 "awsathena.rest" = "pyathena.sqlalchemy.rest:AthenaRestDialect"
 "awsathena.pandas" = "pyathena.sqlalchemy.pandas:AthenaPandasDialect"
 "awsathena.arrow" = "pyathena.sqlalchemy.arrow:AthenaArrowDialect"
+"awsathena.polars" = "pyathena.sqlalchemy.polars:AthenaPolarsDialect"
 "awsathena.s3fs" = "pyathena.sqlalchemy.s3fs:AthenaS3FSDialect"
 
 [project.optional-dependencies]
@@ -50,6 +51,9 @@ arrow = [
     "pyarrow>=10.0.0; python_version<'3.14'",
     "pyarrow>=22.0.0; python_version>='3.14'",
 ]
+polars = [
+    "polars>=1.0.0",
+]
 
 [dependency-groups]
 dev = [
@@ -57,9 +61,10 @@ dev = [
     "pandas>=1.3.0; python_version<'3.13'",
     "pandas>=2.3.0; python_version>='3.13'",
     "numpy>=1.26.0; python_version<'3.13'",
-    "numpy>=2.3.0; python_version>='3.13'",
+    "numpy>=2.3.0; python_version>='3.14'",
     "pyarrow>=10.0.0; python_version<'3.14'",
     "pyarrow>=22.0.0; python_version>='3.14'",
+    "polars>=1.0.0",
     "Jinja2>=3.1.0",
     "mypy>=0.900",
     "pytest>=3.5",

@@ -365,6 +365,8 @@ The ``on_start_query_execution`` callback is supported by the following cursor t
 * ``DictCursor``
 * ``ArrowCursor``
 * ``PandasCursor``
+* ``PolarsCursor``
+* ``S3FSCursor``
 
 Note: ``AsyncCursor`` and its variants do not support this callback as they already
 return the query ID immediately through their different execution model.

@@ -185,6 +185,20 @@ def async_s3fs_cursor(request):
 
 
 @pytest.fixture
+def polars_cursor(request):
+    from pyathena.polars.cursor import PolarsCursor
+
+    yield from _cursor(PolarsCursor, request)
+
+
+@pytest.fixture
+def async_polars_cursor(request):
+    from pyathena.polars.async_cursor import AsyncPolarsCursor
+
+    yield from _cursor(AsyncPolarsCursor, request)
+
+
+@pytest.fixture
 def spark_cursor(request):
     from pyathena.spark.cursor import SparkCursor
 

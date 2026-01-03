@@ -1,0 +1,449 @@
+# -*- coding: utf-8 -*-
+import contextlib
+import random
+import string
+import time
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from decimal import Decimal
+
+import polars as pl
+import pytest
+
+from pyathena.error import DatabaseError, ProgrammingError
+from pyathena.polars.cursor import PolarsCursor
+from pyathena.polars.result_set import AthenaPolarsResultSet
+from tests import ENV
+from tests.pyathena.conftest import connect
+
+
+class TestPolarsCursor:
+    @pytest.mark.parametrize(
+        "polars_cursor",
+        [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
+        indirect=["polars_cursor"],
+    )
+    def test_fetchone(self, polars_cursor):
+        polars_cursor.execute("SELECT * FROM one_row")
+        assert polars_cursor.rownumber == 0
+        assert polars_cursor.fetchone() == (1,)
+        assert polars_cursor.rownumber == 1
+        assert polars_cursor.fetchone() is None
+
+    @pytest.mark.parametrize(
+        "polars_cursor",
+        [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
+        indirect=["polars_cursor"],
+    )
+    def test_fetchmany(self, polars_cursor):
+        polars_cursor.execute("SELECT * FROM many_rows LIMIT 15")
+        assert len(polars_cursor.fetchmany(10)) == 10
+        assert len(polars_cursor.fetchmany(10)) == 5
+
+    @pytest.mark.parametrize(
+        "polars_cursor",
+        [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
+        indirect=["polars_cursor"],
+    )
+    def test_fetchall(self, polars_cursor):
+        polars_cursor.execute("SELECT * FROM one_row")
+        assert polars_cursor.fetchall() == [(1,)]
+        polars_cursor.execute("SELECT a FROM many_rows ORDER BY a")
+        if polars_cursor._unload:
+            assert sorted(polars_cursor.fetchall()) == [(i,) for i in range(10000)]
+        else:
+            assert polars_cursor.fetchall() == [(i,) for i in range(10000)]
+
+    @pytest.mark.parametrize(
+        "polars_cursor",
+        [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
+        indirect=["polars_cursor"],
+    )
+    def test_iterator(self, polars_cursor):
+        polars_cursor.execute("SELECT * FROM one_row")
+        assert list(polars_cursor) == [(1,)]
+        pytest.raises(StopIteration, polars_cursor.__next__)
+
+    @pytest.mark.parametrize(
+        "polars_cursor",
+        [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
+        indirect=["polars_cursor"],
+    )
+    def test_arraysize(self, polars_cursor):
+        polars_cursor.arraysize = 5
+        polars_cursor.execute("SELECT * FROM many_rows LIMIT 20")
+        assert len(polars_cursor.fetchmany()) == 5
+
+    def test_arraysize_default(self, polars_cursor):
+        assert polars_cursor.arraysize == AthenaPolarsResultSet.DEFAULT_FETCH_SIZE
+
+    def test_invalid_arraysize(self, polars_cursor):
+        polars_cursor.arraysize = 10000
+        assert polars_cursor.arraysize == 10000
+        with pytest.raises(ProgrammingError):
+            polars_cursor.arraysize = -1
+
+    def test_fetch_no_data(self, polars_cursor):
+        pytest.raises(ProgrammingError, polars_cursor.fetchone)
+        pytest.raises(ProgrammingError, polars_cursor.fetchmany)
+        pytest.raises(ProgrammingError, polars_cursor.fetchall)
+        pytest.raises(ProgrammingError, polars_cursor.as_polars)
+
+    @pytest.mark.parametrize(
+        "polars_cursor",
+        [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
+        indirect=["polars_cursor"],
+    )
+    def test_as_polars(self, polars_cursor):
+        df = polars_cursor.execute("SELECT * FROM one_row").as_polars()
+        assert isinstance(df, pl.DataFrame)
+        assert df.height == 1
+        assert df.width == 1
+        assert df.to_dicts() == [{"number_of_rows": 1}]
+
+    @pytest.mark.parametrize(
+        "polars_cursor",
+        [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
+        indirect=["polars_cursor"],
+    )
+    def test_many_as_polars(self, polars_cursor):
+        df = polars_cursor.execute("SELECT * FROM many_rows").as_polars()
+        assert isinstance(df, pl.DataFrame)
+        assert df.height == 10000
+        assert df.width == 1
+
+    def test_complex(self, polars_cursor):
+        polars_cursor.execute(
+            """
+            SELECT
+              col_boolean
+              ,col_tinyint
+              ,col_smallint
+              ,col_int
+              ,col_bigint
+              ,col_float
+              ,col_double
+              ,col_string
+              ,col_varchar
+              ,col_timestamp
+              ,col_date
+              ,col_decimal
+            FROM one_row_complex
+            """
+        )
+        assert polars_cursor.description == [
+            ("col_boolean", "boolean", None, None, 0, 0, "UNKNOWN"),
+            ("col_tinyint", "tinyint", None, None, 3, 0, "UNKNOWN"),
+            ("col_smallint", "smallint", None, None, 5, 0, "UNKNOWN"),
+            ("col_int", "integer", None, None, 10, 0, "UNKNOWN"),
+            ("col_bigint", "bigint", None, None, 19, 0, "UNKNOWN"),
+            ("col_float", "float", None, None, 17, 0, "UNKNOWN"),
+            ("col_double", "double", None, None, 17, 0, "UNKNOWN"),
+            ("col_string", "varchar", None, None, 2147483647, 0, "UNKNOWN"),
+            ("col_varchar", "varchar", None, None, 10, 0, "UNKNOWN"),
+            ("col_timestamp", "timestamp", None, None, 3, 0, "UNKNOWN"),
+            ("col_date", "date", None, None, 0, 0, "UNKNOWN"),
+            ("col_decimal", "decimal", None, None, 10, 1, "UNKNOWN"),
+        ]
+        assert polars_cursor.fetchall() == [
+            (
+                True,
+                127,
+                32767,
+                2147483647,
+                9223372036854775807,
+                0.5,
+                0.25,
+                "a string",
+                "varchar",
+                datetime(2017, 1, 1, 0, 0, 0),
+                datetime(2017, 1, 2).date(),
+                Decimal("0.1"),
+            )
+        ]
+
+    @pytest.mark.parametrize(
+        "polars_cursor",
+        [
+            {
+                "cursor_kwargs": {"unload": True},
+            },
+        ],
+        indirect=["polars_cursor"],
+    )
+    def test_complex_unload(self, polars_cursor):
+        polars_cursor.execute(
+            """
+            SELECT
+              col_boolean
+              ,col_tinyint
+              ,col_smallint
+              ,col_int
+              ,col_bigint
+              ,col_float
+              ,col_double
+              ,col_string
+              ,col_varchar
+              ,col_timestamp
+              ,col_date
+              ,col_decimal
+            FROM one_row_complex
+            """
+        )
+        assert polars_cursor.description == [
+            ("col_boolean", "boolean", None, None, 0, 0, "NULLABLE"),
+            ("col_tinyint", "tinyint", None, None, 3, 0, "NULLABLE"),
+            ("col_smallint", "smallint", None, None, 5, 0, "NULLABLE"),
+            ("col_int", "integer", None, None, 10, 0, "NULLABLE"),
+            ("col_bigint", "bigint", None, None, 19, 0, "NULLABLE"),
+            ("col_float", "float", None, None, 17, 0, "NULLABLE"),
+            ("col_double", "double", None, None, 17, 0, "NULLABLE"),
+            ("col_string", "varchar", None, None, 2147483647, 0, "NULLABLE"),
+            ("col_varchar", "varchar", None, None, 2147483647, 0, "NULLABLE"),
+            ("col_timestamp", "timestamp", None, None, 3, 0, "NULLABLE"),
+            ("col_date", "date", None, None, 0, 0, "NULLABLE"),
+            ("col_decimal", "decimal", None, None, 10, 1, "NULLABLE"),
+        ]
+        assert polars_cursor.fetchall() == [
+            (
+                True,
+                127,
+                32767,
+                2147483647,
+                9223372036854775807,
+                0.5,
+                0.25,
+                "a string",
+                "varchar",
+                datetime(2017, 1, 1, 0, 0, 0),
+                datetime(2017, 1, 2).date(),
+                Decimal("0.1"),
+            )
+        ]
+
+    def test_complex_as_polars(self, polars_cursor):
+        df = polars_cursor.execute(
+            """
+            SELECT
+              col_boolean
+              ,col_tinyint
+              ,col_smallint
+              ,col_int
+              ,col_bigint
+              ,col_float
+              ,col_double
+              ,col_string
+              ,col_varchar
+              ,col_timestamp
+              ,col_date
+              ,col_decimal
+            FROM one_row_complex
+            """
+        ).as_polars()
+        assert isinstance(df, pl.DataFrame)
+        assert (df.height, df.width) == (1, 12)
+        assert df.schema == {
+            "col_boolean": pl.Boolean,
+            "col_tinyint": pl.Int8,
+            "col_smallint": pl.Int16,
+            "col_int": pl.Int32,
+            "col_bigint": pl.Int64,
+            "col_float": pl.Float32,
+            "col_double": pl.Float64,
+            "col_string": pl.String,
+            "col_varchar": pl.String,
+            "col_timestamp": pl.Datetime("us"),
+            "col_date": pl.Date,
+            "col_decimal": pl.Decimal(precision=10, scale=1),
+        }
+        assert df.row(0) == (
+            True,
+            127,
+            32767,
+            2147483647,
+            9223372036854775807,
+            0.5,
+            0.25,
+            "a string",
+            "varchar",
+            datetime(2017, 1, 1, 0, 0, 0),
+            datetime(2017, 1, 2).date(),
+            Decimal("0.1"),
+        )
+
+    @pytest.mark.parametrize(
+        "polars_cursor",
+        [
+            {
+                "cursor_kwargs": {"unload": True},
+            },
+        ],
+        indirect=["polars_cursor"],
+    )
+    def test_complex_unload_as_polars(self, polars_cursor):
+        df = polars_cursor.execute(
+            """
+            SELECT
+              col_boolean
+              ,col_tinyint
+              ,col_smallint
+              ,col_int
+              ,col_bigint
+              ,col_float
+              ,col_double
+              ,col_string
+              ,col_varchar
+              ,col_timestamp
+              ,col_date
+              ,col_decimal
+            FROM one_row_complex
+            """
+        ).as_polars()
+        assert isinstance(df, pl.DataFrame)
+        assert (df.height, df.width) == (1, 12)
+        assert df.row(0) == (
+            True,
+            127,
+            32767,
+            2147483647,
+            9223372036854775807,
+            0.5,
+            0.25,
+            "a string",
+            "varchar",
+            datetime(2017, 1, 1, 0, 0, 0),
+            datetime(2017, 1, 2).date(),
+            Decimal("0.1"),
+        )
+
+    @pytest.mark.parametrize(
+        "polars_cursor",
+        [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
+        indirect=["polars_cursor"],
+    )
+    def test_as_arrow(self, polars_cursor):
+        table = polars_cursor.execute("SELECT * FROM one_row").as_arrow()
+        assert table.num_rows == 1
+        assert table.num_columns == 1
+
+    def test_cancel(self, polars_cursor):
+        def cancel(c):
+            time.sleep(random.randint(5, 10))
+            c.cancel()
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            executor.submit(cancel, polars_cursor)
+
+            pytest.raises(
+                DatabaseError,
+                lambda: polars_cursor.execute(
+                    """
+                    SELECT a.a * rand(), b.a * rand()
+                    FROM many_rows a
+                    CROSS JOIN many_rows b
+                    """
+                ),
+            )
+
+    def test_cancel_initial(self, polars_cursor):
+        pytest.raises(ProgrammingError, polars_cursor.cancel)
+
+    def test_open_close(self):
+        with contextlib.closing(connect()) as conn, conn.cursor(PolarsCursor):
+            pass
+
+    def test_no_ops(self):
+        conn = connect()
+        cursor = conn.cursor(PolarsCursor)
+        cursor.close()
+        conn.close()
+
+    @pytest.mark.parametrize(
+        "polars_cursor",
+        [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
+        indirect=["polars_cursor"],
+    )
+    def test_show_columns(self, polars_cursor):
+        polars_cursor.execute("SHOW COLUMNS IN one_row")
+        assert polars_cursor.description == [("field", "string", None, None, 0, 0, "UNKNOWN")]
+        assert polars_cursor.fetchall() == [("number_of_rows      ",)]
+
+    @pytest.mark.parametrize(
+        "polars_cursor",
+        [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
+        indirect=["polars_cursor"],
+    )
+    def test_empty_result(self, polars_cursor):
+        table = "test_polars_cursor_empty_result_" + "".join(
+            random.choices(string.ascii_lowercase + string.digits, k=10)
+        )
+        df = polars_cursor.execute(
+            f"""
+            CREATE EXTERNAL TABLE IF NOT EXISTS
+            {ENV.schema}.{table} (number_of_rows INT)
+            ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+            LINES TERMINATED BY '\n' STORED AS TEXTFILE
+            LOCATION '{ENV.s3_staging_dir}{ENV.schema}/{table}/'
+            """
+        ).as_polars()
+        assert df.height == 0
+        assert df.width == 0
+
+    @pytest.mark.parametrize(
+        "polars_cursor",
+        [
+            {
+                "cursor_kwargs": {"unload": True},
+            },
+        ],
+        indirect=["polars_cursor"],
+    )
+    def test_empty_result_unload(self, polars_cursor):
+        df = polars_cursor.execute(
+            """
+            SELECT * FROM one_row LIMIT 0
+            """
+        ).as_polars()
+        assert df.height == 0
+        assert df.width == 0
+
+    @pytest.mark.parametrize(
+        "polars_cursor",
+        [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
+        indirect=["polars_cursor"],
+    )
+    def test_executemany(self, polars_cursor):
+        rows = [(1, "foo"), (2, "bar"), (3, "jim o'rourke")]
+        table_name = f"execute_many_polars{'_unload' if polars_cursor._unload else ''}"
+        polars_cursor.executemany(
+            f"INSERT INTO {table_name} (a, b) VALUES (%(a)d, %(b)s)",
+            [{"a": a, "b": b} for a, b in rows],
+        )
+        polars_cursor.execute(f"SELECT * FROM {table_name}")
+        assert sorted(polars_cursor.fetchall()) == list(rows)
+
+    @pytest.mark.parametrize(
+        "polars_cursor",
+        [{"cursor_kwargs": {"unload": False}}, {"cursor_kwargs": {"unload": True}}],
+        indirect=["polars_cursor"],
+    )
+    def test_executemany_fetch(self, polars_cursor):
+        polars_cursor.executemany("SELECT %(x)d AS x FROM one_row", [{"x": i} for i in range(1, 2)])
+        # Operations that have result sets are not allowed with executemany.
+        pytest.raises(ProgrammingError, polars_cursor.fetchall)
+        pytest.raises(ProgrammingError, polars_cursor.fetchmany)
+        pytest.raises(ProgrammingError, polars_cursor.fetchone)
+        pytest.raises(ProgrammingError, polars_cursor.as_polars)
+
+    def test_execute_with_callback(self, polars_cursor):
+        """Test that callback is invoked with query_id when on_start_query_execution is provided."""
+        callback_results = []
+
+        def test_callback(query_id: str):
+            callback_results.append(query_id)
+
+        polars_cursor.execute("SELECT 1", on_start_query_execution=test_callback)
+
+        assert len(callback_results) == 1
+        assert callback_results[0] == polars_cursor.query_id
+        assert polars_cursor.query_id is not None

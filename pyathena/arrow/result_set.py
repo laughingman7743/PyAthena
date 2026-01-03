@@ -23,6 +23,7 @@ from pyathena.result_set import AthenaResultSet
 from pyathena.util import RetryConfig, parse_output_location
 
 if TYPE_CHECKING:
+    import polars as pl
     from pyarrow import Table
 
     from pyathena.connection import Connection
@@ -190,10 +191,6 @@ class AthenaArrowResultSet(AthenaResultSet):
         return fs
 
     @property
-    def is_unload(self):
-        return self._unload and self.query and self.query.strip().upper().startswith("UNLOAD")
-
-    @property
     def timestamp_parsers(self) -> List[str]:
         from pyarrow.csv import ISO8601
 
@@ -201,14 +198,11 @@ class AthenaArrowResultSet(AthenaResultSet):
 
     @property
     def column_types(self) -> Dict[str, Type[Any]]:
-        import pyarrow as pa
-
-        converter_types = self._converter.types
         description = self.description if self.description else []
         return {
-            d[0]: converter_types.get(d[1], pa.string())
+            d[0]: dtype
             for d in description
-            if d[1] in converter_types
+            if (dtype := self._converter.get_dtype(d[1], d[4], d[5])) is not None
         }
 
     @property
@@ -354,6 +348,33 @@ class AthenaArrowResultSet(AthenaResultSet):
 
     def as_arrow(self) -> "Table":
         return self._table
+
+    def as_polars(self) -> "pl.DataFrame":
+        """Return query results as a Polars DataFrame.
+
+        Converts the Apache Arrow Table to a Polars DataFrame for
+        interoperability with the Polars data processing library.
+
+        Returns:
+            Polars DataFrame containing all query results.
+
+        Raises:
+            ImportError: If polars is not installed.
+
+        Example:
+            >>> cursor = connection.cursor(ArrowCursor)
+            >>> cursor.execute("SELECT * FROM my_table")
+            >>> df = cursor.as_polars()
+            >>> # Use with Polars operations
+        """
+        try:
+            import polars as pl
+
+            return pl.from_arrow(self._table)  # type: ignore[return-value]
+        except ImportError as e:
+            raise ImportError(
+                "polars is required for as_polars(). Install it with: pip install polars"
+            ) from e
 
     def close(self) -> None:
         import pyarrow as pa

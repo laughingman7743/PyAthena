@@ -43,19 +43,21 @@ If you do not specify ``aws_access_key_id`` and ``aws_secret_access_key`` using 
 Dialect & driver
 ----------------
 
-+-----------+--------+------------------+----------------------+
-| Dialect   | Driver | Schema           | Cursor               |
-+===========+========+==================+======================+
-| awsathena |        | awsathena        | DefaultCursor        |
-+-----------+--------+------------------+----------------------+
-| awsathena | rest   | awsathena+rest   | DefaultCursor        |
-+-----------+--------+------------------+----------------------+
-| awsathena | pandas | awsathena+pandas | :ref:`pandas-cursor` |
-+-----------+--------+------------------+----------------------+
-| awsathena | arrow  | awsathena+arrow  | :ref:`arrow-cursor`  |
-+-----------+--------+------------------+----------------------+
-| awsathena | s3fs   | awsathena+s3fs   | :ref:`s3fs-cursor`   |
-+-----------+--------+------------------+----------------------+
++-----------+--------+------------------+------------------------+
+| Dialect   | Driver | Schema           | Cursor                 |
++===========+========+==================+========================+
+| awsathena |        | awsathena        | DefaultCursor          |
++-----------+--------+------------------+------------------------+
+| awsathena | rest   | awsathena+rest   | DefaultCursor          |
++-----------+--------+------------------+------------------------+
+| awsathena | pandas | awsathena+pandas | :ref:`pandas-cursor`   |
++-----------+--------+------------------+------------------------+
+| awsathena | arrow  | awsathena+arrow  | :ref:`arrow-cursor`    |
++-----------+--------+------------------+------------------------+
+| awsathena | polars | awsathena+polars | :ref:`polars-cursor`   |
++-----------+--------+------------------+------------------------+
+| awsathena | s3fs   | awsathena+s3fs   | :ref:`s3fs-cursor`     |
++-----------+--------+------------------+------------------------+
 
 Dialect options
 ---------------
@@ -506,6 +508,7 @@ The ``on_start_query_execution`` callback is supported by all PyAthena SQLAlchem
 * ``awsathena`` and ``awsathena+rest`` (default cursor)
 * ``awsathena+pandas`` (pandas cursor)
 * ``awsathena+arrow`` (arrow cursor)
+* ``awsathena+polars`` (polars cursor)
 * ``awsathena+s3fs`` (S3FS cursor)
 
 Usage with different dialects:
