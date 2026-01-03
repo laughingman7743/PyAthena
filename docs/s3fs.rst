@@ -111,7 +111,7 @@ Execution information of the query can also be retrieved.
     print(cursor.service_processing_time_in_millis)
     print(cursor.output_location)
 
-Type Conversion
+Type conversion
 ~~~~~~~~~~~~~~~
 
 S3FSCursor converts Athena data types to Python types using the built-in converter.
@@ -172,7 +172,7 @@ Then specify an instance of this class in the converter argument when creating a
     cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
                      region_name="us-west-2").cursor(S3FSCursor, converter=CustomS3FSTypeConverter())
 
-CSV Reader Options
+CSV reader options
 ~~~~~~~~~~~~~~~~~~
 
 S3FSCursor supports pluggable CSV reader implementations to control how NULL values and empty strings

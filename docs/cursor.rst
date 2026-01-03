@@ -329,9 +329,6 @@ AsyncS3FSCursor
 
 See :ref:`async-s3fs-cursor`.
 
-API Reference
--------------
-
 SparkCursor
 -----------
 

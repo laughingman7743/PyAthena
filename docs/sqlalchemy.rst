@@ -54,6 +54,8 @@ Dialect & driver
 +-----------+--------+------------------+----------------------+
 | awsathena | arrow  | awsathena+arrow  | :ref:`arrow-cursor`  |
 +-----------+--------+------------------+----------------------+
+| awsathena | s3fs   | awsathena+s3fs   | :ref:`s3fs-cursor`   |
++-----------+--------+------------------+----------------------+
 
 Dialect options
 ---------------
@@ -504,6 +506,7 @@ The ``on_start_query_execution`` callback is supported by all PyAthena SQLAlchem
 * ``awsathena`` and ``awsathena+rest`` (default cursor)
 * ``awsathena+pandas`` (pandas cursor)
 * ``awsathena+arrow`` (arrow cursor)
+* ``awsathena+s3fs`` (S3FS cursor)
 
 Usage with different dialects:
 
@@ -521,15 +524,15 @@ Usage with different dialects:
         connect_args={"on_start_query_execution": query_callback}
     )
 
-Complex Data Types
+Complex data types
 ------------------
 
-STRUCT Type Support
+STRUCT type support
 ~~~~~~~~~~~~~~~~~~~
 
 PyAthena provides comprehensive support for Amazon Athena's STRUCT (also known as ROW) data types, enabling you to work with complex nested data structures in your Python applications.
 
-Basic Usage
+Basic usage
 ^^^^^^^^^^^
 
 .. code:: python
@@ -564,7 +567,7 @@ This generates the following SQL structure:
         settings ROW(theme STRING, notifications ROW(email STRING, push STRING))
     )
 
-Querying STRUCT Data
+Querying STRUCT data
 ^^^^^^^^^^^^^^^^^^^^
 
 PyAthena automatically converts STRUCT data between different formats:
@@ -579,11 +582,11 @@ PyAthena automatically converts STRUCT data between different formats:
             text("SELECT ROW('John Doe', 30, 'john@example.com') as profile")
         )
     ).fetchone()
-    
+
     # Access STRUCT fields as dictionary
     profile = result.profile  # {"0": "John Doe", "1": 30, "2": "john@example.com"}
 
-Named STRUCT Fields
+Named STRUCT fields
 ^^^^^^^^^^^^^^^^^^^
 
 For better readability, use JSON casting to get named fields:
@@ -596,12 +599,12 @@ For better readability, use JSON casting to get named fields:
             text("SELECT CAST(ROW('John', 30) AS JSON) as user_data")
         )
     ).fetchone()
-    
+
     # Parse JSON result
     import json
     user_data = json.loads(result.user_data)  # ["John", 30]
 
-Data Format Support
+Data format support
 ^^^^^^^^^^^^^^^^^^^
 
 PyAthena supports multiple STRUCT data formats:
@@ -617,7 +620,7 @@ PyAthena supports multiple STRUCT data formats:
 
 .. code:: python
 
-    # Input: '{"name": "John", "age": 30}'  
+    # Input: '{"name": "John", "age": 30}'
     # Output: {"name": "John", "age": 30}
 
 **Unnamed STRUCT Format:**
@@ -627,14 +630,14 @@ PyAthena supports multiple STRUCT data formats:
     # Input: "{Alice, 25}"
     # Output: {"0": "Alice", "1": 25}
 
-Performance Considerations
+Performance considerations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - **JSON Format**: Recommended for complex nested structures
 - **Native Format**: Optimized for simple key-value pairs
 - **Smart Detection**: PyAthena automatically detects the format to avoid unnecessary parsing overhead
 
-Best Practices
+Best practices
 ^^^^^^^^^^^^^^
 
 1. **Use JSON casting** for complex nested structures:
@@ -666,7 +669,7 @@ Best Practices
            # Process struct data
            field_value = result.struct_column.get('field_name')
 
-Migration from Raw Strings
+Migration from RAW strings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Before (raw string handling):**
@@ -686,12 +689,12 @@ Migration from Raw Strings
     struct_data = result[0]  # {"name": "John", "age": 30} - automatically converted
     name = struct_data['name']  # Direct access
 
-MAP Type Support
+MAP type support
 ~~~~~~~~~~~~~~~~
 
 PyAthena provides comprehensive support for Amazon Athena's MAP data types, enabling you to work with key-value data structures in your Python applications.
 
-Basic Usage
+Basic usage
 ^^^^^^^^^^^
 
 .. code:: python
@@ -718,7 +721,7 @@ This generates the following SQL structure:
         categories MAP<INTEGER, STRING>
     )
 
-Querying MAP Data
+Querying MAP data
 ^^^^^^^^^^^^^^^^^
 
 PyAthena automatically converts MAP data between different formats:
@@ -733,11 +736,11 @@ PyAthena automatically converts MAP data between different formats:
             text("SELECT MAP(ARRAY['name', 'category'], ARRAY['Laptop', 'Electronics']) as product_info")
         )
     ).fetchone()
-    
+
     # Access MAP data as dictionary
     product_info = result.product_info  # {"name": "Laptop", "category": "Electronics"}
 
-Advanced MAP Operations
+Advanced MAP operations
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 For complex MAP operations, use JSON casting:
@@ -750,12 +753,12 @@ For complex MAP operations, use JSON casting:
             text("SELECT CAST(MAP(ARRAY['price', 'rating'], ARRAY['999', '4.5']) AS JSON) as data")
         )
     ).fetchone()
-    
+
     # Parse JSON result
     import json
     data = json.loads(result.data)  # {"price": "999", "rating": "4.5"}
 
-Data Format Support
+Data format support
 ^^^^^^^^^^^^^^^^^^^
 
 PyAthena supports multiple MAP data formats:
@@ -771,17 +774,17 @@ PyAthena supports multiple MAP data formats:
 
 .. code:: python
 
-    # Input: '{"name": "Laptop", "category": "Electronics"}'  
+    # Input: '{"name": "Laptop", "category": "Electronics"}'
     # Output: {"name": "Laptop", "category": "Electronics"}
 
-Performance Considerations
+Performance considerations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - **JSON Format**: Recommended for complex nested structures
 - **Native Format**: Optimized for simple key-value pairs
 - **Smart Detection**: PyAthena automatically detects the format to avoid unnecessary parsing overhead
 
-Best Practices
+Best practices
 ^^^^^^^^^^^^^^
 
 1. **Use JSON casting** for complex nested structures:
@@ -805,7 +808,7 @@ Best Practices
            # Process map data
            value = result.map_column.get('key_name')
 
-Migration from Raw Strings
+Migration from RAW strings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Before (raw string handling):**
@@ -825,7 +828,7 @@ Migration from Raw Strings
     map_data = result[0]  # {"key1": "value1", "key2": "value2"} - automatically converted
     value = map_data['key1']  # Direct access
 
-ARRAY Type Support
+ARRAY type support
 ~~~~~~~~~~~~~~~~~~
 
 PyAthena provides comprehensive support for Amazon Athena's ARRAY data types, enabling you to work with ordered collections of data in your Python applications.
@@ -857,7 +860,7 @@ This creates a table definition equivalent to:
         categories ARRAY<STRING>
     )
 
-Querying ARRAY Data
+Querying ARRAY data
 ^^^^^^^^^^^^^^^^^^^
 
 PyAthena automatically converts ARRAY data between different formats:
@@ -872,11 +875,11 @@ PyAthena automatically converts ARRAY data between different formats:
             text("SELECT ARRAY[1, 2, 3, 4, 5] as item_ids")
         )
     ).fetchone()
-    
+
     # Access ARRAY data as Python list
     item_ids = result.item_ids  # [1, 2, 3, 4, 5]
 
-Complex ARRAY Operations
+Complex ARRAY operations
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 For arrays containing complex data types:
@@ -889,7 +892,7 @@ For arrays containing complex data types:
             text("SELECT ARRAY[ROW('Alice', 25), ROW('Bob', 30)] as users")
         )
     ).fetchone()
-    
+
     users = result.users  # [{"0": "Alice", "1": 25}, {"0": "Bob", "1": 30}]
 
     # Using CAST AS JSON for complex ARRAY operations
@@ -898,7 +901,7 @@ For arrays containing complex data types:
             text("SELECT CAST(ARRAY[1, 2, 3] AS JSON) as data")
         )
     ).fetchone()
-    
+
     # Parse JSON result
     import json
     if isinstance(result.data, str):
@@ -906,7 +909,7 @@ For arrays containing complex data types:
     else:
         array_data = result.data  # Already converted to list
 
-Data Format Support
+Data format support
 ^^^^^^^^^^^^^^^^^^^
 
 PyAthena supports multiple ARRAY data formats:
@@ -918,7 +921,7 @@ PyAthena supports multiple ARRAY data formats:
     # Input: '[1, 2, 3]'
     # Output: [1, 2, 3]
 
-    # Input: '[apple, banana, cherry]'  
+    # Input: '[apple, banana, cherry]'
     # Output: ["apple", "banana", "cherry"]
 
 **JSON Format:**
@@ -927,7 +930,7 @@ PyAthena supports multiple ARRAY data formats:
 
     # Input: '[1, 2, 3]'
     # Output: [1, 2, 3]
-    
+
     # Input: '["apple", "banana", "cherry"]'
     # Output: ["apple", "banana", "cherry"]
 
@@ -938,7 +941,7 @@ PyAthena supports multiple ARRAY data formats:
     # Input: '[{name=John, age=30}, {name=Jane, age=25}]'
     # Output: [{"name": "John", "age": 30}, {"name": "Jane", "age": 25}]
 
-Type Definitions
+Type definitions
 ^^^^^^^^^^^^^^^^
 
 AthenaArray supports various item types:
@@ -950,15 +953,15 @@ AthenaArray supports various item types:
     # Simple arrays
     AthenaArray(String)      # ARRAY<STRING>
     AthenaArray(Integer)     # ARRAY<INTEGER>
-    
+
     # Arrays of complex types
     AthenaArray(AthenaStruct(...))  # ARRAY<STRUCT<...>>
     AthenaArray(AthenaMap(...))     # ARRAY<MAP<...>>
-    
+
     # Nested arrays
     AthenaArray(AthenaArray(Integer))  # ARRAY<ARRAY<INTEGER>>
 
-Best Practices
+Best practices
 ^^^^^^^^^^^^^^
 
 1. **Use appropriate item types** in AthenaArray definitions:
@@ -983,7 +986,7 @@ Best Practices
            # Process array data
            first_item = result.array_column[0] if result.array_column else None
 
-Migration from Raw Strings
+Migration from RAW strings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Before (raw string handling):**
@@ -1003,12 +1006,12 @@ Migration from Raw Strings
     array_data = result[0]  # [1, 2, 3] - automatically converted
     first_item = array_data[0]  # Direct access
 
-JSON Type Support
+JSON type support
 ~~~~~~~~~~~~~~~~~
 
 PyAthena provides support for Amazon Athena's JSON data type, enabling you to work with JSON data in your SQLAlchemy applications. The JSON type is primarily used with Data Manipulation Language (DML) operations in Athena.
 
-Basic Usage
+Basic usage
 ^^^^^^^^^^^
 
 .. code:: python
@@ -1023,7 +1026,7 @@ Basic Usage
         Column('config', JSON)
     )
 
-Querying JSON Data
+Querying JSON data
 ^^^^^^^^^^^^^^^^^^
 
 When querying JSON data, PyAthena automatically parses JSON strings into Python dictionaries:
@@ -1048,7 +1051,7 @@ When querying JSON data, PyAthena automatically parses JSON strings into Python 
     print(result.json_col)  # {"name": "test", "value": 123}
     print(type(result.json_col))  # <class 'dict'>
 
-Important Limitations
+Important limitations
 ^^^^^^^^^^^^^^^^^^^^^
 
 Athena's JSON type support has specific limitations:
@@ -1075,7 +1078,7 @@ Athena's JSON type support has specific limitations:
     # This will raise InvalidRequestException
     # CAST('[1, 2, 3]' AS JSON)
 
-Best Practices
+Best practices
 ^^^^^^^^^^^^^^
 
 1. **Use with SELECT queries** - JSON type works best for querying existing data
