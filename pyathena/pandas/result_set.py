@@ -127,8 +127,11 @@ class PandasDataFrameIterator(abc.Iterator):  # type: ignore
         """
         row_num = 0
         for df in self:
-            for row_dict in df.to_dict("records"):
-                yield (row_num, row_dict)
+            # Use itertuples for memory efficiency instead of to_dict("records")
+            # which loads all rows into memory at once
+            columns = df.columns.tolist()
+            for row in df.itertuples(index=False):
+                yield (row_num, dict(zip(columns, row, strict=True)))
                 row_num += 1
 
     def get_chunk(self, size: Optional[int] = None) -> "DataFrame":
@@ -282,6 +285,13 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._data_manifest: List[str] = []
         self._kwargs = kwargs
         self._fs = self.__s3_file_system()
+
+        # Cache time column names for efficient _trunc_date processing
+        description = self.description if self.description else []
+        self._time_columns: List[str] = [
+            d[0] for d in description if d[1] in ("time", "time with time zone")
+        ]
+
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
             df = self._as_pandas()
             trunc_date = _no_trunc_date if self.is_unload else self._trunc_date
@@ -451,12 +461,10 @@ class AthenaPandasResultSet(AthenaResultSet):
         return [d[0] for d in description if d[1] in self._PARSE_DATES]
 
     def _trunc_date(self, df: "DataFrame") -> "DataFrame":
-        description = self.description if self.description else []
-        times = [d[0] for d in description if d[1] in ("time", "time with time zone")]
-        if times:
-            truncated = df.loc[:, times].apply(lambda r: r.dt.time)
-            for time in times:
-                df.isetitem(df.columns.get_loc(time), truncated[time])
+        if self._time_columns:
+            truncated = df.loc[:, self._time_columns].apply(lambda r: r.dt.time)
+            for time_col in self._time_columns:
+                df.isetitem(df.columns.get_loc(time_col), truncated[time_col])
         return df
 
     def fetchone(
