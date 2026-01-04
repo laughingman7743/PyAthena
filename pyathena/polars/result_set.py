@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import abc
 import logging
+from collections import abc
 from multiprocessing import cpu_count
 from typing import (
     TYPE_CHECKING,
@@ -14,6 +14,7 @@ from typing import (
     Optional,
     Tuple,
     Union,
+    cast,
 )
 
 from pyathena import OperationalError
@@ -139,7 +140,7 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
         """
         import polars as pl
 
-        dfs = list(self)
+        dfs = cast(List["pl.DataFrame"], list(self))
         if not dfs:
             return pl.DataFrame()
         if len(dfs) == 1:
