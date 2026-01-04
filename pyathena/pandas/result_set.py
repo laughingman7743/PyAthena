@@ -38,7 +38,7 @@ def _no_trunc_date(df: "DataFrame") -> "DataFrame":
     return df
 
 
-class DataFrameIterator(abc.Iterator):  # type: ignore
+class PandasDataFrameIterator(abc.Iterator):  # type: ignore
     """Iterator for chunked DataFrame results from Athena queries.
 
     This class wraps either a pandas TextFileReader (for chunked reading) or
@@ -68,6 +68,12 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
         reader: Union["TextFileReader", "DataFrame"],
         trunc_date: Callable[["DataFrame"], "DataFrame"],
     ) -> None:
+        """Initialize the iterator.
+
+        Args:
+            reader: Either a TextFileReader (for chunked) or a single DataFrame.
+            trunc_date: Function to apply date truncation to each chunk.
+        """
         from pandas import DataFrame
 
         if isinstance(reader, DataFrame):
@@ -76,7 +82,15 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
             self._reader = reader
         self._trunc_date = trunc_date
 
-    def __next__(self):
+    def __next__(self) -> "DataFrame":
+        """Get the next DataFrame chunk.
+
+        Returns:
+            The next pandas DataFrame chunk with date truncation applied.
+
+        Raises:
+            StopIteration: When no more chunks are available.
+        """
         try:
             df = next(self._reader)
             return self._trunc_date(df)
@@ -84,32 +98,71 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
             self.close()
             raise
 
-    def __iter__(self):
+    def __iter__(self) -> "PandasDataFrameIterator":
+        """Return self as iterator."""
         return self
 
-    def __enter__(self):
+    def __enter__(self) -> "PandasDataFrameIterator":
+        """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        """Context manager exit."""
         self.close()
 
     def close(self) -> None:
+        """Close the iterator and release resources."""
         from pandas.io.parsers import TextFileReader
 
         if isinstance(self._reader, TextFileReader):
             self._reader.close()
 
-    def iterrows(self) -> Iterator[Any]:
-        for df in self:
-            for row in enumerate(df.to_dict("records")):
-                yield row
+    def iterrows(self) -> Iterator[Tuple[int, Dict[str, Any]]]:
+        """Iterate over rows as (index, row_dict) tuples.
 
-    def get_chunk(self, size=None):
+        Row indices are continuous across all chunks, starting from 0.
+
+        Yields:
+            Tuple of (row_index, row_dict) for each row across all chunks.
+        """
+        row_num = 0
+        for df in self:
+            # Use itertuples for memory efficiency instead of to_dict("records")
+            # which loads all rows into memory at once
+            columns = df.columns.tolist()
+            for row in df.itertuples(index=False):
+                yield (row_num, dict(zip(columns, row, strict=True)))
+                row_num += 1
+
+    def get_chunk(self, size: Optional[int] = None) -> "DataFrame":
+        """Get a chunk of specified size.
+
+        Args:
+            size: Number of rows to retrieve. If None, returns entire chunk.
+
+        Returns:
+            DataFrame chunk.
+        """
         from pandas.io.parsers import TextFileReader
 
         if isinstance(self._reader, TextFileReader):
             return self._reader.get_chunk(size)
         return next(self._reader)
+
+    def as_pandas(self) -> "DataFrame":
+        """Collect all chunks into a single DataFrame.
+
+        Returns:
+            Single pandas DataFrame containing all data.
+        """
+        import pandas as pd
+
+        dfs: List["DataFrame"] = list(self)
+        if not dfs:
+            return pd.DataFrame()
+        if len(dfs) == 1:
+            return dfs[0]
+        return pd.concat(dfs, ignore_index=True)
 
 
 class AthenaPandasResultSet(AthenaResultSet):
@@ -232,14 +285,21 @@ class AthenaPandasResultSet(AthenaResultSet):
         self._data_manifest: List[str] = []
         self._kwargs = kwargs
         self._fs = self.__s3_file_system()
+
+        # Cache time column names for efficient _trunc_date processing
+        description = self.description if self.description else []
+        self._time_columns: List[str] = [
+            d[0] for d in description if d[1] in ("time", "time with time zone")
+        ]
+
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
             df = self._as_pandas()
             trunc_date = _no_trunc_date if self.is_unload else self._trunc_date
-            self._df_iter = DataFrameIterator(df, trunc_date)
+            self._df_iter = PandasDataFrameIterator(df, trunc_date)
         else:
             import pandas as pd
 
-            self._df_iter = DataFrameIterator(pd.DataFrame(), _no_trunc_date)
+            self._df_iter = PandasDataFrameIterator(pd.DataFrame(), _no_trunc_date)
         self._iterrows = self._df_iter.iterrows()
 
     def _get_parquet_engine(self) -> str:
@@ -401,12 +461,10 @@ class AthenaPandasResultSet(AthenaResultSet):
         return [d[0] for d in description if d[1] in self._PARSE_DATES]
 
     def _trunc_date(self, df: "DataFrame") -> "DataFrame":
-        description = self.description if self.description else []
-        times = [d[0] for d in description if d[1] in ("time", "time with time zone")]
-        if times:
-            truncated = df.loc[:, times].apply(lambda r: r.dt.time)
-            for time in times:
-                df.isetitem(df.columns.get_loc(time), truncated[time])
+        if self._time_columns:
+            truncated = df.loc[:, self._time_columns].apply(lambda r: r.dt.time)
+            for time_col in self._time_columns:
+                df.isetitem(df.columns.get_loc(time_col), truncated[time_col])
         return df
 
     def fetchone(
@@ -620,15 +678,42 @@ class AthenaPandasResultSet(AthenaResultSet):
             df = self._read_csv()
         return df
 
-    def as_pandas(self) -> Union[DataFrameIterator, "DataFrame"]:
+    def as_pandas(self) -> Union[PandasDataFrameIterator, "DataFrame"]:
         if self._chunksize is None:
             return next(self._df_iter)
+        return self._df_iter
+
+    def iter_chunks(self) -> PandasDataFrameIterator:
+        """Iterate over result chunks as pandas DataFrames.
+
+        This method provides an iterator interface for processing large result sets.
+        When chunksize is specified, it yields DataFrames in chunks for memory-efficient
+        processing. When chunksize is not specified, it yields the entire result as a
+        single DataFrame.
+
+        Returns:
+            PandasDataFrameIterator that yields pandas DataFrames for each chunk
+            of rows, or the entire DataFrame if chunksize was not specified.
+
+        Example:
+            >>> # With chunking for large datasets
+            >>> cursor = connection.cursor(PandasCursor, chunksize=50000)
+            >>> cursor.execute("SELECT * FROM large_table")
+            >>> for chunk in cursor.iter_chunks():
+            ...     process_chunk(chunk)  # Each chunk is a pandas DataFrame
+            >>>
+            >>> # Without chunking - yields entire result as single chunk
+            >>> cursor = connection.cursor(PandasCursor)
+            >>> cursor.execute("SELECT * FROM small_table")
+            >>> for df in cursor.iter_chunks():
+            ...     process(df)  # Single DataFrame with all data
+        """
         return self._df_iter
 
     def close(self) -> None:
         import pandas as pd
 
         super().close()
-        self._df_iter = DataFrameIterator(pd.DataFrame(), _no_trunc_date)
+        self._df_iter = PandasDataFrameIterator(pd.DataFrame(), _no_trunc_date)
         self._iterrows = enumerate([])
         self._data_manifest = []

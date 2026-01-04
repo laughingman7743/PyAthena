@@ -34,7 +34,12 @@ if TYPE_CHECKING:
 _logger = logging.getLogger(__name__)
 
 
-class DataFrameIterator(abc.Iterator):  # type: ignore
+def _identity(x: Any) -> Any:
+    """Identity function for use as default converter."""
+    return x
+
+
+class PolarsDataFrameIterator(abc.Iterator):  # type: ignore
     """Iterator for chunked DataFrame results from Athena queries.
 
     This class wraps either a Polars DataFrame iterator (for chunked reading) or
@@ -80,7 +85,6 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
             self._reader = reader
         self._converters = converters
         self._column_names = column_names
-        self._closed = False
 
     def __next__(self) -> "pl.DataFrame":
         """Get the next DataFrame chunk.
@@ -91,19 +95,17 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
         Raises:
             StopIteration: When no more chunks are available.
         """
-        if self._closed:
-            raise StopIteration
         try:
             return next(self._reader)
         except StopIteration:
             self.close()
             raise
 
-    def __iter__(self) -> "DataFrameIterator":
+    def __iter__(self) -> "PolarsDataFrameIterator":
         """Return self as iterator."""
         return self
 
-    def __enter__(self) -> "DataFrameIterator":
+    def __enter__(self) -> "PolarsDataFrameIterator":
         """Context manager entry."""
         return self
 
@@ -113,7 +115,10 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
 
     def close(self) -> None:
         """Close the iterator and release resources."""
-        self._closed = True
+        from types import GeneratorType
+
+        if isinstance(self._reader, GeneratorType):
+            self._reader.close()
 
     def iterrows(self) -> Iterator[Tuple[int, Dict[str, Any]]]:
         """Iterate over rows as (index, row_dict) tuples.
@@ -124,9 +129,9 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
         row_num = 0
         for df in self:
             for row_dict in df.iter_rows(named=True):
-                # Apply converters
+                # Apply converters (use module-level _identity to avoid creating lambdas)
                 processed_row = {
-                    col: self._converters.get(col, lambda x: x)(row_dict.get(col))
+                    col: self._converters.get(col, _identity)(row_dict.get(col))
                     for col in self._column_names
                 }
                 yield (row_num, processed_row)
@@ -242,14 +247,20 @@ class AthenaPolarsResultSet(AthenaResultSet):
         self._kwargs = kwargs
 
         # Build DataFrame iterator (handles both chunked and non-chunked cases)
+        # Note: _create_dataframe_iterator() calls _as_polars() which may update
+        # _metadata for unload queries, so we must cache column names AFTER this.
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
             self._df_iter = self._create_dataframe_iterator()
         else:
             import polars as pl
 
-            self._df_iter = DataFrameIterator(
+            self._df_iter = PolarsDataFrameIterator(
                 pl.DataFrame(), self.converters, self._get_column_names()
             )
+
+        # Cache column names for efficient access in fetchone()
+        # Must be after _create_dataframe_iterator() which updates _metadata for unload
+        self._column_names_cache: List[str] = self._get_column_names()
         self._iterrows = self._df_iter.iterrows()
 
     @property
@@ -320,11 +331,11 @@ class AthenaPolarsResultSet(AthenaResultSet):
         description = self.description if self.description else []
         return [d[0] for d in description]
 
-    def _create_dataframe_iterator(self) -> DataFrameIterator:
+    def _create_dataframe_iterator(self) -> PolarsDataFrameIterator:
         """Create a DataFrame iterator for the result set.
 
         Returns:
-            DataFrameIterator that handles both chunked and non-chunked cases.
+            PolarsDataFrameIterator that handles both chunked and non-chunked cases.
         """
         if self._chunksize is not None:
             # Chunked mode: create lazy iterator
@@ -335,7 +346,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
             # Non-chunked mode: load entire DataFrame
             reader = self._as_polars()
 
-        return DataFrameIterator(reader, self.converters, self._get_column_names())
+        return PolarsDataFrameIterator(reader, self.converters, self._get_column_names())
 
     def fetchone(
         self,
@@ -351,8 +362,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
             return None
         else:
             self._rownumber = row[0] + 1
-            column_names = self._get_column_names()
-            return tuple([row[1][col] for col in column_names])
+            return tuple([row[1][col] for col in self._column_names_cache])
 
     def fetchmany(
         self, size: Optional[int] = None
@@ -661,7 +671,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
             _logger.exception(f"Failed to read {self._unload_location}.")
             raise OperationalError(*e.args) from e
 
-    def iter_chunks(self) -> DataFrameIterator:
+    def iter_chunks(self) -> PolarsDataFrameIterator:
         """Iterate over result chunks as Polars DataFrames.
 
         This method provides an iterator interface for processing large result sets.
@@ -670,7 +680,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
         it yields the entire result as a single DataFrame.
 
         Returns:
-            DataFrameIterator that yields Polars DataFrames for each chunk
+            PolarsDataFrameIterator that yields Polars DataFrames for each chunk
             of rows, or the entire DataFrame if chunksize was not specified.
 
         Example:
@@ -693,5 +703,5 @@ class AthenaPolarsResultSet(AthenaResultSet):
         import polars as pl
 
         super().close()
-        self._df_iter = DataFrameIterator(pl.DataFrame(), {}, [])
+        self._df_iter = PolarsDataFrameIterator(pl.DataFrame(), {}, [])
         self._iterrows = iter([])
