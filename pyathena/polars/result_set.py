@@ -79,8 +79,6 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
             self._reader = reader
         self._converters = converters
         self._column_names = column_names
-        self._current_df: Optional["pl.DataFrame"] = None
-        self._row_index = 0
         self._closed = False
 
     def __next__(self) -> "pl.DataFrame":
@@ -95,10 +93,7 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
         if self._closed:
             raise StopIteration
         try:
-            df = next(self._reader)
-            self._current_df = df
-            self._row_index = 0
-            return df
+            return next(self._reader)
         except StopIteration:
             self.close()
             raise
@@ -118,7 +113,6 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
     def close(self) -> None:
         """Close the iterator and release resources."""
         self._closed = True
-        self._current_df = None
 
     def iterrows(self) -> Iterator[Tuple[int, Dict[str, Any]]]:
         """Iterate over rows as (index, row_dict) tuples.
@@ -166,6 +160,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
         - Efficient columnar data processing with Polars
         - Optional Arrow interoperability when PyArrow is available
         - Support for both CSV and Parquet result formats
+        - Chunked iteration for memory-efficient processing of large datasets
         - Optimized memory usage through columnar format
 
     Example:
@@ -182,6 +177,12 @@ class AthenaPolarsResultSet(AthenaResultSet):
         >>>
         >>> # Optional: Get Arrow Table (requires pyarrow)
         >>> table = cursor.as_arrow()
+        >>>
+        >>> # Memory-efficient chunked iteration
+        >>> cursor = connection.cursor(PolarsCursor, chunksize=50000)
+        >>> cursor.execute("SELECT * FROM huge_table")
+        >>> for chunk in cursor.iter_chunks():
+        ...     process_chunk(chunk)
 
     Note:
         This class is used internally by PolarsCursor and typically not
@@ -583,8 +584,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
         if self.output_location and self.output_location.endswith(".txt"):
             separator = "\t"
             has_header = False
-            description = self.description if self.description else []
-            new_columns: Optional[List[str]] = [d[0] for d in description]
+            new_columns: Optional[List[str]] = self._get_column_names()
         else:
             separator = ","
             has_header = True
