@@ -85,7 +85,6 @@ class PolarsDataFrameIterator(abc.Iterator):  # type: ignore
             self._reader = reader
         self._converters = converters
         self._column_names = column_names
-        self._closed = False
 
     def __next__(self) -> "pl.DataFrame":
         """Get the next DataFrame chunk.
@@ -96,8 +95,6 @@ class PolarsDataFrameIterator(abc.Iterator):  # type: ignore
         Raises:
             StopIteration: When no more chunks are available.
         """
-        if self._closed:
-            raise StopIteration
         try:
             return next(self._reader)
         except StopIteration:
@@ -118,7 +115,10 @@ class PolarsDataFrameIterator(abc.Iterator):  # type: ignore
 
     def close(self) -> None:
         """Close the iterator and release resources."""
-        self._closed = True
+        from types import GeneratorType
+
+        if isinstance(self._reader, GeneratorType):
+            self._reader.close()
 
     def iterrows(self) -> Iterator[Tuple[int, Dict[str, Any]]]:
         """Iterate over rows as (index, row_dict) tuples.
