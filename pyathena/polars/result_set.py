@@ -219,7 +219,8 @@ class AthenaPolarsResultSet(AthenaResultSet):
             cache_type: Cache type for S3 file system.
             max_workers: Maximum number of worker threads.
             chunksize: Number of rows per chunk for memory-efficient processing.
-                      If specified, enables chunked iteration via iter_chunks().
+                      If specified, data is loaded lazily in chunks for all data
+                      access methods including fetchone(), fetchmany(), and iter_chunks().
             **kwargs: Additional arguments passed to Polars read functions.
         """
         super().__init__(

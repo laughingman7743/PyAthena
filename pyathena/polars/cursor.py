@@ -107,7 +107,8 @@ class PolarsCursor(BaseCursor, CursorIterator, WithResultSet):
             cache_type: S3 caching strategy.
             max_workers: Maximum worker threads for parallel S3 operations.
             chunksize: Number of rows per chunk for memory-efficient processing.
-                      If specified, enables chunked iteration via iter_chunks().
+                      If specified, data is loaded lazily in chunks for all data
+                      access methods including fetchone(), fetchmany(), and iter_chunks().
             **kwargs: Additional connection parameters.
 
         Example:

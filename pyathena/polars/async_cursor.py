@@ -95,7 +95,8 @@ class AsyncPolarsCursor(AsyncCursor):
             block_size: S3 read block size.
             cache_type: S3 caching strategy.
             chunksize: Number of rows per chunk for memory-efficient processing.
-                      If specified, enables chunked iteration via iter_chunks().
+                      If specified, data is loaded lazily in chunks for all data
+                      access methods including fetchone(), fetchmany(), and iter_chunks().
             **kwargs: Additional connection parameters.
 
         Example:

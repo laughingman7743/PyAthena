@@ -277,7 +277,28 @@ argument of the connect method or as an argument to the cursor method.
                      region_name="us-west-2",
                      cursor_class=PolarsCursor).cursor(chunksize=50_000)
 
-Use the ``iter_chunks()`` method to iterate over results in chunks:
+When the chunksize option is enabled, data is loaded lazily in chunks. This applies
+to all data access methods:
+
+**Standard DB-API fetch methods** - ``fetchone()`` and ``fetchmany()`` load data
+chunk by chunk as needed, keeping memory usage bounded:
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.polars.cursor import PolarsCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PolarsCursor).cursor(chunksize=50_000)
+
+    cursor.execute("SELECT * FROM large_table")
+    # Data is loaded in 50,000 row chunks as you iterate
+    for row in cursor:
+        process_row(row)
+
+**iter_chunks() method** - Use this when you want to process data as Polars DataFrames
+in chunks, which is more efficient for batch processing:
 
 .. code:: python
 
@@ -482,6 +503,8 @@ As with AsyncPolarsCursor, the unload option is also available.
                      cursor_class=AsyncPolarsCursor).cursor(unload=True)
 
 As with PolarsCursor, the chunksize option is also available for memory-efficient processing.
+When chunksize is specified, data is loaded lazily in chunks for both standard fetch methods
+and ``iter_chunks()``.
 
 .. code:: python
 
@@ -494,8 +517,25 @@ As with PolarsCursor, the chunksize option is also available for memory-efficien
 
     query_id, future = cursor.execute("SELECT * FROM large_table")
     result_set = future.result()
+
+    # Standard iteration - data loaded in chunks
+    for row in result_set:
+        process_row(row)
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.polars.async_cursor import AsyncPolarsCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=AsyncPolarsCursor).cursor(chunksize=50_000)
+
+    query_id, future = cursor.execute("SELECT * FROM large_table")
+    result_set = future.result()
+
+    # Process as DataFrame chunks
     for chunk in result_set.iter_chunks():
-        # Process each chunk
         process_chunk(chunk)
 
 .. _`polars.DataFrame object`: https://docs.pola.rs/api/python/stable/reference/dataframe/index.html
