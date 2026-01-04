@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import contextlib
 import logging
 from io import TextIOWrapper
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union
@@ -80,7 +79,6 @@ class AthenaS3FSResultSet(AthenaResultSet):
         self._csv_reader_class: CSVReaderType = csv_reader or AthenaCSVReader
         self._fs = self._create_s3_file_system()
         self._csv_reader: Optional[Any] = None
-        self._csv_file: Optional[Any] = None
 
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
             self._init_csv_reader()
@@ -122,8 +120,8 @@ class AthenaS3FSResultSet(AthenaResultSet):
         path = f"{bucket}/{key}"
 
         try:
-            self._csv_file = self._fs._open(path, mode="rb")
-            text_wrapper = TextIOWrapper(self._csv_file, encoding="utf-8")
+            csv_file = self._fs._open(path, mode="rb")
+            text_wrapper = TextIOWrapper(csv_file, encoding="utf-8")
 
             if self.output_location.endswith(".txt"):
                 # Tab-separated format (no header row)
@@ -131,8 +129,7 @@ class AthenaS3FSResultSet(AthenaResultSet):
             else:
                 # Standard CSV format (has header row, skip it)
                 self._csv_reader = self._csv_reader_class(text_wrapper, delimiter=",")
-                with contextlib.suppress(StopIteration):
-                    next(self._csv_reader)
+                next(self._csv_reader)
 
         except Exception as e:
             _logger.exception(f"Failed to open {path}.")
@@ -228,8 +225,6 @@ class AthenaS3FSResultSet(AthenaResultSet):
     def close(self) -> None:
         """Close the result set and release resources."""
         super().close()
-        if self._csv_file:
-            with contextlib.suppress(Exception):
-                self._csv_file.close()
-            self._csv_file = None
-        self._csv_reader = None
+        if self._csv_reader:
+            self._csv_reader.close()
+            self._csv_reader = None

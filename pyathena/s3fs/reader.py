@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import csv
-from typing import Any, Iterator, List, Optional, Tuple
+from collections.abc import Iterator
+from typing import Any, List, Optional, Tuple
 
 
-class DefaultCSVReader:
+class DefaultCSVReader(Iterator[List[str]]):
     """CSV reader using Python's standard csv module.
 
     This reader wraps Python's standard csv.reader and treats empty fields
@@ -33,9 +34,10 @@ class DefaultCSVReader:
             file_obj: File-like object to read from.
             delimiter: Field delimiter character.
         """
+        self._file: Optional[Any] = file_obj
         self._reader = csv.reader(file_obj, delimiter=delimiter)
 
-    def __iter__(self) -> Iterator[List[str]]:
+    def __iter__(self) -> "DefaultCSVReader":
         """Iterate over rows in the CSV file."""
         return self
 
@@ -46,8 +48,10 @@ class DefaultCSVReader:
             List of field values as strings.
 
         Raises:
-            StopIteration: When end of file is reached.
+            StopIteration: When end of file is reached or reader is closed.
         """
+        if self._file is None:
+            raise StopIteration
         row = next(self._reader)
         # Python's csv.reader returns [] for empty lines; normalize to ['']
         # to represent a single empty field (consistent with single-value handling)
@@ -55,8 +59,22 @@ class DefaultCSVReader:
             return [""]
         return row
 
+    def close(self) -> None:
+        """Close the underlying file object."""
+        if self._file is not None:
+            self._file.close()
+            self._file = None
 
-class AthenaCSVReader:
+    def __enter__(self) -> "DefaultCSVReader":
+        """Enter context manager."""
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Exit context manager and close resources."""
+        self.close()
+
+
+class AthenaCSVReader(Iterator[List[Optional[str]]]):
     """CSV reader that distinguishes between NULL and empty string.
 
     This is the default reader for S3FSCursor.
@@ -87,10 +105,10 @@ class AthenaCSVReader:
             file_obj: File-like object to read from.
             delimiter: Field delimiter character.
         """
-        self._file = file_obj
+        self._file: Optional[Any] = file_obj
         self._delimiter = delimiter
 
-    def __iter__(self) -> Iterator[List[Optional[str]]]:
+    def __iter__(self) -> "AthenaCSVReader":
         """Iterate over rows in the CSV file."""
         return self
 
@@ -101,8 +119,10 @@ class AthenaCSVReader:
             List of field values, with None for NULL and '' for empty string.
 
         Raises:
-            StopIteration: When end of file is reached.
+            StopIteration: When end of file is reached or reader is closed.
         """
+        if self._file is None:
+            raise StopIteration
         line = self._file.readline()
         if not line:
             raise StopIteration
@@ -234,3 +254,17 @@ class AthenaCSVReader:
             pos += 1
 
         return value, pos
+
+    def close(self) -> None:
+        """Close the underlying file object."""
+        if self._file is not None:
+            self._file.close()
+            self._file = None
+
+    def __enter__(self) -> "AthenaCSVReader":
+        """Enter context manager."""
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Exit context manager and close resources."""
+        self.close()
