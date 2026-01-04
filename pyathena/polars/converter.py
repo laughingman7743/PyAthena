@@ -3,28 +3,18 @@ from __future__ import annotations
 
 import logging
 from copy import deepcopy
-from datetime import date, datetime
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional
 
 from pyathena.converter import (
     Converter,
     _to_binary,
+    _to_date,
     _to_default,
     _to_json,
     _to_time,
 )
 
 _logger = logging.getLogger(__name__)
-
-
-def _to_date(value: Optional[Union[str, datetime, date]]) -> Optional[date]:
-    if value is None:
-        return None
-    if isinstance(value, datetime):
-        return value.date()
-    if isinstance(value, date):
-        return value
-    return datetime.strptime(value, "%Y-%m-%d").date()
 
 
 _DEFAULT_POLARS_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {
