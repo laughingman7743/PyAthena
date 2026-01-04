@@ -246,18 +246,21 @@ class AthenaPolarsResultSet(AthenaResultSet):
         self._chunksize = chunksize
         self._kwargs = kwargs
 
-        # Cache column names for efficient access in fetchone()
-        self._column_names_cache: List[str] = self._get_column_names()
-
         # Build DataFrame iterator (handles both chunked and non-chunked cases)
+        # Note: _create_dataframe_iterator() calls _as_polars() which may update
+        # _metadata for unload queries, so we must cache column names AFTER this.
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
             self._df_iter = self._create_dataframe_iterator()
         else:
             import polars as pl
 
             self._df_iter = PolarsDataFrameIterator(
-                pl.DataFrame(), self.converters, self._column_names_cache
+                pl.DataFrame(), self.converters, self._get_column_names()
             )
+
+        # Cache column names for efficient access in fetchone()
+        # Must be after _create_dataframe_iterator() which updates _metadata for unload
+        self._column_names_cache: List[str] = self._get_column_names()
         self._iterrows = self._df_iter.iterrows()
 
     @property
@@ -343,7 +346,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
             # Non-chunked mode: load entire DataFrame
             reader = self._as_polars()
 
-        return PolarsDataFrameIterator(reader, self.converters, self._column_names_cache)
+        return PolarsDataFrameIterator(reader, self.converters, self._get_column_names())
 
     def fetchone(
         self,
@@ -593,7 +596,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
         if self.output_location and self.output_location.endswith(".txt"):
             separator = "\t"
             has_header = False
-            new_columns: Optional[List[str]] = self._column_names_cache
+            new_columns: Optional[List[str]] = self._get_column_names()
         else:
             separator = ","
             has_header = True
