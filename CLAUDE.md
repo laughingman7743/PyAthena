@@ -30,6 +30,15 @@ The project supports different cursor implementations for various use cases:
 
 ## Development Guidelines
 
+### Git Workflow
+
+**CRITICAL: Never Commit Directly to Master Branch**
+- **NEVER** commit directly to the `master` branch
+- **ALWAYS** create a feature branch for any changes
+- **ALWAYS** create a Pull Request (PR) for review
+- Use descriptive branch names (e.g., `feature/add-converter`, `fix/null-handling`)
+- Create PRs as drafts using `gh pr create --draft`
+
 ### Code Style and Quality
 
 #### Import Guidelines

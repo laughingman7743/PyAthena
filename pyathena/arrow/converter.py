@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import logging
-from builtins import isinstance
 from copy import deepcopy
-from datetime import date, datetime
-from typing import Any, Callable, Dict, Optional, Type, Union
+from typing import Any, Callable, Dict, Optional, Type
 
 from pyathena.converter import (
     Converter,
     _to_binary,
+    _to_date,
     _to_decimal,
     _to_default,
     _to_json,
@@ -17,14 +16,6 @@ from pyathena.converter import (
 )
 
 _logger = logging.getLogger(__name__)  # type: ignore
-
-
-def _to_date(value: Optional[Union[str, datetime]]) -> Optional[date]:
-    if value is None:
-        return None
-    if isinstance(value, datetime):
-        return value.date()
-    return datetime.strptime(value, "%Y-%m-%d").date()
 
 
 _DEFAULT_ARROW_CONVERTERS: Dict[str, Callable[[Optional[str]], Optional[Any]]] = {
