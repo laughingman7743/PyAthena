@@ -426,21 +426,31 @@ class PolarsCursor(BaseCursor, CursorIterator, WithResultSet):
     def iter_chunks(self) -> Iterator["pl.DataFrame"]:
         """Iterate over result chunks as Polars DataFrames.
 
-        This method provides an iterator interface for processing large result sets
-        in chunks, preventing memory exhaustion when working with datasets that are
-        too large to fit in memory as a single DataFrame.
+        This method provides an iterator interface for processing result sets.
+        When chunksize is specified, it yields DataFrames in chunks using lazy
+        evaluation for memory-efficient processing. When chunksize is not specified,
+        it yields the entire result as a single DataFrame, providing a consistent
+        interface regardless of chunking configuration.
 
         Yields:
-            Polars DataFrame for each chunk of rows.
+            Polars DataFrame for each chunk of rows, or the entire DataFrame
+            if chunksize was not specified.
 
         Raises:
-            ProgrammingError: If no result set is available or chunksize was not set.
+            ProgrammingError: If no result set is available.
 
         Example:
+            >>> # With chunking for large datasets
             >>> cursor = connection.cursor(PolarsCursor, chunksize=50000)
             >>> cursor.execute("SELECT * FROM large_table")
             >>> for chunk in cursor.iter_chunks():
             ...     process_chunk(chunk)  # Each chunk is a Polars DataFrame
+            >>>
+            >>> # Without chunking - yields entire result as single chunk
+            >>> cursor = connection.cursor(PolarsCursor)
+            >>> cursor.execute("SELECT * FROM small_table")
+            >>> for df in cursor.iter_chunks():
+            ...     process(df)  # Single DataFrame with all data
         """
         if not self.has_result_set:
             raise ProgrammingError("No result set.")

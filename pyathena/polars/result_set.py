@@ -117,7 +117,14 @@ class AthenaPolarsResultSet(AthenaResultSet):
         self._chunksize = chunksize
         self._kwargs = kwargs
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
-            self._df = self._as_polars()
+            # Skip eager loading when chunksize is set to avoid double reads
+            # User should use iter_chunks() for memory-efficient processing
+            if self._chunksize is None:
+                self._df = self._as_polars()
+            else:
+                import polars as pl
+
+                self._df = pl.DataFrame()
         else:
             import polars as pl
 
@@ -257,6 +264,42 @@ class AthenaPolarsResultSet(AthenaResultSet):
                 break
         return rows
 
+    def _is_csv_readable(self) -> bool:
+        """Check if CSV output is available and can be read.
+
+        Returns:
+            True if CSV data is available to read, False otherwise.
+
+        Raises:
+            ProgrammingError: If output location is not set.
+        """
+        if not self.output_location:
+            raise ProgrammingError("OutputLocation is none or empty.")
+        if not self.output_location.endswith((".csv", ".txt")):
+            return False
+        if self.substatement_type and self.substatement_type.upper() in (
+            "UPDATE",
+            "DELETE",
+            "MERGE",
+            "VACUUM_TABLE",
+        ):
+            return False
+        length = self._get_content_length()
+        return length != 0
+
+    def _prepare_parquet_location(self) -> bool:
+        """Prepare unload location for Parquet reading.
+
+        Returns:
+            True if Parquet data is available to read, False otherwise.
+        """
+        manifests = self._read_data_manifest()
+        if not manifests:
+            return False
+        if not self._unload_location:
+            self._unload_location = "/".join(manifests[0].split("/")[:-1]) + "/"
+        return True
+
     def _read_csv(self) -> "pl.DataFrame":
         """Read query results from CSV file in S3.
 
@@ -269,20 +312,11 @@ class AthenaPolarsResultSet(AthenaResultSet):
         """
         import polars as pl
 
-        if not self.output_location:
-            raise ProgrammingError("OutputLocation is none or empty.")
-        if not self.output_location.endswith((".csv", ".txt")):
+        if not self._is_csv_readable():
             return pl.DataFrame()
-        if self.substatement_type and self.substatement_type.upper() in (
-            "UPDATE",
-            "DELETE",
-            "MERGE",
-            "VACUUM_TABLE",
-        ):
-            return pl.DataFrame()
-        length = self._get_content_length()
-        if length == 0:
-            return pl.DataFrame()
+
+        # After validation, output_location is guaranteed to be set
+        assert self.output_location is not None
 
         separator, has_header, new_columns = self._get_csv_params()
 
@@ -313,11 +347,11 @@ class AthenaPolarsResultSet(AthenaResultSet):
         """
         import polars as pl
 
-        manifests = self._read_data_manifest()
-        if not manifests:
+        if not self._prepare_parquet_location():
             return pl.DataFrame()
-        if not self._unload_location:
-            self._unload_location = "/".join(manifests[0].split("/")[:-1]) + "/"
+
+        # After preparation, unload_location is guaranteed to be set
+        assert self._unload_location is not None
 
         try:
             return pl.read_parquet(
@@ -438,20 +472,11 @@ class AthenaPolarsResultSet(AthenaResultSet):
         """
         import polars as pl
 
-        if not self.output_location:
-            raise ProgrammingError("OutputLocation is none or empty.")
-        if not self.output_location.endswith((".csv", ".txt")):
+        if not self._is_csv_readable():
             return
-        if self.substatement_type and self.substatement_type.upper() in (
-            "UPDATE",
-            "DELETE",
-            "MERGE",
-            "VACUUM_TABLE",
-        ):
-            return
-        length = self._get_content_length()
-        if length == 0:
-            return
+
+        # After validation, output_location is guaranteed to be set
+        assert self.output_location is not None
 
         separator, has_header, new_columns = self._get_csv_params()
 
@@ -485,11 +510,11 @@ class AthenaPolarsResultSet(AthenaResultSet):
         """
         import polars as pl
 
-        manifests = self._read_data_manifest()
-        if not manifests:
+        if not self._prepare_parquet_location():
             return
-        if not self._unload_location:
-            self._unload_location = "/".join(manifests[0].split("/")[:-1]) + "/"
+
+        # After preparation, unload_location is guaranteed to be set
+        assert self._unload_location is not None
 
         try:
             lazy_df = pl.scan_parquet(
@@ -506,29 +531,32 @@ class AthenaPolarsResultSet(AthenaResultSet):
     def iter_chunks(self) -> Iterator["pl.DataFrame"]:
         """Iterate over result chunks as Polars DataFrames.
 
-        This method provides an iterator interface for processing large result sets
-        in chunks, preventing memory exhaustion when working with datasets that are
-        too large to fit in memory as a single DataFrame.
+        This method provides an iterator interface for processing large result sets.
+        When chunksize is specified, it yields DataFrames in chunks using lazy
+        evaluation for memory-efficient processing. When chunksize is not specified,
+        it yields the entire result as a single DataFrame.
 
         Yields:
-            Polars DataFrame for each chunk of rows.
-
-        Raises:
-            ProgrammingError: If chunksize was not set during cursor initialization.
+            Polars DataFrame for each chunk of rows, or the entire DataFrame
+            if chunksize was not specified.
 
         Example:
+            >>> # With chunking for large datasets
             >>> cursor = connection.cursor(PolarsCursor, chunksize=50000)
             >>> cursor.execute("SELECT * FROM large_table")
             >>> for chunk in cursor.iter_chunks():
             ...     process_chunk(chunk)  # Each chunk is a Polars DataFrame
+            >>>
+            >>> # Without chunking - yields entire result as single chunk
+            >>> cursor = connection.cursor(PolarsCursor)
+            >>> cursor.execute("SELECT * FROM small_table")
+            >>> for df in cursor.iter_chunks():
+            ...     process(df)  # Single DataFrame with all data
         """
         if self._chunksize is None:
-            raise ProgrammingError(
-                "chunksize must be set to use iter_chunks(). "
-                "Example: cursor = connection.cursor(PolarsCursor, chunksize=50000)"
-            )
-
-        if self.is_unload:
+            # No chunking - yield entire DataFrame as single chunk
+            yield self._df
+        elif self.is_unload:
             yield from self._iter_parquet_chunks()
         else:
             yield from self._iter_csv_chunks()

@@ -340,13 +340,15 @@ class TestAsyncPolarsCursor:
                 assert isinstance(chunk, pl.DataFrame)
 
     def test_iter_chunks_without_chunksize(self, async_polars_cursor):
-        """Test that iter_chunks raises ProgrammingError when chunksize is not set."""
+        """Test that iter_chunks works without chunksize, yielding entire DataFrame."""
         query_id, future = async_polars_cursor.execute("SELECT * FROM one_row")
         assert query_id is not None
         result_set = future.result()
-        with pytest.raises(ProgrammingError) as exc_info:
-            list(result_set.iter_chunks())
-        assert "chunksize must be set" in str(exc_info.value)
+        chunks = list(result_set.iter_chunks())
+        # Without chunksize, yields entire DataFrame as single chunk
+        assert len(chunks) == 1
+        assert isinstance(chunks[0], pl.DataFrame)
+        assert chunks[0].height == 1
 
     def test_iter_chunks_many_rows(self):
         """Test chunked iteration with many rows."""
