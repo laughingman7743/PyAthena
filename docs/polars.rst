@@ -334,6 +334,51 @@ The chunked iteration also works with the unload option:
         # Process Parquet data in chunks
         process_chunk(chunk)
 
+When the chunksize option is used, the object returned by the ``as_polars`` method is a ``PolarsDataFrameIterator`` object.
+This object provides the same chunked iteration interface and can be used in the same way:
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.polars.cursor import PolarsCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PolarsCursor).cursor(chunksize=50_000)
+    df_iter = cursor.execute("SELECT * FROM many_rows").as_polars()
+    for df in df_iter:
+        print(df.describe())
+        print(df.head())
+
+The ``PolarsDataFrameIterator`` also has an ``as_polars()`` method that collects all chunks into a single DataFrame:
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.polars.cursor import PolarsCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PolarsCursor).cursor(chunksize=50_000)
+    df_iter = cursor.execute("SELECT * FROM many_rows").as_polars()
+    df = df_iter.as_polars()  # Collect all chunks into a single DataFrame
+
+This is equivalent to using `polars.concat`_:
+
+.. code:: python
+
+    import polars as pl
+    from pyathena import connect
+    from pyathena.polars.cursor import PolarsCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PolarsCursor).cursor(chunksize=50_000)
+    df_iter = cursor.execute("SELECT * FROM many_rows").as_polars()
+    df = pl.concat(list(df_iter))
+
+.. _`polars.concat`: https://docs.pola.rs/api/python/stable/reference/api/polars.concat.html
+
 .. _async-polars-cursor:
 
 AsyncPolarsCursor
