@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from collections.abc import Iterator
 from io import StringIO
 
 from pyathena.s3fs.reader import AthenaCSVReader, DefaultCSVReader
@@ -59,6 +60,30 @@ class TestDefaultCSVReader:
         reader = DefaultCSVReader(data, delimiter=",")
         rows = list(reader)
         assert rows == [[""]]
+
+    def test_implements_iterator_protocol(self):
+        """DefaultCSVReader implements collections.abc.Iterator."""
+        data = StringIO("a,b\n")
+        reader = DefaultCSVReader(data, delimiter=",")
+        assert isinstance(reader, Iterator)
+
+    def test_close(self):
+        """close() releases file resources."""
+        data = StringIO("a,b\n")
+        reader = DefaultCSVReader(data, delimiter=",")
+        reader.close()
+        # After close, iteration should stop immediately
+        rows = list(reader)
+        assert rows == []
+
+    def test_context_manager(self):
+        """Reader can be used as context manager."""
+        data = StringIO("a,b\n1,2\n")
+        with DefaultCSVReader(data, delimiter=",") as reader:
+            rows = list(reader)
+        assert rows == [["a", "b"], ["1", "2"]]
+        # After exiting context, reader should be closed
+        assert list(reader) == []
 
 
 class TestAthenaCSVReader:
@@ -209,3 +234,27 @@ class TestAthenaCSVReader:
         reader = AthenaCSVReader(data, delimiter=",")
         rows = list(reader)
         assert rows == [["a", "b"], ["multi\nline", "c"], ["d", "e"]]
+
+    def test_implements_iterator_protocol(self):
+        """AthenaCSVReader implements collections.abc.Iterator."""
+        data = StringIO("a,b\n")
+        reader = AthenaCSVReader(data, delimiter=",")
+        assert isinstance(reader, Iterator)
+
+    def test_close(self):
+        """close() releases file resources."""
+        data = StringIO("a,b\n")
+        reader = AthenaCSVReader(data, delimiter=",")
+        reader.close()
+        # After close, iteration should stop immediately
+        rows = list(reader)
+        assert rows == []
+
+    def test_context_manager(self):
+        """Reader can be used as context manager."""
+        data = StringIO("a,b\n1,2\n")
+        with AthenaCSVReader(data, delimiter=",") as reader:
+            rows = list(reader)
+        assert rows == [["a", "b"], ["1", "2"]]
+        # After exiting context, reader should be closed
+        assert list(reader) == []
