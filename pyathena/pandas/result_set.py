@@ -120,12 +120,16 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
     def iterrows(self) -> Iterator[Tuple[int, Dict[str, Any]]]:
         """Iterate over rows as (index, row_dict) tuples.
 
+        Row indices are continuous across all chunks, starting from 0.
+
         Yields:
             Tuple of (row_index, row_dict) for each row across all chunks.
         """
+        row_num = 0
         for df in self:
-            for row in enumerate(df.to_dict("records")):
-                yield row
+            for row_dict in df.to_dict("records"):
+                yield (row_num, row_dict)
+                row_num += 1
 
     def get_chunk(self, size: Optional[int] = None) -> "DataFrame":
         """Get a chunk of specified size.
