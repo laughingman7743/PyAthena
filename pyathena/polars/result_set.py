@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import abc
 import logging
 from multiprocessing import cpu_count
 from typing import (
@@ -30,6 +31,126 @@ if TYPE_CHECKING:
     from pyathena.connection import Connection
 
 _logger = logging.getLogger(__name__)
+
+
+class DataFrameIterator(abc.Iterator):  # type: ignore
+    """Iterator for chunked DataFrame results from Athena queries.
+
+    This class wraps either a Polars DataFrame iterator (for chunked reading) or
+    a single DataFrame, providing a unified iterator interface. It applies
+    optional type conversion to each DataFrame chunk as it's yielded.
+
+    The iterator is used by AthenaPolarsResultSet to provide chunked access
+    to large query results, enabling memory-efficient processing of datasets
+    that would be too large to load entirely into memory.
+
+    Example:
+        >>> # Iterate over DataFrame chunks
+        >>> for df_chunk in iterator:
+        ...     process(df_chunk)
+        >>>
+        >>> # Iterate over individual rows
+        >>> for idx, row in iterator.iterrows():
+        ...     print(row)
+
+    Note:
+        This class is primarily for internal use by AthenaPolarsResultSet.
+        Most users should access results through PolarsCursor methods.
+    """
+
+    def __init__(
+        self,
+        reader: Union[Iterator["pl.DataFrame"], "pl.DataFrame"],
+        converters: Dict[str, Callable[[Optional[str]], Optional[Any]]],
+        column_names: List[str],
+    ) -> None:
+        """Initialize the iterator.
+
+        Args:
+            reader: Either a DataFrame iterator (for chunked) or a single DataFrame.
+            converters: Dictionary mapping column names to converter functions.
+            column_names: List of column names in order.
+        """
+        import polars as pl
+
+        if isinstance(reader, pl.DataFrame):
+            self._reader: Iterator["pl.DataFrame"] = iter([reader])
+        else:
+            self._reader = reader
+        self._converters = converters
+        self._column_names = column_names
+        self._current_df: Optional["pl.DataFrame"] = None
+        self._row_index = 0
+        self._closed = False
+
+    def __next__(self) -> "pl.DataFrame":
+        """Get the next DataFrame chunk.
+
+        Returns:
+            The next Polars DataFrame chunk.
+
+        Raises:
+            StopIteration: When no more chunks are available.
+        """
+        if self._closed:
+            raise StopIteration
+        try:
+            df = next(self._reader)
+            self._current_df = df
+            self._row_index = 0
+            return df
+        except StopIteration:
+            self.close()
+            raise
+
+    def __iter__(self) -> "DataFrameIterator":
+        """Return self as iterator."""
+        return self
+
+    def __enter__(self) -> "DataFrameIterator":
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        """Context manager exit."""
+        self.close()
+
+    def close(self) -> None:
+        """Close the iterator and release resources."""
+        self._closed = True
+        self._current_df = None
+
+    def iterrows(self) -> Iterator[Tuple[int, Dict[str, Any]]]:
+        """Iterate over rows as (index, row_dict) tuples.
+
+        Yields:
+            Tuple of (row_index, row_dict) for each row across all chunks.
+        """
+        row_num = 0
+        for df in self:
+            for row_dict in df.iter_rows(named=True):
+                # Apply converters
+                processed_row = {
+                    col: self._converters.get(col, lambda x: x)(row_dict.get(col))
+                    for col in self._column_names
+                }
+                yield (row_num, processed_row)
+                row_num += 1
+
+    def as_polars(self) -> "pl.DataFrame":
+        """Collect all chunks into a single DataFrame.
+
+        Returns:
+            Single Polars DataFrame containing all data.
+        """
+        import polars as pl
+
+        dfs = list(self)
+        if not dfs:
+            return pl.DataFrame()
+        if len(dfs) == 1:
+            return dfs[0]
+        return pl.concat(dfs)
 
 
 class AthenaPolarsResultSet(AthenaResultSet):
@@ -116,20 +237,17 @@ class AthenaPolarsResultSet(AthenaResultSet):
         self._max_workers = max_workers
         self._chunksize = chunksize
         self._kwargs = kwargs
-        if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
-            # Skip eager loading when chunksize is set to avoid double reads
-            # User should use iter_chunks() for memory-efficient processing
-            if self._chunksize is None:
-                self._df = self._as_polars()
-            else:
-                import polars as pl
 
-                self._df = pl.DataFrame()
+        # Build DataFrame iterator (handles both chunked and non-chunked cases)
+        if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
+            self._df_iter = self._create_dataframe_iterator()
         else:
             import polars as pl
 
-            self._df = pl.DataFrame()
-        self._row_index = 0
+            self._df_iter = DataFrameIterator(
+                pl.DataFrame(), self.converters, self._get_column_names()
+            )
+        self._iterrows = self._df_iter.iterrows()
 
     @property
     def _csv_storage_options(self) -> Dict[str, Any]:
@@ -190,23 +308,31 @@ class AthenaPolarsResultSet(AthenaResultSet):
         description = self.description if self.description else []
         return {d[0]: self._converter.get(d[1]) for d in description}
 
-    def _fetch(self) -> None:
-        """Fetch rows from the DataFrame into the row buffer."""
-        if self._row_index >= self._df.height:
-            return
+    def _get_column_names(self) -> List[str]:
+        """Get column names from description.
 
-        end_index = min(self._row_index + self._arraysize, self._df.height)
-        chunk = self._df.slice(self._row_index, end_index - self._row_index)
-        self._row_index = end_index
-
-        # Convert to rows and apply converters
+        Returns:
+            List of column names.
+        """
         description = self.description if self.description else []
-        column_names = [d[0] for d in description]
-        for row_dict in chunk.iter_rows(named=True):
-            processed_row = tuple(
-                self.converters.get(col, lambda x: x)(row_dict.get(col)) for col in column_names
+        return [d[0] for d in description]
+
+    def _create_dataframe_iterator(self) -> DataFrameIterator:
+        """Create a DataFrame iterator for the result set.
+
+        Returns:
+            DataFrameIterator that handles both chunked and non-chunked cases.
+        """
+        if self._chunksize is not None:
+            # Chunked mode: create lazy iterator
+            reader: Union[Iterator["pl.DataFrame"], "pl.DataFrame"] = (
+                self._iter_parquet_chunks() if self.is_unload else self._iter_csv_chunks()
             )
-            self._rows.append(processed_row)
+        else:
+            # Non-chunked mode: load entire DataFrame
+            reader = self._as_polars()
+
+        return DataFrameIterator(reader, self.converters, self._get_column_names())
 
     def fetchone(
         self,
@@ -216,14 +342,14 @@ class AthenaPolarsResultSet(AthenaResultSet):
         Returns:
             A single row as a tuple, or None if no more rows are available.
         """
-        if not self._rows:
-            self._fetch()
-        if not self._rows:
+        try:
+            row = next(self._iterrows)
+        except StopIteration:
             return None
-        if self._rownumber is None:
-            self._rownumber = 0
-        self._rownumber += 1
-        return self._rows.popleft()
+        else:
+            self._rownumber = row[0] + 1
+            column_names = self._get_column_names()
+            return tuple([row[1][col] for col in column_names])
 
     def fetchmany(
         self, size: Optional[int] = None
@@ -406,6 +532,11 @@ class AthenaPolarsResultSet(AthenaResultSet):
         Returns the query results as a Polars DataFrame. This is the primary
         method for accessing results with PolarsCursor.
 
+        Note:
+            When chunksize is set, calling this method will collect all chunks
+            into a single DataFrame, loading all data into memory. Use
+            iter_chunks() for memory-efficient processing of large datasets.
+
         Returns:
             Polars DataFrame containing all query results.
 
@@ -416,7 +547,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
             >>> print(f"DataFrame has {df.height} rows")
             >>> filtered = df.filter(pl.col("value") > 100)
         """
-        return self._df
+        return self._df_iter.as_polars()
 
     def as_arrow(self) -> "Table":
         """Return query results as an Apache Arrow Table.
@@ -437,7 +568,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
             >>> # Use with other Arrow-compatible libraries
         """
         try:
-            return self._df.to_arrow()
+            return self._df_iter.as_polars().to_arrow()
         except ImportError as e:
             raise ImportError(
                 "pyarrow is required for as_arrow(). Install it with: pip install pyarrow"
@@ -528,7 +659,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
             _logger.exception(f"Failed to read {self._unload_location}.")
             raise OperationalError(*e.args) from e
 
-    def iter_chunks(self) -> Iterator["pl.DataFrame"]:
+    def iter_chunks(self) -> DataFrameIterator:
         """Iterate over result chunks as Polars DataFrames.
 
         This method provides an iterator interface for processing large result sets.
@@ -536,9 +667,9 @@ class AthenaPolarsResultSet(AthenaResultSet):
         evaluation for memory-efficient processing. When chunksize is not specified,
         it yields the entire result as a single DataFrame.
 
-        Yields:
-            Polars DataFrame for each chunk of rows, or the entire DataFrame
-            if chunksize was not specified.
+        Returns:
+            DataFrameIterator that yields Polars DataFrames for each chunk
+            of rows, or the entire DataFrame if chunksize was not specified.
 
         Example:
             >>> # With chunking for large datasets
@@ -553,18 +684,12 @@ class AthenaPolarsResultSet(AthenaResultSet):
             >>> for df in cursor.iter_chunks():
             ...     process(df)  # Single DataFrame with all data
         """
-        if self._chunksize is None:
-            # No chunking - yield entire DataFrame as single chunk
-            yield self._df
-        elif self.is_unload:
-            yield from self._iter_parquet_chunks()
-        else:
-            yield from self._iter_csv_chunks()
+        return self._df_iter
 
     def close(self) -> None:
         """Close the result set and release resources."""
         import polars as pl
 
         super().close()
-        self._df = pl.DataFrame()
-        self._row_index = 0
+        self._df_iter = DataFrameIterator(pl.DataFrame(), {}, [])
+        self._iterrows = iter([])
