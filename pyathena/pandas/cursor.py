@@ -380,18 +380,13 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         """
         if not self.has_result_set:
             raise ProgrammingError("No result set.")
+        result_set = cast(AthenaPandasResultSet, self.result_set)
 
-        result = self.as_pandas()
-        if isinstance(result, DataFrameIterator):
-            # It's an iterator (chunked mode)
-            import gc
+        import gc
 
-            for chunk_count, chunk in enumerate(result, 1):
-                yield chunk
+        for chunk_count, chunk in enumerate(result_set.iter_chunks(), 1):
+            yield chunk
 
-                # Suggest garbage collection every 10 chunks for large datasets
-                if chunk_count % 10 == 0:
-                    gc.collect()
-        else:
-            # Single DataFrame - yield as one chunk
-            yield result
+            # Suggest garbage collection every 10 chunks for large datasets
+            if chunk_count % 10 == 0:
+                gc.collect()

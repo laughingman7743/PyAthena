@@ -418,7 +418,20 @@ PandasCursor provides an ``iter_chunks()`` method for convenient chunked process
         # Memory can be freed after each chunk
         del chunk
 
-You can also concatenate them into a single `pandas.DataFrame object`_ using `pandas.concat`_.
+The ``DataFrameIterator`` also has an ``as_pandas()`` method that collects all chunks into a single DataFrame:
+
+.. code:: python
+
+    from pyathena import connect
+    from pyathena.pandas.cursor import PandasCursor
+
+    cursor = connect(s3_staging_dir="s3://YOUR_S3_BUCKET/path/to/",
+                     region_name="us-west-2",
+                     cursor_class=PandasCursor).cursor()
+    df_iter = cursor.execute("SELECT * FROM many_rows", chunksize=1_000_000).as_pandas()
+    df = df_iter.as_pandas()  # Collect all chunks into a single DataFrame
+
+This is equivalent to using `pandas.concat`_:
 
 .. code:: python
 

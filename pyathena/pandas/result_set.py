@@ -68,6 +68,12 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
         reader: Union["TextFileReader", "DataFrame"],
         trunc_date: Callable[["DataFrame"], "DataFrame"],
     ) -> None:
+        """Initialize the iterator.
+
+        Args:
+            reader: Either a TextFileReader (for chunked) or a single DataFrame.
+            trunc_date: Function to apply date truncation to each chunk.
+        """
         from pandas import DataFrame
 
         if isinstance(reader, DataFrame):
@@ -76,7 +82,15 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
             self._reader = reader
         self._trunc_date = trunc_date
 
-    def __next__(self):
+    def __next__(self) -> "DataFrame":
+        """Get the next DataFrame chunk.
+
+        Returns:
+            The next pandas DataFrame chunk with date truncation applied.
+
+        Raises:
+            StopIteration: When no more chunks are available.
+        """
         try:
             df = next(self._reader)
             return self._trunc_date(df)
@@ -84,32 +98,64 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
             self.close()
             raise
 
-    def __iter__(self):
+    def __iter__(self) -> "DataFrameIterator":
+        """Return self as iterator."""
         return self
 
-    def __enter__(self):
+    def __enter__(self) -> "DataFrameIterator":
+        """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        """Context manager exit."""
         self.close()
 
     def close(self) -> None:
+        """Close the iterator and release resources."""
         from pandas.io.parsers import TextFileReader
 
         if isinstance(self._reader, TextFileReader):
             self._reader.close()
 
-    def iterrows(self) -> Iterator[Any]:
+    def iterrows(self) -> Iterator[Tuple[int, Dict[str, Any]]]:
+        """Iterate over rows as (index, row_dict) tuples.
+
+        Yields:
+            Tuple of (row_index, row_dict) for each row across all chunks.
+        """
         for df in self:
             for row in enumerate(df.to_dict("records")):
                 yield row
 
-    def get_chunk(self, size=None):
+    def get_chunk(self, size: Optional[int] = None) -> "DataFrame":
+        """Get a chunk of specified size.
+
+        Args:
+            size: Number of rows to retrieve. If None, returns entire chunk.
+
+        Returns:
+            DataFrame chunk.
+        """
         from pandas.io.parsers import TextFileReader
 
         if isinstance(self._reader, TextFileReader):
             return self._reader.get_chunk(size)
         return next(self._reader)
+
+    def as_pandas(self) -> "DataFrame":
+        """Collect all chunks into a single DataFrame.
+
+        Returns:
+            Single pandas DataFrame containing all data.
+        """
+        import pandas as pd
+
+        dfs: List["DataFrame"] = list(self)
+        if not dfs:
+            return pd.DataFrame()
+        if len(dfs) == 1:
+            return dfs[0]
+        return pd.concat(dfs, ignore_index=True)
 
 
 class AthenaPandasResultSet(AthenaResultSet):
@@ -623,6 +669,33 @@ class AthenaPandasResultSet(AthenaResultSet):
     def as_pandas(self) -> Union[DataFrameIterator, "DataFrame"]:
         if self._chunksize is None:
             return next(self._df_iter)
+        return self._df_iter
+
+    def iter_chunks(self) -> DataFrameIterator:
+        """Iterate over result chunks as pandas DataFrames.
+
+        This method provides an iterator interface for processing large result sets.
+        When chunksize is specified, it yields DataFrames in chunks for memory-efficient
+        processing. When chunksize is not specified, it yields the entire result as a
+        single DataFrame.
+
+        Returns:
+            DataFrameIterator that yields pandas DataFrames for each chunk
+            of rows, or the entire DataFrame if chunksize was not specified.
+
+        Example:
+            >>> # With chunking for large datasets
+            >>> cursor = connection.cursor(PandasCursor, chunksize=50000)
+            >>> cursor.execute("SELECT * FROM large_table")
+            >>> for chunk in cursor.iter_chunks():
+            ...     process_chunk(chunk)  # Each chunk is a pandas DataFrame
+            >>>
+            >>> # Without chunking - yields entire result as single chunk
+            >>> cursor = connection.cursor(PandasCursor)
+            >>> cursor.execute("SELECT * FROM small_table")
+            >>> for df in cursor.iter_chunks():
+            ...     process(df)  # Single DataFrame with all data
+        """
         return self._df_iter
 
     def close(self) -> None:
