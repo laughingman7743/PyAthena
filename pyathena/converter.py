@@ -8,7 +8,7 @@ from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from datetime import date, datetime, time
 from decimal import Decimal
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 from dateutil.tz import gettz
 
@@ -17,10 +17,14 @@ from pyathena.util import strtobool
 _logger = logging.getLogger(__name__)  # type: ignore
 
 
-def _to_date(varchar_value: Optional[str]) -> Optional[date]:
-    if varchar_value is None:
+def _to_date(value: Optional[Union[str, datetime, date]]) -> Optional[date]:
+    if value is None:
         return None
-    return datetime.strptime(varchar_value, "%Y-%m-%d").date()
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return datetime.strptime(value, "%Y-%m-%d").date()
 
 
 def _to_datetime(varchar_value: Optional[str]) -> Optional[datetime]:
