@@ -25,7 +25,7 @@ from pyathena.pandas.converter import (
     DefaultPandasTypeConverter,
     DefaultPandasUnloadTypeConverter,
 )
-from pyathena.pandas.result_set import AthenaPandasResultSet, DataFrameIterator
+from pyathena.pandas.result_set import AthenaPandasResultSet, PandasDataFrameIterator
 from pyathena.result_set import WithResultSet
 
 if TYPE_CHECKING:
@@ -331,11 +331,11 @@ class PandasCursor(BaseCursor, CursorIterator, WithResultSet):
         result_set = cast(AthenaPandasResultSet, self.result_set)
         return result_set.fetchall()
 
-    def as_pandas(self) -> Union["DataFrame", DataFrameIterator]:
-        """Return DataFrame or DataFrameIterator based on chunksize setting.
+    def as_pandas(self) -> Union["DataFrame", PandasDataFrameIterator]:
+        """Return DataFrame or PandasDataFrameIterator based on chunksize setting.
 
         Returns:
-            DataFrame when chunksize is None, DataFrameIterator when chunksize is set.
+            DataFrame when chunksize is None, PandasDataFrameIterator when chunksize is set.
         """
         if not self.has_result_set:
             raise ProgrammingError("No result set.")

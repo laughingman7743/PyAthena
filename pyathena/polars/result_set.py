@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 _logger = logging.getLogger(__name__)
 
 
-class DataFrameIterator(abc.Iterator):  # type: ignore
+class PolarsDataFrameIterator(abc.Iterator):  # type: ignore
     """Iterator for chunked DataFrame results from Athena queries.
 
     This class wraps either a Polars DataFrame iterator (for chunked reading) or
@@ -99,11 +99,11 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
             self.close()
             raise
 
-    def __iter__(self) -> "DataFrameIterator":
+    def __iter__(self) -> "PolarsDataFrameIterator":
         """Return self as iterator."""
         return self
 
-    def __enter__(self) -> "DataFrameIterator":
+    def __enter__(self) -> "PolarsDataFrameIterator":
         """Context manager entry."""
         return self
 
@@ -247,7 +247,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
         else:
             import polars as pl
 
-            self._df_iter = DataFrameIterator(
+            self._df_iter = PolarsDataFrameIterator(
                 pl.DataFrame(), self.converters, self._get_column_names()
             )
         self._iterrows = self._df_iter.iterrows()
@@ -320,11 +320,11 @@ class AthenaPolarsResultSet(AthenaResultSet):
         description = self.description if self.description else []
         return [d[0] for d in description]
 
-    def _create_dataframe_iterator(self) -> DataFrameIterator:
+    def _create_dataframe_iterator(self) -> PolarsDataFrameIterator:
         """Create a DataFrame iterator for the result set.
 
         Returns:
-            DataFrameIterator that handles both chunked and non-chunked cases.
+            PolarsDataFrameIterator that handles both chunked and non-chunked cases.
         """
         if self._chunksize is not None:
             # Chunked mode: create lazy iterator
@@ -335,7 +335,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
             # Non-chunked mode: load entire DataFrame
             reader = self._as_polars()
 
-        return DataFrameIterator(reader, self.converters, self._get_column_names())
+        return PolarsDataFrameIterator(reader, self.converters, self._get_column_names())
 
     def fetchone(
         self,
@@ -661,7 +661,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
             _logger.exception(f"Failed to read {self._unload_location}.")
             raise OperationalError(*e.args) from e
 
-    def iter_chunks(self) -> DataFrameIterator:
+    def iter_chunks(self) -> PolarsDataFrameIterator:
         """Iterate over result chunks as Polars DataFrames.
 
         This method provides an iterator interface for processing large result sets.
@@ -670,7 +670,7 @@ class AthenaPolarsResultSet(AthenaResultSet):
         it yields the entire result as a single DataFrame.
 
         Returns:
-            DataFrameIterator that yields Polars DataFrames for each chunk
+            PolarsDataFrameIterator that yields Polars DataFrames for each chunk
             of rows, or the entire DataFrame if chunksize was not specified.
 
         Example:
@@ -693,5 +693,5 @@ class AthenaPolarsResultSet(AthenaResultSet):
         import polars as pl
 
         super().close()
-        self._df_iter = DataFrameIterator(pl.DataFrame(), {}, [])
+        self._df_iter = PolarsDataFrameIterator(pl.DataFrame(), {}, [])
         self._iterrows = iter([])

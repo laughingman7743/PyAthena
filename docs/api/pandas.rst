@@ -23,7 +23,7 @@ Pandas Result Set
    :members:
    :inherited-members:
 
-.. autoclass:: pyathena.pandas.result_set.DataFrameIterator
+.. autoclass:: pyathena.pandas.result_set.PandasDataFrameIterator
    :members:
 
 Pandas Data Converters

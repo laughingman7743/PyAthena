@@ -15,7 +15,7 @@ import pytest
 
 from pyathena.error import DatabaseError, ProgrammingError
 from pyathena.pandas.cursor import PandasCursor
-from pyathena.pandas.result_set import AthenaPandasResultSet, DataFrameIterator
+from pyathena.pandas.result_set import AthenaPandasResultSet, PandasDataFrameIterator
 from tests import ENV
 from tests.pyathena.conftest import connect
 
@@ -1207,7 +1207,7 @@ class TestPandasCursor:
         # Should work without error (auto-optimization for small files may not trigger chunking)
         result = cursor.as_pandas()
         # Small test data likely won't trigger chunking, so expect DataFrame
-        assert isinstance(result, (pd.DataFrame, DataFrameIterator))
+        assert isinstance(result, (pd.DataFrame, PandasDataFrameIterator))
 
     def test_pandas_cursor_auto_optimize_chunksize_disabled(self, pandas_cursor):
         """Test PandasCursor with auto_optimize_chunksize disabled (default)."""
@@ -1229,7 +1229,7 @@ class TestPandasCursor:
 
         # Should return iterator due to explicit chunksize
         result = cursor.as_pandas()
-        assert isinstance(result, DataFrameIterator)
+        assert isinstance(result, PandasDataFrameIterator)
 
     def test_pandas_cursor_iter_chunks_without_chunksize(self, pandas_cursor):
         """Test PandasCursor iter_chunks method without chunksize (single DataFrame)."""
@@ -1283,7 +1283,7 @@ class TestPandasCursor:
         cursor.execute("SELECT * FROM many_rows LIMIT 50")
 
         result = cursor.as_pandas()
-        assert isinstance(result, DataFrameIterator)
+        assert isinstance(result, PandasDataFrameIterator)
 
         chunk_sizes = []
         total_rows = 0

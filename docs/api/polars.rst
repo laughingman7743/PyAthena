@@ -23,6 +23,9 @@ Polars Result Set
    :members:
    :inherited-members:
 
+.. autoclass:: pyathena.polars.result_set.PolarsDataFrameIterator
+   :members:
+
 Polars Data Converters
 ----------------------
 

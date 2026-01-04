@@ -381,7 +381,7 @@ SQLAlchemy allows this option to be specified in the connection string.
 
     awsathena+pandas://:@athena.{region_name}.amazonaws.com:443/{schema_name}?s3_staging_dir={s3_staging_dir}&chunksize=1000000...
 
-When this option is used, the object returned by the as_pandas method is a ``DataFrameIterator`` object.
+When this option is used, the object returned by the as_pandas method is a ``PandasDataFrameIterator`` object.
 This object has exactly the same interface as the ``TextFileReader`` object and can be handled in the same way.
 
 .. code:: python
@@ -418,7 +418,7 @@ PandasCursor provides an ``iter_chunks()`` method for convenient chunked process
         # Memory can be freed after each chunk
         del chunk
 
-The ``DataFrameIterator`` also has an ``as_pandas()`` method that collects all chunks into a single DataFrame:
+The ``PandasDataFrameIterator`` also has an ``as_pandas()`` method that collects all chunks into a single DataFrame:
 
 .. code:: python
 

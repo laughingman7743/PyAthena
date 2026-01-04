@@ -38,7 +38,7 @@ def _no_trunc_date(df: "DataFrame") -> "DataFrame":
     return df
 
 
-class DataFrameIterator(abc.Iterator):  # type: ignore
+class PandasDataFrameIterator(abc.Iterator):  # type: ignore
     """Iterator for chunked DataFrame results from Athena queries.
 
     This class wraps either a pandas TextFileReader (for chunked reading) or
@@ -98,11 +98,11 @@ class DataFrameIterator(abc.Iterator):  # type: ignore
             self.close()
             raise
 
-    def __iter__(self) -> "DataFrameIterator":
+    def __iter__(self) -> "PandasDataFrameIterator":
         """Return self as iterator."""
         return self
 
-    def __enter__(self) -> "DataFrameIterator":
+    def __enter__(self) -> "PandasDataFrameIterator":
         """Context manager entry."""
         return self
 
@@ -285,11 +285,11 @@ class AthenaPandasResultSet(AthenaResultSet):
         if self.state == AthenaQueryExecution.STATE_SUCCEEDED and self.output_location:
             df = self._as_pandas()
             trunc_date = _no_trunc_date if self.is_unload else self._trunc_date
-            self._df_iter = DataFrameIterator(df, trunc_date)
+            self._df_iter = PandasDataFrameIterator(df, trunc_date)
         else:
             import pandas as pd
 
-            self._df_iter = DataFrameIterator(pd.DataFrame(), _no_trunc_date)
+            self._df_iter = PandasDataFrameIterator(pd.DataFrame(), _no_trunc_date)
         self._iterrows = self._df_iter.iterrows()
 
     def _get_parquet_engine(self) -> str:
@@ -670,12 +670,12 @@ class AthenaPandasResultSet(AthenaResultSet):
             df = self._read_csv()
         return df
 
-    def as_pandas(self) -> Union[DataFrameIterator, "DataFrame"]:
+    def as_pandas(self) -> Union[PandasDataFrameIterator, "DataFrame"]:
         if self._chunksize is None:
             return next(self._df_iter)
         return self._df_iter
 
-    def iter_chunks(self) -> DataFrameIterator:
+    def iter_chunks(self) -> PandasDataFrameIterator:
         """Iterate over result chunks as pandas DataFrames.
 
         This method provides an iterator interface for processing large result sets.
@@ -684,7 +684,7 @@ class AthenaPandasResultSet(AthenaResultSet):
         single DataFrame.
 
         Returns:
-            DataFrameIterator that yields pandas DataFrames for each chunk
+            PandasDataFrameIterator that yields pandas DataFrames for each chunk
             of rows, or the entire DataFrame if chunksize was not specified.
 
         Example:
@@ -706,6 +706,6 @@ class AthenaPandasResultSet(AthenaResultSet):
         import pandas as pd
 
         super().close()
-        self._df_iter = DataFrameIterator(pd.DataFrame(), _no_trunc_date)
+        self._df_iter = PandasDataFrameIterator(pd.DataFrame(), _no_trunc_date)
         self._iterrows = enumerate([])
         self._data_manifest = []
