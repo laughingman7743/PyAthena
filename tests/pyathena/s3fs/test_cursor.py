@@ -426,39 +426,38 @@ class TestS3FSCursor:
             # AthenaCSVReader preserves empty string as ''
             assert result == ("",)
 
-    def test_null_vs_empty_string_with_default_reader(self):
-        """DefaultCSVReader: Both NULL and empty string become None."""
-        with (
-            contextlib.closing(
-                connect(
-                    schema_name=ENV.schema,
-                    cursor_class=S3FSCursor,
-                    cursor_kwargs={"csv_reader": DefaultCSVReader},
-                )
-            ) as conn,
-            conn.cursor() as cursor,
-        ):
-            cursor.execute("SELECT NULL AS null_col, '' AS empty_col")
-            result = cursor.fetchone()
-            # Both become None
-            assert result == (None, None)
+    @pytest.mark.parametrize(
+        "csv_reader, expected_empty",
+        [
+            (DefaultCSVReader, None),  # DefaultCSVReader: empty string becomes None
+            (AthenaCSVReader, ""),  # AthenaCSVReader: empty string is preserved
+        ],
+    )
+    def test_null_vs_empty_string(self, csv_reader, expected_empty):
+        """
+        Test NULL vs empty string handling with different CSV readers.
 
-    def test_null_vs_empty_string_with_athena_reader(self):
-        """AthenaCSVReader: NULL and empty string are distinct."""
+        DefaultCSVReader: Both NULL and empty string become None.
+        AthenaCSVReader: NULL is None, empty string is preserved as ''.
+
+        See docs/null_handling.rst for details.
+        """
         with (
             contextlib.closing(
                 connect(
                     schema_name=ENV.schema,
                     cursor_class=S3FSCursor,
-                    cursor_kwargs={"csv_reader": AthenaCSVReader},
+                    cursor_kwargs={"csv_reader": csv_reader},
                 )
             ) as conn,
             conn.cursor() as cursor,
         ):
             cursor.execute("SELECT NULL AS null_col, '' AS empty_col")
             result = cursor.fetchone()
-            # NULL is None, empty string is ''
-            assert result == (None, "")
+            # NULL is always None
+            assert result[0] is None
+            # Empty string behavior depends on reader
+            assert result[1] == expected_empty
 
     def test_mixed_values_with_athena_reader(self):
         """AthenaCSVReader: Mixed NULL, empty string, and regular values."""
