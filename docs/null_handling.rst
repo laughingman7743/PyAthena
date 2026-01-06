@@ -31,7 +31,7 @@ in how NULL values and empty strings are represented:
 
 Most CSV parsers handle these differently:
 
-- **pandas** (used by ``PandasCursor``): By default, treats both unquoted empty and quoted empty as missing values
+- **Pandas** (used by ``PandasCursor``): By default, treats both unquoted empty and quoted empty as missing values
 - **PyArrow** (used by ``ArrowCursor``): With ``quoted_strings_can_be_null=False``, treats both as empty strings
 - **Polars** (used by ``PolarsCursor``): Correctly distinguishes quoted empty strings from unquoted NULL values
 - **AthenaCSVReader** (used by ``S3FSCursor``): Correctly distinguishes NULL (returns ``None``) from empty strings
