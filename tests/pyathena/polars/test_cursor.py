@@ -624,3 +624,48 @@ class TestPolarsCursor:
         polars_cursor.execute("SELECT * FROM many_rows LIMIT 15")
         rows = list(polars_cursor)
         assert len(rows) == 15
+
+    @pytest.mark.parametrize(
+        "polars_cursor",
+        [
+            {"cursor_kwargs": {"unload": False}},
+            {"cursor_kwargs": {"unload": True}},
+        ],
+        indirect=["polars_cursor"],
+    )
+    def test_null_vs_empty_string(self, polars_cursor):
+        """
+        Test NULL vs empty string handling in PolarsCursor.
+
+        PolarsCursor can properly distinguish NULL from empty string in both CSV and Parquet modes.
+        This is unique among file-based cursors because Polars' CSV parser correctly interprets
+        unquoted empty values as NULL.
+
+        See docs/null_handling.rst for details.
+        """
+        query = """
+        SELECT * FROM (
+            VALUES
+                (1, '', 'empty_string'),
+                (2, CAST(NULL AS VARCHAR), 'null_value'),
+                (3, 'hello', 'normal_string'),
+                (4, 'N/A', 'na_string'),
+                (5, 'NULL', 'null_string_literal')
+        ) AS t(id, value, description)
+        ORDER BY id
+        """
+        df = polars_cursor.execute(query).as_polars()
+        is_null = df["value"].is_null().to_list()
+        values = df["value"].to_list()
+
+        # Both CSV and Parquet modes properly distinguish NULL from empty string
+        assert not is_null[0]  # Empty string is NOT null
+        assert values[0] == ""  # Empty string is preserved
+
+        assert is_null[1]  # NULL IS null
+        assert values[1] is None  # NULL is None
+
+        # Normal strings are preserved correctly
+        assert values[2] == "hello"
+        assert values[3] == "N/A"
+        assert values[4] == "NULL"

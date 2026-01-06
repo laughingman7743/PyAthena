@@ -863,6 +863,41 @@ class TestCursor:
         row = cursor.fetchone()
         assert row == (5,)
 
+    def test_null_vs_empty_string(self, cursor):
+        """
+        Default Cursor should properly distinguish NULL from empty string.
+        See docs/null_handling.rst for details.
+        """
+        query = """
+        SELECT * FROM (
+            VALUES
+                (1, '', 'empty_string'),
+                (2, CAST(NULL AS VARCHAR), 'null_value'),
+                (3, 'hello', 'normal_string'),
+                (4, 'N/A', 'na_string'),
+                (5, 'NULL', 'null_string_literal')
+        ) AS t(id, value, description)
+        ORDER BY id
+        """
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        # Row 1: Empty string is preserved as empty string, not None
+        assert rows[0][1] == ""
+        assert rows[0][1] is not None
+
+        # Row 2: NULL is properly returned as None
+        assert rows[1][1] is None
+
+        # Row 3: Normal string
+        assert rows[2][1] == "hello"
+
+        # Row 4: "N/A" string should be preserved as-is
+        assert rows[3][1] == "N/A"
+
+        # Row 5: "NULL" string literal should be preserved as-is
+        assert rows[4][1] == "NULL"
+
 
 class TestDictCursor:
     def test_fetchone(self, dict_cursor):
@@ -883,6 +918,41 @@ class TestDictCursor:
         assert dict_cursor.fetchall() == [{"number_of_rows": 1}]
         dict_cursor.execute("SELECT a FROM many_rows ORDER BY a")
         assert dict_cursor.fetchall() == [{"a": i} for i in range(10000)]
+
+    def test_null_vs_empty_string(self, dict_cursor):
+        """
+        DictCursor should properly distinguish NULL from empty string.
+        See docs/null_handling.rst for details.
+        """
+        query = """
+        SELECT * FROM (
+            VALUES
+                (1, '', 'empty_string'),
+                (2, CAST(NULL AS VARCHAR), 'null_value'),
+                (3, 'hello', 'normal_string'),
+                (4, 'N/A', 'na_string'),
+                (5, 'NULL', 'null_string_literal')
+        ) AS t(id, value, description)
+        ORDER BY id
+        """
+        dict_cursor.execute(query)
+        rows = dict_cursor.fetchall()
+
+        # Row 1: Empty string is preserved as empty string, not None
+        assert rows[0]["value"] == ""
+        assert rows[0]["value"] is not None
+
+        # Row 2: NULL is properly returned as None
+        assert rows[1]["value"] is None
+
+        # Row 3: Normal string
+        assert rows[2]["value"] == "hello"
+
+        # Row 4: "N/A" string should be preserved as-is
+        assert rows[3]["value"] == "N/A"
+
+        # Row 5: "NULL" string literal should be preserved as-is
+        assert rows[4]["value"] == "NULL"
 
 
 class TestComplexDataTypes:

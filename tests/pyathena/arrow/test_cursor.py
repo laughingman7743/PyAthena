@@ -879,3 +879,51 @@ class TestArrowCursor:
         # Verify float timeout parameters are passed to result set
         assert arrow_cursor.result_set._connect_timeout == 5.5
         assert arrow_cursor.result_set._request_timeout == 15.5
+
+    @pytest.mark.parametrize(
+        "arrow_cursor",
+        [
+            {"cursor_kwargs": {"unload": False}},
+            {"cursor_kwargs": {"unload": True}},
+        ],
+        indirect=["arrow_cursor"],
+    )
+    def test_null_vs_empty_string(self, arrow_cursor):
+        """
+        Test NULL vs empty string handling in ArrowCursor.
+
+        Without unload (CSV): Cannot distinguish NULL from empty string (both become '').
+        With unload (Parquet): Properly distinguishes NULL from empty string.
+
+        See docs/null_handling.rst for details.
+        """
+        query = """
+        SELECT * FROM (
+            VALUES
+                (1, '', 'empty_string'),
+                (2, CAST(NULL AS VARCHAR), 'null_value'),
+                (3, 'hello', 'normal_string'),
+                (4, 'N/A', 'na_string'),
+                (5, 'NULL', 'null_string_literal')
+        ) AS t(id, value, description)
+        ORDER BY id
+        """
+        table = arrow_cursor.execute(query).as_arrow()
+        value_col = table.column("value")
+        values = value_col.to_pylist()
+
+        if arrow_cursor._unload:
+            # With unload (Parquet): NULL and empty string are properly distinguished
+            assert values[0] == ""  # Empty string
+            assert values[1] is None  # NULL is None
+            assert value_col.null_count == 1
+        else:
+            # Without unload (CSV): Both NULL and empty string become empty string
+            assert values[0] == ""  # Empty string
+            assert values[1] == ""  # NULL also becomes empty string
+            assert value_col.null_count == 0
+
+        # Normal strings are always preserved correctly
+        assert values[2] == "hello"
+        assert values[3] == "N/A"
+        assert values[4] == "NULL"
