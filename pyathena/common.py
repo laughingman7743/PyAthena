@@ -292,6 +292,8 @@ class BaseCursor(metaclass=ABCMeta):
             request.update({"Expression": expression})
         if next_token:
             request.update({"NextToken": next_token})
+        if self._work_group:
+            request.update({"WorkGroup": self._work_group})
         return request
 
     def _build_list_databases_request(
@@ -359,11 +361,13 @@ class BaseCursor(metaclass=ABCMeta):
         schema_name: Optional[str] = None,
         logging_: bool = True,
     ) -> AthenaTableMetadata:
-        request = {
+        request: Dict[str, Any] = {
             "CatalogName": catalog_name if catalog_name else self._catalog_name,
             "DatabaseName": schema_name if schema_name else self._schema_name,
             "TableName": table_name,
         }
+        if self._work_group:
+            request.update({"WorkGroup": self._work_group})
         try:
             response = retry_api_call(
                 self._connection.client.get_table_metadata,
