@@ -308,6 +308,8 @@ class BaseCursor(metaclass=ABCMeta):
         }
         if next_token:
             request.update({"NextToken": next_token})
+        if self._work_group:
+            request.update({"WorkGroup": self._work_group})
         return request
 
     def _list_databases(
