@@ -81,7 +81,7 @@ class AthenaDate(TypeEngine[date]):
     @staticmethod
     def process(value: date | datetime | Any) -> str:
         if isinstance(value, (date, datetime)):
-            f"DATE '{value:%Y-%m-%d}'"
+            return f"DATE '{value:%Y-%m-%d}'"
         return f"DATE '{value!s}'"
 
     def literal_processor(self, dialect: Dialect) -> _LiteralProcessorType[date] | None:
