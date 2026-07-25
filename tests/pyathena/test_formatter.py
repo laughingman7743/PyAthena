@@ -32,6 +32,13 @@ TRINO_STATEMENTS = [
     "/* a */\n-- b\nDELETE FROM t WHERE c = %(v)s",
     "/* multi\nline */\nDELETE FROM t WHERE c = %(v)s",
     "\n\t DELETE FROM t WHERE c = %(v)s",
+    # Near-miss statements: their prefixes are adjacent to the Hive allowlist
+    # (ALTER/DROP/CREATE ... VIEW, VALUES) but Trino executes them, so they must
+    # NOT be misrouted to the Hive escaper.
+    "ALTER VIEW v AS SELECT name FROM s WHERE c = %(v)s",
+    "DROP VIEW v -- %(v)s",
+    "CREATE OR REPLACE VIEW v AS SELECT %(v)s",
+    "VALUES (%(v)s)",
 ]
 
 # Statements parsed by the Hive DDL engine, where backslash escaping is correct.
@@ -44,6 +51,9 @@ HIVE_STATEMENTS = [
     "MSCK REPAIR TABLE t -- %(v)s",
     "SHOW PARTITIONS t -- %(v)s",
     "DESCRIBE t -- %(v)s",
+    "CREATE SCHEMA s LOCATION %(v)s",
+    "DROP DATABASE d -- %(v)s",
+    "ALTER DATABASE d SET DBPROPERTIES ('k' = %(v)s)",
     # Leading comments must be stripped before detection on the Hive side too,
     # otherwise a commented Hive DDL statement would silently lose its escaping.
     "-- cleanup\nDROP TABLE t LOCATION %(v)s",
