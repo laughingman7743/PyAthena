@@ -79,8 +79,10 @@ class AthenaDate(TypeEngine[date]):
     render_bind_cast = True
 
     @staticmethod
-    def process(value: date | datetime | Any) -> str:
-        if isinstance(value, (date, datetime)):
+    def process(value: date | Any) -> str:
+        # datetime is a subclass of date, so this branch also covers datetime,
+        # which is truncated to its date part.
+        if isinstance(value, date):
             return f"DATE '{value:%Y-%m-%d}'"
         return f"DATE '{value!s}'"
 
