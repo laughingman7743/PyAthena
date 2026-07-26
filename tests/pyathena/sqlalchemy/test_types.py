@@ -1,3 +1,5 @@
+from datetime import date, datetime
+
 import pytest
 from sqlalchemy import Integer, String, types
 from sqlalchemy.sql import sqltypes
@@ -7,6 +9,7 @@ from pyathena.sqlalchemy.types import (
     MAP,
     STRUCT,
     AthenaArray,
+    AthenaDate,
     AthenaMap,
     AthenaStruct,
     get_double_type,
@@ -163,3 +166,15 @@ def test_get_double_type():
     else:
         assert result is types.FLOAT
     assert ischema_names["double"] is result
+
+
+class TestAthenaDate:
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            (date(2017, 1, 1), "DATE '2017-01-01'"),
+            (datetime(2017, 1, 1, 12, 34, 56), "DATE '2017-01-01'"),
+        ],
+    )
+    def test_process_renders_date_only_literal(self, value, expected):
+        assert AthenaDate.process(value) == expected
