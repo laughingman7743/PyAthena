@@ -150,9 +150,19 @@ class Formatter(metaclass=ABCMeta):
         return operation, location
 
 
-def _escape_presto(val: str) -> str:
+def _escape_trino(val: str) -> str:
     escaped = val.replace("'", "''")
     return f"'{escaped}'"
+
+
+def _escape_presto(val: str) -> str:
+    # Backward-compatible alias. Athena's engine is Trino (engine v3; formerly
+    # Presto in engine v1/v2), and Trino and Presto escape string literals
+    # identically -- a single quote is doubled and a backslash is not an escape
+    # character. `_escape_trino` is the canonical name; `_escape_presto` is kept
+    # so external callers that import it (e.g. dbt-athena) keep working.
+    # Deprecated; candidate for removal in a future major release.
+    return _escape_trino(val)
 
 
 _LEADING_COMMENT_PATTERN = re.compile(
@@ -203,7 +213,7 @@ def _get_escaper(operation: str) -> Callable[[str], str]:
     """Select the escaper matching the engine that will parse the statement."""
     if _HIVE_STATEMENT_PATTERN.match(_strip_leading_comments(operation)):
         return _escape_hive
-    return _escape_presto
+    return _escape_trino
 
 
 def _escape_hive(val: str) -> str:
