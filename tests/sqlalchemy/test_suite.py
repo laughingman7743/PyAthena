@@ -1,11 +1,9 @@
 import pytest
-from sqlalchemy.testing import eq_
 from sqlalchemy.testing.suite import *  # noqa: F403
 from sqlalchemy.testing.suite import FetchLimitOffsetTest as _FetchLimitOffsetTest
 from sqlalchemy.testing.suite import HasTableTest as _HasTableTest
 from sqlalchemy.testing.suite import InsertBehaviorTest as _InsertBehaviorTest
 from sqlalchemy.testing.suite import IntegerTest as _IntegerTest
-from sqlalchemy.testing.suite import SimpleUpdateDeleteTest as _SimpleUpdateDeleteTest
 from sqlalchemy.testing.suite import StringTest as _StringTest
 from sqlalchemy.testing.suite import TrueDivTest as _TrueDivTest
 
@@ -27,36 +25,6 @@ del TimeMicrosecondsTest  # noqa: F821
 del TimeTest  # noqa: F821
 del TimestampMicrosecondsTest  # noqa: F821
 del UuidTest  # noqa: F821
-
-
-class SimpleUpdateDeleteTest(_SimpleUpdateDeleteTest):
-    # Athena supports UPDATE and DELETE for Iceberg tables but does not report reliable row counts.
-    __requires__ = ()
-
-    def test_update(self, connection):
-        table = self.tables.plain_pk
-        result = connection.execute(
-            table.update().where(table.c.id == 2),
-            {"data": "d2_new"},
-        )
-
-        assert not result.is_insert
-        assert not result.returns_rows
-        eq_(
-            connection.execute(table.select().order_by(table.c.id)).fetchall(),
-            [(1, "d1"), (2, "d2_new"), (3, "d3")],
-        )
-
-    def test_delete(self, connection):
-        table = self.tables.plain_pk
-        result = connection.execute(table.delete().where(table.c.id == 2))
-
-        assert not result.is_insert
-        assert not result.returns_rows
-        eq_(
-            connection.execute(table.select().order_by(table.c.id)).fetchall(),
-            [(1, "d1"), (3, "d3")],
-        )
 
 
 class HasTableTest(_HasTableTest):

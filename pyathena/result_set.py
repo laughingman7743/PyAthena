@@ -56,6 +56,7 @@ class AthenaResultSet(CursorIterator):
     # https://docs.aws.amazon.com/athena/latest/ug/data-types.html
     # Athena complex types that benefit from type hint conversion.
     _COMPLEX_TYPES: frozenset[str] = frozenset({"array", "map", "row", "struct"})
+    _DML_SUBSTATEMENT_TYPES: frozenset[str] = frozenset({"INSERT", "UPDATE", "DELETE", "MERGE"})
 
     def __init__(
         self,
@@ -318,7 +319,10 @@ class AthenaResultSet(CursorIterator):
     def description(
         self,
     ) -> list[tuple[str, str, None, None, int, int, str]] | None:
-        if self._metadata is None:
+        if self._metadata is None or (
+            self.substatement_type
+            and self.substatement_type.upper() in self._DML_SUBSTATEMENT_TYPES
+        ):
             return None
         return [
             (

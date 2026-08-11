@@ -826,6 +826,7 @@ class TestCursor:
             VALUES (1, 'test1'), (2, 'test2')
             """
         )
+        assert cursor.description is None
         assert cursor.rowcount == 2
         cursor.execute(
             f"""
@@ -842,6 +843,7 @@ class TestCursor:
             WHERE id = 1
             """
         )
+        assert cursor.description is None
         assert cursor.rowcount == 1
         cursor.execute(
             f"""
@@ -873,6 +875,7 @@ class TestCursor:
               THEN UPDATE SET col1 = t2.col1
             """
         )
+        assert cursor.description is None
         assert cursor.rowcount == 1
         cursor.execute(
             f"""
@@ -895,6 +898,7 @@ class TestCursor:
             WHERE id = 2
             """
         )
+        assert cursor.description is None
         assert cursor.rowcount == 1
         cursor.execute(
             f"""
