@@ -42,6 +42,9 @@ AWS_ATHENA_WORKGROUP=<workgroup>
 AWS_ATHENA_SPARK_WORKGROUP=<spark-workgroup>
 ```
 
+In a git worktree, run `just worktree-env` once to link the main checkout's
+gitignored `.env` into the worktree.
+
 ```bash
 export $(cat .env | xargs) && uv run pytest tests/pyathena/test_file.py -v
 ```

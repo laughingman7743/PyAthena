@@ -5,6 +5,10 @@ TOX_VERSION := "4.34.1"
 default:
     @just --list
 
+# Link the main checkout's gitignored .env into a worktree
+worktree-env:
+    scripts/worktree-env.sh
+
 # Auto-fix formatting and imports
 format:
     # TODO: https://github.com/astral-sh/uv/issues/5903
