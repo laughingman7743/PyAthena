@@ -7,7 +7,7 @@ default:
 
 # Link the main checkout's gitignored .env into a worktree
 worktree-env:
-    bash scripts/worktree-env.sh
+    scripts/worktree-env.sh
 
 # Auto-fix formatting and imports
 format:
