@@ -5,7 +5,6 @@ from sqlalchemy.testing.suite import HasTableTest as _HasTableTest
 from sqlalchemy.testing.suite import InsertBehaviorTest as _InsertBehaviorTest
 from sqlalchemy.testing.suite import IntegerTest as _IntegerTest
 from sqlalchemy.testing.suite import StringTest as _StringTest
-from sqlalchemy.testing.suite import TrueDivTest as _TrueDivTest
 
 del BinaryTest  # noqa: F821
 del ComponentReflectionTest  # noqa: F821
@@ -45,26 +44,6 @@ class InsertBehaviorTest(_InsertBehaviorTest):
     @pytest.mark.skip("TODO")
     def test_no_results_for_non_returning_insert(self, connection, style, executemany):
         # TODO
-        pass
-
-
-class TrueDivTest(_TrueDivTest):
-    @pytest.mark.skip("Athena returns an integer for operations between integers.")
-    def test_truediv_integer(self, connection, left, right, expected):
-        pass
-
-    @pytest.mark.skip("Athena returns an integer for operations between integers.")
-    def test_truediv_integer_bound(self, connection):
-        pass
-
-    @pytest.mark.skip("TODO")
-    def test_truediv_numeric(self, connection, left, right, expected):
-        # TODO
-        pass
-
-    @pytest.mark.skip("TODO")
-    def test_truediv_float(self, connection, left, right, expected):
-        # TODO: AssertionError: 2.299999908606215 != 2.3
         pass
 
 

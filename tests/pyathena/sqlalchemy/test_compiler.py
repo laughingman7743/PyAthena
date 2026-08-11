@@ -1,9 +1,21 @@
 from unittest.mock import Mock
 
 import pytest
-from sqlalchemy import Column, Date, Integer, MetaData, String, Table, exc, func, select
+from sqlalchemy import (
+    Column,
+    Date,
+    Float,
+    Integer,
+    MetaData,
+    Numeric,
+    String,
+    Table,
+    exc,
+    func,
+    select,
+)
 from sqlalchemy.engine.url import make_url
-from sqlalchemy.sql import literal
+from sqlalchemy.sql import literal, literal_column
 from sqlalchemy.sql.ddl import CreateTable
 
 from pyathena.sqlalchemy.base import AthenaDialect
@@ -228,6 +240,39 @@ class TestAthenaStatementCompiler:
 
         sql_str = str(compiled)
         assert "length(" in sql_str
+
+    @pytest.mark.parametrize(
+        ("expression", "expected"),
+        [
+            (
+                literal_column("15", type_=Integer()) / literal_column("10", type_=Integer()),
+                "SELECT 15 / CAST(10 AS DOUBLE) AS anon_1",
+            ),
+            (
+                literal(15) / literal(10),
+                "SELECT 15 / CAST(10 AS DOUBLE) AS anon_1",
+            ),
+            (
+                literal_column("5.52", type_=Numeric(10, 2))
+                / literal_column("2.4", type_=Numeric(10, 2)),
+                "SELECT CAST(5.52 AS DECIMAL(10, 2)) / CAST(2.4 AS DECIMAL(10, 2)) AS anon_1",
+            ),
+            (
+                literal_column("5.52", type_=Numeric(10, 2)) / literal_column("2", type_=Integer()),
+                "SELECT CAST(5.52 AS DECIMAL(10, 2)) / CAST(2 AS DECIMAL(10, 2)) AS anon_1",
+            ),
+            (
+                literal_column("5.52", type_=Float()) / literal_column("2.4", type_=Float()),
+                "SELECT CAST(5.52 AS DOUBLE) / CAST(2.4 AS DOUBLE) AS anon_1",
+            ),
+        ],
+    )
+    def test_visit_truediv_binary(self, expression, expected):
+        compiled = select(expression).compile(
+            dialect=self.dialect, compile_kwargs={"literal_binds": True}
+        )
+
+        assert str(compiled) == expected
 
 
 class TestAthenaDDLCompiler:

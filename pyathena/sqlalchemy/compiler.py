@@ -10,7 +10,7 @@ from sqlalchemy.sql.compiler import (
     IdentifierPreparer,
     SQLCompiler,
 )
-from sqlalchemy.sql.elements import BindParameter
+from sqlalchemy.sql.elements import BindParameter, Cast
 from sqlalchemy.sql.schema import Column
 
 from pyathena.model import (
@@ -19,11 +19,10 @@ from pyathena.model import (
     AthenaRowFormatSerde,
 )
 from pyathena.sqlalchemy.preparer import AthenaDDLIdentifierPreparer
-from pyathena.sqlalchemy.types import AthenaArray, AthenaMap, AthenaStruct
+from pyathena.sqlalchemy.types import AthenaArray, AthenaMap, AthenaStruct, get_double_type
 
 if TYPE_CHECKING:
     from sqlalchemy import (
-        Cast,
         CheckConstraint,
         ForeignKeyConstraint,
         PrimaryKeyConstraint,
@@ -256,6 +255,38 @@ class AthenaStatementCompiler(SQLCompiler):
 
         return f"filter({array_sql}, {lambda_sql})"
 
+    def visit_truediv_binary(self, binary, operator, **kw):
+        """Render true division with explicit Athena numeric coercions."""
+        left_type = binary.left.type
+        right_type = binary.right.type
+
+        if isinstance(left_type, types.Float) or isinstance(right_type, types.Float):
+            division_type = get_double_type()()
+            return (
+                self.process(Cast(binary.left, division_type), **kw)
+                + " / "
+                + self.process(Cast(binary.right, division_type), **kw)
+            )
+
+        left_is_numeric = isinstance(left_type, types.Numeric)
+        right_is_numeric = isinstance(right_type, types.Numeric)
+        if left_is_numeric or right_is_numeric:
+            division_type = binary.type
+            return (
+                self.process(Cast(binary.left, division_type), **kw)
+                + " / "
+                + self.process(Cast(binary.right, division_type), **kw)
+            )
+
+        if isinstance(left_type, types.Integer) and isinstance(right_type, types.Integer):
+            return (
+                self.process(binary.left, **kw)
+                + " / "
+                + self.process(Cast(binary.right, get_double_type()()), **kw)
+            )
+
+        return super().visit_truediv_binary(binary, operator, **kw)
+
     def visit_cast(self, cast: Cast[Any], **kwargs):
         if (isinstance(cast.type, types.VARCHAR) and cast.type.length is None) or isinstance(
             cast.type, types.String
@@ -265,6 +296,8 @@ class AthenaStatementCompiler(SQLCompiler):
             type_clause = "CHAR"
         elif isinstance(cast.type, (types.BINARY, types.VARBINARY)):
             type_clause = "VARBINARY"
+        elif hasattr(types, "DOUBLE") and isinstance(cast.type, types.DOUBLE):
+            type_clause = "DOUBLE"
         elif isinstance(cast.type, (types.FLOAT, types.Float, types.REAL)):
             # https://docs.aws.amazon.com/athena/latest/ug/data-types.html
             # In Athena, use float in DDL statements like CREATE TABLE
