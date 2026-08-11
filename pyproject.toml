@@ -126,10 +126,6 @@ norecursedirs = [
     "docs.*",
 ]
 
-[tool.sqla_testing]
-requirement_cls = "pyathena.sqlalchemy.requirements:Requirements"
-profile_file = "tests/sqlalchemy/profiles.txt"
-
 [tool.ruff]
 line-length = 100
 exclude = [
