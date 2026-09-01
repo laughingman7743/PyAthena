@@ -89,7 +89,7 @@ def _to_json(varchar_value: str | None) -> Any | None:
     return json.loads(varchar_value)
 
 
-def _to_array(varchar_value: str | None) -> list[Any] | None:
+def _to_array(varchar_value: str | None) -> list[Any] | str | None:
     """Convert array data to Python list.
 
     Supports two formats:
@@ -102,7 +102,9 @@ def _to_array(varchar_value: str | None) -> list[Any] | None:
         varchar_value: String representation of array data
 
     Returns:
-        List representation of array, or None if parsing fails
+        List representation of array, the original string if the value is
+        too complex to parse (so the data is preserved), or None if the
+        input is None or does not look like an array
     """
     if varchar_value is None:
         return None
@@ -127,15 +129,16 @@ def _to_array(varchar_value: str | None) -> list[Any] | None:
     try:
         # For nested arrays, too complex for basic parsing
         if "[" in inner:
-            # Contains nested arrays - too complex for basic parsing
-            return None
+            # Contains nested arrays - keep the original string
+            # instead of silently dropping the value
+            return varchar_value
         # Try native parsing (including struct arrays)
         return _parse_array_native(inner)
     except Exception:
-        return None
+        return varchar_value
 
 
-def _to_map(varchar_value: str | None) -> dict[str, Any] | None:
+def _to_map(varchar_value: str | None) -> dict[str, Any] | str | None:
     """Convert map data to Python dictionary.
 
     Supports two formats:
@@ -148,7 +151,9 @@ def _to_map(varchar_value: str | None) -> dict[str, Any] | None:
         varchar_value: String representation of map data
 
     Returns:
-        Dictionary representation of map, or None if parsing fails
+        Dictionary representation of map, the original string if the value
+        is too complex to parse (so the data is preserved), or None if the
+        input is None or does not look like a map
     """
     if varchar_value is None:
         return None
@@ -177,16 +182,17 @@ def _to_map(varchar_value: str | None) -> dict[str, Any] | None:
 
     try:
         # MAP format is always key=value pairs
-        # But for complex structures, return None to keep as string
+        # But for complex structures, keep the original string
         if any(char in inner for char in "()[]"):
             # Contains complex structures (arrays, structs), skip parsing
-            return None
+            # and keep the original string instead of silently dropping it
+            return varchar_value
         return _parse_map_native(inner)
     except Exception:
-        return None
+        return varchar_value
 
 
-def _to_struct(varchar_value: str | None) -> dict[str, Any] | None:
+def _to_struct(varchar_value: str | None) -> dict[str, Any] | str | None:
     """Convert struct data to Python dictionary.
 
     Supports two formats:
@@ -199,7 +205,9 @@ def _to_struct(varchar_value: str | None) -> dict[str, Any] | None:
         varchar_value: String representation of struct data
 
     Returns:
-        Dictionary representation of struct, or None if parsing fails
+        Dictionary representation of struct, the original string if the
+        value is too complex to parse (so the data is preserved), or None
+        if the input is None or does not look like a struct
     """
     if varchar_value is None:
         return None
@@ -233,7 +241,8 @@ def _to_struct(varchar_value: str | None) -> dict[str, Any] | None:
         # Unnamed struct: {Alice, 25}
         return _parse_unnamed_struct(inner)
     except Exception:
-        return None
+        # Keep the original string instead of silently dropping the value
+        return varchar_value
 
 
 def _parse_array_native(inner: str) -> list[Any] | None:
