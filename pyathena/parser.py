@@ -229,7 +229,7 @@ class TypedValueConverter:
         self,
         converters: dict[str, Callable[[str | None], Any | None]],
         default_converter: Callable[[str | None], Any | None],
-        struct_parser: Callable[[str | None], dict[str, Any] | None],
+        struct_parser: Callable[[str | None], dict[str, Any] | str | None],
     ) -> None:
         self._converters = converters
         self._default_converter = default_converter

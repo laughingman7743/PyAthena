@@ -96,7 +96,9 @@ def test_to_struct_athena_nested_formats(input_value, expected):
 )
 def test_to_struct_athena_complex_cases(input_value):
     result = _to_struct(input_value)
-    assert result is None or isinstance(result, dict)
+    # Values too complex to parse fall back to the original string
+    # instead of being silently dropped
+    assert result == input_value or isinstance(result, dict)
 
 
 @pytest.mark.parametrize(
@@ -113,6 +115,80 @@ def test_to_struct_non_dict_json(input_value):
 
 def test_to_map_athena_numeric_keys():
     assert _to_map("{1=2, 3=4}") == {"1": "2", "3": "4"}
+
+
+@pytest.mark.parametrize(
+    "input_value",
+    [
+        # MAP<VARCHAR, VARCHAR> whose values contain nested structures:
+        # too complex to parse reliably, so the original string is kept
+        # instead of returning None (which looked like silent data loss)
+        "{items=[{product_id=285, option_id=6049, amount=1, price=12000}], brand_id=75}",
+        '{items=[{"product_id":285,"option_id":6049}], brand_id=75}',
+        "{callback=fn(x), retries=3}",
+    ],
+)
+def test_to_map_complex_values_keep_original_string(input_value):
+    assert _to_map(input_value) == input_value
+
+
+def test_to_map_simple_values_still_parse():
+    assert _to_map("{push=Y}") == {"push": "Y"}
+    assert _to_map("{url=/webview/checkout, brand_id=75}") == {
+        "url": "/webview/checkout",
+        "brand_id": "75",
+    }
+
+
+@pytest.mark.parametrize(
+    "input_value",
+    [
+        # Nested braces-only values (e.g. MAP<VARCHAR, ROW(...)>) pass the
+        # "()[]" pre-check but every pair is skipped by _parse_map_native
+        "{a={b=1}}",
+        "{a={b=1, c=2}}",
+    ],
+)
+def test_to_map_nested_brace_values_keep_original_string(input_value):
+    assert _to_map(input_value) == input_value
+
+
+@pytest.mark.parametrize(
+    "input_value",
+    [
+        # Partially parseable values must not return a partial result:
+        # either fully parsed or the intact original string
+        '{a="x", b=1}',
+        "{a, b=1}",
+    ],
+)
+def test_to_map_never_returns_partial_dict(input_value):
+    assert _to_map(input_value) == input_value
+
+
+@pytest.mark.parametrize(
+    "input_value",
+    [
+        "[a=1, b=2]",  # every item skipped by the '=' safety check
+        "[a, b=1]",  # partially parseable: must not return ['a']
+    ],
+)
+def test_to_array_never_returns_partial_list(input_value):
+    assert _to_array(input_value) == input_value
+
+
+def test_to_struct_skipped_pairs_keep_original_string():
+    # The quoted key is skipped by _parse_named_struct's safety check
+    assert _to_struct('{"a"=1}') == '{"a"=1}'
+
+
+def test_to_array_nested_values_keep_original_string():
+    # Nested arrays in native format are too complex to parse reliably,
+    # so the original string is kept instead of returning None
+    value = "[[1, 2], [3, 4]]"
+    assert _to_array(value) == [[1, 2], [3, 4]]  # valid JSON parses first
+    native_value = "[{a=[1, 2]}, {b=[3]}]"
+    assert _to_array(native_value) == native_value
 
 
 @pytest.mark.parametrize(
@@ -184,9 +260,11 @@ def test_to_array_athena_nested_struct_elements(input_value, expected):
 @pytest.mark.parametrize(
     ("input_value", "expected"),
     [
-        ("[ARRAY[1, 2], ARRAY[3, 4]]", None),
+        # Too complex for native parsing: the original string is kept
+        # instead of returning None (which looked like silent data loss)
+        ("[ARRAY[1, 2], ARRAY[3, 4]]", "[ARRAY[1, 2], ARRAY[3, 4]]"),
         ("[[1, 2], [3, 4]]", [[1, 2], [3, 4]]),
-        ("[MAP(ARRAY['key'], ARRAY['value'])]", None),
+        ("[MAP(ARRAY['key'], ARRAY['value'])]", "[MAP(ARRAY['key'], ARRAY['value'])]"),
     ],
 )
 def test_to_array_complex_nested_cases(input_value, expected):

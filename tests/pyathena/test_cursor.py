@@ -1313,10 +1313,11 @@ class TestComplexDataTypes:
         if isinstance(struct_value, str):
             converted = _to_struct(struct_value)
             _logger.info("%s: Converted %r -> %r", description, struct_value, converted)
-            # For string structs, conversion should succeed or return None for complex cases
+            # Conversion either fully parses to a dict or falls back to the
+            # original string for values too complex to parse losslessly
             if converted is not None:
-                assert isinstance(converted, dict), (
-                    f"Converted struct should be dict for {description}"
+                assert isinstance(converted, dict) or converted == struct_value, (
+                    f"Converted struct should be dict or the original string for {description}"
                 )
         elif isinstance(struct_value, dict):
             # Already converted by the cursor converter
@@ -1409,9 +1410,11 @@ class TestComplexDataTypes:
                 # Simple MAP, try conversion
                 converted = _to_map(map_value)
                 _logger.info("%s: Converted %r -> %r", description, map_value, converted)
+                # Conversion either fully parses to a dict or falls back to the
+                # original string for values too complex to parse losslessly
                 if converted is not None:
-                    assert isinstance(converted, dict), (
-                        f"Converted map should be dict for {description}"
+                    assert isinstance(converted, dict) or converted == map_value, (
+                        f"Converted map should be dict or the original string for {description}"
                     )
         elif isinstance(map_value, dict):
             # Already converted by the cursor converter
