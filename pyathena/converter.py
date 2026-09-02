@@ -132,8 +132,10 @@ def _to_array(varchar_value: str | None) -> list[Any] | str | None:
             # Contains nested arrays - keep the original string
             # instead of silently dropping the value
             return varchar_value
-        # Try native parsing (including struct arrays)
-        return _parse_array_native(inner)
+        # Try native parsing (including struct arrays); if the helper had to
+        # give up (or skip any item), keep the original string
+        result = _parse_array_native(inner)
+        return result if result is not None else varchar_value
     except Exception:
         return varchar_value
 
@@ -187,7 +189,10 @@ def _to_map(varchar_value: str | None) -> dict[str, Any] | str | None:
             # Contains complex structures (arrays, structs), skip parsing
             # and keep the original string instead of silently dropping it
             return varchar_value
-        return _parse_map_native(inner)
+        # If the helper had to give up (or skip any pair, e.g. nested
+        # braces-only values like '{a={b=1}}'), keep the original string
+        result = _parse_map_native(inner)
+        return result if result is not None else varchar_value
     except Exception:
         return varchar_value
 
@@ -236,8 +241,10 @@ def _to_struct(varchar_value: str | None) -> dict[str, Any] | str | None:
 
     try:
         if "=" in inner:
-            # Named struct: {a=1, b=2}
-            return _parse_named_struct(inner)
+            # Named struct: {a=1, b=2}; if the helper had to give up
+            # (or skip any pair), keep the original string
+            result = _parse_named_struct(inner)
+            return result if result is not None else varchar_value
         # Unnamed struct: {Alice, 25}
         return _parse_unnamed_struct(inner)
     except Exception:
@@ -252,7 +259,10 @@ def _parse_array_native(inner: str) -> list[Any] | None:
         inner: Interior content of array without brackets.
 
     Returns:
-        List with parsed values, or None if no valid values found.
+        List with parsed values, or None if no valid values were found or
+        any item had to be skipped. Returning None on a skipped item lets
+        callers fall back to the original string, so the result is always
+        either fully parsed or the intact raw value - never a partial list.
     """
     result = []
 
@@ -267,13 +277,15 @@ def _parse_array_native(inner: str) -> list[Any] | None:
         if item.strip().startswith("{") and item.strip().endswith("}"):
             # This is a struct value - parse it as a struct
             struct_value = _to_struct(item.strip())
-            if struct_value is not None:
-                result.append(struct_value)
+            if struct_value is None:
+                return None
+            result.append(struct_value)
             continue
 
-        # Skip items with nested arrays or complex quoting (safety check)
+        # Items with nested arrays or complex quoting (safety check):
+        # give up entirely instead of silently dropping the item
         if any(char in item for char in '[]="'):
-            continue
+            return None
 
         # Convert item to appropriate type
         converted_item = _convert_value(item)
@@ -289,7 +301,11 @@ def _parse_map_native(inner: str) -> dict[str, Any] | None:
         inner: Interior content of map without braces.
 
     Returns:
-        Dictionary with parsed key-value pairs, or None if no valid pairs found.
+        Dictionary with parsed key-value pairs, or None if no valid pairs
+        were found or any pair had to be skipped. Returning None on a
+        skipped pair lets callers fall back to the original string, so the
+        result is always either fully parsed or the intact raw value -
+        never a partial dict.
     """
     result = {}
 
@@ -297,16 +313,22 @@ def _parse_map_native(inner: str) -> dict[str, Any] | None:
     pairs = [pair.strip() for pair in inner.split(",")]
 
     for pair in pairs:
-        if "=" not in pair:
+        if not pair:
             continue
+
+        # A chunk without '=' is not a parseable pair: give up entirely
+        # instead of silently dropping it
+        if "=" not in pair:
+            return None
 
         key, value = pair.split("=", 1)
         key = key.strip()
         value = value.strip()
 
-        # Skip pairs with special characters (safety check)
+        # Pairs with special characters (safety check): give up entirely
+        # instead of silently dropping the pair
         if any(char in key for char in '{}="') or any(char in value for char in '{}="'):
-            continue
+            return None
 
         # Convert both key and value to appropriate types
         converted_key = _convert_value(key)
@@ -326,7 +348,11 @@ def _parse_named_struct(inner: str) -> dict[str, Any] | None:
         inner: Interior content of struct without braces.
 
     Returns:
-        Dictionary with parsed key-value pairs, or None if no valid pairs found.
+        Dictionary with parsed key-value pairs, or None if no valid pairs
+        were found or any pair had to be skipped. Returning None on a
+        skipped pair lets callers fall back to the original string, so the
+        result is always either fully parsed or the intact raw value -
+        never a partial dict.
     """
     result = {}
 
@@ -334,16 +360,22 @@ def _parse_named_struct(inner: str) -> dict[str, Any] | None:
     pairs = _split_array_items(inner)
 
     for pair in pairs:
-        if "=" not in pair:
+        if not pair:
             continue
+
+        # A chunk without '=' is not a parseable pair: give up entirely
+        # instead of silently dropping it
+        if "=" not in pair:
+            return None
 
         key, value = pair.split("=", 1)
         key = key.strip()
         value = value.strip()
 
-        # Skip if key contains special characters (safety check)
+        # Keys with special characters (safety check): give up entirely
+        # instead of silently dropping the pair
         if any(char in key for char in '{}="'):
-            continue
+            return None
 
         # Handle nested struct values
         if value.startswith("{") and value.endswith("}"):

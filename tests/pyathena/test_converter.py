@@ -140,6 +140,48 @@ def test_to_map_simple_values_still_parse():
     }
 
 
+@pytest.mark.parametrize(
+    "input_value",
+    [
+        # Nested braces-only values (e.g. MAP<VARCHAR, ROW(...)>) pass the
+        # "()[]" pre-check but every pair is skipped by _parse_map_native
+        "{a={b=1}}",
+        "{a={b=1, c=2}}",
+    ],
+)
+def test_to_map_nested_brace_values_keep_original_string(input_value):
+    assert _to_map(input_value) == input_value
+
+
+@pytest.mark.parametrize(
+    "input_value",
+    [
+        # Partially parseable values must not return a partial result:
+        # either fully parsed or the intact original string
+        '{a="x", b=1}',
+        "{a, b=1}",
+    ],
+)
+def test_to_map_never_returns_partial_dict(input_value):
+    assert _to_map(input_value) == input_value
+
+
+@pytest.mark.parametrize(
+    "input_value",
+    [
+        "[a=1, b=2]",  # every item skipped by the '=' safety check
+        "[a, b=1]",  # partially parseable: must not return ['a']
+    ],
+)
+def test_to_array_never_returns_partial_list(input_value):
+    assert _to_array(input_value) == input_value
+
+
+def test_to_struct_skipped_pairs_keep_original_string():
+    # The quoted key is skipped by _parse_named_struct's safety check
+    assert _to_struct('{"a"=1}') == '{"a"=1}'
+
+
 def test_to_array_nested_values_keep_original_string():
     # Nested arrays in native format are too complex to parse reliably,
     # so the original string is kept instead of returning None
