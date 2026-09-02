@@ -7,7 +7,7 @@
 [![PyPI - Version](https://badge.fury.io/py/pyathena.svg)](https://badge.fury.io/py/pyathena)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/PyAthena.svg)](https://pypi.org/project/PyAthena/)
 [![PyPI - Downloads](https://static.pepy.tech/badge/pyathena/month)](https://pepy.tech/project/pyathena)
-[![CI - Test](https://github.com/pyathena-dev/PyAthena/actions/workflows/test.yaml/badge.svg)](https://github.com/pyathena-dev/PyAthena/actions/workflows/test.yaml)
+[![CI - Test](https://github.com/pyathena-dev/PyAthena/actions/workflows/test.yaml/badge.svg?branch=master)](https://github.com/pyathena-dev/PyAthena/actions/workflows/test.yaml?query=branch%3Amaster)
 [![CD - Docs](https://github.com/pyathena-dev/PyAthena/actions/workflows/docs.yaml/badge.svg)](https://github.com/pyathena-dev/PyAthena/actions/workflows/docs.yaml)
 [![License - MIT](https://img.shields.io/pypi/l/PyAthena.svg)](https://github.com/pyathena-dev/PyAthena/blob/master/LICENSE)
 [![linting - Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
